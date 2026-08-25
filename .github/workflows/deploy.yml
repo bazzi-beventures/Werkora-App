@@ -1,0 +1,61 @@
+name: Deploy → GitHub Pages (app.werkora.ch)
+
+# Dieses Repo ist ein DEPLOY-ZIEL, keine Quelle.
+#
+# Der Anwendungscode unter / wird von `werkora-backend` gespiegelt
+# (dort .github/workflows/sync-bau-app.yml, bei Push auf `main`). Wer hier am
+# Code editiert, verliert die Aenderung beim naechsten Sync. Nur `.github/`
+# ueberlebt — es ist im rsync ausgenommen.
+#
+# Warum es dieses Repo ueberhaupt gibt: eine GitHub-Pages-Site traegt genau
+# EINE Custom-Domain. `Bau-App` haelt app.beventures.ch. Waehrend des
+# Domainwechsels muessen beide Adressen gleichzeitig laufen — also braucht es
+# ein zweites Ziel. Siehe docs/specs/werkora-domain-app-einstieg.md, P3.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          # Muss auf die NEUE API zeigen. Zeigt sie auf api.beventures.ch, wird
+          # die API zum Drittanbieter — Safari blockt den Session-Cookie dann
+          # auch bei fetch, und der Login ist auf jedem iPhone tot (§4.1).
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: .nojekyll setzen
+        # Ohne die Datei laesst Pages Jekyll ueber diese Vite-SPA laufen. Das
+        # ist unnoetig und scheitert sporadisch ("Page build failed" bzw. ein
+        # haengendes "building"). Die Deploy-Action legt sie zwar selbst an —
+        # explizit ist hier billiger als der naechste Fehlersuchabend.
+        run: touch dist/.nojekyll
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist
+          # Deterministisch hier, nicht ueber die Repo-Settings: eine per UI
+          # gesetzte Custom-Domain geht beim naechsten Deploy verloren.
+          cname: app.werkora.ch
+          commit_message: "deploy: ${{ github.event.head_commit.message }}"
