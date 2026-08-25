@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Vitest-Coverage: Standardlauf schreibt nach coverage/, Läufe mit abweichendem
+# reportsDirectory (z. B. coverage-all/) sollen genauso wenig im Repo landen.
+coverage*
+.env.local

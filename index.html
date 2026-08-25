@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- CSP wird im Production-Build via Vite-Plugin injiziert (siehe vite.config.ts).
+         In Dev bleibt sie weg, weil Vite-HMR Inline-Scripts braucht. -->
+    __CSP_META__
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#12161D" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Werkora" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <!-- iOS friert das Symbol beim «Zum Home-Bildschirm» ein und kennt keine
+         Transparenz — deshalb eine eigene 180er-Datei ohne Alphakanal. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <title>Werkora</title>
+    <meta name="app-build-id" content="__BUILD_ID__" />
+    __BOOT_SCRIPT__
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

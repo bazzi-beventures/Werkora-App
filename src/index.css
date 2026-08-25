@@ -1,0 +1,2253 @@
+@import url('https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0F172A;
+  --surface: #1E293B;
+  --surface2: #273449;
+  --border: #334155;
+  --text: #F8FAFC;
+  --muted: #94A3B8;
+  /* Werkora-Amber als Akzent VOR dem Login. Nach dem Login überschreibt
+     applyTenantBranding() diese fünf Variablen mit der Mandantenfarbe — der
+     Wert hier wirkt also nur auf Lade- und Anmeldescreen. Achtung: der Akzent
+     ist zweimal definiert, hier (Dark) und unten im Light-Block. Light ist der
+     Default, eine Änderung nur hier bliebe unsichtbar. */
+  --accent-blue: #E9A227;
+  --accent-blue-dim: rgba(233,162,39,0.18);
+  --accent-blue-20: rgba(233,162,39,0.25);
+  --accent-blue-25: rgba(233,162,39,0.30);
+  --accent-blue-40: rgba(233,162,39,0.50);
+  --on-accent: #1B2028;
+  /* Werkora-Tinte. Absichtlich NICHT --text: --text färbt die ganze
+     eingeloggte App, die Marke soll nur die Screens davor tragen. Im
+     Dark-Theme die helle Variante der Marke. */
+  --brand-ink: #F1F3F6;
+  --accent-green: #22c55e;
+  --accent-green-dim: rgba(34,197,94,0.12);
+  --accent-amber: #f59e0b;
+  --accent-amber-dim: rgba(245,158,11,0.12);
+  --accent-red: #f87171;
+  --accent-red-dim: rgba(239,68,68,0.10);
+  --accent-purple: #a78bfa;
+  --accent-purple-dim: rgba(167,139,250,0.12);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --font: 'DM Sans', sans-serif;
+  --mono: 'DM Mono', monospace;
+  --app-bg: #0F172A;
+}
+
+/* Die Neutralen sind die der Marke, nicht mehr Tailwind-Slate. Der Unterschied
+   ist genau das, was den Anmeldescreen neben werkora.ch fremd aussehen liess:
+   Slate hat einen Blaustich, die Werkora-Neutralen sind unbunt. Werte aus dem
+   Live-CSS der Website (#FFFFFF / #F6F7F9 / #F1F3F6 / #E4E7EB / #5A6270).
+
+   --text bleibt bewusst das blaustichige #1E4E6B: es färbt jede Schrift der
+   eingeloggten App, und das ist O3 (eigene Spec). Die Werkora-Tinte steht
+   deshalb über --brand-ink nur auf den Screens vor dem Login. */
+:root[data-theme="light"] {
+  --bg:               #F6F7F9;
+  --surface:          #FFFFFF;
+  --surface2:         #F1F3F6;
+  --border:           #E4E7EB;
+  --text:             #1E4E6B;
+  --muted:            #5A6270;   /* auf --bg 5,74:1 statt 4,34:1 mit dem alten Slate */
+  /* Amber als Schrift/Rahmen immer im dunkleren Ton — das helle #E9A227 ist auf
+     hellem Grund ausschliesslich Fläche oder Hover (Regel von werkora.ch).
+
+     #9A6716 statt der #A9711A der Website, und das ist Absicht: der Wert steht
+     hier vor allem als SCHRIFT auf .btn-fingerprint (dem Anmelden-Knopf),
+     14 px / 500 auf weissem Grund. #A9711A erreicht dort 4,15:1 und verfehlt
+     die 4,5:1, die WCAG AA für normalen Text verlangt; #9A6716 schafft 4,85:1.
+     Auf der Website trifft die Regel Fliesstext-Links, hier den wichtigsten
+     Knopf der App — auf einer Baustelle bei Sonnenlicht gelesen. Der Unterschied
+     ist mit blossem Auge nicht zu sehen. Als FLÄCHE bleibt #E9A227 unverändert.
+
+     --accent-blue-dim ist hier ein deckender Ton, nicht rgba: der Amber-Tint. */
+  --accent-blue:      #9A6716;
+  --accent-blue-dim:  #FDF3DF;
+  --accent-blue-20:   rgba(154,103,22,0.18);
+  --accent-blue-25:   rgba(154,103,22,0.22);
+  --accent-blue-40:   rgba(154,103,22,0.40);
+  --on-accent:        #FFFFFF;   /* auf #9A6716 als Fläche: 4,85:1 */
+  --brand-ink:        #12161D;
+  --accent-green:     #16A34A;
+  --accent-green-dim: rgba(22,163,74,0.10);
+  --accent-amber:     #D97706;
+  --accent-amber-dim: rgba(217,119,6,0.10);
+  --accent-red:       #DC2626;
+  --accent-red-dim:   rgba(220,38,38,0.08);
+  --accent-purple:    #7C3AED;
+  --accent-purple-dim: rgba(124,58,237,0.10);
+  /* Muss mit --bg gleichziehen: html/body tragen --app-bg, .auth-screen trägt
+     --bg und ist auf 480 px begrenzt. Liefen die beiden auseinander, stünde auf
+     dem Desktop eine hellere Spalte auf andersfarbigem Grund. */
+  --app-bg:           #F6F7F9;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--app-bg);
+  font-family: var(--font);
+  color: var(--text);
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { cursor: pointer; font-family: var(--font); }
+input, textarea { font-family: var(--font); color: var(--text); }
+
+/* ── SCREEN WRAPPER ─────────────────────────────── */
+.app-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--bg);
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── LOADING ────────────────────────────────────── */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  background: var(--bg);
+  gap: 12px;
+}
+/* Wie .auth-logo frei stehend — es ist dieselbe Marke im selben Moment des
+   App-Starts, und zwei verschiedene Fassungen davon wären sichtbar, weil der
+   Ladescreen direkt in den Anmeldescreen übergeht. */
+.loading-logo {
+  width: 52px; height: 52px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--brand-ink);   /* der Ring der Marke nimmt currentColor */
+}
+.loading-logo svg { width: 100%; height: 100%; }
+.loading-text { font-size: 13px; color: var(--muted); }
+
+/* ── AUTH SCREENS ───────────────────────────────── */
+.auth-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100dvh;
+  padding: 0 32px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--bg);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* Die Marke steht frei, ohne getönte Kachel — so wie auf werkora.ch und so wie
+   das Mandantenlogo daneben (.auth-logo-img hat auch keinen Rahmen).
+   Die Kachel stammt aus der Zeit, als hier ein generisches Sechseck als
+   Platzhalter stand: 30 px Motiv in einer 64-px-Fläche fast ohne Kontrast liess
+   die Stoppuhr wie einen Platzhalter aussehen statt wie ein Logo. */
+.auth-logo {
+  width: 56px; height: 56px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 28px;
+  color: var(--brand-ink);   /* der Ring der Marke nimmt currentColor */
+}
+.auth-logo svg { width: 100%; height: 100%; }
+
+.auth-logo-img {
+  max-width: 180px;
+  max-height: 72px;
+  margin-bottom: 28px;
+}
+.auth-logo-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+}
+
+/* Bitter ist auf werkora.ch die Titelschrift und dort als SERIFENschrift
+   gesetzt — der Fallback gehört deshalb auf serif, nicht auf sans-serif,
+   sonst springt der Titel beim Laden der Webschrift auf eine völlig andere
+   Anmutung. Die Tinte bleibt hier lokal statt in --text: global gesetzt
+   färbte sie die ganze eingeloggte App mit. */
+.auth-title {
+  font-family: 'Bitter', serif;
+  font-size: 26px; font-weight: 600; line-height: 1.2;
+  margin-bottom: 6px;
+  color: var(--brand-ink);
+}
+.auth-sub { font-size: 14px; color: var(--muted); margin-bottom: 36px; }
+
+.field { margin-bottom: 14px; }
+.field-label {
+  font-size: 12px; color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: block;
+}
+.input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 13px 16px;
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input:focus { border-color: var(--accent-blue); }
+.input::placeholder { color: var(--muted); }
+.input-pin {
+  letter-spacing: 0.5em;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 22px;
+}
+
+/* Schrift auf dem Akzent: --on-accent, nicht fest #fff. Vor dem Login liegt
+   der Knopf auf Werkora-Amber, wo Weiss nur ~2,2:1 erreicht — dort gehört
+   Tinte hin. Nach dem Login setzt applyTenantBranding() den Wert nach der
+   Helligkeit der Mandantenfarbe; helle Mandantenfarben bekommen dadurch
+   nebenbei erstmals lesbare Knopfschrift. */
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--accent-blue);
+  color: var(--on-accent);
+  border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 500;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-primary:active { opacity: 0.85; transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.5; }
+
+.btn-secondary {
+  width: 100%; padding: 12px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  font-size: 13px;
+  text-decoration: underline;
+  margin-top: 8px;
+}
+
+.btn-fingerprint {
+  width: 100%; padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--accent-blue-25);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 500; color: var(--accent-blue);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-fingerprint:active { background: var(--surface2); }
+.btn-fingerprint:disabled { opacity: 0.5; }
+.btn-fingerprint svg { width: 40px; height: 40px; }
+
+.auth-footer { font-size: 12px; color: var(--muted); text-align: center; margin-top: 20px; }
+.error-msg { font-size: 13px; color: var(--accent-red); margin: 8px 0; }
+
+.auth-screen.consent-screen {
+  justify-content: flex-start;
+  overflow-y: auto;
+  padding-top: calc(40px + env(safe-area-inset-top, 0px));
+}
+
+.consent-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin: 16px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-y: auto;
+  max-height: 45dvh;
+}
+
+.consent-box p { margin: 8px 0 4px; }
+.consent-box ul { margin: 0 0 8px; padding-left: 18px; }
+.consent-box li { margin-bottom: 2px; }
+
+/* WYSIWYG-Editor (RichTextField): der globale Reset (*{margin:0;padding:0} oben) nimmt
+   ul/ol ihren Einzug + Bullet-Platz — Aufzählungspunkte/Nummern säßen sonst ohne Einzug
+   am linken Rand (Bold/Kursiv sind davon nicht betroffen). Nur die Editor-Darstellung;
+   das PDF regelt eigenes Template-CSS (templates/quote_template.html .rich-text). */
+/* Linksbündig erzwingen — der Editor sitzt in einem zentrierten Formular-Abschnitt und
+   würde sonst text-align:center erben (das PDF ist ohnehin linksbündig). */
+.richtext-field { text-align: left; }
+.richtext-field ul { list-style: disc; margin: 4px 0; padding-left: 22px; }
+.richtext-field ol { list-style: decimal; margin: 4px 0; padding-left: 22px; }
+.richtext-field li { margin: 1px 0; }
+
+/* ── HEADER LOGO ────────────────────────────────── */
+.header-logo {
+  height: 28px;
+  width: auto;
+  max-width: 120px;
+  object-fit: contain;
+  opacity: 0.92;
+  flex-shrink: 0;
+}
+
+:root[data-theme="light"] .header-logo {
+  /* Kein Recolor-Filter: Tenant-Logos sind Vollfarb-Grafiken mit eigenem
+     Hintergrund. brightness(0)+hue-rotate würde die ganze Logo-Box (inkl.
+     Hintergrund) zu einem einfarbigen Block einfärben. Echtes Logo zeigen. */
+  opacity: 1;
+}
+
+.home-admin-btn,
+.home-theme-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  box-sizing: border-box;
+  background: var(--accent-blue-dim);
+  border: 1px solid var(--accent-blue-25);
+  border-radius: 8px;
+  color: var(--accent-blue);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-admin-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 12px;
+  gap: 5px;
+}
+
+.home-theme-btn {
+  width: 40px;
+  padding: 0;
+}
+
+.home-admin-btn:hover,
+.home-theme-btn:hover {
+  background: var(--accent-blue);
+  color: #fff;
+}
+
+/* ── HOME SCREEN ────────────────────────────────── */
+.home-header {
+  padding: 20px 24px 16px;
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  flex-shrink: 0;
+}
+.home-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.home-greeting { font-size: 13px; color: var(--muted); margin-bottom: 2px; }
+.home-name { font-size: 22px; font-weight: 600; }
+
+.date-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 12.5px; font-weight: 500; color: var(--muted);
+  font-family: var(--font);
+  margin-top: 10px;
+}
+.date-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green); flex-shrink: 0; }
+
+.home-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 8px 24px 0;
+}
+.tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 22px 18px;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 16px;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  position: relative; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+.tile:active { transform: scale(0.97); }
+.tile-blue { border-color: var(--accent-blue-20); }
+.tile-blue:hover { background: var(--surface2); border-color: var(--accent-blue-40); }
+.tile-green { border-color: rgba(34,197,94,0.2); }
+.tile-green:hover { background: var(--surface2); border-color: rgba(34,197,94,0.4); }
+
+.tile-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.tile-icon-blue { background: var(--accent-blue-dim); }
+.tile-icon-green { background: var(--accent-green-dim); }
+.tile-icon svg { width: 20px; height: 20px; }
+
+.tile-label { font-size: 15px; font-weight: 500; }
+.tile-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+
+.tile-arrow {
+  position: absolute; right: 16px; bottom: 16px;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0.3;
+}
+
+.home-footer {
+  padding: 16px 24px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  flex-shrink: 0;
+}
+.status-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.status-left { display: flex; flex-direction: column; gap: 2px; }
+.status-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.status-value { font-size: 20px; font-weight: 600; font-family: var(--mono); color: var(--accent-green); }
+.status-badge-active {
+  background: var(--accent-green-dim);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 11px; color: var(--accent-green);
+  white-space: nowrap;
+}
+.status-badge-inactive {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 11px; color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ── NAV BAR ────────────────────────────────────── */
+.nav-bar {
+  /* Höhe muss den Safe-Area-Inset ADDIEREN: durch das globale border-box
+     würde ein festes height:56px das padding-bottom einrechnen — auf dem
+     iPhone (Home-Indicator ≈ 34px) blieben nur 22px für Icon + Label. */
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; justify-content: space-around;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  padding: 0 8px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--bg);
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  cursor: pointer; padding: 6px 6px; border-radius: 8px;
+  opacity: 0.4; transition: opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  flex: 1;
+}
+.nav-item.active { opacity: 1; }
+.nav-item svg { width: 18px; height: 18px; }
+.nav-item span { font-size: 10px; color: var(--muted); }
+.nav-item.active span { color: var(--text); }
+
+/* ── INNER SCREENS ──────────────────────────────── */
+.inner-header {
+  display: flex; align-items: center; gap: 14px;
+  justify-content: space-between;
+  padding: 12px 24px 16px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  flex-shrink: 0;
+}
+.inner-header .inner-title { flex: 1; }
+.back-btn {
+  width: 40px; height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.back-btn:active { background: var(--surface2); }
+.back-btn svg { width: 16px; height: 16px; }
+
+.inner-title { font-size: 18px; font-weight: 600; }
+
+.context-banner {
+  margin: 0 24px 16px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  flex-shrink: 0;
+}
+.context-banner-blue { background: var(--accent-blue-dim); border: 1px solid var(--accent-blue-20); }
+.context-banner-green { background: var(--accent-green-dim); border: 1px solid rgba(34,197,94,0.2); }
+.banner-tag { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+.banner-tag-blue { color: var(--accent-blue); }
+.banner-tag-green { color: var(--accent-green); }
+.banner-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.menu-list {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 0 24px;
+  overflow-y: auto;
+  flex: 1;
+  padding-bottom: 16px;
+}
+.menu-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex; align-items: center; gap: 14px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.menu-item:hover { background: var(--surface2); border-color: rgba(255,255,255,0.12); }
+.menu-item:active { transform: scale(0.99); }
+.menu-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.menu-icon svg { width: 16px; height: 16px; }
+.menu-icon-blue { background: var(--accent-blue-dim); }
+.menu-icon-green { background: var(--accent-green-dim); }
+.menu-icon-amber { background: var(--accent-amber-dim); }
+.menu-icon-red { background: var(--accent-red-dim); }
+.menu-icon-purple { background: var(--accent-purple-dim); }
+.menu-text { flex: 1; }
+.menu-label { font-size: 14px; font-weight: 500; }
+.menu-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.menu-chevron { color: var(--muted); opacity: 0.4; font-size: 18px; line-height: 1; }
+
+/* ── KORREKTUR FORMULAR ─────────────────────────── */
+.correction-form {
+  margin: 0 0 4px;
+  background: var(--surface);
+  border: 1px solid var(--accent-amber-dim);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.corr-row { display: flex; align-items: center; gap: 10px; }
+.corr-label { font-size: 12px; color: var(--muted); width: 90px; flex-shrink: 0; }
+.corr-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+}
+.corr-input:focus { border-color: var(--accent-amber); }
+.corr-error {
+  font-size: 12px;
+  color: var(--accent-red, #ef4444);
+  line-height: 1.35;
+}
+/* Regeltext des automatischen Pausenabzugs über dem Korrekturformular.
+   Der Monteur soll die Regel seines Betriebs lesen können, bevor er ihr
+   widerspricht (docs/specs/automatische-pause.md §3.5). */
+.corr-hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted);
+  background: var(--surface);
+  border-left: 2px solid var(--accent-amber);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+}
+.corr-actions { display: flex; gap: 8px; margin-top: 4px; }
+.corr-btn {
+  flex: 1; padding: 9px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500; cursor: pointer; border: none;
+}
+.corr-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.corr-btn-cancel { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+.corr-btn-submit { background: var(--accent-amber); color: #000; }
+
+/* ── ARBEITSZEIT SCREEN ─────────────────────────── */
+.time-card {
+  margin: 0 24px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.time-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.time-card-value { font-size: 28px; font-weight: 600; font-family: var(--mono); color: var(--accent-green); }
+.time-card-since { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.time-card-btn {
+  background: var(--accent-red-dim);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 12px; font-weight: 500; color: var(--accent-red);
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-result {
+  margin: 0 24px 12px;
+  background: var(--accent-green-dim);
+  border: 1px solid rgba(34,197,94,0.2);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.action-result-error {
+  background: var(--accent-red-dim);
+  border-color: rgba(239,68,68,0.2);
+}
+
+/* ── CHAT / RAPPORT SCREEN ──────────────────────── */
+.chat-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  background: var(--bg);
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.chat-header {
+  display: flex; align-items: center; gap: 14px;
+  justify-content: space-between;
+  padding: 12px 24px 14px;
+  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-header > div:nth-child(2) { flex: 1; }
+.chat-header-title { font-size: 16px; font-weight: 600; flex: 1; }
+.chat-header-sub { font-size: 12px; color: var(--muted); flex: 1; margin-top: 1px; }
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 0 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.msg-row {
+  display: flex;
+  margin-bottom: 6px;
+  padding: 0 16px;
+}
+.msg-row-user { justify-content: flex-end; }
+.msg-row-bot { justify-content: flex-start; }
+
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  line-height: 1.45;
+  word-break: break-word;
+  font-size: 14px;
+}
+.bubble-user {
+  background: var(--accent-blue);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.bubble-bot {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.bubble-time {
+  display: block;
+  font-size: 10px;
+  opacity: 0.5;
+  margin-top: 4px;
+  text-align: right;
+  font-family: var(--mono);
+}
+.bubble-transcription {
+  font-size: 11px;
+  opacity: 0.7;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.typing-dot-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+.typing-dot-row span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  animation: blink 1.2s infinite;
+}
+.typing-dot-row span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot-row span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.9); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 10px;
+  padding: 4px 16px 12px;
+  justify-content: flex-start;
+}
+.confirm-btn {
+  padding: 10px 22px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.confirm-btn:active { opacity: 0.75; }
+.confirm-btn-yes {
+  background: var(--accent-green);
+  color: #0f172a;
+}
+.confirm-btn-no {
+  background: var(--surface2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.disambig-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 16px 8px;
+  max-width: 320px;
+}
+.disambig-btn {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface2);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.disambig-btn:active {
+  background: var(--accent-blue-25);
+}
+
+.signature-pad-wrapper {
+  margin: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kleinmaterial-prompt {
+  margin: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.kleinmaterial-title { font-weight: 600; font-size: 15px; }
+.kleinmaterial-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.kleinmaterial-presets { display: flex; gap: 8px; flex-wrap: wrap; }
+.kleinmaterial-preset {
+  flex: 1; min-width: 80px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.kleinmaterial-preset.is-selected {
+  background: var(--accent-blue-25, rgba(49,128,171,0.18));
+  border-color: var(--accent-blue, #3180ab);
+}
+.kleinmaterial-count { display: flex; flex-direction: column; gap: 6px; }
+.kleinmaterial-count label { font-size: 12px; color: var(--muted); }
+.kleinmaterial-stepper { display: flex; align-items: center; gap: 12px; }
+.kleinmaterial-stepper button {
+  width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+  color: inherit; font-size: 18px; cursor: pointer;
+}
+.kleinmaterial-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
+.kleinmaterial-stepper span { font-weight: 600; min-width: 24px; text-align: center; }
+.kleinmaterial-total { font-size: 14px; font-weight: 600; }
+.kleinmaterial-error {
+  color: #fca5a5; font-size: 12px;
+  padding: 6px 10px; border-radius: 6px;
+  background: rgba(239,68,68,0.1);
+}
+.kleinmaterial-actions { display: flex; gap: 8px; }
+
+/* Leistungsart-Ankreuzfeld (Rapport-Abschluss). Eigenes Raster statt der
+   kleinmaterial-Chips: die sechs Labels sind unterschiedlich lang, mit `flex: 1`
+   wird jede Zeile anders breit und der letzte Knopf über die volle Breite gezogen.
+   Zwei gleich breite Spalten mit linksbündigem Text bleiben auf jedem Handy
+   lesbar; ab ~420px passen drei. */
+.leistungsart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (min-width: 420px) {
+  .leistungsart-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+.leistungsart-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;              /* Touch-Ziel, auch mit Handschuhen treffbar */
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+}
+.leistungsart-chip.is-selected {
+  background: var(--accent-blue-25, rgba(49,128,171,0.18));
+  border-color: var(--accent-blue, #3180ab);
+}
+/* Feste Breite, damit die Labels mit und ohne Haken auf derselben Kante stehen. */
+.leistungsart-chip-check {
+  width: 14px;
+  flex: none;
+  color: var(--accent-blue, #3180ab);
+  font-weight: 700;
+}
+
+/* Leistungsart in der Zusammenfassung vor dem Speichern (statt eigener Abfrage,
+   wenn sie schon am Projekt hängt). */
+.leistungsart-recap {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.leistungsart-recap-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.leistungsart-recap-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.leistungsart-recap-value { font-size: 14px; font-weight: 600; }
+.leistungsart-recap-edit {
+  flex: none;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent-blue, #3180ab);
+  background: transparent;
+  color: var(--accent-blue, #3180ab);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Abschluss-Wahl im Bestätigungsschritt: Unterschrift jetzt oder Teilrapport
+   (docs/specs/teilrapport.md §6.1). Zwei grosse Flächen statt Radiobuttons — die
+   Auswahl wird auf der Baustelle mit Handschuhen getroffen. */
+.abschluss-wahl {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.abschluss-wahl-label {
+  font-size: 11px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+.abschluss-wahl-options { display: flex; gap: 8px; }
+.abschluss-wahl-option {
+  flex: 1;
+  min-height: 44px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.abschluss-wahl-option.is-active {
+  border-color: var(--accent-blue, #3180ab);
+  background: rgba(49,128,171,0.12);
+  color: var(--accent-blue, #3180ab);
+}
+.abschluss-wahl-hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
+
+/* Abschluss-Hinweis nach dem Speichern eines Teilrapports — er ersetzt das
+   Unterschriftspad, das hier bewusst fehlt. */
+.teilrapport-hinweis {
+  margin: 12px 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Ersatzteil-Abfrage (kuratierte Liste, Mehrfachauswahl) — teilt sich die
+   kleinmaterial-* Container/Stepper-Styles. */
+.ersatzteil-list { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; }
+.ersatzteil-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: transparent;
+}
+.ersatzteil-row.is-selected { border-color: var(--accent, #3b82f6); background: rgba(59,130,246,0.08); }
+.ersatzteil-pick { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; min-width: 0; }
+.ersatzteil-pick input { width: 18px; height: 18px; flex: none; }
+.ersatzteil-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+.ersatzteil-artnr { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ersatzteil-unit { font-size: 12px; color: var(--muted); }
+.ersatzteil-foto-btn { align-self: stretch; }
+
+/* Foto-Material-Picker (Popup, Rapport-Abschluss) — durch alle Artikel mit Bild
+   scrollen, mehrfach mit Menge wählen. Über Portal an document.body gerendert. */
+.photo-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.photo-picker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 480px;   /* an die Phone-Breite der App (max-width: 480px) angelehnt */
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.photo-picker-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.photo-picker-title { font-weight: 700; font-size: 16px; }
+.photo-picker-close {
+  background: transparent; border: none; color: var(--muted);
+  font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
+.photo-picker-search {
+  margin: 12px 16px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: inherit;
+  font-size: 14px;
+  font-family: var(--font);
+}
+.photo-picker-body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.photo-picker-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 32px 0; }
+.photo-picker-grid {
+  display: grid;
+  /* 120px min ⇒ 2 Spalten auch auf schmalen Handys (~320px), 3 auf grossen. */
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+.photo-tile {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.photo-tile-zoom {
+  position: absolute; top: 6px; left: 6px;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: none; cursor: zoom-in;
+  background: rgba(0,0,0,0.55); color: #fff;
+  font-size: 15px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.photo-tile-zoom:active { opacity: 0.75; }
+.photo-tile.is-selected { border-color: var(--accent, #3b82f6); background: rgba(59,130,246,0.08); }
+.photo-tile-pick {
+  position: relative;
+  background: transparent; border: none; color: inherit; cursor: pointer;
+  padding: 0; text-align: left;
+  display: flex; flex-direction: column;
+}
+.photo-tile-img {
+  width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+  background: var(--surface2);
+}
+.photo-tile-noimg {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 12px;
+}
+.photo-tile-check {
+  position: absolute; top: 6px; right: 6px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--accent, #3b82f6); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+}
+.photo-tile-name {
+  font-size: 13px; font-weight: 600; line-height: 1.25;
+  padding: 6px 8px 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.photo-tile-meta { font-size: 11px; color: var(--muted); padding: 2px 8px 8px; }
+.photo-tile-artnr { font-variant-numeric: tabular-nums; }
+.photo-tile-stepper { justify-content: center; gap: 8px; padding: 0 8px 8px; }
+.photo-tile-stepper button { width: 32px; height: 32px; font-size: 16px; }
+.photo-picker-actions {
+  display: flex; gap: 8px; padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+.photo-picker-actions .confirm-btn { flex: 1; }
+
+/* Lightbox über dem Picker: Bild in Vollansicht, Klick schliesst. */
+.photo-picker-lightbox {
+  position: fixed; inset: 0; z-index: 400;
+  background: rgba(0,0,0,0.9);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px; cursor: zoom-out;
+}
+.photo-picker-lightbox img {
+  max-width: 96vw; max-height: 96vh; object-fit: contain; border-radius: 8px;
+}
+
+/* Handy: Picker als Vollbild-Sheet (mehr Platz, Footer bleibt unten fixiert) —
+   passt zu den 100dvh-Screens der App. safe-area unten respektieren. */
+@media (max-width: 480px) {
+  .photo-picker-overlay { padding: 0; }
+  .photo-picker {
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: none;
+    border-radius: 0;
+  }
+  .photo-picker-actions { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+}
+.signature-pad-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fg);
+  text-align: center;
+  margin: 0;
+}
+.signature-pad-sub {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  margin: 0;
+}
+.signature-canvas {
+  width: 100%;
+  height: 160px;
+  border: 2px solid var(--accent-blue);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  touch-action: none;
+  cursor: crosshair;
+}
+.signature-buttons {
+  display: flex;
+  gap: 10px;
+}
+.signature-buttons .confirm-btn {
+  flex: 1;
+}
+.signature-status-ok {
+  font-size: 14px;
+  font-weight: 600;
+  color: #22c55e;
+  text-align: center;
+  margin: 0;
+}
+.signature-status-error {
+  font-size: 13px;
+  color: #ef4444;
+  text-align: center;
+  margin: 0;
+}
+.signature-skip-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  text-align: center;
+  padding: 2px 0;
+  text-decoration: underline;
+}
+
+.chat-input-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 10px 16px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.chat-textarea {
+  flex: 1;
+  resize: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+  outline: none;
+  max-height: 7rem;
+  overflow-y: auto;
+  transition: border-color 0.2s;
+}
+.chat-textarea:focus { border-color: var(--accent-blue-40); }
+.chat-textarea::placeholder { color: var(--muted); }
+
+.chat-send-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--accent-blue);
+  border: none;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.chat-send-btn:disabled { opacity: 0.4; }
+.chat-send-btn svg { width: 16px; height: 16px; }
+
+.chat-mic-btn, .chat-photo-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.chat-mic-btn svg, .chat-photo-btn svg { width: 16px; height: 16px; }
+
+/* ── VOICE RECORDING BAR ────────────────────────── */
+.chat-rec-discard {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #f87171;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.chat-rec-discard:hover { background: rgba(239,68,68,0.2); }
+.chat-rec-discard svg { width: 15px; height: 15px; }
+
+.chat-rec-lock {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--accent-blue-dim);
+  border: 1px solid var(--accent-blue-25);
+  color: var(--accent-blue);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.chat-rec-lock:hover { background: var(--accent-blue-20); }
+.chat-rec-lock svg { width: 15px; height: 15px; }
+
+.chat-rec-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: 12px;
+  padding: 0 12px;
+  height: 40px;
+  overflow: hidden;
+}
+
+.chat-rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #f87171;
+  flex-shrink: 0;
+  animation: rec-pulse 0.8s ease-in-out infinite alternate;
+}
+
+.chat-rec-timer {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+.chat-rec-waveform {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 24px;
+}
+
+.chat-rec-wave-bar {
+  display: inline-block;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent-blue);
+  opacity: 0.7;
+  animation: wave-bounce 0.7s ease-in-out infinite alternate;
+}
+.chat-rec-wave-bar:nth-child(1) { animation-delay: 0.0s; }
+.chat-rec-wave-bar:nth-child(2) { animation-delay: 0.1s; }
+.chat-rec-wave-bar:nth-child(3) { animation-delay: 0.2s; }
+.chat-rec-wave-bar:nth-child(4) { animation-delay: 0.3s; }
+.chat-rec-wave-bar:nth-child(5) { animation-delay: 0.2s; }
+.chat-rec-wave-bar:nth-child(6) { animation-delay: 0.1s; }
+.chat-rec-wave-bar:nth-child(7) { animation-delay: 0.0s; }
+
+@keyframes wave-bounce {
+  from { height: 4px; }
+  to   { height: 22px; }
+}
+
+@keyframes rec-pulse {
+  from { opacity: 1; }
+  to   { opacity: 0.3; }
+}
+
+/* ── BERICHT SCREEN ─────────────────────────────── */
+.bericht-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 8px;
+}
+
+.bericht-loading {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 40px 24px;
+}
+
+.bericht-table-wrap {
+  padding: 0 16px;
+  overflow-x: auto;
+}
+
+.bericht-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.bericht-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 8px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.bericht-table td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+
+.bericht-table tr:last-child td { border-bottom: none; }
+
+.bericht-row-absence td { color: var(--muted); }
+
+.bericht-weekday {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  min-width: 20px;
+}
+
+.bericht-mono { font-family: var(--mono); font-size: 12px; }
+.bericht-bold { font-weight: 600; }
+.bericht-muted { color: var(--muted); }
+.bericht-positive { color: var(--accent-green); }
+.bericht-negative { color: var(--accent-red); }
+
+/* Automatischer Pausenabzug in der Berichts-Tabelle: gekennzeichnet, und in
+   einem Tap widerlegbar, solange die Widerspruchsfrist läuft. */
+.bericht-auto-break {
+  display: block;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--accent-amber);
+  white-space: nowrap;
+}
+.bericht-objection-btn {
+  display: block;
+  margin-top: 3px;
+  padding: 3px 6px;
+  border: 1px solid var(--accent-amber);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-amber);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bericht-objection-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.bericht-proj {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bericht-summary {
+  margin: 12px 16px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bericht-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bericht-summary-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.bericht-summary-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bericht-export-bar {
+  flex-shrink: 0;
+  padding: 10px 16px 6px;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bericht-export-btn {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bericht-export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bericht-pdf-msg {
+  font-size: 12px;
+  color: var(--accent-green);
+  text-align: center;
+}
+
+/* ── TILES – amber variant (Kennzahlen) ─────────── */
+.tile-amber { border-color: var(--accent-amber-dim); }
+.tile-amber:hover { background: var(--surface2); border-color: rgba(245,158,11,0.4); }
+.tile-icon-amber { background: var(--accent-amber-dim); }
+
+/* 3-column tile layout for admins */
+.tiles-3col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+.tiles-3col .tile {
+  padding: 16px 12px;
+  gap: 10px;
+}
+.tiles-3col .tile-label { font-size: 13px; }
+.tiles-3col .tile-desc { font-size: 11px; }
+.tiles-3col .tile-icon { width: 34px; height: 34px; border-radius: 10px; }
+.tiles-3col .tile-icon svg { width: 16px; height: 16px; }
+
+/* ── PROJEKTE SCREEN ────────────────────────────── */
+.projekte-view-toggle {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px 0;
+}
+.projekte-view-toggle-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.projekte-view-toggle-btn svg {
+  width: 14px;
+  height: 14px;
+}
+.projekte-view-toggle-btn.active {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  border-color: var(--accent-amber-dim);
+}
+
+.projekte-grid-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 16px;
+}
+.projekte-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding: 48px 24px;
+  line-height: 1.5;
+}
+.projekte-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.projekte-grouped {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.projekte-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.projekte-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+.projekte-group-date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.projekte-group-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.28);
+}
+/* Gruppenkopf der Offertenliste (Mitarbeiter). Bewusst EIGENE Klassen statt
+   .projekte-group-date: die trägt die Datumsköpfe in «Meine Projekte» und ist
+   dafür richtig gebaut (12 px, uppercase, nowrap — ein Datum ist kurz und immer
+   gleich lang). Für Projektnamen wie «Sanierung Storen Müller, Musterstrasse 12»
+   ist jedes dieser drei Merkmale falsch; genau diese Wiederverwendung liess den
+   Projektnamen wie eine Beschriftung aussehen und schnitt ihn auf dem Handy ab. */
+.offerten-group-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0 6px;
+}
+.offerten-group-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+}
+.offerten-group-title-empty {
+  color: var(--muted);
+}
+.offerten-group-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+/* Die Offertennummer bleibt lesbar, führt die Karte aber nicht mehr an. */
+.offerten-quote-number {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+/* Eine Kachel pro Zeile, untereinander. Zwei Spalten hiessen auf dem Handy:
+   Projektname und Hinweis abgeschnitten — und der Monteur liest die Liste als
+   Tagesablauf, dafür ist eine Spalte die natürliche Form. */
+.projekte-group-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.projekte-tile {
+  background: var(--surface);
+  border: 1px solid var(--accent-amber-dim);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  color: var(--text);
+}
+.projekte-tile:active { transform: scale(0.99); }
+.projekte-tile-icon {
+  width: 36px; height: 36px;
+  background: var(--accent-amber-dim);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.projekte-tile-icon svg { width: 18px; height: 18px; }
+.projekte-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.projekte-tile-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+.projekte-tile-sub {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+/* Der Hinweis darf umbrechen (volle Breite), aber nicht die Kachel sprengen —
+   nach zwei Zeilen wird gekürzt, das Detail zeigt ihn vollständig. */
+.projekte-tile-hinweis {
+  font-size: 12px;
+  color: #c53030;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+.projekte-tile-termin {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--accent-amber);
+  margin-top: 1px;
+}
+.projekte-tile-termin svg { width: 12px; height: 12px; flex-shrink: 0; }
+.projekte-tile-arrow {
+  width: 18px; height: 18px;
+  opacity: 0.3;
+}
+.projekte-tile-arrow svg { width: 18px; height: 18px; display: block; }
+
+/* Detail-Ansicht */
+.projekte-detail-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.projekte-detail-badge-row {
+  padding: 4px 0 2px;
+}
+.projekte-detail-badge {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  font-weight: 500;
+}
+.projekte-detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text);
+}
+.projekte-detail-card-accent {
+  border-color: var(--accent-blue-20);
+}
+.projekte-detail-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+.projekte-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.projekte-detail-label {
+  color: var(--muted);
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.projekte-detail-value {
+  text-align: right;
+  color: var(--text);
+  font-size: 13px;
+  word-break: break-word;
+}
+.projekte-detail-empty {
+  font-size: 13px;
+  color: var(--muted);
+}
+.projekte-detail-termin-date {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+.projekte-detail-termin-notiz {
+  font-size: 13px;
+  color: var(--muted);
+}
+.projekte-kontakt-item {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.projekte-kontakt-item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.projekte-kontakt-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.projekte-kontakt-item-rolle {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--surface);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+.projekte-kontakt-item-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.projekte-kontakt-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--accent-blue);
+  text-decoration: none;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-radius: 8px;
+}
+.projekte-kontakt-link-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── KPI HUB SCREEN ─────────────────────────────── */
+.kpi-hub-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px 16px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  flex-shrink: 0;
+}
+.kpi-hub-title { font-size: 20px; font-weight: 600; }
+.kpi-hub-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+.kpi-back-btn {
+  width: 40px; height: 40px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.kpi-back-btn svg { width: 18px; height: 18px; }
+.kpi-back-btn:active { background: var(--surface2); }
+
+.kpi-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 4px 20px 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.kpi-cat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 20px 16px 16px;
+  cursor: pointer;
+  display: flex; flex-direction: column; gap: 10px;
+  text-align: left;
+  position: relative; overflow: hidden;
+  transition: transform 0.1s, opacity 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.kpi-cat-tile:active { transform: scale(0.97); opacity: 0.85; }
+
+.kpi-cat-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-cat-icon svg { width: 20px; height: 20px; }
+.kpi-cat-label { font-size: 13px; font-weight: 600; line-height: 1.3; }
+.kpi-cat-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.kpi-cat-arrow {
+  position: absolute; right: 12px; bottom: 12px;
+  width: 22px; height: 22px;
+  opacity: 0.5;
+}
+.kpi-cat-arrow svg { width: 22px; height: 22px; }
+
+/* ── KPI DASHBOARD SCREEN ───────────────────────── */
+.kpi-dash-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 20px 16px;
+  padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+}
+.kpi-dash-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-dash-icon svg { width: 20px; height: 20px; }
+.kpi-dash-title { font-size: 17px; font-weight: 600; }
+.kpi-dash-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.kpi-dash-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex; flex-direction: column;
+}
+
+.kpi-loading {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; flex: 1; color: var(--muted); font-size: 13px;
+}
+.kpi-spinner {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid var(--surface2);
+  border-top-color: var(--accent-blue);
+  animation: kpi-spin 0.8s linear infinite;
+}
+@keyframes kpi-spin { to { transform: rotate(360deg); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.kpi-error {
+  text-align: center; color: var(--accent-red);
+  font-size: 14px; padding: 32px 16px;
+}
+
+.kpi-cards-list {
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  position: relative;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kpi-card-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.kpi-card-value {
+  font-size: 22px; font-weight: 600; font-family: var(--mono);
+  line-height: 1.2;
+}
+.kpi-card-unit {
+  font-size: 13px; font-weight: 400; color: var(--muted);
+}
+.kpi-card-status-dot {
+  position: absolute; top: 14px; right: 16px;
+  width: 8px; height: 8px; border-radius: 50%;
+}
+
+.bericht-pdf-msg-error { color: var(--accent-red); }
+
+/* ── PROJEKT-ENTWURF FORMULAR ─────────────────────── */
+.context-banner-amber { background: var(--accent-amber-dim); border: 1px solid rgba(245,158,11,0.2); }
+.banner-tag-amber { color: var(--accent-amber); }
+
+.entwurf-form { overflow-y: auto; flex: 1; }
+.entwurf-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.entwurf-section-title {
+  font-size: 13px; font-weight: 600;
+  color: var(--accent-amber);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.entwurf-label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 12px; color: var(--muted);
+}
+.entwurf-input, .entwurf-textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  padding: 9px 11px;
+  outline: none;
+  font-family: inherit;
+}
+.entwurf-input:focus, .entwurf-textarea:focus { border-color: var(--accent-amber); }
+.entwurf-textarea { resize: vertical; min-height: 60px; }
+.entwurf-add-btn {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  border: 1px dashed var(--accent-amber);
+  border-radius: var(--radius-sm);
+  padding: 9px;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+}
+.entwurf-icon-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  cursor: pointer;
+  height: 36px;
+  font-size: 14px;
+}
+.entwurf-icon-btn:hover { color: var(--accent-red); border-color: var(--accent-red); }
+.entwurf-submit-btn {
+  background: var(--accent-amber);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 13px;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.entwurf-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── CHAT MARKDOWN (Hilfe-Bot + Rapport) ────────── */
+/* Kompakte Abstaende, damit die Chat-Blase eng am Text sitzt. */
+.chat-md > :first-child { margin-top: 0; }
+.chat-md > :last-child { margin-bottom: 0; }
+.chat-md p { margin: 0 0 8px; }
+.chat-md ul, .chat-md ol { margin: 4px 0 8px; padding-left: 20px; }
+.chat-md li { margin: 2px 0; }
+.chat-md li > p { margin: 0; }
+.chat-md strong { font-weight: 600; }
+.chat-md em { font-style: italic; }
+.chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 {
+  font-size: 1em; font-weight: 600; margin: 8px 0 4px;
+}
+.chat-md a { color: var(--accent-blue, #1e3a5f); text-decoration: underline; }
+.chat-md code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 1px 4px; border-radius: 4px;
+  font-family: var(--mono); font-size: 0.85em;
+}
+.chat-md pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 8px 10px; border-radius: 6px;
+  overflow-x: auto; margin: 4px 0 8px;
+}
+.chat-md pre code { background: none; padding: 0; }
+
+/* ── iOS: kein Auto-Zoom beim Fokus in ein Eingabefeld ───────────
+   Mobile Safari zoomt beim Antippen in jedes Feld mit Schriftgrösse < 16px
+   hinein — und zoomt danach NICHT von selbst wieder heraus. Im Korrektur-
+   Formular (Datum, Einstempel, Ausstempel, Pause, Grund) passiert das bei
+   jedem Feld erneut: der Monteur muss die Seite nach jedem Tipp von Hand
+   wieder verkleinern, die Feldbeschriftungen liegen währenddessen ausserhalb
+   des Bildschirms.
+
+   Darum auf Touch-Geräten überall mindestens 16px. Der `#root`-Präfix dient
+   allein der Spezifität: die Regel muss die Klassenregeln überstimmen
+   (.corr-input 13px, .chat-textarea 14px, .admin-form-input 14px, .input
+   15px …), ohne dass jede davon einzeln gepflegt werden muss. Auf Maus-
+   Geräten (pointer: fine) bleibt das Layout unverändert — dort gibt es
+   das Zoom-Verhalten nicht.
+
+   Checkbox/Radio/Range sind ausgenommen: sie zeigen keinen Text, ihre
+   Grösse hängt aber an font-size (siehe .ersatzteil-pick input). */
+@media (pointer: coarse) {
+  #root input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  #root textarea,
+  #root select {
+    font-size: 16px;
+  }
+}
+
+/* ── Wochenplan (Mitarbeiter-PWA) ────────────────────────────────
+   Ein Tag pro Bildschirm, gewischt wird die Woche. Die Tagesleiste bleibt oben
+   stehen, gescrollt wird nur die Einsatzliste — sonst verliert man beim Blättern
+   durch einen vollen Tag die Orientierung, in welchem Tag man überhaupt ist. */
+.wplan-weekbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 24px 10px;
+  flex-shrink: 0;
+}
+.wplan-week-label {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.wplan-nav-btn {
+  width: 36px; height: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.wplan-nav-btn:active { background: var(--surface2); }
+.wplan-nav-btn svg { width: 16px; height: 16px; }
+
+.wplan-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  padding: 0 24px 12px;
+  flex-shrink: 0;
+}
+.wplan-strip-day {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 0 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.wplan-strip-day.weekend { opacity: 0.7; }
+.wplan-strip-day.today { border-color: var(--accent-blue-40); }
+.wplan-strip-day.active {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: #fff;
+  opacity: 1;
+}
+.wplan-strip-dow { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; }
+.wplan-strip-num { font-size: 15px; font-weight: 700; line-height: 1; }
+/* Der Punkt zeigt an, dass an diesem Tag etwas ansteht. Er ist immer im Layout —
+   sonst hüpfen die Kacheln, sobald eine Woche geladen ist. */
+.wplan-strip-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: transparent;
+}
+.wplan-strip-dot.filled { background: var(--accent-amber); }
+.wplan-strip-day.active .wplan-strip-dot.filled { background: #fff; }
+
+.wplan-dayhead {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 24px 10px;
+  flex-shrink: 0;
+}
+.wplan-dayhead-text { flex: 1; text-align: center; min-width: 0; }
+.wplan-dayhead-weekday {
+  font-size: 16px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.wplan-dayhead-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wplan-today-badge {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--accent-blue);
+  background: var(--accent-blue-dim);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
+
+.wplan-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 16px;
+  /* Waagrechtes Wischen soll die Geste bleiben, nicht die Seite zurückblättern
+     (iOS-Swipe-Back am Rand). */
+  overscroll-behavior-x: contain;
+  touch-action: pan-y;
+}
+.wplan-list { display: flex; flex-direction: column; gap: 10px; }
+.wplan-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent-amber);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.wplan-card-time { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
+.wplan-card-title {
+  font-size: 15px; font-weight: 600; color: var(--text);
+  line-height: 1.3; word-break: break-word;
+  display: flex; align-items: center; gap: 8px;
+}
+/* Antippbar ist eine Karte nur, wenn der Einsatz einer Projektzeile der
+   Kachelansicht entspricht — interne Einsätze und ausgeblendete Projekte tragen
+   weder Pfeil noch Zeigefinger, damit der Tipp nicht ins Leere geht. */
+.wplan-card--open { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.wplan-card--open:active { transform: scale(0.99); }
+.wplan-card-arrow {
+  margin-left: auto;
+  opacity: 0.3;
+  flex-shrink: 0;
+  display: flex;
+}
+.wplan-card-arrow svg { width: 16px; height: 16px; display: block; }
+.wplan-card-kind { font-size: 12px; font-weight: 600; }
+.wplan-card-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.wplan-card-link {
+  font-size: 12px;
+  color: var(--accent-blue);
+  text-decoration: none;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.wplan-card-team { font-size: 12px; color: var(--muted); }
+/* Der Hinweis der Disposition — er trägt oft das Entscheidende (Schlüssel,
+   Zufahrt), deshalb abgesetzt statt als weitere graue Zeile. */
+.wplan-card-note {
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.wplan-today-row {
+  display: flex; justify-content: center;
+  padding: 0 24px 10px;
+  flex-shrink: 0;
+}
+.wplan-today-btn {
+  background: var(--surface);
+  border: 1px solid var(--accent-blue-40);
+  color: var(--accent-blue);
+  border-radius: 20px;
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.wplan-today-btn:active { background: var(--surface2); }
+
+
+/* ── UMZUGS-HINWEIS (nur im Build der alten Origin) ────────────────────
+   Erscheint nur, wenn VITE_MIGRATION_NOTICE gesetzt ist. Bewusst in
+   Werkora-Farben und NICHT in der Mandantenfarbe: der Hinweis kommt vom
+   Produkt, nicht von der Firma des Nutzers — und er soll sich vom Rest der
+   Oberfläche abheben, sonst wird er zur Tapete.
+   Siehe docs/specs/werkora-domain-app-einstieg.md, P5/P9. */
+.migration-streifen {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 480px;
+  height: 46px;
+  z-index: 10000;              /* über allen anderen Bannern */
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px;
+  background: #E9A227; color: #1B2028;   /* Amber als Fläche → Tinte-Schrift */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+.migration-streifen-link {
+  flex: 1;
+  color: #1B2028;
+  font-size: 0.85rem; font-weight: 600; line-height: 1.25;
+  text-decoration: none;
+  text-align: center;
+}
+/* Ab 'dringend' der dunklere Amber mit weisser Schrift: deutlich ernster,
+   und Weiss auf #A9711A erreicht 4,2:1 — bei 0.85rem/600 als fette Schrift
+   ausreichend, waehrend Weiss auf dem hellen #E9A227 nur 2,2:1 haette. */
+.migration-streifen-dringend { background: #A9711A; color: #fff; }
+.migration-streifen-dringend .migration-streifen-link { color: #fff; }
+.migration-streifen-zu {
+  background: none; border: none; cursor: pointer;
+  color: inherit; font-size: 22px; line-height: 1;
+  padding: 0 4px; opacity: 0.7;
+}
+
+.migration-vorschalt {
+  position: fixed; inset: 0; z-index: 10001;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.migration-vorschalt-inner {
+  max-width: 380px; width: 100%;
+  display: flex; flex-direction: column; align-items: flex-start;
+}
+.migration-vorschalt-mark {
+  width: 56px; height: 56px; margin-bottom: 24px;
+  color: var(--brand-ink);
+}
+.migration-vorschalt-mark svg { width: 100%; height: 100%; }
+.migration-vorschalt-titel {
+  font-family: 'Bitter', serif;
+  font-size: 26px; font-weight: 600; line-height: 1.2;
+  color: var(--brand-ink);
+  margin-bottom: 10px;
+}
+.migration-vorschalt-text {
+  font-size: 14px; color: var(--muted); line-height: 1.5;
+  margin-bottom: 28px;
+}
+.migration-vorschalt-btn {
+  width: 100%; padding: 14px;
+  background: #E9A227; color: #1B2028;
+  border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 600;
+  text-align: center; text-decoration: none;
+}
+.migration-vorschalt-skip {
+  width: 100%; padding: 12px; margin-top: 8px;
+  background: none; border: none;
+  color: var(--muted); font-size: 13px;
+  text-decoration: underline; cursor: pointer;
+}

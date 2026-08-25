@@ -1,0 +1,76 @@
+/* ── Support-Eingang ─────────────────────────────────────────────────────────
+   Ergänzt error-logs.css (Chips, Liste, Detail-Dialog werden geteilt) um das,
+   was nur der Support-Screen braucht.
+
+   Die Filterzeile ist der Grund für diese Datei: sie mischt Statuschips mit
+   einem Auswahlfeld. Die geteilte .elog-field stapelt Beschriftung über Feld
+   (~56px hoch) — neben 28px hohen Chips in derselben Zeile ergibt das eine
+   sichtbar schiefe Kante. Hier stehen deshalb beide auf einer gemeinsamen
+   Grundlinie und in gleicher Höhe. */
+
+.support-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-4) 0;
+}
+
+/* Chips auf Feldhöhe bringen: dieselben 32px wie das Auswahlfeld rechts. */
+.support-filterbar .elog-chip {
+  min-height: 32px;
+  padding: 0 14px;
+}
+
+/* Beschriftung neben das Feld statt darüber — in einer waagrechten Zeile ist
+   das die einzige Anordnung, die keine zweite Textzeile über den Chips öffnet. */
+.support-filter-tenant {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.support-filter-tenant select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  height: 32px;
+  padding: 0 8px;
+}
+
+.support-filter-tenant select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Leerer Eingang: als ruhige Fläche im selben Rahmen wie die Liste, damit der
+   Abschnitt nicht nach einem abgeschnittenen Screen aussieht. */
+.support-empty {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  text-align: center;
+  padding: var(--s-6) var(--s-4);
+}
+
+@media (max-width: 767px) {
+  /* Auf Handybreite bricht die Zeile ohnehin um; `margin-left: auto` würde das
+     Feld dann einsam nach rechts schieben. */
+  .support-filter-tenant {
+    margin-left: 0;
+    width: 100%;
+  }
+  .support-filter-tenant select {
+    flex: 1;
+    height: 40px;
+    min-width: 0;
+  }
+}

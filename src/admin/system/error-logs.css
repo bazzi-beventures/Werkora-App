@@ -1,0 +1,307 @@
+/* ─────────────────────────────────────────────────────────────
+   Error-Logs — Log-Viewer statt breiter Tabelle.
+
+   Die alte Ansicht war eine generische DataTable: am Handy nur seitlich
+   scrollbar, und das Detail hing als Block UNTER der Tabelle (am Desktop
+   ausserhalb des Sichtfelds, am Handy faktisch unsichtbar). Hier sind die
+   Zeilen ein Grid, das am Handy in eine Karte umbricht; das Detail liegt
+   im Slide-in-Panel (.admin-modal).
+   ───────────────────────────────────────────────────────────── */
+
+.elog-header-actions {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* ── Filterleiste ─────────────────────────────────────────── */
+
+.elog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: flex-end;
+  margin-bottom: var(--s-3);
+}
+
+.elog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  min-width: 140px;
+}
+
+.elog-field--grow {
+  flex: 1 1 220px;
+}
+
+.elog-field input,
+.elog-field select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 6px 10px;
+  font-size: var(--font-sm);
+  /* Feste Höhe, damit Date-, Select- und Suchfeld auf einer Linie sitzen —
+     native Date-Inputs sind sonst ein paar Pixel höher als der Rest. */
+  height: 36px;
+  width: 100%;
+  /* Date-Inputs bringen eine intrinsische Mindestbreite mit — ohne das hier
+     schiebt das „bis"-Feld am Handy über den Rand hinaus. */
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.elog-field input:focus,
+.elog-field select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* ── Level-Chips + Trefferzahl ────────────────────────────── */
+
+.elog-levelbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.elog-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  padding: 5px 12px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.elog-chip:hover { color: var(--text); }
+
+.elog-chip-count {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.elog-chip--critical.active { border-color: #b91c1c; color: #fecdd3; background: #4c0519; }
+.elog-chip--error.active    { border-color: var(--danger);  color: var(--danger);  background: var(--danger-soft); }
+.elog-chip--warning.active  { border-color: var(--warning); color: var(--warning); background: var(--warning-soft); }
+.elog-chip.active .elog-chip-count { background: rgba(0, 0, 0, 0.25); color: inherit; }
+
+.elog-chip--reset { font-weight: 500; letter-spacing: 0; }
+
+.elog-count {
+  margin-left: auto;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.elog-hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-bottom: var(--s-2);
+}
+
+/* ── Log-Liste ────────────────────────────────────────────── */
+
+.elog-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.elog-empty,
+.elog-list .admin-loading {
+  padding: var(--s-6);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.elog-row {
+  display: grid;
+  grid-template-columns: 118px 66px minmax(120px, 200px) minmax(0, 1fr) minmax(90px, 170px);
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  border-left: 3px solid transparent;
+  padding: 9px var(--s-4);
+  color: var(--text);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.elog-row:first-child { border-top: none; }
+.elog-row:hover { background: var(--surface-2); }
+
+.elog-row--critical { border-left-color: #b91c1c; }
+.elog-row--error    { border-left-color: var(--danger); }
+.elog-row--warning  { border-left-color: var(--warning); }
+
+.elog-cell-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.elog-cell-source,
+.elog-cell-msg,
+.elog-cell-tenant {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elog-cell-source { font-size: var(--font-xs); color: var(--text-muted); }
+.elog-type { opacity: 0.8; }
+.elog-cell-tenant { font-size: var(--font-xs); color: var(--text-muted); text-align: right; }
+
+.elog-badge {
+  display: inline-block;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.elog-badge--warning  { background: #fef3c7; color: #92400e; }
+.elog-badge--error    { background: #fee2e2; color: #991b1b; }
+.elog-badge--critical { background: #4c0519; color: #fecdd3; }
+
+.elog-more {
+  margin-top: var(--s-3);
+  width: 100%;
+}
+
+/* ── Detail-Panel ─────────────────────────────────────────── */
+
+.elog-detail { width: 620px; }
+
+.elog-detail-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.elog-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--s-2) var(--s-4);
+  margin: 0;
+}
+
+.elog-meta-grid dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.elog-meta-grid dd {
+  margin: 2px 0 0;
+  font-size: var(--font-sm);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.elog-detail-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin-bottom: var(--s-1);
+}
+
+.elog-detail-message {
+  font-size: var(--font-md);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.elog-pre {
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--s-3);
+  margin: 0;
+  font-size: var(--font-xs);
+  line-height: 1.5;
+  color: var(--text);
+  overflow-x: auto;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.elog-pre--tall { max-height: 380px; }
+
+/* ── Mobile: Zeile wird Karte, nichts scrollt seitlich ────── */
+
+@media (max-width: 767px) {
+  .elog-header-actions { width: 100%; }
+  .elog-header-actions .admin-btn { flex: 1; justify-content: center; min-height: 40px; }
+
+  .elog-field { min-width: 0; flex: 1 1 calc(50% - var(--s-3)); }
+  .elog-field--grow { flex: 1 1 100%; }
+  .elog-field input, .elog-field select { height: 40px; }
+
+  .elog-count { margin-left: 0; width: 100%; }
+
+  .elog-row {
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "level time tenant"
+      "msg   msg  msg"
+      "src   src  src";
+    gap: 4px var(--s-2);
+    padding: 10px var(--s-3);
+  }
+
+  .elog-cell-level  { grid-area: level; }
+  .elog-cell-time   { grid-area: time; }
+  .elog-cell-tenant { grid-area: tenant; }
+  .elog-cell-source { grid-area: src; }
+
+  .elog-cell-msg {
+    grid-area: msg;
+    /* Zwei Zeilen statt einer abgeschnittenen — am Handy ist die Meldung
+       die einzige Spalte, die wirklich zählt. */
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .elog-detail { width: 100%; max-width: 100%; }
+  .elog-detail .admin-modal-footer { flex-wrap: wrap; }
+  .elog-detail .admin-modal-footer .admin-btn { flex: 1; justify-content: center; min-height: 40px; }
+}

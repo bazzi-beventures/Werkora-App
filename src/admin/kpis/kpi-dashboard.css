@@ -1,0 +1,686 @@
+/* ── KPI BI Dashboard Layout ──────────────────────────── */
+
+.kpi-bi-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── KPI Cards Row ───────────────────────────────────── */
+
+.kpi-bi-cards {
+  display: grid;
+  /* --kpi-cards-cols kommt (optional) von <KpiCards columns={n} />. Ohne die
+     Variable faltet auto-fit selbst um. */
+  grid-template-columns: repeat(var(--kpi-cards-cols, auto-fit), minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.kpi-bi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kpi-bi-card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.kpi-bi-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.2;
+}
+
+/* ── Executive Grid (Übersicht) ──────────────────────── */
+
+.kpi-bi-exec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.kpi-bi-exec-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kpi-bi-exec-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.kpi-bi-exec-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.2;
+}
+
+.kpi-bi-exec-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Content Split: Table + Sidebar ──────────────────── */
+
+.kpi-bi-content {
+  display: flex;
+  gap: 16px;
+  min-height: 0;
+}
+
+.kpi-bi-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.kpi-bi-side {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kpi-bi-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+}
+
+/* ── Data Table ──────────────────────────────────────── */
+
+.kpi-bi-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  /* Nur runde Ecken beschneiden — gescrollt wird im inneren .kpi-bi-table-scroll,
+     damit die Pagination-Leiste beim Querscrollen stehen bleibt. */
+  overflow: hidden;
+}
+
+/* Querscroll für breite Tabellen. Vorher hing das overflow:hidden am Wrap und
+   hat auf dem Handy schlicht die rechten Spalten abgeschnitten. */
+.kpi-bi-table-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.kpi-bi-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.kpi-bi-table th {
+  background: var(--bg);
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.kpi-bi-table th:hover {
+  color: var(--text);
+}
+
+.kpi-bi-table th .kpi-sort-icon {
+  margin-left: 4px;
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+.kpi-bi-table th.sorted .kpi-sort-icon {
+  opacity: 1;
+  color: var(--primary);
+}
+
+.kpi-bi-table td {
+  padding: 10px 12px;
+  color: var(--text);
+  border-bottom: 1px solid var(--surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.kpi-bi-table tbody tr:hover {
+  background: var(--border);
+}
+
+.kpi-bi-table tbody tr:nth-child(even) {
+  background: var(--surface-2);
+}
+
+.kpi-bi-table tbody tr:nth-child(even):hover {
+  background: var(--border);
+}
+
+/* ── Table Pagination ────────────────────────────────── */
+
+.kpi-bi-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.kpi-bi-pagination-info {
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-bi-pagination-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.kpi-bi-pagination-btns button {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.kpi-bi-pagination-btns button:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+}
+
+.kpi-bi-pagination-btns button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* ── Filter Panel ────────────────────────────────────── */
+
+.kpi-bi-filters,
+.kpi-bi-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.kpi-bi-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.kpi-bi-filter-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.kpi-bi-filter-toggle {
+  font-size: 10px;
+  color: var(--primary);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.kpi-bi-filter-toggle:hover {
+  color: var(--primary);
+}
+
+.kpi-bi-filter-group {
+  margin-bottom: 12px;
+}
+
+.kpi-bi-filter-group:last-child {
+  margin-bottom: 0;
+}
+
+.kpi-bi-filter-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kpi-bi-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.kpi-bi-filter-option input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+.kpi-bi-filter-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.kpi-bi-filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kpi-bi-filter-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Chart Container ─────────────────────────────────── */
+
+.kpi-bi-chart,
+.kpi-bi-chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 8px 8px;
+}
+
+/* ── Card Sub ────────────────────────────────────────── */
+
+.kpi-bi-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Date Preset Buttons ─────────────────────────────── */
+
+.kpi-date-presets {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.kpi-date-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.kpi-date-btn:hover {
+  color: var(--text);
+  background: var(--border);
+}
+
+.kpi-date-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── LLM-Kosten Datumsbereich-Filter ─────────────────── */
+
+.llm-cost-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.llm-cost-range {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.llm-cost-range label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.llm-cost-range input[type='date'] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+/* ── Horizontal Filter Bar ───────────────────────────── */
+
+.kpi-filter-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.kpi-filter-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* ── Dropdown ────────────────────────────────────────── */
+
+.kpi-dropdown {
+  position: relative;
+}
+
+.kpi-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.kpi-dropdown-btn:hover {
+  background: var(--border);
+}
+
+.kpi-dropdown-btn.partial {
+  border-color: var(--primary);
+}
+
+.kpi-dropdown-badge {
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+
+.kpi-dropdown-arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.kpi-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 210px;
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.kpi-dropdown-all {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.kpi-dropdown-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.kpi-dropdown-option:hover,
+.kpi-dropdown-all:hover {
+  background: var(--border);
+}
+
+.kpi-dropdown-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpi-dropdown-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+/* ── Status Badge ────────────────────────────────────── */
+
+.kpi-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.kpi-status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.kpi-status-badge.offen {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.kpi-status-badge.abgeschlossen {
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .kpi-bi-content {
+    flex-direction: column;
+  }
+  .kpi-bi-side {
+    width: 100%;
+  }
+  .kpi-bi-exec-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  /* ── Kennzahl-Kacheln ────────────────────────────────────
+     columns={4} ergibt auf 360px vier ~80px-Kacheln; die Werte ("CHF 2.99")
+     passen dann nicht mehr und die vierte Kachel liegt ausserhalb des
+     Viewports. Zwei Spalten (eine ganz schmal) sind hier die lesbare Grenze. */
+  .kpi-bi-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .kpi-bi-card {
+    padding: 12px 12px;
+  }
+  .kpi-bi-card-label {
+    font-size: 10px;
+    letter-spacing: 0.4px;
+  }
+  .kpi-bi-card-value {
+    font-size: 19px;
+    /* lange Zahlen (Tokens) duerfen umbrechen statt die Kachel zu sprengen */
+    overflow-wrap: anywhere;
+  }
+
+  .kpi-bi-exec-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* ── Datumsfilter (LLM-Kosten / KPI) ─────────────────────
+     Presets umbrechen statt rechts abgeschnitten zu werden, von/bis nimmt
+     die volle Zeile und teilt sie zu gleichen Teilen. */
+  .kpi-date-presets {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .kpi-date-btn {
+    min-height: 44px;
+    padding: 8px 14px;
+    font-size: 13px;
+    flex: 1 1 auto;
+  }
+
+  .llm-cost-filter {
+    gap: 10px;
+  }
+  .llm-cost-range {
+    flex: 1 1 100%;
+    gap: 8px;
+  }
+  .llm-cost-range label {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .llm-cost-range input[type='date'] {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    min-height: 40px;
+    font-size: 13px;
+  }
+
+  /* ── Tabellen ────────────────────────────────────────────
+     Erste Spalte (der Name) bleibt beim Querscrollen stehen, sonst weiss man
+     nach zwei Wischern nicht mehr, zu welcher Zeile die Zahl gehoert. */
+  .kpi-bi-table {
+    font-size: 12.5px;
+  }
+  .kpi-bi-table th,
+  .kpi-bi-table td {
+    padding: 9px 10px;
+  }
+  .kpi-bi-table td {
+    max-width: 180px;
+  }
+  .kpi-bi-table thead th:first-child,
+  .kpi-bi-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--border);
+  }
+  .kpi-bi-table tbody tr:nth-child(even) td:first-child {
+    background: var(--surface-2);
+  }
+  .kpi-bi-table thead th:first-child {
+    background: var(--bg);
+    /* ueber der sticky-Zeile UND ueber den mitscrollenden Datenzellen */
+    z-index: 3;
+  }
+  .kpi-bi-table tbody td:first-child {
+    z-index: 1;
+  }
+
+  /* Ausblendkante rechts, solange noch Spalten folgen (Klasse kommt von
+     useScrollEdge). Ohne den Hinweis wirkt die abgeschnittene Spalte wie ein
+     Layoutfehler statt wie "hier kann man wischen". */
+  .kpi-bi-table-scroll:not(.is-scroll-end) {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent 100%);
+  }
+
+  .kpi-bi-pagination button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
+/* Auf sehr schmalen Geraeten (iPhone SE / 320px) wird das native Date-Input zu
+   eng — der Kalender-Button rutscht hinter den Text. Dann von/bis untereinander. */
+@media (max-width: 380px) {
+  .llm-cost-range {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

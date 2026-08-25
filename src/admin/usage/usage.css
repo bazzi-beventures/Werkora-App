@@ -1,0 +1,25 @@
+/* Nutzungs-Dashboard — nur die zwei Hervorhebungen, die der Screen braucht.
+   Alles andere kommt aus kpi-dashboard.css (Kacheln, Tabellen, Chart). */
+
+/* "aktiv, aber 0 Aktionen" und "nie eingeloggt": die Zeilen, wegen denen man
+   den Screen aufmacht. Rot wie der Kosten-Wert im LLM-Dashboard. */
+.usage-dead {
+  color: var(--danger);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Nicht aktivierte Module bleiben lesbar, treten aber zurück. */
+.usage-muted {
+  color: var(--text-muted);
+}
+
+/* Erläuterung unter einem Modulnamen: was die Zahl daneben wirklich zählt.
+   Nur dort, wo der Modulname mehr verspricht als der Audit-Trail hergibt. */
+.usage-note {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 2px;
+  max-width: 46ch;
+}

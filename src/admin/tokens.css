@@ -1,0 +1,83 @@
+/* ─────────────────────────────────────────────────────────────
+   Admin Design Tokens — 8px grid, dark/light theme.
+   Loaded before admin.css. Switch themes via
+   `document.documentElement.setAttribute('data-theme', 'light'|'dark')`.
+   ───────────────────────────────────────────────────────────── */
+
+:root,
+:root[data-theme="dark"] {
+  /* Surface */
+  --bg:            #0F172A;
+  --surface:       #1E293B;
+  --surface-2:     #273449;
+  --border:        #334155;
+  --border-subtle: rgba(148, 163, 184, 0.12);
+
+  /* Text */
+  --text:          #F8FAFC;
+  --text-muted:    #94A3B8;
+  --text-strong:   #FFFFFF;
+
+  /* Brand / Status */
+  --primary:       #3081AB;
+  --primary-hover: #459CC7;
+  --primary-soft:  rgba(48, 129, 171, 0.16);
+  --success:       #22C55E;
+  --success-soft:  rgba(34, 197, 94, 0.15);
+  --danger:        #EF4444;
+  --danger-soft:   rgba(239, 68, 68, 0.15);
+  --warning:       #F59E0B;
+  --warning-soft:  rgba(245, 158, 11, 0.15);
+
+  /* Spacing (8px grid) */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadow */
+  --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.35);
+
+  /* Typo */
+  --font-xs:   12px;
+  --font-sm:   13px;
+  --font-md:   14px;
+  --font-lg:   16px;
+  --font-xl:   20px;
+  --font-2xl:  28px;
+  --font-hero: 36px;
+}
+
+:root[data-theme="light"] {
+  --bg:            #F1F5F9;
+  --surface:       #FFFFFF;
+  --surface-2:     #F1F5F9;
+  --border:        #E2E8F0;
+  --border-subtle: rgba(15, 23, 42, 0.06);
+
+  --text:          #1E4E6B;
+  --text-muted:    #64748B;
+  --text-strong:   #1E4E6B;
+
+  --primary:       #3081AB;
+  --primary-hover: #459CC7;
+  --primary-soft:  #E0F2FE;
+  --success:       #16A34A;
+  --success-soft:  rgba(22, 163, 74, 0.10);
+  --danger:        #DC2626;
+  --danger-soft:   rgba(220, 38, 38, 0.10);
+  --warning:       #D97706;
+  --warning-soft:  rgba(217, 119, 6, 0.12);
+
+  --shadow-card:  0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-hover: 0 4px 14px rgba(15, 23, 42, 0.10);
+}

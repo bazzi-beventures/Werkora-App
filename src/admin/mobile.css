@@ -1,0 +1,662 @@
+/* ─── Mobile Admin Shell (≤767px) ─────────────────────────── */
+
+.admin-shell-mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  background: var(--bg, #0d2233);
+}
+
+.admin-content-mobile {
+  flex: 1;
+  width: 100%;
+  max-width: 100vw;
+  overflow-y: auto;
+  /* Safety net: zu breite Kind-Elemente (z.B. Tabellen ohne admin-table-wrap)
+     bleiben innerhalb des Viewports, statt iOS Safari zum Auszoomen zu zwingen. */
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* respect iOS status bar / Dynamic Island (status-bar-style: black-translucent) */
+  padding-top: env(safe-area-inset-top, 0px);
+  /* clear the fixed bottom tab bar */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.admin-content-mobile .admin-content-inner {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.admin-content-mobile .admin-page {
+  max-width: 100%;
+}
+
+/* ─── Bottom Tab Bar ───────────────────────────────────────── */
+
+.admin-mobile-tabbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: stretch;
+  z-index: 50;
+}
+
+.admin-mobile-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  min-width: 0;
+  cursor: pointer;
+  transition: color 0.15s;
+  position: relative;
+}
+
+.admin-mobile-tab:active {
+  opacity: 0.7;
+}
+
+.admin-mobile-tab.active {
+  color: var(--text-strong);
+}
+
+.admin-mobile-tab.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--primary);
+}
+
+.admin-mobile-tab.active .admin-mobile-tab-icon {
+  background: var(--primary);
+  /* icon svg stays white on the primary pill in both themes */
+  color: #fff;
+  border-radius: 12px;
+  width: 44px;
+  height: 26px;
+}
+
+.admin-mobile-tab.active .admin-mobile-tab-label {
+  font-weight: 700;
+}
+
+/* Icon wrapper — anchors badge relative to icon, not to button half-width */
+.admin-mobile-tab-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.admin-mobile-tab svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.admin-mobile-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Badge on tab — anchored to icon wrapper */
+.admin-mobile-tab-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+/* Dot badge (for More button when secondary screens have badges) */
+.admin-mobile-tab-dot {
+  position: absolute;
+  top: -2px;
+  right: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+/* ─── Mobile Topbar (sticky title + actions) ────────────── */
+
+.admin-content-topbar--mobile {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  justify-content: space-between;
+  background: var(--bg);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-mobile-topbar-title {
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Mehr Drawer ──────────────────────────────────────────── */
+
+.admin-mobile-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 60;
+}
+
+.admin-mobile-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #133550;
+  border-radius: 16px 16px 0 0;
+  border-top: 1px solid #1c3e60;
+  z-index: 61;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+  animation: adminMobileDrawerUp 0.22s ease;
+}
+
+@keyframes adminMobileDrawerUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.admin-mobile-drawer-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: #2a5070;
+  margin: 10px auto 4px;
+  flex-shrink: 0;
+}
+
+.admin-mobile-drawer-scroll {
+  overflow-y: auto;
+  flex: 1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-mobile-drawer-group {
+  padding: 8px 0 0;
+}
+
+.admin-mobile-drawer-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94b3cc;
+  padding: 4px 20px 6px;
+}
+
+.admin-mobile-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 20px;
+  min-height: 52px;
+  font-size: 15px;
+  color: #f1f5f9;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.admin-mobile-drawer-item:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-mobile-drawer-item.active {
+  color: #7dc4ed;
+  background: rgba(125, 196, 237, 0.08);
+}
+
+.admin-mobile-drawer-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+.admin-mobile-drawer-item-badge {
+  margin-left: auto;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+.admin-mobile-drawer-divider {
+  height: 1px;
+  background: #1c3e60;
+  margin: 8px 0;
+}
+
+.admin-mobile-drawer-footer {
+  padding: 4px 12px 8px;
+  flex-shrink: 0;
+}
+
+.admin-mobile-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 8px;
+  font-size: 14px;
+  color: #cdd9e6;
+  background: none;
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.12s;
+}
+
+.admin-mobile-switch-btn:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-mobile-user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 4px;
+}
+
+.admin-mobile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #1c4a70;
+  color: #7db8e8;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-mobile-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-mobile-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-mobile-user-role {
+  font-size: 11px;
+  color: #94b3cc;
+  margin-top: 1px;
+}
+
+.admin-mobile-logout-btn {
+  background: none;
+  border: none;
+  color: #94b3cc;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  display: flex;
+  transition: color 0.12s;
+}
+
+.admin-mobile-logout-btn:active {
+  color: #ef4444;
+}
+
+.admin-mobile-logout-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── Mobile content tweaks ────────────────────────────────── */
+
+@media (max-width: 767px) {
+  .admin-content-logo {
+    display: none;
+  }
+
+  /* Mobile-Topbar traegt schon den Screen-Titel. Den .admin-page-title
+     deshalb verkleinern (Detail-Screens wie StaffDetail brauchen ihn
+     fuer den Entity-Namen, deshalb nicht ganz ausblenden). */
+  .admin-page-title {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  /* Page-Header: Titel + Aktionen duerfen umbrechen, statt rechts aus dem
+     Viewport geschoben und vom overflow-x:hidden der Mobile-Shell
+     abgeschnitten zu werden (z.B. "Neues Projekt"-Button). */
+  .admin-page-header {
+    margin-bottom: var(--s-3);
+    flex-wrap: wrap;
+    gap: var(--s-3);
+  }
+  .admin-page-header > :last-child {
+    flex-wrap: wrap;
+  }
+  .admin-page {
+    padding: var(--s-4);
+  }
+
+  /* Filterleiste: Suche volle Breite, Dropdowns brechen darunter um statt
+     (mit flex-shrink:0) rechts abgeschnitten zu werden. */
+  .admin-filter-bar {
+    flex-wrap: wrap;
+    row-gap: var(--s-3);
+  }
+  .admin-filter-bar .admin-search {
+    flex: 1 1 100%;
+  }
+
+  /* Bottom-Tab-Labels: 10px ist auf schmalen iPhones (375px) zu gross,
+     "Korrekturen"/"Dashboard" werden abgeschnitten. */
+  .admin-mobile-tab-label {
+    font-size: 9px;
+    letter-spacing: -0.01em;
+  }
+
+  .admin-table-wrap {
+    overflow-x: auto;
+  }
+
+  /* Sticky-Thead, damit Spaltenkoepfe beim Scrollen einer langen
+     Tabelle sichtbar bleiben. */
+  .admin-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  /* ─── Absence Calendar mobile fixes ─────────────────────── */
+
+  .absence-cal-toolbar {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .absence-cal-day-cell {
+    min-height: 60px;
+    padding: 4px 3px;
+    gap: 2px;
+  }
+
+  .absence-cal-day-num {
+    font-size: 11px;
+  }
+
+  .absence-cal-holiday-label {
+    font-size: 8px;
+  }
+
+  .absence-cal-dot {
+    width: 7px;
+    height: 7px;
+  }
+
+  .absence-cal-dots {
+    gap: 2px;
+  }
+
+  .absence-cal-legend {
+    gap: 10px;
+    padding: 10px 12px;
+    margin-top: 10px;
+  }
+
+  .absence-cal-legend-item {
+    font-size: 11.5px;
+    gap: 5px;
+  }
+
+  /* ─── Tab bars: horizontal scroll-snap ───────────────── */
+
+  .kpi-admin-tabs {
+    flex-wrap: nowrap;
+    /* proximity statt mandatory: der letzte Tab laesst sich nicht an den linken
+       Rand snappen, mit `mandatory` federt die Leiste dort zurueck und kaempft
+       zusaetzlich gegen das scrollIntoView aus useTabStrip. */
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    /* Die Leiste laeuft randlos ueber die volle Breite: das horizontale Padding
+       des .admin-page wird herausgerechnet und als Scroll-Padding wieder
+       hineingegeben. Sonst endet die Leiste mitten im Bild, als waere sie
+       einfach abgeschnitten. */
+    margin-inline: calc(-1 * var(--s-4));
+    padding-inline: var(--s-4);
+    scroll-padding-inline: var(--s-4);
+    /* Ausblendkante rechts als Hinweis "hier geht es weiter". */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+  }
+  /* Ganz nach rechts gescrollt gibt es nichts mehr auszublenden. */
+  .kpi-admin-tabs.is-scroll-end {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .kpi-admin-tabs::-webkit-scrollbar { display: none; }
+  .kpi-admin-tab {
+    scroll-snap-align: start;
+    scroll-margin-inline: var(--s-4);
+    flex-shrink: 0;
+    /* Touch-Ziel: 44px hoch, dafuer etwas schmaler, damit mehr Tabs sichtbar sind. */
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+
+  /* Die Admin-Tools haben auf dem Handy keine Reiterleiste mehr, sondern ein
+     Auswahlfeld (.admin-tools-picker, siehe admin.css) — für zehn Werkzeuge mit
+     langen Namen ist eine Scrollleiste auf Handybreite unbrauchbar. */
+
+  /* ─── Confirm dialog → bottom sheet ──────────────────── */
+
+  .admin-confirm-overlay {
+    align-items: flex-end;
+  }
+  .admin-confirm-box {
+    max-width: none;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+    text-align: left;
+    animation: adminMobileDrawerUp 0.22s ease;
+  }
+  .admin-confirm-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .admin-confirm-actions .admin-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* ─── Formular-Zeilen einspaltig ─────────────────────── */
+  .admin-form-row,
+  .admin-form-row-3,
+  .admin-form-row-label {
+    grid-template-columns: 1fr;
+  }
+
+  /* Projekt-Detail-Editor-Zeile stapelt (Stern/Felder/Entfernen untereinander) */
+  .project-pos-row {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  /* Gestapelt wuerde der Entfernen-Knopf sonst als breiter roter Balken unter
+     dem Kontakt liegen und wie eine Warnung wirken. */
+  .project-pos-row > .admin-btn-danger {
+    justify-self: start;
+    min-width: 44px;
+  }
+  /* Gestapelt laufen zwei Kontakte sonst ineinander. */
+  .project-pos-row + .project-pos-row {
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 14px;
+  }
+
+  /* Offerten-Positions-Zeile: Hauptfeld volle Breite, kleine Felder 2-spaltig */
+  .quote-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: start;
+  }
+  .quote-row > :first-child,
+  .quote-row > .quote-main,
+  .quote-row > label,
+  .quote-row > button {
+    grid-column: 1 / -1;
+  }
+
+  /* Verschieben auf Touch: Griff (nativer Drag) weg, nur die ▲/▼-Pfeile bleiben. */
+  .quote-drag-handle {
+    display: none;
+  }
+  .quote-row-reorder {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  /* ─── Wochenplan: Tabelle wird zur Karten-Liste ──────── */
+  /* Vier Spalten (KW / Soll-Stunden / Notiz / Zuruecksetzen) quetschen sich auf
+     360px zu unbenutzbaren Streifen — das Notizfeld war praktisch nicht mehr
+     tippbar. Pro Kalenderwoche stattdessen ein gestapelter Block. */
+  .weekly-plan-table thead {
+    display: none;
+  }
+  .weekly-plan-table,
+  .weekly-plan-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .weekly-plan-table tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 12px;
+    padding: 12px var(--s-4);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .weekly-plan-table tbody td {
+    display: block;
+    padding: 0;
+    border: none;
+    min-width: 0;
+  }
+  /* KW-Label links, Zuruecksetzen rechts daneben in derselben Zeile. */
+  .weekly-plan-table tbody td:nth-child(1) {
+    grid-area: 1 / 1;
+    align-self: center;
+    white-space: nowrap;
+  }
+  .weekly-plan-table tbody td:nth-child(4) {
+    grid-area: 1 / 2;
+    justify-self: end;
+  }
+  /* Soll-Stunden + "= 40h" darunter, Notiz ganz unten — beide volle Breite. */
+  .weekly-plan-table tbody td:nth-child(2) {
+    grid-area: 2 / 1 / 3 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .weekly-plan-table tbody td:nth-child(3) {
+    grid-area: 3 / 1 / 4 / -1;
+  }
+  .weekly-plan-hours {
+    width: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .weekly-plan-effective {
+    margin-left: 0;
+    flex-shrink: 0;
+  }
+
+  /* ─── Touch-Targets ──────────────────────────────────── */
+  .admin-modal-close {
+    padding: 10px;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+  .admin-btn-sm {
+    min-height: 40px;
+  }
+}
+
+/* ─── Reduced-motion ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-mobile-drawer,
+  .admin-confirm-box {
+    animation: none;
+  }
+}

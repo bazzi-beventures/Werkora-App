@@ -1,0 +1,4245 @@
+/* ─────────────────────────────────────────────────────────────
+   Admin Shell — Desktop-optimiert, .admin-* Prefix (kein Konflikt mit Worker-UI)
+   ───────────────────────────────────────────────────────────── */
+
+/* Thin custom scrollbar */
+.thin-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+.thin-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.3);
+}
+
+/* Layout */
+.admin-shell {
+  display: grid;
+  /* minmax(0, 1fr): erlaubt der Inhaltsspalte, unter die Inhaltsbreite zu
+     schrumpfen. Ohne die 0-Untergrenze bläht eine breite Tabelle (z.B.
+     Kundenstamm) die Spalte über die Fensterbreite auf und overflow:hidden
+     schneidet sie rechts ab, statt dass .admin-table-wrap horizontal scrollt. */
+  grid-template-columns: 200px minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* ─── Sidebar ─────────────────────────────────────────────── */
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.admin-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.admin-content-topbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--s-3, 12px);
+  padding: var(--s-3, 12px) var(--s-5, 24px) 0;
+  flex-shrink: 0;
+}
+
+.admin-content-logo {
+  height: 36px;
+  object-fit: contain;
+  opacity: 0.85;
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+:root[data-theme="light"] .admin-content-logo {
+  /* Kein Recolor-Filter — Tenant-Logo ist Vollfarb mit eigenem Hintergrund,
+     sonst wird die ganze Box einfarbig eingefärbt. Siehe .header-logo. */
+  opacity: 1;
+}
+
+.admin-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted, #94A3B8);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 10px);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.admin-btn-icon:hover {
+  background: var(--surface-2, rgba(148,163,184,0.08));
+  color: var(--text, #F1F5F9);
+  border-color: var(--border-subtle, rgba(148,163,184,0.12));
+}
+.admin-btn-icon.danger:hover {
+  background: var(--danger-soft, rgba(239,68,68,0.15));
+  color: var(--danger, #EF4444);
+}
+
+.admin-theme-toggle {
+  /* Alias class for future tweaks; base styling comes from .admin-btn-icon. */
+}
+
+.admin-sidebar-tenant {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-nav {
+  flex: 1;
+  padding: var(--s-3) var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.admin-nav-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: var(--s-3) var(--s-2) var(--s-1);
+  user-select: none;
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  position: relative;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.admin-nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.admin-nav-item.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.admin-nav-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.admin-nav-badge {
+  margin-left: auto;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 9px;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.admin-nav-badge.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.admin-sidebar-footer {
+  padding: 12px 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-powered-by {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0 2px;
+}
+.powered-by-label {
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.powered-by-logo {
+  width: 50px;
+  height: 48px;
+  /* Default-Theme ist dunkel (:root) → weisses Logo */
+  background: center / contain no-repeat url('/logos/werkora_logo_white.png');
+  opacity: .92;
+}
+:root[data-theme="light"] .powered-by-logo {
+  background-image: url('/logos/werkora_logo.png');
+}
+
+.admin-switch-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-switch-btn:hover {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 7px;
+}
+
+.admin-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.admin-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-user-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-user-role {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.admin-logout-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.admin-logout-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-logout-btn:hover {
+  color: var(--danger);
+}
+
+/* ─── Main Content ────────────────────────────────────────── */
+.admin-content {
+  overflow-y: auto;
+  height: 100vh;
+}
+
+.admin-content-inner {
+  min-height: 100%;
+}
+
+.admin-page {
+  padding: var(--s-5) var(--s-6);
+  max-width: 1200px;
+}
+
+.admin-page.admin-page-wide {
+  max-width: none;
+}
+
+.admin-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-5);
+}
+
+.admin-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.admin-page-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Dashboard Kacheln ───────────────────────────────────── */
+.admin-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--s-4);
+  margin-bottom: var(--s-5);
+}
+
+.admin-kpi-section { margin-bottom: var(--s-5); }
+.admin-kpi-section:last-child { margin-bottom: 0; }
+.admin-kpi-section .admin-kpi-grid { margin-bottom: 0; }
+.admin-kpi-group-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--s-3) 0;
+}
+
+.admin-kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--s-5);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.15s, transform 0.12s, border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  position: relative;
+}
+
+.admin-kpi-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+}
+
+.admin-kpi-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.admin-kpi-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.admin-kpi-icon.blue   { background: var(--primary-soft); color: var(--primary); }
+.admin-kpi-icon.orange { background: var(--warning-soft); color: var(--warning); }
+.admin-kpi-icon.green  { background: var(--success-soft); color: var(--success); }
+.admin-kpi-icon.red    { background: var(--danger-soft);  color: var(--danger); }
+.admin-kpi-icon.purple { background: rgba(168,85,247,0.15); color: #a855f7; }
+.admin-kpi-icon.yellow { background: var(--warning-soft); color: var(--warning); }
+
+.admin-kpi-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+}
+
+.admin-kpi-value {
+  font-size: var(--font-hero);
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.admin-kpi-label {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+/* ─── Table ───────────────────────────────────────────────── */
+.admin-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.admin-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-search {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--font-sm);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.admin-search:focus {
+  border-color: var(--primary);
+}
+
+.admin-search::placeholder {
+  color: var(--text-muted);
+}
+
+.admin-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-2) var(--s-3);
+  font: inherit;
+  font-size: var(--font-sm);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.admin-input:focus {
+  border-color: var(--primary);
+}
+
+.admin-input::placeholder {
+  color: var(--text-muted);
+}
+
+textarea.admin-input {
+  resize: vertical;
+  min-height: 60px;
+}
+
+select.admin-input {
+  appearance: auto;
+  cursor: pointer;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: var(--s-3) var(--s-4);
+  text-align: left;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: var(--s-3) var(--s-4);
+  font-size: var(--font-md);
+  color: var(--text);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.admin-table td.primary {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.admin-table td.secondary {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.admin-table tbody tr:hover,
+.admin-table tbody tr:active {
+  background: var(--surface-2);
+}
+
+.admin-table-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ─── Status-Badges ───────────────────────────────────────── */
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-badge-pending  { background: var(--warning-soft); color: var(--warning); }
+.admin-badge-approved { background: var(--success-soft); color: var(--success); }
+.admin-badge-rejected { background: var(--danger-soft);  color: var(--danger); }
+.admin-badge-open     { background: var(--primary-soft); color: var(--primary); }
+.admin-badge-sent     { background: rgba(168,85,247,0.15); color: #a855f7; }
+.admin-badge-paid     { background: var(--success-soft); color: var(--success); }
+.admin-badge-draft    { background: var(--surface-2);   color: var(--text-muted); }
+.admin-badge-closed   { background: var(--surface-2);   color: var(--text-muted); }
+.admin-badge-active   { background: var(--success-soft); color: var(--success); }
+.admin-badge-admin    { background: var(--primary-soft); color: var(--primary); }
+
+/* ─── Modal / Slide-in Panel ──────────────────────────────── */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.admin-modal {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  width: 480px;
+  max-width: 95vw;
+  height: 100dvh;
+  box-shadow: var(--shadow-hover);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.2s ease;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.admin-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-5);
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
+}
+
+.admin-modal-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.admin-modal-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  font-size: 20px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.admin-modal-close:hover {
+  color: var(--text);
+}
+
+.admin-modal-body {
+  padding: var(--s-5);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.admin-modal-footer {
+  padding: var(--s-4) var(--s-5);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  gap: var(--s-3);
+  justify-content: flex-end;
+}
+
+/* Confirmation Dialog (centered) */
+.admin-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-confirm-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+}
+
+.admin-confirm-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.admin-confirm-text {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+/* Nicht blockierender Warnhinweis im Bestätigungsdialog (z.B. «noch 2 Rechnungen
+   offen» beim Projektabschluss). Bewusst --warning statt --danger: die Aktion
+   bleibt erlaubt, sie soll nur nicht aus Versehen passieren. Der negative
+   Abstand nach oben zieht ihn an den Dialogtext heran, dessen 24px-Abstand
+   sonst vor den Buttons stünde. */
+.admin-confirm-warning {
+  margin: -14px 0 20px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.admin-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  /* Sicherheitsnetz: .admin-btn bricht nicht um und schrumpft nicht. Ohne wrap
+     ragen zu breite Buttons links und rechts aus der Box heraus, statt in die
+     naechste Zeile zu rutschen. */
+  flex-wrap: wrap;
+}
+
+/* Drei Aktionen mit satzlangen Beschriftungen («Zurück zum Formular» …) passen
+   nie nebeneinander in die 380px-Box — dann untereinander und volle Breite.
+   column-reverse, weil die Reihenfolge im DOM Abbrechen → Verwerfen → Speichern
+   ist, die wichtigste Aktion aber zuoberst gehört — gleiche Anordnung wie im
+   mobilen Bottom-Sheet. */
+.admin-confirm-actions-stacked {
+  flex-direction: column-reverse;
+  gap: 8px;
+}
+
+.admin-confirm-actions-stacked .admin-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* ─── Foto-Auswahl im Offerten-Versand ────────────────────── */
+/* Vorschaukacheln statt Dateinamen: der Admin muss sehen, was beim Kunden
+   ankommt. Gedeckelte Höhe, damit der Dialog bei 30 Fotos nicht ausufert. */
+.quote-foto-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.quote-foto-tile {
+  position: relative;
+  padding: 0;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  cursor: pointer;
+  overflow: hidden;
+  display: block;
+  text-align: left;
+}
+
+.quote-foto-tile.active {
+  border-color: var(--primary);
+}
+
+.quote-foto-tile img {
+  display: block;
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+/* Häkchen-Marke oben rechts; der leere Kreis zeigt, dass die Kachel wählbar ist. */
+.quote-foto-check {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid #fff;
+  background: rgba(15, 23, 42, 0.45);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.quote-foto-tile.active .quote-foto-check {
+  background: var(--primary);
+}
+
+.quote-foto-name {
+  display: block;
+  padding: 3px 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Forms ───────────────────────────────────────────────── */
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.admin-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-form-input,
+.admin-form-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--font-md);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-form-input:focus,
+.admin-form-select:focus {
+  border-color: var(--primary);
+}
+
+.admin-form-select option {
+  background: var(--surface);
+}
+
+.admin-form-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.admin-form-error {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+/* Nicht blockierender Hinweis unter einem Feld (z.B. namensgleiche Kunden).
+   Bewusst --warning statt --danger: es ist kein Fehler, das Speichern geht weiter. */
+.admin-form-hint-warn {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-form-hint-warn ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.admin-form-hint-warn .admin-form-hint-lead {
+  font-weight: 500;
+}
+
+.admin-form-hint-warn .admin-form-hint-foot {
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+/* ─── Responsive Formular-Zeilen (ersetzen Inline-gridTemplateColumns) ── */
+.admin-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+.admin-form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.admin-form-row-label {
+  grid-template-columns: minmax(120px, 180px) 1fr;
+  align-items: center;
+}
+
+/* Detail-Screens mit rechter Info-Spalte (ersetzt '1fr 340px'/'1fr 320px') */
+.admin-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--s-5);
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .admin-detail-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Buttons ─────────────────────────────────────────────── */
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.admin-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-btn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.admin-btn-primary {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.admin-btn-primary:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+
+.admin-btn-primary.solid {
+  background: var(--primary);
+  color: #fff;
+}
+
+.admin-btn-primary.solid:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.admin-btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.admin-btn-secondary:hover:not(:disabled) {
+  background: var(--border);
+}
+
+.admin-btn-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+
+.admin-btn-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.admin-btn-success:hover:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+}
+
+.admin-btn-sm {
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--font-xs);
+}
+
+.admin-btn-hero {
+  padding: var(--s-4) var(--s-6);
+  font-size: var(--font-lg);
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* ─── List (Karten-Liste, anklickbar) ─────────────────────── */
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.admin-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.admin-list-item[role="button"],
+.admin-list-item.clickable,
+a.admin-list-item,
+button.admin-list-item {
+  cursor: pointer;
+}
+
+.admin-list-item:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-1px);
+}
+
+.admin-list-item:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), var(--shadow-hover);
+}
+
+.admin-empty {
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* ─── Loading ─────────────────────────────────────────────── */
+.admin-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 14px;
+  gap: 10px;
+}
+
+.admin-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Toast ───────────────────────────────────────────────── */
+.admin-toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.admin-toast {
+  background: var(--border);
+  border: 1px solid var(--surface);
+  border-radius: 9px;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: toastIn 0.2s ease;
+  pointer-events: auto;
+  max-width: 340px;
+}
+
+.admin-toast.success { border-left: 3px solid var(--success); }
+.admin-toast.error   { border-left: 3px solid var(--danger); }
+.admin-toast.info    { border-left: 3px solid var(--primary); }
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 767px) {
+  .admin-toast-container {
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* ─── Divider / Section ───────────────────────────────────── */
+.admin-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 20px 0 12px;
+}
+
+.admin-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* ─── Responsive: Sidebar collapse at ≤1024px ──────────────── */
+@media (max-width: 1024px) {
+  .admin-shell {
+    grid-template-columns: 56px 1fr;
+  }
+
+  .admin-sidebar-tenant,
+  .admin-nav-group-label,
+  .admin-nav-item span,
+  .admin-nav-badge,
+  .admin-user-info,
+  .admin-powered-by {
+    display: none;
+  }
+
+  .admin-nav-item {
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .admin-nav-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .admin-sidebar-header {
+    justify-content: center;
+    padding: 16px 8px;
+  }
+
+  .admin-user-row {
+    justify-content: center;
+  }
+
+  .admin-page {
+    padding: 20px 16px;
+  }
+}
+
+/* ── KPI SCREEN ─────────────────────────────────── */
+.kpi-admin-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.kpi-admin-tab {
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.kpi-admin-tab:hover { color: var(--text); }
+.kpi-admin-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* Opt-in: Tab-Leiste bleibt beim Scrollen oben kleben (langer Screen, z.B. Vorlagen).
+   Scroll-Container ist .admin-content bzw. .admin-content-mobile. background: var(--bg)
+   verdeckt den durchlaufenden Inhalt (gleiche Farbe wie der Seitenhintergrund); z-index
+   hält die Leiste über normalem Fluss-Inhalt (Tabellen/Karten haben keinen z-index),
+   bleibt aber unter der mobilen Bottom-Tabbar (z-index 50) und Modals. */
+.kpi-admin-tabs.kpi-admin-tabs-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+}
+
+.kpi-admin-content { flex: 1; overflow-y: auto; }
+
+/* Admin-Tools: senkrechte Werkzeugliste links, aktives Werkzeug rechts daneben.
+   Keine Reiterleiste — Begründung steht in AdminToolsScreen.tsx.
+
+   Die Liste klebt beim Scrollen oben (Scroll-Container ist .admin-content):
+   die Tool-Screens sind lang (Error-Logs, Nutzung), und wer unten steht, soll
+   das Werkzeug wechseln können, ohne erst zurückzuscrollen. `align-self:
+   flex-start` ist dafür Pflicht — als gestrecktes Flex-Kind wäre die Spalte so
+   hoch wie der Inhalt und `sticky` hätte nichts, woran es kleben könnte. */
+.admin-tools-layout {
+  display: flex;
+  align-items: flex-start;
+}
+
+.admin-tools-nav {
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  flex-shrink: 0;
+  width: 210px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-5) var(--s-3) var(--s-5) var(--s-6);
+}
+
+.admin-tools-nav-item {
+  position: relative;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.admin-tools-nav-item:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.admin-tools-nav-item.active {
+  color: var(--primary);
+  background: var(--primary-soft);
+  font-weight: 600;
+}
+
+/* Akzentkante links am aktiven Eintrag: ohne sie unterscheiden sich aktiv und
+   Hover nur durch die Füllfarbe — zu wenig, um beim Überfliegen zu erkennen,
+   wo man gerade steht. */
+.admin-tools-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--primary);
+}
+
+.admin-tools-nav-item:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* Der Tool-Screen bringt sein eigenes .admin-page-Padding mit; die Spalte gibt
+   nur die Breite vor. min-width: 0 verhindert, dass breite Tabellen (Error-Logs)
+   die Flex-Zeile aufblasen, statt in ihrem eigenen Container zu scrollen. */
+.admin-tools-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Handy: dieselbe Liste als Auswahlfeld über dem Werkzeug. Das horizontale
+   Padding spiegelt das mobile .admin-page, damit das Feld mit dem Inhalt
+   darunter fluchtet. */
+.admin-tools-picker {
+  padding: var(--s-4) var(--s-4) 0;
+}
+.admin-tools-picker label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.admin-tools-picker select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  /* 44px = Touch-Ziel, wie die mobilen Reiter zuvor. */
+  height: 44px;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.kpi-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.kpi-admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 20px 16px;
+  position: relative;
+}
+
+.kpi-admin-card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.kpi-admin-card-value {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-family: var(--mono);
+  word-break: break-word;
+}
+
+.kpi-admin-card-unit {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.kpi-admin-card-dot {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.kpi-admin-spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: kpi-admin-spin 0.8s linear infinite;
+  margin-right: 10px;
+  /* Als Flex-Kind neben langem Text sonst in einen schmalen Oval gequetscht
+     (z.B. Datensicherung-Karte) — die runde Form muss erhalten bleiben. */
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+@keyframes kpi-admin-spin { to { transform: rotate(360deg); } }
+
+/* ─── Service Status ─────────────────────────────────────── */
+.svc-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  overflow: hidden;
+}
+.svc-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--svc-accent, transparent);
+  opacity: 0.9;
+}
+.svc-card:hover {
+  border-color: rgba(0,0,0,0.12);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+}
+
+.svc-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.svc-card-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.svc-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  opacity: 0.75;
+}
+.svc-card-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  position: relative;
+  margin-top: 6px;
+}
+.svc-card-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.25;
+  animation: svc-pulse 2.4s ease-out infinite;
+}
+@keyframes svc-pulse {
+  0%   { transform: scale(0.8); opacity: 0.35; }
+  70%  { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.svc-card-value {
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-strong);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.svc-card-value-unit {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.svc-card-caption {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  letter-spacing: 0.01em;
+}
+
+.svc-card-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.svc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.svc-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.svc-card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.svc-card-meta-val {
+  font-size: 15px;
+  color: var(--text-strong);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  margin-top: 2px;
+}
+
+/* Heatmap */
+.svc-heatmap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 24px 18px;
+}
+.svc-heatmap-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 80px;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+.svc-heatmap-row:last-of-type { margin-bottom: 0; }
+.svc-heatmap-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.svc-heatmap-label-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.svc-heatmap-pct {
+  font-size: 12px;
+  color: var(--text);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.svc-heatmap-pct small {
+  display: block;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 1px;
+}
+.svc-heatmap-cells {
+  display: flex;
+  gap: 2px;
+  height: 32px;
+}
+.svc-heatmap-cell {
+  flex: 1;
+  min-width: 4px;
+  border-radius: 3px;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  cursor: default;
+}
+.svc-heatmap-cell:hover {
+  transform: scaleY(1.12);
+  box-shadow: 0 0 0 1.5px var(--text-strong);
+}
+.svc-heatmap-axis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 124px;
+  margin-right: 94px;
+  margin-top: 10px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.svc-heatmap-legend {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.svc-legend-swatch {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+/* Segmented control for range */
+.svc-segmented {
+  display: inline-flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+.svc-segmented button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 999px;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.15s, color 0.15s;
+  letter-spacing: 0.01em;
+}
+.svc-segmented button:hover { color: var(--text); }
+.svc-segmented button[data-active="true"] {
+  background: var(--text-strong);
+  color: var(--surface);
+}
+
+/* Overall status banner */
+.svc-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 16px;
+  border: 1px solid;
+}
+.svc-banner-ok    { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.svc-banner-warn  { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.svc-banner-bad   { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.svc-banner-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: currentColor;
+  color: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.svc-banner-title {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+}
+.svc-banner-sub {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 1px;
+}
+
+/* Refresh button with icon */
+.svc-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+}
+.svc-refresh:hover:not(:disabled) { background: var(--surface-hover, #f9fafb); border-color: var(--text-muted); }
+.svc-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
+.svc-refresh-icon { font-size: 14px; line-height: 1; }
+.svc-refresh[data-loading="true"] .svc-refresh-icon { animation: svc-spin 0.9s linear infinite; }
+@keyframes svc-spin { to { transform: rotate(360deg); } }
+
+/* ─── Absence Calendar ─────────────────────────────────────── */
+.absence-cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.absence-cal-title {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.absence-cal-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.absence-cal-day-header {
+  background: var(--surface);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: 8px 4px;
+}
+
+.absence-cal-day-cell {
+  background: var(--bg);
+  min-height: 90px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.absence-cal-day-cell.today {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.absence-cal-day-cell.outside-month {
+  background: var(--bg);
+  opacity: 0.25;
+}
+
+.absence-cal-day-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.absence-cal-day-cell.today .absence-cal-day-num {
+  color: var(--primary);
+}
+
+.absence-cal-pill {
+  font-size: 11px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  line-height: 1.4;
+  margin-bottom: 1px;
+}
+
+.absence-cal-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding-top: 2px;
+}
+
+.absence-cal-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s;
+}
+
+.absence-cal-dot:hover {
+  transform: scale(1.4);
+}
+
+/* Staff filter chips */
+.absence-cal-staff-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0 0;
+}
+
+.absence-cal-staff-chip {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.absence-cal-staff-chip.hidden {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  opacity: 0.75;
+}
+
+.absence-cal-week-block {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.absence-cal-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Legend */
+.absence-cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.absence-cal-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.absence-cal-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.absence-cal-legend-dot--holiday {
+  background: transparent;
+  border: 2px solid var(--warning);
+  width: 10px;
+  height: 10px;
+}
+
+/* Holiday markers in calendar */
+.absence-cal-day-cell.holiday {
+  background: var(--surface-2);
+}
+.absence-cal-day-top {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+.absence-cal-holiday-label {
+  font-size: 10px;
+  color: var(--warning);
+  font-weight: 700;
+  background: var(--warning-soft);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  line-height: 1.3;
+}
+.absence-cal-week-holiday {
+  font-size: 10px;
+  color: var(--warning);
+  font-weight: 600;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Detail Modal */
+.absence-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.absence-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 360px;
+  max-width: 94vw;
+  max-height: 85dvh;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.absence-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 18px 20px 14px 18px;
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.absence-modal-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.absence-modal-type {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+.absence-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 4px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.absence-modal-close:hover { color: var(--text); }
+.absence-modal-body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.absence-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--text);
+}
+.absence-modal-label {
+  width: 72px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ─── Approval-Drawer (Bestellfreigaben) ─────────────────── */
+.approval-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-1, var(--surface, #fff));
+}
+.approval-card + .approval-card { margin-top: 10px; }
+
+.approval-head { display: flex; flex-direction: column; gap: 2px; }
+.approval-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.approval-project {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.approval-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.approval-meta-item svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.8;
+}
+
+.approval-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-2, transparent);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  width: fit-content;
+  max-width: 100%;
+  transition: border-color 120ms, background 120ms;
+}
+.approval-file:hover {
+  border-color: var(--primary, #2563eb);
+  background: var(--primary-soft, rgba(37,99,235,0.08));
+}
+.approval-file-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--danger-soft, rgba(239,68,68,0.12));
+  color: var(--danger, #EF4444);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.approval-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.approval-actions {
+  display: flex;
+  gap: 10px;
+}
+.approval-btn {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.approval-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.approval-btn-approve {
+  color: var(--success);
+  border-color: var(--success);
+}
+.approval-btn-approve:hover:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+}
+.approval-btn-reject {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.approval-btn-reject:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ─── Einsatzplanungs-Kalender ─────────────────────────────── */
+
+.project-schedule-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 16px;
+  align-items: start;
+}
+
+.project-schedule-layout.panel-collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.project-schedule-calendar {
+  min-width: 0;
+}
+
+.project-schedule-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  position: sticky;
+  top: 12px;
+  /* Kein overflow:auto: würde absolute Kinder (Picker-Dropdown) clippen.
+     Wenn das Panel höher als der Viewport wird, scrollt einfach die Seite. */
+}
+
+.project-schedule-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-schedule-panel-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.project-schedule-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-schedule-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.project-schedule-field > span {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.project-schedule-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.project-schedule-monteur-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.project-schedule-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.project-schedule-chip.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Lead-Monteur = der zuerst angewählte. Die Regel steht NACH .active, damit sie
+   den Blau-Ton des aktiven Chips überschreibt (gleiche Spezifität). */
+.project-schedule-chip.lead {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.project-schedule-lead-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.project-schedule-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.project-schedule-error {
+  font-size: 12px;
+  color: var(--danger);
+  padding: 6px 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border-radius: 4px;
+}
+
+/* Vorschau des aufgezogenen Termins oben im Panel. */
+.project-schedule-slot-banner {
+  padding: 8px 10px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-schedule-slot-banner-time {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.project-schedule-slot-banner-staff {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.project-schedule-req {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.project-schedule-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.project-schedule-field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.project-schedule-mini-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 11px;
+  color: var(--primary, #3b82f6);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.project-schedule-mini-btn:hover {
+  opacity: 0.8;
+}
+
+/* Termin-Zeilen im Planungs-Panel (mehrere Termine pro Projekt). */
+.project-schedule-appt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.project-schedule-appt-row:hover {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.04));
+}
+
+.project-schedule-appt-row.active {
+  border-color: var(--primary, #3b82f6);
+  background: color-mix(in srgb, var(--primary, #3b82f6) 8%, transparent);
+}
+
+.project-schedule-appt-kind {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.project-schedule-appt-when {
+  flex: 1;
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Aufgaben-Zeilen im Planungs-Panel (Checkliste des Projekts). Wie die
+   Termin-Zeile, aber ohne Klick-Fläche — die Zeile selbst öffnet nichts. */
+.project-schedule-task-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-top: 4px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.project-schedule-task-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-schedule-task-text.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* ── Kachel «Termine» in der Projektübersicht ────────────────────────────
+   Eigene Klassen statt der .project-schedule-*-Regeln oben: die stehen im
+   schmalen Planungs-Panel, die Kachel hier in der breiten Projektmaske. */
+.project-appt-next {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.project-appt-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.project-appt-item.open {
+  border-color: var(--primary);
+}
+
+.project-appt-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+/* Zusammenfassung = Aufklapp-Fläche. Als <button> für Tastatur/Screenreader,
+   optisch aber eine Textzeile. */
+.project-appt-summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.project-appt-kind {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.project-appt-when {
+  color: var(--text-muted);
+}
+
+.project-appt-team {
+  color: var(--muted);
+  font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-appt-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 10px 14px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--surface-2);
+}
+
+.project-appt-own-team {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.project-appt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.project-appt-chip {
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.project-appt-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.project-cal-filter {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.project-cal-filter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--text-muted);
+  gap: 8px;
+}
+
+.project-cal-filter-label {
+  font-weight: 700;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.project-cal-filter-count {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 11.5px;
+  margin-left: 6px;
+}
+
+/* Mitarbeiteransicht: Umschalter Mitarbeiter → Mitarbeiter */
+.project-cal-staff-switcher {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.project-cal-staff-switcher-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.project-cal-staff-switcher-select {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+
+/* Projekt-Picker Dropdown */
+.project-schedule-picker-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+}
+
+.project-schedule-picker-empty {
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.project-schedule-picker-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  line-height: 1.35;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.project-schedule-picker-item:last-child {
+  border-bottom: none;
+}
+
+.project-schedule-picker-item:hover,
+.project-schedule-picker-item:focus {
+  background: var(--bg);
+  outline: none;
+}
+
+.project-schedule-picker-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.project-schedule-picker-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+/* Projekt-Pille im Kalender (auf Basis von .absence-cal-pill /
+   .absence-cal-week-block) — fügt Drag-Cursor und Farb-Akzent hinzu. */
+.project-cal-pill {
+  cursor: grab;
+  color: #fff;
+  font-weight: 500;
+  /* Pille darf umbrechen, damit lange Projektnamen sichtbar bleiben */
+  white-space: normal !important;
+  overflow: hidden;
+  text-overflow: clip;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.project-cal-pill:active {
+  cursor: grabbing;
+}
+
+/* Pille mit Zusatzfeldern (Adresse, PL …): nicht auf 2 Zeilen kappen. */
+.project-cal-pill.has-extra {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+
+/* Zusatz-Zeilen auf der Kachel (Monat + Woche): kleiner, leicht gedämpft. */
+.project-cal-pill-extra,
+.project-cal-week-event-extra {
+  font-size: 10px;
+  font-weight: 400;
+  line-height: 1.2;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile Agenda (Einsatzplanung) ─────────────────────────── */
+
+.project-cal-agenda {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.project-cal-agenda-day {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.project-cal-agenda-day-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.project-cal-agenda-day-head.today { color: var(--primary); }
+.project-cal-agenda-add {
+  margin-left: auto;
+  min-width: 40px;
+  min-height: 40px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.project-cal-agenda-empty {
+  padding: var(--s-2) var(--s-3);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.project-cal-agenda-event {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--s-2) var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: 6px;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+}
+.project-cal-agenda-event-time { font-size: 11px; opacity: 0.85; }
+.project-cal-agenda-event-sub { font-size: 12px; opacity: 0.9; }
+.project-cal-agenda-hint {
+  margin-top: var(--s-3);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Projekt-Detail: mehrspaltige Editor-Zeile (Ansprechpersonen etc.)
+   Spalten: Stern · Name · Kommentar · Telefon · E-Mail · Entfernen.
+   Die Mindestbreiten sind kein Schmuck: mit reinen fr-Anteilen (vorher
+   2fr 1fr 1fr 2fr) bekamen Name und E-Mail doppelt so viel Platz wie nötig,
+   während Telefon schon bei 1280px eine Schweizer Nummer abgeschnitten hat
+   („079 328 40…"). Jetzt gilt zuerst die Mindestbreite, erst der Rest wird
+   nach fr verteilt. */
+.project-pos-row {
+  display: grid;
+  grid-template-columns:
+    auto
+    minmax(170px, 1.4fr)   /* Name */
+    minmax(150px, 1.2fr)   /* Kommentar */
+    minmax(160px, 0.9fr)   /* Telefon — „079 328 40 55" muss ganz reinpassen */
+    minmax(200px, 1.5fr)   /* E-Mail */
+    auto;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: end;
+}
+
+/* Ob die sechs Spalten nebeneinander passen, hängt an der Breite der KARTE,
+   nicht des Fensters: Sidebar und rechte Kommentarspalte verschieben das je
+   nach Screen. Deshalb Container-Query auf der Karte (.project-contacts).
+   Ab ~870px Kartenbreite (= 806px Mindestbreite der Spalten + 2×24 Polster)
+   passt die einzeilige Variante. */
+.project-contacts {
+  container-type: inline-size;
+}
+
+@media (min-width: 768px) {
+  /* Einzeilig: Spaltentitel nur über der ersten Zeile — ab der zweiten wären
+     NAME/KOMMENTAR/TELEFON/E-MAIL reine Wiederholung. */
+  @container (min-width: 871px) {
+    .project-pos-row-repeat .admin-form-label { display: none; }
+  }
+
+  /* Zu schmal für sechs Spalten → zwei Zeilen pro Kontakt statt vier
+     Quetsch-Spalten (Telefon schnitt sonst die Nummer ab). Die Titel bleiben
+     hier auf jeder Zeile, sonst verschwimmen zwei Kontakte zu einem Block;
+     zusätzlich trennt eine feine Linie die Kontakte. */
+  @container (max-width: 870px) {
+    .project-pos-row {
+      grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+      grid-template-areas:
+        "star name tel  del"
+        ".    komm mail .";
+      row-gap: 10px;
+    }
+    .project-pos-row > :nth-child(1) { grid-area: star; }
+    .project-pos-row > :nth-child(2) { grid-area: name; }
+    .project-pos-row > :nth-child(3) { grid-area: komm; }
+    .project-pos-row > :nth-child(4) { grid-area: tel; }
+    .project-pos-row > :nth-child(5) { grid-area: mail; }
+    .project-pos-row > :nth-child(6) { grid-area: del; }
+
+    .project-pos-row + .project-pos-row {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 14px;
+    }
+  }
+}
+
+/* Offerten-Editor: Positions-Zeile (Material / Freie Position) */
+.quote-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── Positionen verschieben (Griff + ▲/▼) ─────────────────────────── */
+.quote-row-reorder {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.quote-drag-handle {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  padding: 0 4px;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+}
+.quote-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Kompakte Pfeil-Buttons — sollen die volle Zeile nicht dominieren. */
+.quote-move-btn {
+  padding: 4px 6px;
+  min-width: 0;
+  line-height: 1;
+}
+
+/* Ziel-Zeile beim Ziehen hervorheben. */
+.quote-row[data-drop-target='true'] {
+  outline: 2px dashed var(--primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* ⓘ-Erklärungs-Button (InfoHint) */
+.admin-info-hint-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+}
+
+/* ─── Mobile Karten-Listen (AdminCardList) ────────────────── */
+.admin-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+.admin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--s-4);
+}
+.admin-card.clickable { cursor: pointer; }
+.admin-card.clickable:active { background: var(--surface-2); }
+.admin-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.admin-card-title {
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.admin-card-meta {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.admin-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.admin-card-actions .admin-btn { min-height: 40px; }
+
+/* Wochen-Zeitraster ──────────────────────────────────────── */
+
+.project-cal-week {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.project-cal-week-header {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.project-cal-week-corner {
+  border-right: 1px solid var(--border);
+}
+
+.project-cal-week-day-head {
+  padding: 8px 6px;
+  text-align: center;
+  border-right: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.project-cal-week-day-head:last-child {
+  border-right: none;
+}
+
+.project-cal-week-day-head.today {
+  color: var(--primary, #3b82f6);
+  font-weight: 600;
+}
+
+.project-cal-week-day-wd {
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+.project-cal-week-day-num {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.project-cal-week-day-holiday {
+  font-size: 10px;
+  color: var(--warning);
+  font-weight: 700;
+  background: var(--warning-soft);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 3px;
+  display: inline-block;
+}
+
+.project-cal-week-allday-row {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  min-height: 32px;
+}
+
+.project-cal-week-allday-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+}
+
+.project-cal-week-allday-cell {
+  padding: 4px 4px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.project-cal-week-allday-cell:last-child {
+  border-right: none;
+}
+
+.project-cal-week-body {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  position: relative;
+}
+
+.project-cal-week-hours {
+  border-right: 1px solid var(--border);
+}
+
+.project-cal-week-hour-label {
+  font-size: 10px;
+  color: var(--muted);
+  padding: 2px 6px 0 6px;
+  border-bottom: 1px dashed var(--border);
+  box-sizing: border-box;
+  text-align: right;
+}
+
+.project-cal-week-day-col {
+  position: relative;
+  border-right: 1px solid var(--border);
+}
+
+.project-cal-week-day-col:last-child {
+  border-right: none;
+}
+
+.project-cal-week-hour-cell {
+  border-bottom: 1px dashed var(--border);
+  box-sizing: border-box;
+}
+
+.project-cal-week-event {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  color: #fff;
+  cursor: grab;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* --lane-z setzt das Lane-Layout (gestaffelte Parallel-Einsätze). */
+  z-index: var(--lane-z, 1);
+}
+
+/* Zu flach für zwei Zeilen: Uhrzeit und Name teilen sich eine Zeile. */
+.project-cal-week-event.tight {
+  padding: 2px 6px;
+  justify-content: center;
+}
+
+.project-cal-week-event-inline {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.project-cal-week-event-inline .project-cal-week-event-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+
+/* Parallele Einsätze überlappen sich leicht (mehr Textbreite als bei exakt
+   geteilten Spalten). Die helle Kante links macht die Staffelung sichtbar,
+   beim Überfahren kommt die Kachel nach vorn. */
+.project-cal-week-event.stacked {
+  box-shadow: -1px 0 0 rgba(255, 255, 255, 0.45), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.project-cal-week-event:hover {
+  z-index: 10;
+}
+
+.project-cal-week-event.allday {
+  position: static;
+  padding: 2px 6px;
+  font-size: 11px;
+  border-radius: 999px;
+}
+
+/* Ganztags-Eintrag mit Zusatzfeldern: kein schmaler Pillen-Chip, sondern ein
+   wachsendes Rechteck, damit Adresse/PL/Kunde/Bemerkung Platz haben. */
+.project-cal-week-event.allday.has-extra {
+  border-radius: 6px;
+  padding: 4px 6px;
+  align-items: stretch;
+}
+
+.project-cal-week-event:active {
+  cursor: grabbing;
+}
+
+.project-cal-week-event-time {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.project-cal-week-event-name {
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* Zoom-Regler für die Zeilenhöhe des Wochen-Zeitrasters. */
+.project-cal-zoom {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin: 0 0 8px;
+}
+
+.project-cal-zoom-value {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 88px;
+  text-align: center;
+}
+
+/* Hover-Karte über einer Kalenderkachel. Liegt per Portal am <body>, damit sie
+   nicht am overflow:hidden des Kalenders abgeschnitten wird. */
+.project-cal-hovercard {
+  position: fixed;
+  z-index: 3000;
+  pointer-events: none;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.18);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.35;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.project-cal-hovercard-head {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+
+.project-cal-hovercard-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  align-self: center;
+}
+
+/* Badge erbt auf der Karte keinen farbigen Hintergrund — dort ist es hell. */
+.project-cal-hovercard .project-cal-termin-badge {
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.project-cal-hovercard-time {
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.project-cal-hovercard-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.project-cal-hovercard-label {
+  flex: none;
+  width: 78px;
+  color: var(--text-muted);
+}
+
+/* Warnhinweis (z.B. Doppelbuchung) — steht in der Karte statt in einem zweiten
+   Tooltip, der sich sonst über die Karte legen würde. */
+.project-cal-hovercard-note {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid var(--border);
+  color: var(--danger, #dc2626);
+  font-weight: 600;
+}
+
+/* Termin-Typ-Badge auf Kalenderblöcken (z.B. "Aufmass") — nur bei
+   Nicht-Standard-Terminen gesetzt, damit der Normalfall ruhig bleibt. */
+.project-cal-termin-badge {
+  display: inline-block;
+  padding: 0 4px;
+  margin-right: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
+
+/* Drop-Target Hervorhebung bei DragOver. */
+.project-cal-drop-hover {
+  outline: 2px dashed var(--primary);
+  outline-offset: -2px;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* Vorschau-Linie beim Ziehen ins Zeitraster: zeigt, wo der Block-Anfang (Uhrzeit) landet. */
+.project-cal-week-drop-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid var(--primary);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.project-cal-week-drop-time {
+  position: absolute;
+  top: -8px;
+  left: 2px;
+  padding: 0 4px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 3px;
+  line-height: 16px;
+}
+
+/* Freie Rasterfläche lädt zum Aufziehen eines neuen Termins ein. */
+.project-cal-week-day-col.creatable {
+  cursor: cell;
+}
+
+/* Ausgegraute Nicht-Arbeitszeit (ab konfigurierter Uhrzeit, nur Werktage).
+   Rein visuell: pointer-events aus, damit Planen/Verschieben dort weiter geht.
+   Ohne z-index → über den Rasterlinien, aber unter den (später im DOM
+   gerenderten) Einsatz-Blöcken, Drop-Linie und Aufzieh-Box. */
+.project-cal-week-dim {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  border-top: 1px solid var(--border);
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(100, 116, 139, 0.10),
+    rgba(100, 116, 139, 0.10) 6px,
+    rgba(100, 116, 139, 0.16) 6px,
+    rgba(100, 116, 139, 0.16) 12px
+  );
+}
+
+/* Vorschaubox beim Aufziehen eines neuen Termins. */
+.project-cal-week-create-box {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid var(--primary);
+  pointer-events: none;
+  z-index: 6;
+  overflow: hidden;
+}
+
+.project-cal-week-create-time {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  padding: 0 4px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 3px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* ─── Blocker: provisorisch geplant (schraffierte Kachel) ──── */
+
+/* Die Kacheln tragen ihre Farbe als INLINE-Style (background-Kurzform, pro
+   Mandant konfigurierbar). Ein background-image aus dem Stylesheet würde davon
+   überschrieben — die Schraffur liegt deshalb als ::after-Overlay darüber statt
+   als zweiter Hintergrund. Kein !important nötig. */
+.project-cal-pill.provisional::after,
+.project-cal-week-event.provisional::after,
+.project-cal-board-chip.provisional::after,
+.project-cal-gantt-bar.provisional::after,
+.project-cal-agenda-event.provisional::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.34) 0 5px,
+    rgba(255, 255, 255, 0) 5px 10px
+  );
+}
+
+/* position: relative NUR für die im Fluss stehenden Kacheln — Wochenraster und
+   Tagesplan positionieren ihre Blöcke absolut, dort würde ein relative die
+   Platzierung im Raster zerstören. */
+.project-cal-pill.provisional,
+.project-cal-board-chip.provisional,
+.project-cal-agenda-event.provisional {
+  position: relative;
+}
+
+.project-cal-pill.provisional,
+.project-cal-week-event.provisional,
+.project-cal-board-chip.provisional,
+.project-cal-gantt-bar.provisional,
+.project-cal-agenda-event.provisional {
+  overflow: hidden;
+}
+
+/* ─── Mini-Monatskalender (Datumssprung aus der Toolbar) ───── */
+
+.project-cal-datepicker {
+  position: relative;
+  display: inline-block;
+}
+
+.project-cal-datepicker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.project-cal-datepicker-trigger:hover,
+.project-cal-datepicker-trigger[aria-expanded='true'] {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.project-cal-datepicker-caret {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Zentriert unter dem Auslöser. z-index über den Kalenderkacheln, sonst
+   verschwindet das Popover hinter den sticky Kopfzeilen der Plantafel. */
+.project-cal-datepicker-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: 244px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  cursor: default;
+}
+
+.project-cal-datepicker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.project-cal-datepicker-month {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.project-cal-datepicker-nav {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.project-cal-datepicker-nav:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.project-cal-datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.project-cal-datepicker-dow {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  padding-bottom: 2px;
+}
+
+.project-cal-datepicker-blank {
+  height: 28px;
+}
+
+/* position: relative trägt den Einsatz-Punkt am unteren Rand. */
+.project-cal-datepicker-day {
+  position: relative;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.project-cal-datepicker-day:hover {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.project-cal-datepicker-day.holiday {
+  color: var(--danger);
+}
+
+.project-cal-datepicker-day.today {
+  font-weight: 700;
+  border-color: var(--primary);
+}
+
+/* Nach .today, damit die Auswahl den Heute-Rahmen überschreibt. */
+.project-cal-datepicker-day.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.project-cal-datepicker-dot {
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.project-cal-datepicker-day.selected .project-cal-datepicker-dot {
+  background: #fff;
+}
+
+.project-cal-datepicker-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* ─── Plantafel (Monteure als Zeilen × Wochentage) ─────────── */
+
+/* overflow: clip statt hidden — clip erzeugt keinen Scroll-Container, dadurch
+   funktioniert die sticky Kopfzeile weiterhin relativ zum Seiten-Scroll. */
+.project-cal-board {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: clip;
+  background: var(--surface);
+}
+
+.project-cal-board-row {
+  display: grid;
+  grid-template-columns: 150px repeat(7, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.project-cal-board-row:last-child {
+  border-bottom: none;
+}
+
+/* Kopfzeile bleibt beim Scrollen durch die (hohen) Monteur-Zeilen sichtbar. */
+.project-cal-board-header {
+  background: var(--bg);
+  font-size: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.project-cal-board-day-head {
+  padding: 6px 8px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+
+.project-cal-board-day-head:last-child {
+  border-right: none;
+}
+
+.project-cal-board-day-head.today {
+  color: var(--primary, #3b82f6);
+  font-weight: 600;
+}
+
+/* Monteur-Namensspalte (erste Zelle jeder Zeile). */
+.project-cal-board-staff {
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--bg);
+}
+
+.project-cal-board-staff.unassigned {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.project-cal-board-cell {
+  padding: 3px;
+  border-right: 1px solid var(--border);
+  min-height: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.project-cal-board-cell:last-child {
+  border-right: none;
+}
+
+.project-cal-board-cell.today {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.project-cal-board-cell.holiday {
+  background: var(--surface-2);
+}
+
+/* Einsatz-Chip: kompakt (Zeit + Titel), Details im Tooltip/Klick-Panel. */
+.project-cal-board-chip {
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 11px;
+  color: #fff;
+  cursor: grab;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.project-cal-board-chip:active {
+  cursor: grabbing;
+}
+
+/* Doppelbuchung: Einsatz überschneidet sich zeitlich mit einem anderen
+   desselben Monteurs am selben Tag. */
+.project-cal-board-chip.conflict {
+  box-shadow: 0 0 0 2px var(--danger, #dc2626);
+}
+
+/* Lead-Monteur: die Kachel in SEINER Zeile bekommt eine rote Kante. Bewusst
+   eine Kante statt eines Rings — der Ring ist schon die Doppelbuchungs-Warnung,
+   zwei rote Ringe wären nicht auseinanderzuhalten. */
+.project-cal-board-chip.lead {
+  border-left: 3px solid #dc2626;
+  padding-left: 3px;
+}
+
+.project-cal-board-chip-warn {
+  margin-left: 4px;
+  color: #fecaca;
+}
+
+/* Freie Zellfläche lädt zum Planen ein (Klick = neuer Einsatz). */
+.project-cal-board-cell.creatable {
+  cursor: cell;
+}
+
+/* Fahrdistanz zwischen zwei aufeinanderfolgenden Einsätzen einer Zelle. */
+.project-cal-board-dist {
+  font-size: 10px;
+  color: var(--muted);
+  padding: 0 6px;
+  line-height: 1.3;
+}
+
+/* Typ-Symbol (Aufmass/Montage/Service/…) auf Kalender-Kacheln und Chips. */
+.project-cal-kind-symbol {
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+.project-cal-board-chip-time {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.project-cal-board-chip-name {
+  font-weight: 500;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ─── Tagesplan / Gantt (Mitarbeiter als Zeilen × Uhrzeit) ─── */
+
+.project-cal-gantt {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* Die Achse kann breiter als der Bildschirm sein — waagrecht scrollen, die
+   Namensspalte links und die Auslastung rechts bleiben stehen (sticky). */
+.project-cal-gantt-scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.project-cal-gantt-inner {
+  min-width: 100%;
+}
+
+.project-cal-gantt-row {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.project-cal-gantt-row:last-child {
+  border-bottom: none;
+}
+
+.project-cal-gantt-header {
+  background: var(--bg);
+  font-size: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 40px;
+}
+
+.project-cal-gantt-name {
+  flex: 0 0 170px;
+  width: 170px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  background: var(--bg);
+  position: sticky;
+  left: 0;
+  z-index: 10;
+}
+
+.project-cal-gantt-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-cal-gantt-name.unassigned {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Auslastungsgrad des sichtbaren Zeitraums, rechts angedockt. margin-left:auto
+   hält das Badge am rechten Rand, auch wenn die Achse schmaler als der
+   Bildschirm ist. */
+.project-cal-gantt-util {
+  flex: 0 0 64px;
+  width: 64px;
+  margin-left: auto;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.project-cal-gantt-util-badge {
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #fff;
+  min-width: 42px;
+  text-align: center;
+}
+
+.project-cal-gantt-util-badge.idle { background: var(--surface-2); color: var(--muted); }
+.project-cal-gantt-util-badge.low  { background: #16a34a; }
+.project-cal-gantt-util-badge.mid  { background: #ca8a04; }
+.project-cal-gantt-util-badge.high { background: #ea580c; }
+.project-cal-gantt-util-badge.over { background: var(--danger, #dc2626); }
+
+/* Zeitachse im Kopf: ein Block je Tag, darin die Stundenbeschriftung. */
+.project-cal-gantt-axis {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.project-cal-gantt-day-head {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--border);
+  padding-top: 2px;
+}
+
+.project-cal-gantt-day-head.today .project-cal-gantt-day-title {
+  color: var(--primary, #3b82f6);
+  font-weight: 700;
+}
+
+.project-cal-gantt-day-title {
+  font-size: 11px;
+  font-weight: 600;
+  padding-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.project-cal-gantt-hours {
+  position: relative;
+  height: 16px;
+}
+
+.project-cal-gantt-hour-label {
+  position: absolute;
+  top: 0;
+  font-size: 10px;
+  color: var(--muted);
+  padding-left: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Zeile eines Mitarbeiters: Balken liegen absolut auf der Spur. */
+.project-cal-gantt-track {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.project-cal-gantt-track.creatable {
+  cursor: cell;
+}
+
+.project-cal-gantt-day-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--border);
+  pointer-events: none;
+}
+
+/* Wochenende/Feiertag: Tagesspalte gedämpft. */
+.project-cal-gantt-offday {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-2);
+}
+
+/* Ausgegraute Nicht-Arbeitszeit (Werktage), rein visuell. */
+.project-cal-gantt-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(100, 116, 139, 0.10),
+    rgba(100, 116, 139, 0.10) 6px,
+    rgba(100, 116, 139, 0.16) 6px,
+    rgba(100, 116, 139, 0.16) 12px
+  );
+}
+
+.project-cal-gantt-hour-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px solid var(--border);
+  opacity: 0.45;
+}
+
+/* Einsatz-Balken: Dauer = Breite, zwei Zeilen (Titel / Ortschaft).
+   Die Höhe kommt aus GANTT_BAR_H (utils/ganttGrid.ts) — bleibt sie und die
+   Zeilenhöhen hier nicht im Gleichschritt, rutscht die zweite Zeile heraus. */
+.project-cal-gantt-bar {
+  position: absolute;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #fff;
+  font-size: 11px;
+  cursor: grab;
+  overflow: hidden;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+}
+
+.project-cal-gantt-bar:active {
+  cursor: grabbing;
+}
+
+/* Erste Zeile: Kürzel, Symbol/Badge, Titel, Uhrzeit. */
+.project-cal-gantt-bar-line {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  line-height: 16px;
+}
+
+/* Der Name hat Vorrang: er darf schrumpfen, die Uhrzeit weicht als Ganzes. */
+.project-cal-gantt-bar-name {
+  font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-cal-gantt-bar-time {
+  flex: 0 0 auto;
+  opacity: 0.85;
+  font-size: 10px;
+}
+
+/* Kürzel des Termin-Teams ganz vorne — auf einen Blick, wer draussen ist.
+   Ein Chip je Monteur (früher eine gemeinsame Pille): seit der Lead-Monteur
+   markiert wird, MUSS Rot eine Bedeutung tragen. Rot = Lead, Weiss = übriges
+   Team. Beide Chips sind deckend, damit der Kontrast über ALLE Balkenfarben
+   trägt (Blau, Lila, Bernstein, Türkis, Magenta, Limette, Slate) — ein
+   durchscheinender Chip läge als heller Schleier auf dem Balken und wäre vom
+   Projektnamen daneben kaum zu unterscheiden. Rot kommt in keiner Balkenfarbe
+   vor; einzig gegen Magenta (#db2777) liegen die Töne nah beieinander, dagegen
+   der dünne weisse Ring als Kante.
+   Vertikal ohne Padding: die Chip-Höhe kommt aus der line-height der Zeile
+   (16px) — Padding würde die Zeile über GANTT_BAR_H hinaus wachsen lassen. */
+.project-cal-gantt-bar-crew {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 3px;
+}
+
+.schedule-crew-chip {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #1e293b;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7);
+}
+
+.schedule-crew-chip.lead {
+  background: var(--cal-crew-bg, #dc2626);
+  color: var(--cal-crew-fg, #ffffff);
+}
+
+/* Lead-Monteur ausserhalb der Kürzel-Chips.
+   Auf farbigem Grund (Agenda-Karte) braucht es die deckende Pille — roter Text
+   auf blauem Balken wäre unlesbar. Auf hellem Grund (Hover-Karte, Auswahl-Chips)
+   genügt die rote Schrift. */
+.schedule-lead-chip {
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 0 5px;
+  border-radius: 4px;
+}
+
+.schedule-lead-name {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Zweite Zeile: Ortschaft des Objekts. */
+.project-cal-gantt-bar-sub {
+  font-size: 10px;
+  line-height: 13px;
+  opacity: 0.85;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ganztägiger Einsatz: Band über den ganzen Tag, hinter den getakteten Balken. */
+.project-cal-gantt-bar.allday {
+  z-index: 1;
+  opacity: 0.45;
+  border-radius: 0;
+  justify-content: flex-start;
+}
+
+.project-cal-gantt-bar.conflict {
+  box-shadow: 0 0 0 2px var(--danger, #dc2626);
+}
+
+.project-cal-gantt-bar-warn {
+  color: #fecaca;
+}
+
+/* Fahrstrecke zum nächsten Einsatz — sitzt in der Lücke zwischen zwei Balken. */
+.project-cal-gantt-dist {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Umschalter Tag / 3 Tage / 5 Tage in der Zoom-Leiste. */
+.project-cal-gantt-spans {
+  display: flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+@media (max-width: 1100px) {
+  .project-schedule-layout {
+    grid-template-columns: 1fr;
+  }
+  .project-schedule-panel {
+    position: static;
+    max-height: none;
+  }
+}
+
+/* ─── Bericht-Modal (Mitarbeiter-Ansicht im Admin) ─────────── */
+.admin-bericht-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--s-4);
+}
+
+.admin-bericht-modal {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: min(900px, calc(100vh - 32px));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-hover);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mitarbeiter-PWA-Screen passt sich dem Modal an */
+.admin-bericht-modal .app-screen {
+  height: 100%;
+  max-height: inherit;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile Bottom-Nav im Admin-Modal ausblenden — Schliessen via X */
+.admin-bericht-modal .nav-bar {
+  display: none;
+}
+
+.admin-bericht-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.admin-bericht-modal-close:hover {
+  background: var(--surface-hover, var(--border));
+  border-color: var(--primary);
+}
+
+/* Projekt-Detailseite: aktiver Tab links, Kommentare als feste rechte
+   Seitenleiste (tab-unabhängig sichtbar). Auf Mobile untereinander. */
+.project-detail-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+.project-detail-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* Klebt unter dem Sticky-Header (≈88px). overflow-y überschreibt das
+   overflow-y: hidden von .admin-table-wrap, damit lange Kommentarlisten
+   innerhalb der Seitenleiste scrollen statt die Seite zu strecken. */
+.project-detail-comments {
+  position: sticky;
+  top: 92px;
+  max-height: calc(100vh - 112px);
+  overflow-y: auto;
+}
+@media (max-width: 767px) {
+  .project-detail-body { grid-template-columns: 1fr; }
+  .project-detail-comments { position: static; max-height: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Aufgaben-Board (Kanban) — tb-*
+   ───────────────────────────────────────────────────────────── */
+
+.tb-filterbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tb-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tb-chip:hover { color: var(--text); }
+
+.tb-chip.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tb-pl-select { width: auto; min-width: 160px; }
+
+.tb-board {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.tb-column {
+  flex: 1 1 0;
+  min-width: 240px;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+}
+
+.tb-column.done { opacity: 0.85; }
+
+.tb-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tb-column-count {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.tb-column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 12px;
+  overflow-y: auto;
+  min-height: 60px;
+}
+
+.tb-column-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 18px 0;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+}
+
+.tb-card {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: grab;
+  transition: border-color 0.12s ease;
+}
+
+.tb-card:hover { border-color: var(--primary); }
+.tb-card.done { opacity: 0.65; }
+.tb-card.done .tb-card-title { text-decoration: line-through; }
+
+.tb-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.tb-card-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-soft);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tb-card-type.manual {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.tb-card-avatar {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tb-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.tb-card-project {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.tb-card-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.tb-due.overdue { color: var(--danger); font-weight: 600; }
+
+/* Detail-/Erfassungs-Modal */
+.tb-detail { display: flex; flex-direction: column; gap: 12px; }
+.tb-detail-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.tb-detail-desc { font-size: 13px; color: var(--text-muted); white-space: pre-wrap; }
+.tb-detail-row { font-size: 13px; color: var(--text-muted); }
+
+.tb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex: 1 1 140px;
+}
+
+.tb-field-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.tb-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .tb-board {
+    /* Spalten bleiben nebeneinander und horizontal swipebar; Statuswechsel geht
+       auf Touch zusätzlich über das Karten-Detail (Spalten-Dropdown). */
+    scroll-snap-type: x mandatory;
+  }
+  .tb-column {
+    min-width: 78vw;
+    scroll-snap-align: start;
+    max-height: none;
+  }
+}
+
+/* Ansichten-Umschalter + Feld-Ansicht (Nachtrag 2026-08-10) */
+.tb-filterbar-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tb-filterbar-sep {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.tb-card-top-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tb-status-chip {
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.tb-status-chip.in_arbeit {
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.tb-status-chip.wartet {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.tb-card-done-btn {
+  float: right;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  margin-top: -2px;
+}
+
+.tb-card-done-btn:hover {
+  border-color: var(--success);
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+/* ─── Wochenplan-Tabelle (Admin-Tools → Konfiguration) ────── */
+
+.weekly-plan-hours {
+  width: 130px;
+}
+
+.weekly-plan-effective {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--muted, var(--text-muted));
+}
