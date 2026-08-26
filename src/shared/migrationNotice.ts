@@ -74,11 +74,44 @@ export function istWeggeklickt(aktuell: MigrationStufe, weggeklickt: string | nu
   return alt >= RANG[aktuell]
 }
 
-/** Text des Streifens. Kurz halten — er steht über der ganzen App. */
-export function migrationText(stufe: MigrationStufe, rest: number): string {
-  if (stufe === 'hinweis') return 'Werkora ist umgezogen. Jetzt wechseln →'
-  if (rest > 1) return `Diese Adresse wird in ${rest} Tagen abgeschaltet. Jetzt wechseln →`
-  if (rest === 1) return 'Diese Adresse wird morgen abgeschaltet. Jetzt wechseln →'
-  if (rest === 0) return 'Diese Adresse wird heute abgeschaltet. Jetzt wechseln →'
-  return 'Diese Adresse ist abgeschaltet. Jetzt wechseln →'
+/**
+ * Der Hostname aus der Ziel-URL, zum Anzeigen.
+ *
+ * Abgeleitet und nicht daneben geschrieben: sonst könnten Text und Link
+ * auseinanderlaufen, und der Nutzer tippte eine Adresse ab, die es nicht gibt.
+ */
+export function zielHost(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url.replace(/^https?:\/\//, '').replace(/\/.*$/, '')
+  }
+}
+
+/**
+ * Text des Streifens, zweizeilig.
+ *
+ * Beide Zeilen sind nötig, und beide wurden beim ersten Wurf vergessen:
+ *
+ * - **Die Adresse muss lesbar dastehen**, nicht nur als Klickziel. Wer auf dem
+ *   Handy den Hinweis sieht, aber am Bürorechner wechseln will, braucht sie zum
+ *   Abtippen. Ein Streifen, den man nur antippen kann, hilft genau dann nicht,
+ *   wenn jemand das Gerät wechselt — und das ist beim Umzug der Normalfall.
+ * - **«Einmal neu anmelden» gehört auf jede Stufe.** Die Anmeldung hängt am
+ *   API-Host, auf der neuen Adresse ist man zwangsläufig ausgeloggt. Wer das
+ *   nicht vorher liest, hält den Login-Screen für einen Fehler und ruft an.
+ */
+export function migrationText(
+  stufe: MigrationStufe,
+  rest: number,
+  zielUrl: string,
+): { zeile1: string; zeile2: string } {
+  const host = zielHost(zielUrl)
+  const zeile2 = `${host} — dort einmal neu anmelden`
+
+  if (stufe === 'hinweis') return { zeile1: 'Werkora ist umgezogen', zeile2 }
+  if (rest > 1) return { zeile1: `Diese Adresse wird in ${rest} Tagen abgeschaltet`, zeile2 }
+  if (rest === 1) return { zeile1: 'Diese Adresse wird morgen abgeschaltet', zeile2 }
+  if (rest === 0) return { zeile1: 'Diese Adresse wird heute abgeschaltet', zeile2 }
+  return { zeile1: 'Diese Adresse ist abgeschaltet', zeile2 }
 }

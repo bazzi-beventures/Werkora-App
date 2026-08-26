@@ -81,3 +81,31 @@ describe('MigrationBanner — Eskalation', () => {
     expect(localStorage.getItem('migrationVorschaltUebersprungen')).toBeNull()
   })
 })
+
+describe('MigrationBanner — die zwei Dinge, die der Nutzer braucht', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_MIGRATION_NOTICE', 'https://app.werkora.ch')
+    vi.stubEnv('VITE_MIGRATION_DEADLINE', STICHTAG)
+  })
+
+  it('zeigt die Adresse im Klartext, nicht nur als Klickziel', () => {
+    // Wer am Handy liest und am Buerorechner wechseln will, muss sie abtippen
+    // koennen. Beim Umzug ist dieser Geraetewechsel der Normalfall.
+    render(<MigrationBanner now={tag(8, 28)} />)
+    expect(screen.getByRole('link')).toHaveTextContent('app.werkora.ch')
+  })
+
+  it('sagt schon auf der ersten Stufe, dass man sich neu anmelden muss', () => {
+    render(<MigrationBanner now={tag(8, 28)} />)
+    expect(screen.getByRole('link')).toHaveTextContent(/neu anmelden/)
+  })
+
+  it('nennt auf der Vorschaltseite alle drei Schritte', () => {
+    // Anmelden, Symbol, Benachrichtigungen — dieselben drei, die auch in die
+    // Kundeninfo gehoeren. Wer nur eines davon macht, meldet sich spaeter.
+    render(<MigrationBanner now={tag(9, 9)} />)
+    expect(screen.getByText(/einmal neu anmelden/)).toBeInTheDocument()
+    expect(screen.getByText(/neu auf den Startbildschirm/)).toBeInTheDocument()
+    expect(screen.getByText(/erneut erlauben/)).toBeInTheDocument()
+  })
+})

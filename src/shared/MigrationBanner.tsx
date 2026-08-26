@@ -5,11 +5,14 @@ import {
   migrationStufe,
   migrationText,
   tageBisStichtag,
+  zielHost,
   type MigrationStufe,
 } from './migrationNotice'
 
-/** Höhe des Streifens. App.tsx schiebt die anderen Banner darum nach unten. */
-export const MIGRATION_STREIFEN_HOEHE = 46
+/** Höhe des Streifens. App.tsx schiebt die anderen Banner darum nach unten.
+ *  Zweizeilig, seit die Adresse lesbar dastehen muss und nicht nur als
+ *  Klickziel dient. */
+export const MIGRATION_STREIFEN_HOEHE = 58
 
 const KEY_WEGGEKLICKT = 'migrationHinweisWeggeklickt'
 const KEY_UEBERSPRUNGEN = 'migrationVorschaltUebersprungen'
@@ -58,6 +61,8 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
 
   const rest = stichtag ? tageBisStichtag(now, stichtag) : Number.NaN
 
+  const text = migrationText(stufe, rest, url)
+
   if (stufe === 'vorschalt' && !uebersprungen) {
     return (
       <div className="migration-vorschalt">
@@ -65,10 +70,14 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
           <div className="migration-vorschalt-mark"><WerkoraMark title="Werkora" /></div>
           <h1 className="migration-vorschalt-titel">Werkora ist umgezogen</h1>
           <p className="migration-vorschalt-text">
-            {migrationText(stufe, rest).replace(' Jetzt wechseln →', '')}
-            {' '}Melde dich einmal unter der neuen Adresse an und lege das Symbol
-            neu auf den Startbildschirm.
+            {text.zeile1}. Die neue Adresse lautet{' '}
+            <strong className="migration-vorschalt-host">{zielHost(url)}</strong>.
           </p>
+          <ul className="migration-vorschalt-liste">
+            <li>Dort <strong>einmal neu anmelden</strong> — die alte Anmeldung gilt nicht mit.</li>
+            <li>Das Symbol <strong>neu auf den Startbildschirm</strong> legen.</li>
+            <li>Benachrichtigungen <strong>erneut erlauben</strong>.</li>
+          </ul>
           <a className="migration-vorschalt-btn" href={url}>Zur neuen Adresse</a>
           <button
             type="button"
@@ -88,7 +97,10 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
 
   return (
     <div className={`migration-streifen migration-streifen-${stufe}`} role="status">
-      <a className="migration-streifen-link" href={url}>{migrationText(stufe, rest)}</a>
+      <a className="migration-streifen-link" href={url}>
+        <span className="migration-streifen-z1">{text.zeile1}</span>
+        <span className="migration-streifen-z2">{text.zeile2}</span>
+      </a>
       {wegklickbar && (
         <button
           type="button"

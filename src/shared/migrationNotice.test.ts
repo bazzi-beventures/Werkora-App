@@ -4,6 +4,7 @@ import {
   migrationStufe,
   migrationText,
   tageBisStichtag,
+  zielHost,
 } from './migrationNotice'
 
 // Der Umzugs-Hinweis ist im Parallelbetrieb der EINZIGE Kanal zum Nutzer: die
@@ -93,15 +94,50 @@ describe('istWeggeklickt', () => {
 
 describe('migrationText', () => {
   it('formuliert den Countdown in der richtigen Zeitform', () => {
-    expect(migrationText('dringend', 5)).toContain('in 5 Tagen')
-    expect(migrationText('dringend', 1)).toContain('morgen')
-    expect(migrationText('dringend', 0)).toContain('heute')
-    expect(migrationText('vorschalt', -2)).toContain('ist abgeschaltet')
+    expect(migrationText('dringend', 5, ZIEL).zeile1).toContain('in 5 Tagen')
+    expect(migrationText('dringend', 1, ZIEL).zeile1).toContain('morgen')
+    expect(migrationText('dringend', 0, ZIEL).zeile1).toContain('heute')
+    expect(migrationText('vorschalt', -2, ZIEL).zeile1).toContain('ist abgeschaltet')
   })
 
   it('nennt auf der mildesten Stufe kein Datum', () => {
     // Am ersten Tag ist die Nachricht «es gibt eine neue Adresse», nicht
     // «dir laeuft die Zeit davon».
-    expect(migrationText('hinweis', 14)).not.toMatch(/\d/)
+    expect(migrationText('hinweis', 14, ZIEL).zeile1).not.toMatch(/\d/)
+  })
+
+  it('nennt die Adresse auf JEDER Stufe im Klartext', () => {
+    // Der Streifen ist zwar anklickbar — wer aber am Handy liest und am
+    // Buerorechner wechseln will, muss die Adresse abtippen koennen. Beim
+    // Umzug ist genau dieser Geraetewechsel der Normalfall.
+    for (const [stufe, rest] of [['hinweis', 14], ['dringend', 5], ['vorschalt', 1]] as const) {
+      expect(migrationText(stufe, rest, ZIEL).zeile2).toContain('app.werkora.ch')
+    }
+  })
+
+  it('sagt auf JEDER Stufe, dass man sich neu anmelden muss', () => {
+    // Die Anmeldung haengt am API-Host; auf der neuen Adresse ist man
+    // zwangslaeufig ausgeloggt. Wer das nicht vorher liest, haelt den
+    // Login-Screen fuer einen Fehler und ruft an.
+    for (const [stufe, rest] of [['hinweis', 14], ['dringend', 5], ['vorschalt', 1]] as const) {
+      expect(migrationText(stufe, rest, ZIEL).zeile2).toMatch(/neu anmelden/)
+    }
+  })
+})
+
+describe('zielHost', () => {
+  it('zieht den Hostnamen aus der Ziel-URL', () => {
+    // Abgeleitet statt danebengeschrieben: sonst laufen Text und Link
+    // auseinander und der Nutzer tippt eine Adresse ab, die es nicht gibt.
+    expect(zielHost('https://app.werkora.ch')).toBe('app.werkora.ch')
+    expect(zielHost('https://app.werkora.ch/')).toBe('app.werkora.ch')
+    expect(zielHost('https://app.werkora.ch/pfad?x=1')).toBe('app.werkora.ch')
+  })
+
+  it('faellt bei Muell auf etwas Lesbares zurueck statt zu werfen', () => {
+    // Der Wert kommt aus einer Env-Variable von Hand — ein Tippfehler darf
+    // nicht die ganze App weiss werden lassen.
+    expect(zielHost('app.werkora.ch')).toBe('app.werkora.ch')
+    expect(zielHost('')).toBe('')
   })
 })
