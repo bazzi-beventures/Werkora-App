@@ -65,7 +65,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar-header">
-        <span className="admin-sidebar-tenant">{tenantName || 'Admin'}</span>
+        {/* title: Fällt der Name auch über zwei Zeilen nicht ganz hinein, bleibt
+            er wenigstens im Tooltip lesbar. */}
+        <span className="admin-sidebar-tenant" title={tenantName || 'Admin'}>{tenantName || 'Admin'}</span>
       </div>
 
       <nav className="admin-nav">

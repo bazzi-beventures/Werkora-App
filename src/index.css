@@ -9,11 +9,13 @@
   --border: #334155;
   --text: #F8FAFC;
   --muted: #94A3B8;
-  /* Werkora-Amber als Akzent VOR dem Login. Nach dem Login überschreibt
-     applyTenantBranding() diese fünf Variablen mit der Mandantenfarbe — der
-     Wert hier wirkt also nur auf Lade- und Anmeldescreen. Achtung: der Akzent
-     ist zweimal definiert, hier (Dark) und unten im Light-Block. Light ist der
-     Default, eine Änderung nur hier bliebe unsichtbar. */
+  /* Werkora-Amber als Akzent VOR dem Login. Nach dem Login hängt
+     applyTenantBranding() (App.tsx) ein Stylesheet ein, das diesen Satz mit
+     der abgeleiteten Mandantenfarbe überschreibt — pro Theme und
+     kontrastgeprüft, siehe brand/palette.ts. Der Wert hier wirkt also nur auf
+     Lade- und Anmeldescreen. Achtung: der Akzent ist zweimal definiert, hier
+     (Dark) und unten im Light-Block. Light ist der Default, eine Änderung nur
+     hier bliebe unsichtbar. */
   --accent-blue: #E9A227;
   --accent-blue-dim: rgba(233,162,39,0.18);
   --accent-blue-20: rgba(233,162,39,0.25);
@@ -149,11 +151,17 @@ input, textarea { font-family: var(--font); color: var(--text); }
    das Mandantenlogo daneben (.auth-logo-img hat auch keinen Rahmen).
    Die Kachel stammt aus der Zeit, als hier ein generisches Sechseck als
    Platzhalter stand: 30 px Motiv in einer 64-px-Fläche fast ohne Kontrast liess
-   die Stoppuhr wie einen Platzhalter aussehen statt wie ein Logo. */
+   die Stoppuhr wie einen Platzhalter aussehen statt wie ein Logo.
+
+   Sie steht mittig über dem Formular, obwohl Titel und Felder linksbündig
+   bleiben: sie ist das einzige Bild auf dem Screen und trägt als solches die
+   Mitte. Das `margin: 0 auto` zentriert im Flex-Container nur, solange die
+   Breite gedeckelt ist (56 px hier, max-width 180 px beim Mandantenlogo) —
+   ein ungedeckeltes Kind stretcht, und die auto-Ränder liefen leer. */
 .auth-logo {
   width: 56px; height: 56px;
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 28px;
+  margin: 0 auto 28px;
   color: var(--brand-ink);   /* der Ring der Marke nimmt currentColor */
 }
 .auth-logo svg { width: 100%; height: 100%; }
@@ -161,13 +169,13 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .auth-logo-img {
   max-width: 180px;
   max-height: 72px;
-  margin-bottom: 28px;
+  margin: 0 auto 28px;
 }
 .auth-logo-img img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: left center;
+  object-position: center;
 }
 
 /* Bitter ist auf werkora.ch die Titelschrift und dort als SERIFENschrift

@@ -2,6 +2,13 @@
    Admin Design Tokens — 8px grid, dark/light theme.
    Loaded before admin.css. Switch themes via
    `document.documentElement.setAttribute('data-theme', 'light'|'dark')`.
+
+   ACHTUNG bei --primary / --primary-hover / --primary-soft / --on-accent:
+   Diese vier sind nur noch der Rückfall, bis die Mandantenfarbe geladen ist.
+   Danach überschreibt sie `applyTenantBranding()` (App.tsx) über ein
+   eingehängtes Stylesheet aus `brand/palette.ts` — pro Theme und
+   kontrastgeprüft. Wer hier einen anderen Festwert einträgt, ändert deshalb
+   nicht mehr das Aussehen der Admin-App, sondern nur den Moment davor.
    ───────────────────────────────────────────────────────────── */
 
 :root,
@@ -22,6 +29,7 @@
   --primary:       #3081AB;
   --primary-hover: #459CC7;
   --primary-soft:  rgba(48, 129, 171, 0.16);
+  --on-accent:     #fff;
   --success:       #22C55E;
   --success-soft:  rgba(34, 197, 94, 0.15);
   --danger:        #EF4444;
@@ -71,6 +79,7 @@
   --primary:       #3081AB;
   --primary-hover: #459CC7;
   --primary-soft:  #E0F2FE;
+  --on-accent:     #fff;
   --success:       #16A34A;
   --success-soft:  rgba(22, 163, 74, 0.10);
   --danger:        #DC2626;
@@ -80,4 +89,28 @@
 
   --shadow-card:  0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 4px 14px rgba(15, 23, 42, 0.10);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Die dunkle Mandantenfläche — heute das «Mehr»-Blatt am Handy
+   (mobile.css). Sie trägt die Firmenfarbe als Grund, statt sie nur
+   als Akzent zu setzen, und folgt bewusst NICHT dem Hell/Dunkel-
+   Umschalter: Ein Blatt über dem Inhalt hebt sich vom hellen Theme
+   gerade dadurch ab, dass es dunkel bleibt. Deshalb steht der Satz
+   in einem eigenen :root-Block ohne [data-theme]-Varianten.
+
+   Wie --primary & Co. sind auch diese Werte nur der Rückfall, bis
+   die Mandantenfarbe geladen ist; danach überschreibt sie
+   `applyTenantBranding()` (App.tsx) aus `brand/palette.ts`. Es sind
+   exakt die Festwerte, die bis dahin für ALLE Mandanten galten.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --nav-surface:     #133550;
+  --nav-edge:        #1C3E60;
+  --nav-raised:      #2A5070;
+  --nav-text:        #F1F5F9;
+  --nav-text-muted:  #94B3CC;
+  --nav-accent:      #7DC4ED;
+  --nav-accent-soft: rgba(125, 196, 237, 0.08);
 }

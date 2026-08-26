@@ -16,6 +16,7 @@ import ProjektEntwurfScreen from './screens/ProjektEntwurfScreen'
 import AbsenzenScreen from './screens/AbsenzenScreen'
 import AdminApp from './admin/AdminApp'
 import { WerkoraMark } from './brand/WerkoraMark'
+import { derivePalette, paletteCss } from './brand/palette'
 import { MigrationBanner, MIGRATION_STREIFEN_HOEHE, aktuelleMigrationStufe } from './shared/MigrationBanner'
 import HelpBubble from './shared/HelpBubble'
 import { consumeBack, consumeScreenBack } from './shared/backButton'
@@ -38,42 +39,36 @@ declare global {
 
 type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen'
 
-function hexToRgba(hex: string, alpha: number): string {
-  const h = hex.replace('#', '')
-  const r = parseInt(h.slice(0, 2), 16)
-  const g = parseInt(h.slice(2, 4), 16)
-  const b = parseInt(h.slice(4, 6), 16)
-  return `rgba(${r},${g},${b},${alpha})`
-}
+// Die Wahl der Schrift auf der Akzentfläche wohnt jetzt in brand/palette.ts,
+// zusammen mit der übrigen Farbableitung. Der Re-Export hält die Funktion an
+// ihrem bisherigen Importpfad erreichbar.
+export { onAccentColor } from './brand/palette'
 
-// Schrift, die auf der Akzentfläche lesbar bleibt: Weiss oder Tinte, je nach
-// Helligkeit der Fläche (WCAG-Relativluminanz). Vorher stand auf .btn-primary
-// fest #fff — bei hellen Mandantenfarben ist das nicht lesbar, und mit dem
-// Werkora-Amber vor dem Login erst recht nicht (~2,2:1).
-export function onAccentColor(hex: string): string {
-  const h = hex.replace('#', '')
-  if (h.length !== 6) return '#fff'
-  const lin = (v: number) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
-  const [r, g, b] = [0, 2, 4].map(i => lin(parseInt(h.slice(i, i + 2), 16) / 255))
-  const L = 0.2126 * r + 0.7152 * g + 0.0722 * b
-  const INK_L = 0.01419   // Relativluminanz von #1B2028
-  const vsWhite = 1.05 / (L + 0.05)
-  const vsInk = (L + 0.05) / (INK_L + 0.05)
-  return vsInk > vsWhite ? '#1B2028' : '#fff'
-}
+/** Trägt das eingehängte Mandanten-Stylesheet, damit ein zweiter Aufruf
+ *  ersetzt statt anzuhängen (loadBranding läuft bei jedem Login erneut). */
+const BRANDING_STYLE_ID = 'werkora-tenant-branding'
 
+/**
+ * Mandantenfarbe anwenden — als Stylesheet, nicht als Inline-Style auf `<html>`.
+ *
+ * Der Unterschied ist nicht kosmetisch: Ein Inline-Style kennt genau einen
+ * Wert, das Theme wechselt aber zur Laufzeit. Deshalb lief die Monteur-App im
+ * dunklen Theme bisher mit der *hellen* Firmenfarbe — bei kräftigem Blau auf
+ * dunklem Grund keine 3,4:1. Über `[data-theme]`-Regeln greift ohne weiteres
+ * Zutun der jeweils passende Satz, auch beim Umschalten.
+ *
+ * Zweite Änderung: Der Satz enthält jetzt auch `--primary` & Co. Die Admin-App
+ * hatte diese Token fest in `admin/tokens.css` stehen und ignorierte die
+ * Mandantenfarbe komplett.
+ */
 function applyTenantBranding(info: TenantInfo) {
-  const root = document.documentElement
-  const c = info.brand_color
-  const d = info.brand_color_dark || c
-  root.style.setProperty('--on-accent', onAccentColor(c))
-  root.style.setProperty('--accent-blue', c)
-  root.style.setProperty('--accent-blue-dim', hexToRgba(c, 0.18))
-  root.style.setProperty('--accent-blue-20', hexToRgba(c, 0.25))
-  root.style.setProperty('--accent-blue-25', hexToRgba(c, 0.30))
-  root.style.setProperty('--accent-blue-40', hexToRgba(c, 0.50))
-  root.style.setProperty('--accent-blue-dark', d)
-  console.log('[Branding] applied:', c, d)
+  const css = paletteCss(derivePalette(info.brand_color))
+  const el = document.getElementById(BRANDING_STYLE_ID) ?? document.createElement('style')
+  el.id = BRANDING_STYLE_ID
+  el.textContent = css
+  // Ans Ende von <head>: die gebündelten Stylesheets stehen davor, und bei
+  // gleicher Spezifität gewinnt die spätere Regel.
+  document.head.appendChild(el)
 }
 
 // Tenant-aware logo: shows company logo if available, else the Werkora mark.
@@ -90,7 +85,7 @@ export function TenantLogo({ logoUrl }: { logoUrl: string }) {
     )
   }
   return (
-    <div className="auth-logo" style={{ marginBottom: 28 }}>
+    <div className="auth-logo">
       <WerkoraMark title="Werkora" />
     </div>
   )

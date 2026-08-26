@@ -92,8 +92,10 @@
 
 .admin-mobile-tab.active .admin-mobile-tab-icon {
   background: var(--primary);
-  /* icon svg stays white on the primary pill in both themes */
-  color: #fff;
+  /* Die Pille liegt in der Mandantenfarbe — das Icon darauf braucht deshalb
+     die geprüfte Schrift und nicht festes Weiss. Bei einer hellen Firmenfarbe
+     verschwand es sonst. --on-accent gilt in beiden Themes. */
+  color: var(--on-accent, #fff);
   border-radius: 12px;
   width: 44px;
   height: 26px;
@@ -194,9 +196,9 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: #133550;
+  background: var(--nav-surface, #133550);
   border-radius: 16px 16px 0 0;
-  border-top: 1px solid #1c3e60;
+  border-top: 1px solid var(--nav-edge, #1c3e60);
   z-index: 61;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   max-height: 70dvh;
@@ -214,7 +216,7 @@
   width: 36px;
   height: 4px;
   border-radius: 2px;
-  background: #2a5070;
+  background: var(--nav-raised, #2a5070);
   margin: 10px auto 4px;
   flex-shrink: 0;
 }
@@ -234,7 +236,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #94b3cc;
+  color: var(--nav-text-muted, #94b3cc);
   padding: 4px 20px 6px;
 }
 
@@ -245,7 +247,7 @@
   padding: 0 20px;
   min-height: 52px;
   font-size: 15px;
-  color: #f1f5f9;
+  color: var(--nav-text, #f1f5f9);
   background: none;
   border: none;
   width: 100%;
@@ -259,8 +261,8 @@
 }
 
 .admin-mobile-drawer-item.active {
-  color: #7dc4ed;
-  background: rgba(125, 196, 237, 0.08);
+  color: var(--nav-accent, #7dc4ed);
+  background: var(--nav-accent-soft, rgba(125, 196, 237, 0.08));
 }
 
 .admin-mobile-drawer-item svg {
@@ -287,7 +289,7 @@
 
 .admin-mobile-drawer-divider {
   height: 1px;
-  background: #1c3e60;
+  background: var(--nav-edge, #1c3e60);
   margin: 8px 0;
 }
 
@@ -303,7 +305,12 @@
   width: 100%;
   padding: 12px 8px;
   font-size: 14px;
-  color: #cdd9e6;
+  /* Eine Stufe unter den Einträgen darüber, aber deutlich über der
+     Fusszeile: «Zur Mitarbeiter-App» ist eine Handlung, keine Angabe.
+     Als Deckkraft statt eigenem Token — --nav-text-muted wäre für einen
+     Knopf zu leise, ein achter Farbwert für diese eine Zeile zu viel. */
+  color: var(--nav-text, #f1f5f9);
+  opacity: 0.85;
   background: none;
   border: none;
   cursor: pointer;
@@ -326,8 +333,8 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #1c4a70;
-  color: #7db8e8;
+  background: var(--nav-raised, #1c4a70);
+  color: var(--nav-accent, #7db8e8);
   font-size: 12px;
   font-weight: 700;
   display: flex;
@@ -344,7 +351,7 @@
 .admin-mobile-user-name {
   font-size: 14px;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--nav-text, #f1f5f9);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -352,14 +359,14 @@
 
 .admin-mobile-user-role {
   font-size: 11px;
-  color: #94b3cc;
+  color: var(--nav-text-muted, #94b3cc);
   margin-top: 1px;
 }
 
 .admin-mobile-logout-btn {
   background: none;
   border: none;
-  color: #94b3cc;
+  color: var(--nav-text-muted, #94b3cc);
   cursor: pointer;
   padding: 8px;
   border-radius: 6px;

@@ -46,12 +46,17 @@
   height: 100vh;
 }
 
+/* Der Kopf trägt die Mandantenfarbe als Fläche — der erste Block, den man in
+   der Admin-App sieht, gehört der Firma und nicht dem Produkt. Der Rahmen
+   entfällt dabei: Die Farbkante trennt bereits, eine zweite Linie darauf sähe
+   nach Versehen aus. */
 .admin-sidebar-header {
   display: flex;
   align-items: center;
   gap: var(--s-2);
   padding: var(--s-5) var(--s-4) var(--s-4);
-  border-bottom: 1px solid var(--border);
+  background: var(--primary);
+  border-bottom: 1px solid transparent;
 }
 
 .admin-content-topbar {
@@ -109,10 +114,26 @@
 .admin-sidebar-tenant {
   font-size: 16px;
   font-weight: 700;
-  color: var(--text);
+  /* Weiss auf der Firmenfarbe. --on-accent ist der Rückfall-Weg für den Fall,
+     dass die Fläche für Weiss zu hell ist — die Variable setzt die App nach
+     Kontrast (siehe brand/palette.ts, PR #586). Solange sie fehlt, greift
+     schlicht #fff, und das ist auf dem heutigen --primary richtig. */
+  color: var(--on-accent, #fff);
+  /* Zwei Zeilen statt einer. Von den 200 px Sidebar bleiben nach Polster und
+     Scrollbalken rund 150 px übrig — für 16 px fett reicht das nur bis
+     "Gehlhaar GmbH", schon "Gehlhaar GmbH Test" stand rechts angeschnitten da.
+     Der Mandantenname ist der einzige Text im Kopf; ihn abzuschneiden liest
+     sich wie ein Fehler und nicht wie eine Kürzung. Die Ellipse bleibt als
+     Notnagel ab der dritten Zeile, `overflow-wrap: anywhere` fängt
+     Firmennamen ab, die aus einem einzigen langen Wort bestehen. */
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .admin-nav {
@@ -172,7 +193,7 @@
 .admin-nav-badge {
   margin-left: auto;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-size: 10px;
   font-weight: 700;
   border-radius: 9px;
@@ -237,7 +258,7 @@
 .admin-switch-btn:hover {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .admin-user-row {
@@ -939,12 +960,12 @@ select.admin-input {
 
 .admin-btn-primary:hover:not(:disabled) {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .admin-btn-primary.solid {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .admin-btn-primary.solid:hover:not(:disabled) {
@@ -1796,7 +1817,7 @@ button.admin-list-item {
   border-radius: 999px;
   border: 1px solid var(--primary);
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   cursor: pointer;
   transition: opacity 0.15s, background 0.15s;
 }
@@ -2167,7 +2188,7 @@ button.admin-list-item {
 
 .project-schedule-chip.active {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   border-color: var(--primary);
 }
 
@@ -2415,7 +2436,7 @@ button.admin-list-item {
 .project-appt-chip.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
 }
 
 .project-cal-filter {
@@ -3129,7 +3150,7 @@ button.admin-list-item {
   left: 2px;
   padding: 0 4px;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-size: 10px;
   font-weight: 600;
   border-radius: 3px;
@@ -3179,7 +3200,7 @@ button.admin-list-item {
   left: 4px;
   padding: 0 4px;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-size: 10px;
   font-weight: 600;
   border-radius: 3px;
@@ -3356,7 +3377,7 @@ button.admin-list-item {
 .project-cal-datepicker-day.selected {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-weight: 600;
 }
 
@@ -4107,7 +4128,7 @@ button.admin-list-item {
   height: 24px;
   border-radius: 50%;
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-size: 10px;
   font-weight: 700;
   display: flex;

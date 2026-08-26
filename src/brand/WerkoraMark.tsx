@@ -14,6 +14,13 @@
  *
  * Der Zeiger liegt UNTER dem Ring-Pfad und ist um zwei Quellpixel gedehnt.
  * Ohne diese Ueberlappung blitzt an der Nabe eine Haarlinie Hintergrund durch.
+ *
+ * Der dunkle Pfad lief urspruenglich als haarduenner Zipfel an beiden Kanten des
+ * Amber-Zeigers entlang bis zu dessen Spitze und wieder zurueck — ein Rest des
+ * Nachzeichnens, nicht Teil der Marke. Die Hin- und Rueckkante lagen rund 0,2
+ * Einheiten auseinander, was der Browser als grauschwarzen Strich laengs des
+ * Zeigers ausmalte. Die beiden Ausfluege sind entfernt; wer die Vorlage erneut
+ * nachzeichnet, muss sie wieder entfernen.
  */
 export const WERKORA_AMBER = '#E9A227'
 
@@ -53,9 +60,7 @@ export function WerkoraMark({ title }: { title?: string }) {
             'L12.86 7.86L15.49 5.98L17.67 4.70L19.85 3.65L22.71 2.59Z' +
             'M48.77 16.39L49.00 16.47L49.45 17.07L35.76 32.64L35.76 34.22L35.53 34.97L34.93 35.95' +
             'L34.14 36.66L32.94 37.19L31.44 37.26L30.68 37.04L27.53 40.65L24.71 37.75L28.32 34.59' +
-            'L28.24 33.24L16.20 22.86L16.51 22.26L16.85 21.99L22.64 25.32L23.46 25.82L23.61 25.95' +
-            'L23.39 25.91L17.00 22.15L16.77 22.07L16.66 22.19L16.36 22.64L16.36 22.86L28.13 33.05' +
-            'L28.92 31.21L29.25 30.80L30.35 30.01L29.18 29.22L23.76 26.13L23.69 25.97L30.46 29.97' +
+            'L28.24 33.24L28.13 33.05L28.92 31.21L29.25 30.80L30.35 30.01L30.46 29.97' +
             'L31.66 29.67L33.17 29.82Z' +
             'M31.74 31.93L31.14 32.17L30.66 32.64L30.50 33.02L30.50 33.84L30.65 34.22L31.21 34.78' +
             'L31.81 35.01L32.26 34.93L32.86 34.78L33.28 34.37L33.50 33.92L33.58 33.32L33.35 32.64' +
