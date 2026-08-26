@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MigrationBanner } from './MigrationBanner'
 
@@ -9,7 +9,8 @@ import { MigrationBanner } from './MigrationBanner'
 // umgezogen» — auf der Seite, auf die umgezogen wurde.
 
 const STICHTAG = '2026-09-11'
-const tag = (m: number, t: number) => new Date(2026, m - 1, t, 9)
+const tag = (m: number, t: number, std = 9) => new Date(2026, m - 1, t, std)
+const ZU = 'Hinweis für heute ausblenden'
 
 beforeEach(() => {
   localStorage.clear()
@@ -43,24 +44,62 @@ describe('MigrationBanner — Eskalation', () => {
     vi.stubEnv('VITE_MIGRATION_DEADLINE', STICHTAG)
   })
 
-  it('lässt sich auf der mildesten Stufe wegklicken', async () => {
+  it('lässt sich auf der mildesten Stufe wegklicken — und bleibt den Tag über weg', async () => {
     const user = userEvent.setup()
-    const { rerender } = render(<MigrationBanner now={tag(8, 28)} />)
-    await user.click(screen.getByRole('button', { name: 'Hinweis ausblenden' }))
-    rerender(<MigrationBanner now={tag(8, 29)} />)
+    const { unmount } = render(<MigrationBanner now={tag(8, 28)} />)
+    await user.click(screen.getByRole('button', { name: ZU }))
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+
+    // Auch nach einem App-Neustart am selben Tag: wer ihn gesehen hat, soll
+    // nicht bei jedem Wechsel zurueck in die App neu wegklicken muessen.
+    unmount()
+    render(<MigrationBanner now={tag(8, 28, 17)} />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('kommt nach der Eskalation zurück, obwohl er weggeklickt war', () => {
-    // Der Kern: ein Klick am ersten Tag darf nicht zwei Wochen Stille bedeuten.
-    localStorage.setItem('migrationHinweisWeggeklickt', 'hinweis')
+  it('steht am nächsten Morgen wieder da', async () => {
+    // Der Kern der Aenderung: ohne den Tag im gespeicherten Wert galt ein Klick
+    // am 28.08. bis zur Eskalation am 04.09. — eine Woche Stille bei dem Kanal,
+    // der im Parallelbetrieb der einzige ist.
+    const user = userEvent.setup()
+    const { unmount } = render(<MigrationBanner now={tag(8, 28)} />)
+    await user.click(screen.getByRole('button', { name: ZU }))
+    expect(localStorage.getItem('migrationHinweisWeggeklickt')).toBe('hinweis|2026-08-28')
+
+    unmount()
+    render(<MigrationBanner now={tag(8, 29, 7)} />)
+    expect(screen.getByRole('link')).toHaveTextContent(/umgezogen/i)
+  })
+
+  it('bewertet über Nacht neu, auch wenn die App gar nicht geschlossen wird', () => {
+    // Eine installierte PWA auf dem Werkstatt-Tablet und ein offener Buerotab
+    // laufen tagelang ohne Neuladen — und das sind dieselben Leute, die im
+    // Parallelbetrieb nie einen Login-Screen sehen. Ohne Neubewertung beim
+    // Zurueckholen in den Vordergrund klebte der Streifen am Seitenaufbau.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(tag(8, 28))
+      render(<MigrationBanner />)   // ohne now-Prop: nimmt die Systemzeit
+      fireEvent.click(screen.getByRole('button', { name: ZU }))
+      expect(screen.queryByRole('link')).not.toBeInTheDocument()
+
+      vi.setSystemTime(tag(8, 29, 7))
+      fireEvent(document, new Event('visibilitychange'))
+      expect(screen.getByRole('link')).toHaveTextContent(/umgezogen/i)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('kommt nach der Eskalation zurück, obwohl er am selben Tag weggeklickt war', () => {
+    localStorage.setItem('migrationHinweisWeggeklickt', 'hinweis|2026-09-04')
     render(<MigrationBanner now={tag(9, 4)} />)   // X+7 → 'dringend'
     expect(screen.getByRole('link')).toHaveTextContent(/7 Tagen/)
   })
 
   it('ist ab der zweiten Stufe nicht mehr wegklickbar', () => {
     render(<MigrationBanner now={tag(9, 4)} />)
-    expect(screen.queryByRole('button', { name: 'Hinweis ausblenden' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: ZU })).not.toBeInTheDocument()
   })
 
   it('zeigt auf der letzten Stufe die Vorschaltseite', () => {

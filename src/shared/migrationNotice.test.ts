@@ -4,6 +4,7 @@ import {
   migrationStufe,
   migrationText,
   tageBisStichtag,
+  wegklickWert,
   zielHost,
 } from './migrationNotice'
 
@@ -74,21 +75,38 @@ describe('tageBisStichtag', () => {
 })
 
 describe('istWeggeklickt', () => {
-  it('hält einen weggeklickten Hinweis auf derselben Stufe weg', () => {
-    expect(istWeggeklickt('hinweis', 'hinweis')).toBe(true)
+  const HEUTE = '2026-08-28'
+  const MORGEN = '2026-08-29'
+
+  it('hält einen weggeklickten Hinweis für den Rest des Tages weg', () => {
+    expect(istWeggeklickt('hinweis', wegklickWert('hinweis', HEUTE), HEUTE)).toBe(true)
   })
 
-  it('zeigt ihn nach einer Eskalation wieder', () => {
-    // Der Kern der Regel: ein Klick am ersten Tag darf den Nutzer nicht fuer
-    // zwei Wochen stummschalten — sonst steht genau der am Stichtag vor der
-    // Zwangsumleitung.
-    expect(istWeggeklickt('dringend', 'hinweis')).toBe(false)
-    expect(istWeggeklickt('vorschalt', 'dringend')).toBe(false)
+  it('zeigt ihn am nächsten Morgen wieder', () => {
+    // Der Kern der Regel. Ohne den Tag im Wert schaltete ein Klick am 28.08.
+    // den Nutzer bis zur Eskalation am 04.09. stumm — eine Woche Stille bei
+    // dem Kanal, der im Parallelbetrieb der einzige ist. Ein Klick pro Tag ist
+    // billiger als ein Anruf am Stichtag.
+    expect(istWeggeklickt('hinweis', wegklickWert('hinweis', HEUTE), MORGEN)).toBe(false)
+  })
+
+  it('zeigt ihn nach einer Eskalation wieder, auch am selben Tag', () => {
+    expect(istWeggeklickt('dringend', wegklickWert('hinweis', HEUTE), HEUTE)).toBe(false)
+    expect(istWeggeklickt('vorschalt', wegklickWert('dringend', HEUTE), HEUTE)).toBe(false)
+  })
+
+  it('wertet den Altbestand ohne Tag als nicht weggeklickt', () => {
+    // Werte aus der ersten Fassung trugen nur die Stufe. Sie zu ignorieren
+    // zeigt den Hinweis einmal zu viel — die richtige Richtung, und der Grund,
+    // warum der Formatwechsel ohne APP_DATA_VERSION-Schritt auskommt.
+    expect(istWeggeklickt('hinweis', 'hinweis', HEUTE)).toBe(false)
   })
 
   it('ist tolerant gegenüber Müll im localStorage', () => {
-    expect(istWeggeklickt('hinweis', null)).toBe(false)
-    expect(istWeggeklickt('hinweis', 'irgendwas')).toBe(false)
+    expect(istWeggeklickt('hinweis', null, HEUTE)).toBe(false)
+    expect(istWeggeklickt('hinweis', 'irgendwas', HEUTE)).toBe(false)
+    expect(istWeggeklickt('hinweis', `irgendwas|${HEUTE}`, HEUTE)).toBe(false)
+    expect(istWeggeklickt('hinweis', 'hinweis|Montag', HEUTE)).toBe(false)
   })
 })
 

@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { WerkoraMark } from '../brand/WerkoraMark'
+import { toDateStr } from '../admin/utils/calendarHelpers'
 import {
   istWeggeklickt,
   migrationStufe,
   migrationText,
   tageBisStichtag,
+  wegklickWert,
   zielHost,
   type MigrationStufe,
 } from './migrationNotice'
@@ -14,6 +16,10 @@ import {
  *  Klickziel dient. */
 export const MIGRATION_STREIFEN_HOEHE = 58
 
+// Wert: `stufe|JJJJ-MM-TT` — das Wegklicken gilt nur für diesen Tag und diese
+// Stufe (siehe istWeggeklickt). Die erste Fassung speicherte nur die Stufe;
+// solche Altwerte gelten als nicht weggeklickt, deshalb kein
+// APP_DATA_VERSION-Schritt.
 const KEY_WEGGEKLICKT = 'migrationHinweisWeggeklickt'
 const KEY_UEBERSPRUNGEN = 'migrationVorschaltUebersprungen'
 
@@ -48,6 +54,29 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
   const stufe = aktuelleMigrationStufe(now)
   const url = import.meta.env.VITE_MIGRATION_NOTICE as string | undefined
   const stichtag = import.meta.env.VITE_MIGRATION_DEADLINE as string | undefined
+  const aus = stufe === 'aus' || !url
+
+  // Neu bewerten, sobald die App wieder im Vordergrund ist.
+  //
+  // Ohne diesen Haken klebte der Streifen am Zeitpunkt des Seitenaufbaus: eine
+  // installierte PWA auf dem Werkstatt-Tablet und ein offener Bürotab laufen
+  // tagelang ohne Neuladen. Der gestern weggeklickte Hinweis bliebe dort heute
+  // weg — also genau bei den Leuten, die die App nie schliessen und deshalb im
+  // Parallelbetrieb auch nie einen Login-Screen sehen. Dieselbe Neubewertung
+  // lässt auch die Eskalation über Nacht greifen.
+  //
+  // Im normalen Build (Flag leer) wird gar nichts registriert.
+  const [, neuBewerten] = useState(0)
+  useEffect(() => {
+    if (aus) return
+    const wecken = () => { if (!document.hidden) neuBewerten(n => n + 1) }
+    document.addEventListener('visibilitychange', wecken)
+    window.addEventListener('focus', wecken)
+    return () => {
+      document.removeEventListener('visibilitychange', wecken)
+      window.removeEventListener('focus', wecken)
+    }
+  }, [aus])
 
   const [weggeklickt, setWeggeklickt] = useState(() =>
     lies(KEY_WEGGEKLICKT, localStorage))
@@ -57,8 +86,9 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
   const [uebersprungen, setUebersprungen] = useState(() =>
     lies(KEY_UEBERSPRUNGEN, sessionStorage) === '1')
 
-  if (stufe === 'aus' || !url) return null
+  if (aus || !url) return null
 
+  const heute = toDateStr(now)
   const rest = stichtag ? tageBisStichtag(now, stichtag) : Number.NaN
 
   const text = migrationText(stufe, rest, url)
@@ -93,7 +123,7 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
 
   // Ab 'dringend' ist der Streifen nicht mehr wegklickbar.
   const wegklickbar = stufe === 'hinweis'
-  if (wegklickbar && istWeggeklickt(stufe, weggeklickt)) return null
+  if (wegklickbar && istWeggeklickt(stufe, weggeklickt, heute)) return null
 
   return (
     <div className={`migration-streifen migration-streifen-${stufe}`} role="status">
@@ -105,8 +135,12 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
         <button
           type="button"
           className="migration-streifen-zu"
-          aria-label="Hinweis ausblenden"
-          onClick={() => { schreib(KEY_WEGGEKLICKT, stufe, localStorage); setWeggeklickt(stufe) }}
+          aria-label="Hinweis für heute ausblenden"
+          onClick={() => {
+            const wert = wegklickWert(stufe, heute)
+            schreib(KEY_WEGGEKLICKT, wert, localStorage)
+            setWeggeklickt(wert)
+          }}
         >
           ×
         </button>

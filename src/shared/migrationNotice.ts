@@ -62,14 +62,46 @@ const RANG: Record<MigrationStufe, number> = {
 }
 
 /**
- * Ein weggeklickter Hinweis bleibt weg — aber nur für seine Stufe. Eskaliert
- * die Lage, kommt er wieder. Sonst würde ein einziger Klick am ersten Tag den
- * Nutzer für die restlichen zwei Wochen stumm schalten, und genau der Nutzer
- * steht am Stichtag vor der Zwangsumleitung.
+ * Was beim Wegklicken gespeichert wird: Stufe **und** Tag, als `stufe|JJJJ-MM-TT`.
+ *
+ * Der Tag ist der eigentliche Punkt. Ohne ihn galt ein Klick bis zur nächsten
+ * Eskalation — im Fenster 28.08.–11.09. hiess das: einmal am ersten Abend
+ * weggeklickt, und der Hinweis kam erst am 04.09. wieder. Eine Woche Stille bei
+ * dem Kanal, der im Parallelbetrieb der einzige ist (§4.4).
  */
-export function istWeggeklickt(aktuell: MigrationStufe, weggeklickt: string | null): boolean {
+export function wegklickWert(stufe: MigrationStufe, heuteISO: string): string {
+  return `${stufe}|${heuteISO}`
+}
+
+/**
+ * Ein weggeklickter Hinweis bleibt weg — aber nur für **diesen Tag** und nur
+ * für **seine Stufe**. Zwei Rückwege, beide gewollt:
+ *
+ * - **Am nächsten Morgen** steht er wieder da. Wegklicken heisst «heute gesehen»,
+ *   nicht «nie wieder»: sonst schaltet ein einziger Klick den Nutzer bis zur
+ *   nächsten Eskalation stumm, und genau der steht am Stichtag vor der
+ *   Zwangsumleitung. Ein Klick pro Tag ist der Preis dafür, und er ist billiger
+ *   als ein Anruf am 11.09.
+ * - **Bei einer Eskalation** steht er sofort wieder da, auch am selben Tag.
+ *
+ * Die Grenze ist der Kalendertag, nicht «24 Stunden nach dem Klick» — wer um
+ * 23:50 wegklickt, soll ihn am Morgen wiedersehen und nicht erst am Mittag.
+ *
+ * Werte ohne Tag stammen aus der ersten Fassung des Streifens (nur die Stufe)
+ * und gelten als *nicht* weggeklickt: der Hinweis erscheint dann einmal erneut
+ * und schreibt sich beim nächsten Klick im neuen Format. Einmal zu viel gezeigt
+ * ist hier die richtige Richtung — deshalb braucht der Formatwechsel auch
+ * keinen `APP_DATA_VERSION`-Schritt.
+ */
+export function istWeggeklickt(
+  aktuell: MigrationStufe,
+  weggeklickt: string | null,
+  heuteISO: string,
+): boolean {
   if (!weggeklickt) return false
-  const alt = RANG[weggeklickt as MigrationStufe]
+  const [stufe, tag] = weggeklickt.split('|')
+  if (tag !== heuteISO) return false
+  const alt = RANG[stufe as MigrationStufe]
   if (alt === undefined) return false
   return alt >= RANG[aktuell]
 }
