@@ -414,7 +414,7 @@ export default function MyTimeScreen({ user = null, onLoggedOut }: Props) {
           style={{
             background: 'var(--warning-soft)',
             border: '1px solid var(--warning)',
-            color: 'var(--warning)',
+            color: 'var(--warning-ink)',
             borderRadius: 'var(--radius-md)',
             padding: 'var(--s-3) var(--s-4)',
             marginBottom: 'var(--s-4)',

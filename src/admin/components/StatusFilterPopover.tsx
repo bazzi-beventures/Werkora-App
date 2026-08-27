@@ -70,7 +70,7 @@ export function StatusFilterPopover({ allStatuses, statusLabels, selected, onCha
         </svg>
         Status
         {isActive && (
-          <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontSize: 11, padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>
+          <span style={{ background: 'var(--primary-soft)', color: 'var(--primary)', fontSize: 11, padding: '1px 6px', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
             {selected.size}
           </span>
         )}
@@ -85,7 +85,7 @@ export function StatusFilterPopover({ allStatuses, statusLabels, selected, onCha
             right: panelPos.right,
             background: 'var(--surface, #fff)',
             border: '1px solid var(--border)',
-            borderRadius: 8,
+            borderRadius: 'var(--radius-sm)',
             padding: 8,
             boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             zIndex: 1000,

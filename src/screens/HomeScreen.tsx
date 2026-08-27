@@ -129,9 +129,9 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
       {/* Tiles */}
       <div className="tiles">
         {showRapport && (
-          <div className="tile tile-blue" onClick={onNavRapport}>
-            <div className="tile-icon tile-icon-blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <div className="tile tile-accent" onClick={onNavRapport}>
+            <div className="tile-icon tile-icon-accent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="16" y1="13" x2="8" y2="13"/>
@@ -191,9 +191,9 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
         )}
 
         {!isLight && has('quotes') && (
-          <div className="tile tile-blue" onClick={onNavOfferten}>
-            <div className="tile-icon tile-icon-blue">
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <div className="tile tile-accent" onClick={onNavOfferten}>
+            <div className="tile-icon tile-icon-accent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
                 <line x1="16" y1="13" x2="8" y2="13"/>
@@ -244,7 +244,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
             <div className="status-label">Status</div>
             {sessionStatus?.status === 'active' && (
               <>
-                <div className="status-value" style={{ fontSize: 16, color: '#22c55e' }}>
+                <div className="status-value" style={{ fontSize: 16, color: 'var(--accent-green)' }}>
                   {sessionStatus.clock_in ? formatClockIn(sessionStatus.clock_in) : '—'}
                 </div>
                 <div className="status-label" style={{ marginTop: 2 }}>Eingestempelt</div>
@@ -252,7 +252,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
             )}
             {sessionStatus?.status === 'on_break' && (
               <>
-                <div className="status-value" style={{ fontSize: 16, color: '#f59e0b' }}>
+                <div className="status-value" style={{ fontSize: 16, color: 'var(--accent-amber)' }}>
                   {sessionStatus.clock_in ? formatClockIn(sessionStatus.clock_in) : '—'}
                 </div>
                 <div className="status-label" style={{ marginTop: 2 }}>In Pause</div>
@@ -266,7 +266,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
             )}
           </div>
           {sessionStatus?.status === 'active' && <div className="status-badge-active">Aktiv</div>}
-          {sessionStatus?.status === 'on_break' && <div className="status-badge-inactive" style={{ background: '#fef3c7', color: '#92400e' }}>In Pause</div>}
+          {sessionStatus?.status === 'on_break' && <div className="status-badge-inactive" style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber-ink)' }}>In Pause</div>}
           {(!sessionStatus || sessionStatus.status === 'inactive') && <div className="status-badge-inactive">Inaktiv</div>}
         </div>
       </div>
@@ -276,7 +276,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
       {/* Nav bar */}
       <div className="nav-bar">
         <div className="nav-item active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
           </svg>
           <span>Home</span>

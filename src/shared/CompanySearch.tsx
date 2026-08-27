@@ -154,7 +154,7 @@ export function CompanySearch({
           listStyle: 'none',
           background: 'var(--surface)',
           border: '1px solid var(--border)',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-xs)',
           boxShadow: 'var(--shadow-hover, 0 4px 16px rgba(0,0,0,0.15))',
           maxHeight: 260,
           overflowY: 'auto',

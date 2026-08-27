@@ -42,6 +42,12 @@ export interface UseProjectForm {
   objectAddress: string
   setObjectAddress: (v: string) => void
   setObjectAddressTouched: (v: boolean) => void
+  /**
+   * Adresse aus der Vorschlagsliste uebernehmen — samt der Koordinaten, die
+   * swisstopo mitliefert. Nur so kostet das Speichern keinen zweiten
+   * Geocoding-Request (docs/specs/einsatzplanung-auftragskarte.md §5.2).
+   */
+  pickObjectAddress: (label: string, lat?: number, lon?: number) => void
   billingDiffers: boolean
   setBillingDiffers: (v: boolean) => void
   projBillingName: string
@@ -119,6 +125,22 @@ export function useProjectForm(opts: {
   // Eine nur automatisch (aus dem Kundenstamm) befüllte Adresse wird hingegen neu geseedet,
   // damit ein Kundenwechsel auch die Distanz (Offerten-Fahrspesen) neu berechnen lässt.
   const [objectAddressTouched, setObjectAddressTouched] = useState(!!project?.object_address)
+  // Koordinaten aus dem Adress-Autocomplete, samt der Adresse, ZU DER sie
+  // gehoeren. Das Label mitzufuehren ist der Trick: der Payload schickt die
+  // Koordinaten nur mit, solange `objectAddress` noch genau diese Adresse ist.
+  // Damit muss keiner der vielen Pfade, die die Adresse aendern (Tippen,
+  // Uebernahme aus dem Kundenstamm, Zuruecksetzen), ans Aufraeumen denken —
+  // ein vergessener Pfad hiesse sonst: Koordinaten der alten Adresse an der
+  // neuen, also eine Baustelle am falschen Ort auf der Karte.
+  const [pickedAddress, setPickedAddress] = useState<
+    { label: string; lat: number; lon: number } | null
+  >(null)
+
+  function pickObjectAddress(label: string, lat?: number, lon?: number) {
+    setObjectAddress(label)
+    setObjectAddressTouched(true)
+    setPickedAddress(lat != null && lon != null ? { label, lat, lon } : null)
+  }
   // Abweichende Rechnungsadresse NUR für dieses Projekt (analog Kundenstamm-Checkbox,
   // aber ohne Rückschreiben in den Kunden). Abwählen sendet '' — das Backend filtert
   // null im PATCH weg, ein leerer String leert den Override wirklich.
@@ -281,6 +303,11 @@ export function useProjectForm(opts: {
         customer_id: customerId || null,
         object_name: objectName.trim() || null,
         object_address: objectAddress || null,
+        // Nur senden, wenn sie noch zur angezeigten Adresse gehoeren. Sonst
+        // (frei getippt, aus dem Kundenstamm uebernommen) bleibt es bei null
+        // und das Backend schlaegt selbst nach.
+        object_lat: pickedAddress?.label === objectAddress ? pickedAddress.lat : null,
+        object_lon: pickedAddress?.label === objectAddress ? pickedAddress.lon : null,
         // '' statt null, damit ein entfernter Override auch persistiert wird
         // (das Backend filtert null-Werte weg — kein Clear möglich).
         billing_name: billingDiffers ? projBillingName.trim() : '',
@@ -359,6 +386,7 @@ export function useProjectForm(opts: {
     name, setName,
     customerId, selectCustomer, selectedCustomer, billingRecipient, billingAddress,
     objectName, setObjectName, objectAddress, setObjectAddress, setObjectAddressTouched,
+    pickObjectAddress,
     billingDiffers, setBillingDiffers,
     projBillingName, setProjBillingName, projBillingAddress, setProjBillingAddress,
     artDerArbeit, toggleArt, entsorgungsart,

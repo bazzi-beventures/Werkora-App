@@ -66,8 +66,8 @@ export default function ArbeitszeitTab() {
     return [
       { label: 'Mitarbeiter aktiv', value: String(aktiv) },
       { label: 'Ø Stunden/Tag', value: num(avgStd) as string },
-      { label: 'Total Überstunden', value: num(totalOt) as string, color: totalOt > 0 ? '#f59e0b' : '#22c55e' },
-      { label: 'Krankheitstage', value: String(totalKrank), color: totalKrank > 10 ? '#f87171' : undefined },
+      { label: 'Total Überstunden', value: num(totalOt) as string, color: totalOt > 0 ? 'var(--warning)' : 'var(--success)' },
+      { label: 'Krankheitstage', value: String(totalKrank), color: totalKrank > 10 ? 'var(--danger)' : undefined },
     ]
   }, [filtered])
 
@@ -107,8 +107,8 @@ export default function ArbeitszeitTab() {
         data={chartData}
         xKey="name"
         bars={[
-          { dataKey: 'Rapport', color: '#f59e0b', label: 'Rapportstunden' },
-          { dataKey: 'Stempel', color: '#3b82f6', label: 'Stempelstunden' },
+          { dataKey: 'Rapport', label: 'Rapportstunden' },
+          { dataKey: 'Stempel', label: 'Stempelstunden' },
         ]}
         height={300}
       />

@@ -5,6 +5,12 @@ interface SwisstopoResult {
   attrs: {
     label: string
     detail: string
+    // WGS84 — kommen bei jeder Antwort mit, weil die Abfrage sr=4326 setzt.
+    // Wurden frueher verworfen; seit der Auftragskarte reicht `onPick` sie
+    // durch, damit das Speichern eines Projekts keinen zweiten Geocoding-
+    // Request kostet (docs/specs/einsatzplanung-auftragskarte.md §5.2).
+    lat?: number
+    lon?: number
   }
 }
 
@@ -13,6 +19,15 @@ interface Props {
   onChange: (value: string) => void
   className?: string
   placeholder?: string
+  /**
+   * Wird zusaetzlich zu `onChange` gerufen, wenn der Benutzer einen Vorschlag
+   * AUSWAEHLT (nicht beim Tippen) — mit den Koordinaten, die swisstopo zum
+   * Vorschlag mitliefert. Optional: wer sie nicht braucht, laesst ihn weg, und
+   * frei getippte Adressen loesen ihn nie aus. `lat`/`lon` sind `undefined`,
+   * wenn der Treffer keine Koordinaten hatte — der Aufrufer muss beides
+   * behandeln koennen.
+   */
+  onPick?: (label: string, lat?: number, lon?: number) => void
 }
 
 function stripHtml(html: string): string {
@@ -33,7 +48,7 @@ function formatLabel(html: string): string {
   return clean(html)
 }
 
-export function AddressAutocomplete({ value, onChange, className, placeholder }: Props) {
+export function AddressAutocomplete({ value, onChange, className, placeholder, onPick }: Props) {
   const [suggestions, setSuggestions] = useState<SwisstopoResult[]>([])
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(-1)
@@ -54,7 +69,7 @@ export function AddressAutocomplete({ value, onChange, className, placeholder }:
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const url = `https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=${encodeURIComponent(value)}&type=locations&limit=6&lang=de`
+        const url = `https://api3.geo.admin.ch/rest/services/api/SearchServer?searchText=${encodeURIComponent(value)}&type=locations&limit=6&sr=4326&lang=de`
         const res = await fetch(url)
         const data = await res.json()
         const results: SwisstopoResult[] = data.results ?? []
@@ -84,7 +99,9 @@ export function AddressAutocomplete({ value, onChange, className, placeholder }:
 
   function select(result: SwisstopoResult) {
     userTypedRef.current = false
-    onChange(formatLabel(result.attrs.label))
+    const label = formatLabel(result.attrs.label)
+    onChange(label)
+    onPick?.(label, result.attrs.lat, result.attrs.lon)
     setOpen(false)
     setSuggestions([])
   }
@@ -127,7 +144,7 @@ export function AddressAutocomplete({ value, onChange, className, placeholder }:
           listStyle: 'none',
           background: 'var(--surface)',
           border: '1px solid var(--border)',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-xs)',
           boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
           maxHeight: 240,
           overflowY: 'auto',

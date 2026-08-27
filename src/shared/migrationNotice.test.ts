@@ -141,6 +141,17 @@ describe('migrationText', () => {
       expect(migrationText(stufe, rest, ZIEL).zeile2).toMatch(/neu anmelden/)
     }
   })
+
+  it('sagt auf JEDER Stufe, dass die alte App geloescht werden muss', () => {
+    // Der Adresswechsel allein reicht nicht: eine installierte PWA haengt an
+    // der Origin, aus der sie installiert wurde, und startet weiter hier — der
+    // Service Worker bedient sie aus dem Cache. Wer nur im Browser wechselt und
+    // das alte Symbol behaelt, ist beim naechsten Antippen zurueck auf der
+    // alten Adresse, ohne ein einziges Signal.
+    for (const [stufe, rest] of [['hinweis', 14], ['dringend', 5], ['vorschalt', 1]] as const) {
+      expect(migrationText(stufe, rest, ZIEL).zeile2).toMatch(/alte App löschen/)
+    }
+  })
 })
 
 describe('zielHost', () => {

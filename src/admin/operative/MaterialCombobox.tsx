@@ -197,7 +197,7 @@ export function MaterialCombobox({ materials, supplierMap, supplierFilter, categ
     listStyle: 'none' as const,
     background: 'var(--surface)',
     border: '1px solid var(--border)',
-    borderRadius: 6,
+    borderRadius: 'var(--radius-xs)',
     boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
     overflowY: 'auto' as const,
   }

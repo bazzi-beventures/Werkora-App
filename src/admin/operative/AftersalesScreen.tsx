@@ -343,7 +343,7 @@ export default function AftersalesScreen() {
                 <div>
                   <label className="admin-form-label">Kundenantwort</label>
                   <div style={{
-                    background: 'var(--surface-2, #f1f5f9)', borderRadius: 8, padding: 12,
+                    background: 'var(--surface-2, #f1f5f9)', borderRadius: 'var(--radius-sm)', padding: 12,
                     fontSize: 14, whiteSpace: 'pre-wrap',
                   }}>{selected.response_text || '(ohne Text)'}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>

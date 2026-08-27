@@ -90,12 +90,12 @@ export default function PushTestScreen() {
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8, marginBottom: 16 }}>
+        <div style={{ padding: 16, background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
           {error}
         </div>
       )}
       {result && (
-        <div style={{ padding: 16, background: '#dcfce7', color: '#166534', borderRadius: 8, marginBottom: 16 }}>
+        <div style={{ padding: 16, background: 'var(--success-soft)', color: 'var(--success-ink)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
           {result}
         </div>
       )}
@@ -110,7 +110,7 @@ export default function PushTestScreen() {
             placeholder="Titel der Benachrichtigung"
             style={{
               display: 'block', width: '100%', marginTop: 6, padding: '10px 12px',
-              borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)',
+              borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface)',
               color: 'var(--text)', fontSize: 14,
             }}
           />
@@ -124,7 +124,7 @@ export default function PushTestScreen() {
             rows={3}
             style={{
               display: 'block', width: '100%', marginTop: 6, padding: '10px 12px',
-              borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)',
+              borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface)',
               color: 'var(--text)', fontSize: 14, resize: 'vertical', fontFamily: 'inherit',
             }}
           />
@@ -139,14 +139,14 @@ export default function PushTestScreen() {
       {loading && <div className="admin-loading"><div className="kpi-admin-spinner" />Lädt…</div>}
 
       {!loading && recipients.length === 0 && (
-        <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-muted)', fontSize: 13 }}>
+        <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)', fontSize: 13 }}>
           Noch niemand hat Push aktiviert. Aktiviere es zuerst auf einem Gerät unter
           Profil → Benachrichtigungen, dann erscheint der Mitarbeiter hier.
         </div>
       )}
 
       {!loading && recipients.length > 0 && (
-        <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', maxWidth: 560 }}>
+        <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', maxWidth: 560 }}>
           <label
             style={{
               display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',

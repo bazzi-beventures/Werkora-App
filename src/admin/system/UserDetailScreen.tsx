@@ -174,7 +174,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                     id="is_active"
                     checked={isActive}
                     onChange={e => setIsActive(e.target.checked)}
-                    style={{ width: 16, height: 16, accentColor: 'var(--accent-blue, #3b82f6)', cursor: 'pointer' }}
+                    style={{ width: 16, height: 16, accentColor: 'var(--accent, #3b82f6)', cursor: 'pointer' }}
                   />
                   <label htmlFor="is_active" style={{ fontSize: 13.5, cursor: 'pointer' }}>Benutzer aktiv</label>
                 </div>
@@ -239,7 +239,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
             {/* Gefahrenzone — DSGVO-Löschung ist irreversibel und bleibt Management vorbehalten */}
             {mayAnonymize(actingRole) && (
             <div className="admin-table-wrap" style={{ padding: 20 }}>
-              <div className="admin-section-title" style={{ color: '#ef4444' }}>Gefahrenzone</div>
+              <div className="admin-section-title" style={{ color: 'var(--danger)' }}>Gefahrenzone</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
                 <button
                   className="admin-btn admin-btn-danger"

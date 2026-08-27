@@ -313,8 +313,8 @@ export default function BerichtScreen({ berichtType, logoUrl, user = null, onBac
 
       {/* Subtitle banner */}
       {data && (
-        <div className="context-banner context-banner-blue">
-          <div className="banner-tag banner-tag-blue">
+        <div className="context-banner context-banner-accent">
+          <div className="banner-tag banner-tag-accent">
             {data.type === 'monthly' ? 'Monatsbericht' : 'Wochenjournal'}
           </div>
           <div className="banner-text">{renderSubtitle()}</div>

@@ -359,7 +359,7 @@ export default function UsageScreen({ enabledModules }: Props) {
           <BiBarChart
             data={chartData}
             xKey="name"
-            bars={[{ dataKey: 'Aktionen', color: '#3081AB', label: 'Aktionen' }]}
+            bars={[{ dataKey: 'Aktionen', label: 'Aktionen' }]}
             height={280}
             onBarClick={range.drillToDay}
             xInterval="preserveStartEnd"

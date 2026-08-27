@@ -125,7 +125,7 @@ export function TravelCostTab() {
       {isDefault ? (
         <>
           <div style={{
-            padding: 12, marginBottom: 16, borderRadius: 8,
+            padding: 12, marginBottom: 16, borderRadius: 'var(--radius-sm)',
             background: 'rgba(59,130,171,0.08)', border: '1px solid rgba(59,130,171,0.25)',
             fontSize: 13,
           }}>
@@ -227,7 +227,7 @@ export function TravelCostTab() {
 
           {errors.length > 0 && (
             <div style={{
-              padding: 12, marginBottom: 16, borderRadius: 8,
+              padding: 12, marginBottom: 16, borderRadius: 'var(--radius-sm)',
               background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
               fontSize: 13, color: '#fca5a5',
             }}>

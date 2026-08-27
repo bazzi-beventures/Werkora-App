@@ -225,7 +225,7 @@ export default function HelpBubble({
             ...panelAnchor,
             background: 'var(--surface, #fff)',
             color: 'var(--text, #111)',
-            borderRadius: 16,
+            borderRadius: 'var(--radius-xl)',
             border: '1px solid var(--border, #e5e7eb)',
             boxShadow: '0 12px 40px rgba(0,0,0,0.22)',
             display: 'flex',
@@ -247,7 +247,7 @@ export default function HelpBubble({
               onClick={() => setOpen(false)}
               aria-label="Hilfe schliessen"
               style={{
-                width: 32, height: 32, borderRadius: 8, border: 'none',
+                width: 32, height: 32, borderRadius: 'var(--radius-sm)', border: 'none',
                 background: 'transparent', cursor: 'pointer', color: 'var(--text, #111)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
@@ -278,7 +278,7 @@ export default function HelpBubble({
                     padding: '6px 10px', border: 'none', cursor: 'pointer',
                     background: 'transparent', color: 'inherit', font: 'inherit',
                     borderBottom: tab === id
-                      ? '2px solid var(--accent-blue, #1e3a5f)'
+                      ? '2px solid var(--accent, #1e3a5f)'
                       : '2px solid transparent',
                     fontWeight: tab === id ? 600 : 400,
                   }}
@@ -312,7 +312,7 @@ export default function HelpBubble({
           ...fabAnchor,
           width: FAB_SIZE, height: FAB_SIZE, borderRadius: '50%',
           border: 'none', cursor: 'pointer',
-          background: 'var(--accent-blue, #1e3a5f)', color: '#fff',
+          background: 'var(--accent, #1e3a5f)', color: '#fff',
           boxShadow: '0 6px 20px rgba(0,0,0,0.28)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 1000,

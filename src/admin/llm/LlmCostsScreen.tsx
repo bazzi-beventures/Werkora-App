@@ -148,7 +148,7 @@ export default function LlmCostsScreen() {
           <BiBarChart
             data={chartData}
             xKey="name"
-            bars={[{ dataKey: 'Kosten', color: '#be123c', label: 'Kosten (CHF)' }]}
+            bars={[{ dataKey: 'Kosten', label: 'Kosten (CHF)' }]}
             height={280}
             onBarClick={range.drillToDay}
             xInterval="preserveStartEnd"

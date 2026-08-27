@@ -25,7 +25,7 @@ function highlightChanges(original: string, suggestion: string): ReactNode[] {
       return <span key={i}>{part}</span>
     }
     return (
-      <mark key={i} style={{ background: '#fff3cd', color: '#7a5b00', borderRadius: 3, padding: '0 2px' }}>{part}</mark>
+      <mark key={i} style={{ background: 'var(--warning-soft)', color: 'var(--warning-ink)', borderRadius: 3, padding: '0 2px' }}>{part}</mark>
     )
   })
 }
@@ -99,17 +99,17 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5 }: P
             <h3 style={{ margin: '0 0 4px', fontSize: 18 }}>Rechtschreibung prüfen</h3>
             <p style={{ marginTop: 0, marginBottom: 16, color: 'var(--muted, #666)', fontSize: 13 }}>
               Geänderte Stellen sind{' '}
-              <mark style={{ background: '#fff3cd', color: '#7a5b00', borderRadius: 3, padding: '0 2px' }}>markiert</mark>.
+              <mark style={{ background: 'var(--warning-soft)', color: 'var(--warning-ink)', borderRadius: 3, padding: '0 2px' }}>markiert</mark>.
               Prüfe den Vorschlag und übernimm ihn — oder verwirf ihn.
             </p>
 
             <label className="admin-form-label">Original</label>
-            <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-muted, #f7f7f7)', border: '1px solid var(--border, #e0e0e0)', borderRadius: 8, padding: 10, fontSize: 13, color: 'var(--muted, #666)', marginBottom: 14 }}>
+            <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-muted, #f7f7f7)', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 13, color: 'var(--muted, #666)', marginBottom: 14 }}>
               {original}
             </div>
 
             <label className="admin-form-label">Vorschlag</label>
-            <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--border, #e0e0e0)', borderRadius: 8, padding: 10, fontSize: 14, lineHeight: 1.5, marginBottom: 18 }}>
+            <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 14, lineHeight: 1.5, marginBottom: 18 }}>
               {highlightChanges(original, suggestion)}
             </div>
 

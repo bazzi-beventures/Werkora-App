@@ -127,13 +127,13 @@ function ReminderModal({ onClose, onSent }: ReminderModalProps) {
                 <div key={q.id} className="admin-list-item" style={{ gap: 12 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{q.quote_number}</div>
-                    <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
                       {q.customer_name} — {q.project_name}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                       Gesendet: {fmtDate(q.sent_at)} ({daysSince(q.sent_at)} Tage) · {fmtCHF(q.total_amount)}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{q.customer_email}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{q.customer_email}</div>
                   </div>
                   <button
                     className="admin-btn admin-btn-primary"
@@ -224,15 +224,15 @@ function MahnungModal({ onClose, onSent }: MahnungModalProps) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontWeight: 600 }}>{inv.invoice_number}</div>
-                      <div style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 500, marginTop: 2 }}>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 500, marginTop: 2 }}>
                         {inv.project_id_text ? `${inv.project_id_text} · ` : ''}{inv.project_name || '—'}
                       </div>
                       {inv.customer_name && (
-                        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
                           Kunde: {inv.customer_name}
                         </div>
                       )}
-                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
                         Gesendet: {fmtDate(inv.sent_at)} ({daysSince(inv.sent_at)} Tage offen)
                         {inv.due_date ? ` · Fällig: ${fmtDate(inv.due_date)}` : ''}
                         {' · '}{fmtCHF(inv.total_amount)}
@@ -242,7 +242,7 @@ function MahnungModal({ onClose, onSent }: MahnungModalProps) {
                           <span style={{ color: '#ca8a04' }}>Erinnerung: {fmtDate(inv.zahlungserinnerung_sent_at)}</span>
                         )}
                         {inv.mahnung_sent_at && (
-                          <span style={{ color: '#ef4444' }}>Mahnung: {fmtDate(inv.mahnung_sent_at)}</span>
+                          <span style={{ color: 'var(--danger)' }}>Mahnung: {fmtDate(inv.mahnung_sent_at)}</span>
                         )}
                       </div>
                     </div>
@@ -506,13 +506,13 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                   <div key={p.id} className="admin-list-item" style={{ flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
                     <div>
                       <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{p.customer_name ?? '—'}</div>
-                      <div style={{ fontSize: 12, color: '#ef4444', marginTop: 2 }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.customer_name ?? '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 2 }}>
                         Geplant bis {fmtDate(p.end_date)} ({daysSince(p.end_date)} Tage überfällig)
                       </div>
                     </div>
                     <div className="admin-form-row">
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Start</span>
                         <input
                           type="date"
@@ -521,7 +521,7 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                           onChange={e => patchDraft(p.id, { startDate: e.target.value })}
                         />
                       </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Ende</span>
                         <input
                           type="date"
@@ -530,7 +530,7 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                           onChange={e => patchDraft(p.id, { endDate: e.target.value })}
                         />
                       </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Startzeit</span>
                         <input
                           type="time"
@@ -539,7 +539,7 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                           onChange={e => patchDraft(p.id, { startTime: e.target.value })}
                         />
                       </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Endzeit</span>
                         <input
                           type="time"

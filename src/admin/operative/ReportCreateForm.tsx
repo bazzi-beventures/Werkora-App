@@ -794,7 +794,7 @@ export function ReportCreateForm({
       {/* Leistungsart — die obere Ankreuzleiste des gedruckten Blattes. Bis zur
           Migration 20260809 gab es dafür kein Feld: was der Monteur angekreuzt hatte,
           blieb beim Abtippen auf dem Papier. */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>
           Leistungsart
           <InfoHint text="Was bei diesem Einsatz gemacht wurde — Mehrfachauswahl, wie auf dem Rapportblatt. Aus dem Projekt vorbelegt und hier korrigierbar: auf einem Neumontage-Projekt kann ein einzelner Einsatz eine Reparatur sein. Die Angabe ist dokumentarisch und ändert die Verrechnung nicht." />
@@ -815,7 +815,7 @@ export function ReportCreateForm({
 
       {/* Einsatzart + Verrechnung. Die drei Angaben konnte bis 2026-08-05 nur der
           Chat-Pfad setzen; das Papierformular hält sie fest, hier werden sie erfasst. */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>
           Einsatzart
           <InfoHint text="Was bei diesem Einsatz zusätzlich passiert ist. «Garantiefall» ist aus dem Projekt vorbelegt und gilt hier nur für diesen Rapport — die Rechnung wird dadurch nicht automatisch angepasst, sie weist beim Erstellen nur darauf hin." />
@@ -870,7 +870,7 @@ export function ReportCreateForm({
       </fieldset>
 
       {/* Offerten-Hinweis (rein informativ; ändert nur den Beschrieb-Vorschlag) */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>
           Offerte
           <InfoHint text="Nur ein Hinweis, aus welcher Offerte der Rapport entsteht — es wird keine Verknüpfung gespeichert. Der Bezug landet lesbar im Arbeitsbeschrieb." />
@@ -917,7 +917,7 @@ export function ReportCreateForm({
       </fieldset>
 
       {/* Mitarbeiter + Stunden */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>Mitarbeiter &amp; Stunden</legend>
         <InfoHint text="Baustelle und Werkstatt werden mit dem Stundensatz der jeweiligen Stundenart verrechnet (Personal → Stundensätze). Hat jemand am selben Tag beides gemacht, erfasse zwei Zeilen für ihn — eine je Stundenart." />
         {rows.map((row, i) => (
@@ -974,7 +974,7 @@ export function ReportCreateForm({
       </fieldset>
 
       {/* Materialpositionen (optional) */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>
           Material
           <InfoHint text="Optional. Katalogartikel + Menge — der angezeigte Preis ist der aktuelle Verkaufspreis aus den Stammdaten (Richtwert). Verrechnet wird beim Erstellen der Rechnung mit dem dann gültigen Katalogpreis. Zeilen ohne Artikel oder ohne Menge werden ignoriert." />
@@ -1046,14 +1046,14 @@ export function ReportCreateForm({
       </fieldset>
 
       {/* Material aus Offerte / freie Fixpreis-Positionen (optional) */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>
           Material aus Offerte
           <InfoHint text="Optional. Übernimmt Materialpositionen der Offerte(n) als bearbeitbare Fixpreis-Zeilen (Bezeichnung, Menge, Einheit, Preis) und verrechnet sie 1:1. Produkte, Zuschläge und Montage werden NICHT übernommen — die rechnet der Rapport bereits automatisch. Eventualpositionen werden übersprungen. Bei mehreren angenommenen Offerten übernimmt «Material aller angenommenen Offerten übernehmen» alle auf einmal; gezielt pro Offerte geht weiterhin über die Auswahl oben. Freie Zeilen lassen sich auch ohne Offerte hinzufügen." />
         </legend>
         {acceptedCount > 1 && (
           <div style={{
-            marginBottom: 12, fontSize: 13, padding: '8px 12px', borderRadius: 6,
+            marginBottom: 12, fontSize: 13, padding: '8px 12px', borderRadius: 'var(--radius-xs)',
             background: 'var(--primary-soft)', color: 'var(--text)',
           }}>
             Dieses Projekt hat {acceptedCount} angenommene Offerten. «Material aller
@@ -1168,7 +1168,7 @@ export function ReportCreateForm({
       </fieldset>
 
       {/* Klein-/Schmiermaterial-Pauschale (optional, eine Zeile) */}
-      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+      <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>
           Klein-/Schmiermaterial (Pauschale)
           <InfoHint text="Optional. Eine Pauschalzeile für nicht einzeln erfasstes Klein- und Schmiermaterial. Wird nur verrechnet, wenn ein Betrag erfasst ist." />

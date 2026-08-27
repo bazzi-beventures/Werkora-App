@@ -13,11 +13,11 @@ const STATUS_LABEL: Record<KpiWartungRow['status'], string> = {
 }
 
 const STATUS_COLOR: Record<KpiWartungRow['status'], string> = {
-  kein_plan:     '#6b7280',
-  ueberfaellig:  '#dc2626',
-  faellig:       '#f59e0b',
-  anstehend:     '#0ea5e9',
-  ok:            '#22c55e',
+  kein_plan:     'var(--text-muted)',
+  ueberfaellig:  'var(--danger)',
+  faellig:       'var(--warning)',
+  anstehend:     'var(--info)',
+  ok:            'var(--success)',
 }
 
 const fmtDate = (v: unknown) => typeof v === 'string' && v ? new Date(v).toLocaleDateString('de-CH') : '—'
@@ -35,7 +35,7 @@ const COLUMNS: ColumnDef<KpiWartungRow>[] = [
     label: 'Status',
     render: (v) => {
       const s = v as KpiWartungRow['status']
-      return <span style={{ background: STATUS_COLOR[s], color: '#fff', padding: '2px 8px', borderRadius: 6, fontSize: 12 }}>{STATUS_LABEL[s]}</span>
+      return <span style={{ background: STATUS_COLOR[s], color: '#fff', padding: '2px 8px', borderRadius: 'var(--radius-xs)', fontSize: 12 }}>{STATUS_LABEL[s]}</span>
     },
   },
 ]
@@ -47,8 +47,8 @@ export default function WartungTab() {
     if (!data) return []
     const count = (s: KpiWartungRow['status']) => data.filter(r => r.status === s).length
     return [
-      { label: 'Überfällig',         value: String(count('ueberfaellig')), color: count('ueberfaellig') > 0 ? '#dc2626' : undefined },
-      { label: 'Fällig (<30 Tage)',  value: String(count('faellig')),      color: count('faellig') > 0      ? '#f59e0b' : undefined },
+      { label: 'Überfällig',         value: String(count('ueberfaellig')), color: count('ueberfaellig') > 0 ? 'var(--danger)' : undefined },
+      { label: 'Fällig (<30 Tage)',  value: String(count('faellig')),      color: count('faellig') > 0      ? 'var(--warning)' : undefined },
       { label: 'Anstehend (<90 T.)', value: String(count('anstehend')) },
       { label: 'Projekte mit Plan',  value: String(data.length) },
     ]

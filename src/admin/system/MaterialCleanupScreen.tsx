@@ -209,14 +209,14 @@ export default function MaterialCleanupScreen() {
                 title={s.label}
                 style={{
                   textAlign: 'left', cursor: 'pointer', minWidth: 150, flex: '1 1 150px',
-                  padding: '10px 12px', borderRadius: 8,
-                  border: active ? '2px solid #2563eb' : '1px solid var(--admin-border, #e2e8f0)',
-                  background: active ? '#eff6ff' : '#fff',
-                  borderLeft: s.candidate ? '4px solid #dc2626' : (active ? '2px solid #2563eb' : '1px solid var(--admin-border, #e2e8f0)'),
+                  padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                  border: active ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  background: active ? 'var(--primary-soft)' : 'var(--surface)',
+                  borderLeft: s.candidate ? '4px solid var(--danger)' : (active ? '2px solid var(--primary)' : '1px solid var(--border)'),
                 }}
               >
-                <div style={{ fontSize: 20, fontWeight: 700, color: s.candidate ? '#dc2626' : '#0f172a' }}>{n}</div>
-                <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.25 }}>{s.label}</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: s.candidate ? 'var(--danger)' : 'var(--text)' }}>{n}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.25 }}>{s.label}</div>
               </button>
             )
           })}

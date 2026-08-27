@@ -27,7 +27,7 @@ const COLUMNS: ColumnDef<KpiFinanzenMonatRow>[] = [
     align: 'right',
     render: (_v, row) => {
       const m = row.marge_arbeit + row.marge_material
-      const color = m >= 0 ? '#16a34a' : '#dc2626'
+      const color = m >= 0 ? 'var(--success)' : 'var(--danger)'
       return <span style={{ color }}>{chfSigned(m)}</span>
     },
   },
@@ -75,8 +75,8 @@ export default function FinanzenTab() {
     const yearLabel = yearFilter != null ? String(yearFilter) : String(currentYear)
     return [
       { label: `Kosten ${yearLabel}`, value: chf(kostenYtd) },
-      { label: `Umsatz ${yearLabel}`, value: chf(umsatzYtd), color: '#22c55e' },
-      { label: `Marge ${yearLabel}`, value: chfSigned(margeYtd), color: margeYtd >= 0 ? '#16a34a' : '#dc2626' },
+      { label: `Umsatz ${yearLabel}`, value: chf(umsatzYtd), color: 'var(--success)' },
+      { label: `Marge ${yearLabel}`, value: chfSigned(margeYtd), color: margeYtd >= 0 ? 'var(--success)' : 'var(--danger)' },
       { label: 'Ø Debitorenlaufzeit', value: `${avgDebi.toFixed(0)} Tage` },
     ]
   }, [filtered, yearFilter, currentYear])
@@ -110,11 +110,11 @@ export default function FinanzenTab() {
       {(dataQuality.maxOhneLohn > 0 || dataQuality.maxOhneEk > 0) && (
         <div
           style={{
-            background: '#fef3c7',
-            border: '1px solid #fcd34d',
-            borderRadius: 6,
+            background: 'var(--warning-soft)',
+            border: '1px solid var(--warning)',
+            borderRadius: 'var(--radius-xs)',
             padding: '10px 14px',
-            color: '#92400e',
+            color: 'var(--warning-ink)',
             fontSize: 13,
             display: 'flex',
             flexDirection: 'column',
@@ -142,8 +142,8 @@ export default function FinanzenTab() {
         data={chartData}
         xKey="name"
         bars={[
-          { dataKey: 'Kosten', color: '#f87171', label: 'Kosten (intern)' },
-          { dataKey: 'Rechnungen', color: '#22c55e', label: 'Rechnungen' },
+          { dataKey: 'Kosten', label: 'Kosten (intern)' },
+          { dataKey: 'Rechnungen', label: 'Rechnungen' },
         ]}
         height={300}
       />

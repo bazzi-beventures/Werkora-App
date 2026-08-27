@@ -35,6 +35,7 @@ export function DetailsForm({
   const {
     name, setName, customerId, selectCustomer, selectedCustomer, billingRecipient, billingAddress,
     objectName, setObjectName, objectAddress, setObjectAddress, setObjectAddressTouched,
+    pickObjectAddress,
     billingDiffers, setBillingDiffers,
     projBillingName, setProjBillingName, projBillingAddress, setProjBillingAddress,
     artDerArbeit, toggleArt, entsorgungsart: hasEntsorgungsart,
@@ -69,7 +70,7 @@ export function DetailsForm({
                   {WORK_TYPES.map(t => {
                     const active = artDerArbeit.includes(t.value)
                     return (
-                      <label key={t.value} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, padding: '4px 10px', borderRadius: 6, background: active ? 'var(--primary)' : 'var(--surface-2)', color: active ? '#fff' : 'var(--text)', border: '1px solid', borderColor: active ? 'var(--primary)' : 'var(--border)' }}>
+                      <label key={t.value} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, padding: '4px 10px', borderRadius: 'var(--radius-xs)', background: active ? 'var(--primary)' : 'var(--surface-2)', color: active ? '#fff' : 'var(--text)', border: '1px solid', borderColor: active ? 'var(--primary)' : 'var(--border)' }}>
                         <input type="checkbox" style={{ display: 'none' }} checked={active} onChange={() => toggleArt(t.value)} />
                         {t.label}
                       </label>
@@ -122,7 +123,7 @@ export function DetailsForm({
                   onChange={selectCustomer}
                 />
                 {customerId && (
-                  <div style={{ marginTop: 6, padding: '8px 12px', background: 'var(--bg-subtle, #f5f5f5)', borderRadius: 6, fontSize: 13, color: 'var(--muted)' }}>
+                  <div style={{ marginTop: 6, padding: '8px 12px', background: 'var(--bg-subtle, #f5f5f5)', borderRadius: 'var(--radius-xs)', fontSize: 13, color: 'var(--muted)' }}>
                     <strong>Rechnung an:</strong> {billingRecipient || '—'}{billingAddress ? `, ${billingAddress}` : ''}
                   </div>
                 )}
@@ -176,9 +177,15 @@ export function DetailsForm({
 
               <div className="admin-form-group">
                 <label className="admin-form-label">Objektadresse (Baustelle)</label>
-                <AddressAutocomplete className="admin-form-input" value={objectAddress} onChange={v => { setObjectAddress(v); setObjectAddressTouched(true) }} />
+                <AddressAutocomplete
+                  className="admin-form-input"
+                  value={objectAddress}
+                  onChange={v => { setObjectAddress(v); setObjectAddressTouched(true) }}
+                  onPick={pickObjectAddress}
+                />
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-                  Nur die reine Adresse — sie bestimmt die Fahrspesen (Distanz Firmensitz → Objekt).
+                  Nur die reine Adresse — sie bestimmt die Fahrspesen (Distanz Firmensitz → Objekt)
+                  und den Punkt auf der Auftragskarte.
                   Wird beim Auswählen des Kunden als Vorschlag übernommen und kann pro Projekt überschrieben werden.
                 </div>
               </div>
@@ -214,7 +221,7 @@ export function DetailsForm({
                   title={k.is_site_contact ? 'Baustellenkontakt — klicken zum Aufheben' : 'Als Baustellenkontakt markieren'}
                   style={{
                     width: 36, height: 36, marginBottom: 1,
-                    borderRadius: 8, cursor: 'pointer',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
                     border: '1px solid', borderColor: k.is_site_contact ? 'var(--primary)' : 'var(--border)',
                     background: k.is_site_contact ? 'var(--primary)' : 'transparent',
                     color: k.is_site_contact ? '#fff' : 'var(--muted)',
@@ -369,7 +376,7 @@ export function DetailsForm({
                     <span style={{ color: 'var(--muted)', fontSize: 13 }}>Keine Mitarbeiter gefunden.</span>
                   )}
                   {staff.map(s => (
-                    <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, padding: '4px 10px', borderRadius: 6, background: monteurIds.includes(s.id) ? 'var(--primary)' : 'var(--surface-2)', color: monteurIds.includes(s.id) ? '#fff' : 'var(--text)', border: '1px solid', borderColor: monteurIds.includes(s.id) ? 'var(--primary)' : 'var(--border)' }}>
+                    <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, padding: '4px 10px', borderRadius: 'var(--radius-xs)', background: monteurIds.includes(s.id) ? 'var(--primary)' : 'var(--surface-2)', color: monteurIds.includes(s.id) ? '#fff' : 'var(--text)', border: '1px solid', borderColor: monteurIds.includes(s.id) ? 'var(--primary)' : 'var(--border)' }}>
                       <input
                         type="checkbox"
                         style={{ display: 'none' }}

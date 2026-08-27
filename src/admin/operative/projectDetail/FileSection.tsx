@@ -161,7 +161,7 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
           flexWrap: 'wrap',
           padding: '14px 12px',
           marginBottom: 8,
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           border: `2px dashed ${dragOver ? 'var(--primary)' : 'var(--border)'}`,
           background: dragOver ? 'var(--surface-2)' : 'transparent',
           color: 'var(--muted)',
@@ -201,7 +201,7 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map(f => (
-            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+            <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
               <span style={{ fontSize: 18 }}>{projectFileIcon(f.mime_type, f.filename)}</span>
               {editingId === f.id ? (
                 <>

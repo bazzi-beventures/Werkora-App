@@ -75,6 +75,7 @@ export const SCHEDULING_VIEWS = [
   { key: 'staff', label: 'Mitarbeiter' },
   { key: 'plantafel', label: 'Plantafel' },
   { key: 'gantt', label: 'Tagesplan' },
+  { key: 'map', label: 'Karte' },
 ] as const
 
 export type SchedulingViewKey = (typeof SCHEDULING_VIEWS)[number]['key']

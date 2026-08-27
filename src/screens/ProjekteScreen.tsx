@@ -140,7 +140,7 @@ function MapsAddress({ address }: { address: string }) {
       rel="noopener noreferrer"
       aria-label={`${address} in Google Maps öffnen`}
       style={{
-        color: 'var(--accent-blue)', textDecoration: 'none',
+        color: 'var(--accent)', textDecoration: 'none',
         display: 'inline-flex', alignItems: 'center', gap: 6,
       }}
     >
@@ -541,7 +541,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 if (e.key === 'Enter') { e.preventDefault(); void handleRenameFile(f.id) }
                 if (e.key === 'Escape') setRenamingFileId(null)
               }}
-              style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--card-border, #ddd)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
+              style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--card-border, #ddd)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
             />
             <button type="button" className="projekte-kontakt-link-btn" style={{ fontSize: 12 }} onClick={() => void handleRenameFile(f.id)}>✓</button>
             <button type="button" className="projekte-kontakt-link-btn" style={{ fontSize: 12 }} onClick={() => setRenamingFileId(null)}>✕</button>
@@ -549,7 +549,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         ) : (
           <span className="projekte-detail-value" style={{ flex: 1 }}>
             {(f.storage_path || f.file_url)
-              ? <a href={projectFileUrl(SCOPE, projectId, f.id)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-blue)', textDecoration: 'none' }}>{f.filename}</a>
+              ? <a href={projectFileUrl(SCOPE, projectId, f.id)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{f.filename}</a>
               : f.filename
             }
             <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted, #888)', marginTop: 1 }}>
@@ -626,7 +626,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
 
           {/* Bemerkung — rot hervorgehoben */}
           {selected.bemerkung && (
-            <div className="projekte-detail-card" style={{ background: '#fff0f0', border: '1.5px solid #e53e3e' }}>
+            <div className="projekte-detail-card" style={{ background: 'var(--accent-red-dim)', border: '1.5px solid var(--accent-red)' }}>
               <div className="projekte-detail-title" style={{ color: '#c53030' }}>Hinweis</div>
               <div style={{ fontSize: 14, color: '#c53030', fontWeight: 500, whiteSpace: 'pre-wrap' }}>
                 {selected.bemerkung}
@@ -647,7 +647,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     type="checkbox"
                     checked={t.is_done}
                     onChange={() => void toggleTask(t)}
-                    style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: 'var(--accent-blue)' }}
+                    style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: 'var(--accent)' }}
                   />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
@@ -695,7 +695,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
               marginBottom: selected.rapport_blocked ? 6 : 12,
               borderRadius: 12,
               border: 'none',
-              background: selected.rapport_blocked ? 'var(--surface-2, #d4d4d8)' : 'var(--accent-blue)',
+              background: selected.rapport_blocked ? 'var(--surface-2, #d4d4d8)' : 'var(--accent)',
               color: selected.rapport_blocked ? 'var(--text-muted, #71717a)' : '#fff',
               fontSize: 15,
               fontWeight: 600,
@@ -742,8 +742,8 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   onClick={() => setAggregateSelection(openPartials.map(r => r.id))}
                   style={{
                     width: '100%', padding: '10px 12px', marginBottom: 4,
-                    borderRadius: 10, border: '1px solid var(--accent-blue)',
-                    background: 'transparent', color: 'var(--accent-blue)',
+                    borderRadius: 'var(--radius-md)', border: '1px solid var(--accent)',
+                    background: 'transparent', color: 'var(--accent)',
                     fontSize: 14, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
@@ -753,8 +753,8 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
 
               {aggregateSelection !== null && (
                 <div style={{
-                  padding: 12, marginBottom: 8, borderRadius: 10,
-                  border: '1px solid var(--accent-blue)', background: 'var(--surface, transparent)',
+                  padding: 12, marginBottom: 8, borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--accent)', background: 'var(--surface, transparent)',
                 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
                     Welche Einsätze soll der Kunde unterschreiben?
@@ -800,9 +800,9 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                       onClick={() => void handleAggregate()}
                       disabled={aggregating || aggregateSelection.length === 0}
                       style={{
-                        flex: 1, minHeight: 44, borderRadius: 10, border: 'none',
+                        flex: 1, minHeight: 44, borderRadius: 'var(--radius-md)', border: 'none',
                         background: aggregateSelection.length === 0
-                          ? 'var(--surface-2, #d4d4d8)' : 'var(--accent-blue)',
+                          ? 'var(--surface-2, #d4d4d8)' : 'var(--accent)',
                         color: aggregateSelection.length === 0 ? 'var(--text-muted, #71717a)' : '#fff',
                         fontSize: 14, fontWeight: 600,
                         cursor: aggregating || aggregateSelection.length === 0 ? 'default' : 'pointer',
@@ -815,7 +815,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                       onClick={() => { setAggregateSelection(null); setAggregateError(null) }}
                       disabled={aggregating}
                       style={{
-                        flex: 'none', minHeight: 44, padding: '0 14px', borderRadius: 10,
+                        flex: 'none', minHeight: 44, padding: '0 14px', borderRadius: 'var(--radius-md)',
                         border: '1px solid var(--border, #e5e7eb)', background: 'transparent',
                         color: 'var(--text-muted, #71717a)', fontSize: 14, fontWeight: 600,
                         cursor: aggregating ? 'default' : 'pointer',
@@ -868,7 +868,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                         <span style={{
                           marginLeft: 8, fontSize: 12, fontWeight: 500,
                           color: status.tone === 'warn'
-                            ? 'var(--accent-orange, #d97706)'
+                            ? 'var(--accent-amber)'
                             : 'var(--text-muted, #71717a)',
                         }}>
                           {status.text}
@@ -889,9 +889,9 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                         onClick={() => void handleOpenReportPdf(r)}
                         disabled={openingReportId === r.id}
                         style={{
-                          padding: '6px 10px', borderRadius: 8,
-                          border: '1px solid var(--accent-blue)', background: 'transparent',
-                          color: 'var(--accent-blue)', fontSize: 13, fontWeight: 600,
+                          padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--accent)', background: 'transparent',
+                          color: 'var(--accent)', fontSize: 13, fontWeight: 600,
                           cursor: openingReportId === r.id ? 'default' : 'pointer',
                         }}
                       >
@@ -902,7 +902,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                           type="button"
                           onClick={() => setSigningReportId(r.id)}
                           style={{
-                            padding: '6px 10px', borderRadius: 8,
+                            padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                             border: '1px solid var(--accent-green, #16a34a)', background: 'transparent',
                             color: 'var(--accent-green, #16a34a)', fontSize: 13, fontWeight: 600,
                             cursor: 'pointer', whiteSpace: 'nowrap',
@@ -917,7 +917,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                           onClick={() => void handleDissolve(r)}
                           disabled={dissolvingId === r.id}
                           style={{
-                            padding: '6px 10px', borderRadius: 8,
+                            padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                             border: '1px solid var(--text-muted, #71717a)', background: 'transparent',
                             color: 'var(--text-muted, #71717a)', fontSize: 13, fontWeight: 600,
                             cursor: dissolvingId === r.id ? 'default' : 'pointer',
@@ -933,7 +933,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                           onClick={() => void handleDeleteOwnReport(r)}
                           disabled={deletingReportId === r.id}
                           style={{
-                            padding: '6px 10px', borderRadius: 8,
+                            padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                             border: '1px solid #e53e3e', background: 'transparent',
                             color: '#e53e3e', fontSize: 13, fontWeight: 600,
                             cursor: deletingReportId === r.id ? 'default' : 'pointer',
@@ -1044,7 +1044,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 <div
                   key={i}
                   className="projekte-kontakt-item"
-                  style={k.is_site_contact ? { background: '#fff8e6', border: '1.5px solid #f5a623', borderRadius: 8, padding: 10, marginBottom: 8 } : undefined}
+                  style={k.is_site_contact ? { background: '#fff8e6', border: '1.5px solid #f5a623', borderRadius: 'var(--radius-sm)', padding: 10, marginBottom: 8 } : undefined}
                 >
                   <div className="projekte-kontakt-item-header">
                     <span className="projekte-kontakt-item-name">{k.name}</span>
@@ -1095,7 +1095,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     onChange={e => setUploadCategory(e.target.value as FileCategory)}
                     disabled={uploading}
                     aria-label="Kategorie"
-                    style={{ fontSize: 12, padding: '5px 8px', borderRadius: 8, border: '1px solid var(--card-border, #ddd)', background: 'var(--surface, #fff)', color: 'var(--text)' }}
+                    style={{ fontSize: 12, padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--card-border, #ddd)', background: 'var(--surface, #fff)', color: 'var(--text)' }}
                   >
                     {FILE_CATEGORIES.map(c => (
                       <option key={c.key} value={c.key}>{c.label}</option>
@@ -1183,7 +1183,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <input
-                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--card-border, #ddd)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--card-border, #ddd)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
                   placeholder="Kommentar…"
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
@@ -1193,7 +1193,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   type="button"
                   disabled={addingComment || !newComment.trim()}
                   onClick={handleAddComment}
-                  style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--accent-blue)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: addingComment || !newComment.trim() ? 0.5 : 1 }}
+                  style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--accent)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: addingComment || !newComment.trim() ? 0.5 : 1 }}
                 >
                   {addingComment ? '…' : 'Senden'}
                 </button>
@@ -1217,7 +1217,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             <span>Arbeitszeit</span>
           </div>
           <div className="nav-item active">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
               <path d="M9 22V12h6v10"/>
             </svg>
@@ -1389,7 +1389,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
           <span>Arbeitszeit</span>
         </div>
         <div className="nav-item active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
             <path d="M9 22V12h6v10"/>
           </svg>

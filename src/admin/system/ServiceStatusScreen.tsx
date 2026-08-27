@@ -26,10 +26,10 @@ const SERVICE_ACCENT: Record<ServiceName, string> = {
 const HISTORY_RANGES = [30, 90, 180, 365] as const
 type HistoryRange = typeof HISTORY_RANGES[number]
 
-const COLOR_OK = '#10b981'
-const COLOR_WARN = '#f59e0b'
-const COLOR_BAD = '#ef4444'
-const COLOR_NONE = '#e5e7eb'
+const COLOR_OK = 'var(--success)'
+const COLOR_WARN = 'var(--warning)'
+const COLOR_BAD = 'var(--danger)'
+const COLOR_NONE = 'var(--surface2)'
 
 function dotColor(status: ServiceStatus | undefined, uptimePct: number): string {
   if (status === 'down' || uptimePct < 95) return COLOR_BAD
@@ -144,7 +144,7 @@ function StatusCard({ name, data }: { name: ServiceName; data: ServiceHealth }) 
       </div>
 
       {data.latest?.error && (
-        <div style={{ fontSize: 11, color: '#991b1b', background: '#fee2e2', padding: '6px 10px', borderRadius: 6 }}>
+        <div style={{ fontSize: 11, color: 'var(--danger-ink)', background: 'var(--danger-soft)', padding: '6px 10px', borderRadius: 'var(--radius-xs)' }}>
           {data.latest.error}
         </div>
       )}
@@ -349,7 +349,7 @@ export default function ServiceStatusScreen() {
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8, marginBottom: 16 }}>
+        <div style={{ padding: 16, background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
           {error}
         </div>
       )}
@@ -399,7 +399,7 @@ export default function ServiceStatusScreen() {
         </div>
       )}
 
-      <div style={{ marginTop: 24, padding: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+      <div style={{ marginTop: 24, padding: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
         <strong style={{ color: 'var(--text)' }}>Wie das funktioniert:</strong> Drei GitHub-Actions-Workflows pingen
         Railway, Supabase und Mistral und schreiben jedes Resultat in eine Tabelle.
         Die Karten zeigen den aktuellen Status, der Verlauf kombiniert Rohdaten (letzte 30 Tage)

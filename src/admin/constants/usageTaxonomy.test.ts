@@ -8,8 +8,8 @@ import {
 // im Modulschlüssel liesse die Zeile im Modul-Inventar sonst neben dem echten
 // Modul stehen, statt sich mit ihm zu verrechnen.
 //
-// BEWUSST nicht der TS-Typ ModuleName aus api/modules.ts: der kennt nur 19 der
-// 25 Module — es fehlen die Hintergrund-Module ohne eigenen Screen
+// BEWUSST nicht der TS-Typ ModuleName aus api/modules.ts: der kennt nur 21 der
+// 27 Module — es fehlen die Hintergrund-Module ohne eigenen Screen
 // (clock_out_reminder, approval_push, morning_briefing …). Spec §7f.
 const KNOWN_MODULES = [
   'timekeeping', 'scheduling', 'quotes', 'invoicing', 'payment_matching',
@@ -17,7 +17,7 @@ const KNOWN_MODULES = [
   'ai', 'help_bot', 'clock_in_reminder', 'hr_weekly_report', 'clock_out_reminder',
   'auto_clockout_correction_reminder', 'approval_push', 'morning_briefing',
   'project_change_push', 'admin_clock_in_push', 'aftersales', 'document_backup',
-  'rapport_check_mail', 'task_board',
+  'rapport_check_mail', 'task_board', 'newsletter', 'support',
 ]
 
 describe('moduleOfAction', () => {

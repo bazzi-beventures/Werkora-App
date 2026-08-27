@@ -154,7 +154,7 @@ export function HelpDocsTab() {
 
       {status && status.state !== 'idle' && (
         <div style={{
-          padding: 12, marginBottom: 16, borderRadius: 8, fontSize: 13,
+          padding: 12, marginBottom: 16, borderRadius: 'var(--radius-sm)', fontSize: 13,
           background: status.state === 'error' ? 'rgba(239,68,68,0.1)' : 'rgba(59,130,171,0.08)',
           border: `1px solid ${status.state === 'error' ? 'rgba(239,68,68,0.3)' : 'rgba(59,130,171,0.25)'}`,
           color: status.state === 'error' ? '#fca5a5' : undefined,

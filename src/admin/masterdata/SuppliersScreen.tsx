@@ -280,7 +280,7 @@ export default function SuppliersScreen() {
                     right: 0,
                     background: 'var(--surface, #fff)',
                     border: '1px solid var(--border, #ddd)',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-xs)',
                     boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                     maxHeight: 260,
                     overflowY: 'auto',

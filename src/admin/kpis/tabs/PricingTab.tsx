@@ -83,7 +83,7 @@ export default function PricingTab() {
       <BiBarChart
         data={chartData}
         xKey="name"
-        bars={[{ dataKey: 'Marge', color: '#7c3aed', label: 'Margenfaktor' }]}
+        bars={[{ dataKey: 'Marge', label: 'Margenfaktor' }]}
         height={300}
       />
 

@@ -1,4 +1,4 @@
-﻿import { Fragment, useEffect, useRef, useState } from 'react'
+﻿import { Fragment, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { Project } from '../../api/admin/projects'
 import {
   SCHEDULING_VIEWS,
@@ -29,6 +29,12 @@ import {
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
 import MiniMonthPicker from './MiniMonthPicker'
+
+// Nachgeladen statt statisch importiert — und das ist keine Feinoptimierung:
+// die Kartenansicht zieht maplibre-gl mit, gebaut 250 KB gzip plus WebGL. Ein
+// statischer Import legte das in das gemeinsame Bundle, also auch auf das
+// Handy jedes Monteurs, der nie eine Karte öffnet.
+const ProjectScheduleMap = lazy(() => import('./ProjectScheduleMap'))
 
 export type { CalendarEntry }
 
@@ -1024,25 +1030,31 @@ export default function ProjectScheduleCalendar({
         </div>
 
         {/* Titel = Auslöser des Mini-Monatskalenders: ein Klick auf einen Tag
-            springt die aktive Ansicht dorthin, statt sich tageweise vorzuklicken. */}
-        <div className="absence-cal-title">
-          <MiniMonthPicker
-            label={title}
-            value={currentDate}
-            onPick={setCurrentDate}
-            eventDays={eventDays}
-            holidays={holidays}
-          />
-        </div>
+            springt die aktive Ansicht dorthin, statt sich tageweise vorzuklicken.
+            Die Karte hat ihren eigenen Zeitraum-Wähler und ignoriert currentDate —
+            Datums-Navigation, die dort nichts bewegt, wäre ein Defekt, kein Beiwerk. */}
+        {view !== 'map' && (
+          <div className="absence-cal-title">
+            <MiniMonthPicker
+              label={title}
+              value={currentDate}
+              onPick={setCurrentDate}
+              eventDays={eventDays}
+              holidays={holidays}
+            />
+          </div>
+        )}
 
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={handlePrev}>←</button>
-          <button
-            className="admin-btn admin-btn-secondary admin-btn-sm"
-            onClick={() => setCurrentDate(new Date())}
-          >Heute</button>
-          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={handleNext}>→</button>
-        </div>
+        {view !== 'map' && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={handlePrev}>←</button>
+            <button
+              className="admin-btn admin-btn-secondary admin-btn-sm"
+              onClick={() => setCurrentDate(new Date())}
+            >Heute</button>
+            <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={handleNext}>→</button>
+          </div>
+        )}
       </div>
 
       {!loading && view === 'staff' && staff.length > 0 && (
@@ -1156,6 +1168,18 @@ export default function ProjectScheduleCalendar({
         <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>
       ) : view === 'staff' && !focusedStaff ? (
         <div className="admin-empty">Keine Mitarbeiter verfügbar.</div>
+      ) : view === 'map' ? (
+        // Bewusst vor dem isMobile-Zweig: wer die Karte wählt, will die Karte —
+        // auf dem Tablet mit Tap statt Hover, nicht die Agenda-Liste.
+        <Suspense fallback={<div className="admin-loading"><div className="admin-spinner" /> Karte wird geladen…</div>}>
+          <ProjectScheduleMap
+            projects={visibleProjects}
+            staff={staff}
+            canton={canton}
+            dayCapacityHours={schedulingConfig?.day_capacity_hours ?? DAY_CAPACITY_FALLBACK_H}
+            onOpenProject={onOpenProject}
+          />
+        </Suspense>
       ) : isMobile ? (
         <AgendaView
           projects={visibleProjects}
@@ -1230,7 +1254,9 @@ export default function ProjectScheduleCalendar({
         />
       )}
 
-      {!loading && !isMobile && <CalendarLegend canton={canton} />}
+      {/* Die Karte bringt ihre eigene Legende mit (Farbskala, Gewichtung) —
+          zwei Legenden übereinander sind Lärm. */}
+      {!loading && !isMobile && view !== 'map' && <CalendarLegend canton={canton} />}
       {!loading && isMobile && (
         <div className="project-cal-agenda-hint">
           Einsatz antippen zum Bearbeiten, <strong>+</strong> für neuen Einsatz.

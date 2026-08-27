@@ -69,7 +69,7 @@ function StockModal({ material, onClose, onSaved }: StockModalProps) {
             borderRadius: 9, padding: '12px 16px', textAlign: 'center',
           }}>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>Aktueller Bestand</div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: stockLow ? '#ef4444' : 'var(--text)' }}>{currentStock} {material.unit || ''}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: stockLow ? 'var(--danger)' : 'var(--text)' }}>{currentStock} {material.unit || ''}</div>
           </div>
           {error && <div className="admin-form-error">{error}</div>}
           <div className="admin-form-group">
@@ -326,7 +326,7 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
             <label className="admin-form-label">Bild</label>
             {imagePreview ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <img src={imagePreview} alt={name} title="Zum Vergrössern klicken" onClick={() => setLightboxOpen(true)} style={{ height: 72, width: 'auto', maxWidth: 160, objectFit: 'contain', display: 'block', borderRadius: 8, border: '1px solid var(--border)', cursor: 'zoom-in' }} />
+                <img src={imagePreview} alt={name} title="Zum Vergrössern klicken" onClick={() => setLightboxOpen(true)} style={{ height: 72, width: 'auto', maxWidth: 160, objectFit: 'contain', display: 'block', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', cursor: 'zoom-in' }} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label className="admin-btn admin-btn-secondary admin-btn-sm" style={{ cursor: 'pointer' }}>
                     Ändern
@@ -357,7 +357,7 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
         onClick={() => setLightboxOpen(false)}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'zoom-out', padding: 24 }}
       >
-        <img src={imagePreview} alt={name} style={{ maxWidth: '95vw', maxHeight: '95vh', objectFit: 'contain', borderRadius: 8 }} />
+        <img src={imagePreview} alt={name} style={{ maxWidth: '95vw', maxHeight: '95vh', objectFit: 'contain', borderRadius: 'var(--radius-sm)' }} />
       </div>
     )}
     </>
@@ -505,7 +505,7 @@ function MaterialInventoryPanel() {
                   </div>
                   <div className="admin-card-meta">
                     EK: {m.cost_price != null ? `CHF ${m.cost_price.toFixed(2)}` : '—'} · VK: {m.calc_vk != null && m.calc_vk > 0 ? `CHF ${m.calc_vk.toFixed(2)}` : '—'}
-                    {stock !== null && <> · Bestand: <span style={{ color: stockLow ? '#ef4444' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span></>}
+                    {stock !== null && <> · Bestand: <span style={{ color: stockLow ? 'var(--danger)' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span></>}
                   </div>
                   <div className="admin-card-actions">
                     <button
@@ -573,7 +573,7 @@ function MaterialInventoryPanel() {
                     </td>
                     <td>
                       {stock !== null
-                        ? <span style={{ color: stockLow ? '#ef4444' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span>
+                        ? <span style={{ color: stockLow ? 'var(--danger)' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span>
                         : <span style={{ color: 'var(--muted)' }}>—</span>
                       }
                     </td>

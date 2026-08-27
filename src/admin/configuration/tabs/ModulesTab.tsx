@@ -26,17 +26,20 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   payment_matching: { label: 'Zahlungsabgleich',  desc: 'CAMT-Bankauszug einlesen und Zahlungseingänge automatisch mit Rechnungen abgleichen (benötigt Rechnungen)', category: 'operativ' },
   inventory:        { label: 'Lager',             desc: 'Bestände & Lagerbewegungen (Material-Katalog bleibt verfügbar)', category: 'operativ' },
   aftersales:       { label: 'After Sales',       desc: 'Feedback- und saisonale Reparatur-/Service-Nachfassmails nach bezahlter Rechnung (benötigt Rechnungen)', category: 'operativ' },
+  task_board:       { label: 'Aufgaben-Board',    desc: 'Kanban-Board «Aufgaben» im Admin: automatisch abgeleitete Aufgaben (z. B. «Offerte akzeptiert → Projekt aufgleisen») neben manuell erfassten, den Projektleitern zugeordnet. Die Schwellwerte der Auto-Aufgaben stehen im Tab Feature-Flags.', category: 'operativ' },
   hr:               { label: 'HR',                desc: 'Absenzen, Ferien, HR-Berichte', category: 'hr' },
   arg_compliance:   { label: 'ArG-Compliance',    desc: 'Arbeitsgesetz-Verstoss-Erkennung (benötigt HR + Zeiterfassung)', category: 'hr' },
   kpis:             { label: 'Kennzahlen',        desc: 'KPI-Dashboard', category: 'analyse' },
   ai:               { label: 'AI-Funktionen',     desc: 'Mistral-Chat, Voxtral-Voice, KPI-Insights', category: 'ki' },
   help_bot:         { label: 'Hilfe-Bot',         desc: 'In-App-Hilfe per Chat über die Bedien-Handbücher', category: 'ki' },
+  support:          { label: 'Support-Meldung',   desc: 'Support-Knopf in der Hilfe-Blase (Monteur-PWA und Admin): Problem beschreiben oder diktieren, bis zu drei Screenshots anhängen. Der Server legt einen Aktivitäts-Snapshot der letzten 15 Minuten bei, die Meldung läuft beim Superadmin ein. Bewusst ohne Hilfe-Bot nutzbar.', category: 'ki' },
   document_backup:  { label: 'Datensicherung',    desc: 'Management kann alle Dokumente (Rechnungen/Offerten/Rapporte) als ein ZIP exportieren; Fertig-Meldung per Push, Download-Link 12 h gültig', category: 'other' },
   // Benachrichtigungen — Mail
   hr_weekly_report: { label: 'Wochen-HR-Übersicht', desc: 'Wöchentliches HR-Journal per Mail am Montag (benötigt HR). Journal & Überstunden-Salden werden weiterhin erstellt — nur die Mail entfällt.', category: 'notifications', channel: 'mail' },
   violation_emails: { label: 'ArG-Verstoss-Mails', desc: 'Wöchentliche Verstoss-E-Mails an die Admins (benötigt ArG-Compliance)', category: 'notifications', channel: 'mail' },
   kpis_email:       { label: 'KPI-Analyse-Mail',  desc: 'Wöchentliche KI-Kennzahlen-Analyse per Mail am Montag (benötigt Kennzahlen)', category: 'notifications', channel: 'mail' },
   rapport_check_mail:{ label: 'Rapport-Check-Mail', desc: 'Admin-Mail, wenn die gestempelte Zeit eines Mitarbeiters die auf Projekte verbuchten Stunden um mehr als 45 min übersteigt (Hinweis auf fehlende Rapporte). Standard aus — nur bei aktivem Modul (benötigt Zeiterfassung).', category: 'notifications', channel: 'mail' },
+  newsletter:       { label: 'Produkt-Newsletter', desc: 'Neuerungen an alle Nutzer des Mandanten: ausführlich per Mail, als Anreisser per Push. Ohne Zeitplan — eine fertige Ausgabe liegt im Code, bis ein Superadmin sie auslöst. Welches Item ein Empfänger sieht, entscheidet der Redaktionsplan über Rolle und Modul.', category: 'notifications', channel: 'mail' },
   // Benachrichtigungen — Push
   clock_in_reminder:{ label: 'Einstempel-Erinnerung', desc: 'Push werktags um 07:15 an eingeplante, noch nicht eingestempelte Mitarbeiter (benötigt Zeiterfassung)', category: 'notifications', channel: 'push' },
   clock_out_reminder:{ label: 'Ausstempel-Erinnerung', desc: 'Abend-Push (Standard 18:00, einstellbar) an Mitarbeiter, die noch eingestempelt sind — verhindert die automatische Schliessung um 23:59 (benötigt Zeiterfassung)', category: 'notifications', channel: 'push' },
@@ -154,7 +157,7 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
         key={m}
         style={{
           display: 'flex', gap: 12, padding: 12, alignItems: 'flex-start',
-          border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8,
+          border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-sm)',
           background: isOn ? 'rgba(34,197,94,0.06)' : 'transparent',
           cursor: 'pointer',
         }}
@@ -187,7 +190,7 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
                 onClick={e => e.stopPropagation()}
                 onChange={e => saveReminderTime(MODULE_TIME_FEATURE[m].feature, e.target.value)}
                 style={{
-                  padding: '4px 8px', borderRadius: 6, fontSize: 13,
+                  padding: '4px 8px', borderRadius: 'var(--radius-xs)', fontSize: 13,
                   border: '1px solid rgba(255,255,255,0.15)', background: 'transparent',
                   color: 'inherit',
                 }}
@@ -257,7 +260,7 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
 
       {errors.length > 0 && (
         <div style={{
-          padding: 12, marginBottom: 16, borderRadius: 8,
+          padding: 12, marginBottom: 16, borderRadius: 'var(--radius-sm)',
           background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
           fontSize: 13, color: '#fca5a5',
         }}>

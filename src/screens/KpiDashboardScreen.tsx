@@ -72,9 +72,9 @@ const CATEGORY_META: Record<KpiCategory, { label: string; color: string; icon: J
 
 const STATUS_DOT: Record<KpiStatus, string> = {
   normal: '#93bcd4',
-  good: '#22c55e',
-  warning: '#f59e0b',
-  critical: '#f87171',
+  good: 'var(--accent-green)',
+  warning: 'var(--accent-amber)',
+  critical: 'var(--accent-red)',
 }
 
 function KpiCard({ item, accentColor }: { item: KpiItem; accentColor: string }) {

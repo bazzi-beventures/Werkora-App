@@ -24,9 +24,9 @@ function remainingStyle(remaining: number): CSSProperties {
     fontSize: 12,
     fontWeight: 700,
   }
-  if (remaining < 0) return { ...base, background: 'var(--danger-soft)', color: 'var(--danger)' }
-  if (remaining <= 5) return { ...base, background: 'var(--warning-soft)', color: 'var(--warning)' }
-  return { ...base, background: 'var(--success-soft)', color: 'var(--success)' }
+  if (remaining < 0) return { ...base, background: 'var(--danger-soft)', color: 'var(--danger-ink)' }
+  if (remaining <= 5) return { ...base, background: 'var(--warning-soft)', color: 'var(--warning-ink)' }
+  return { ...base, background: 'var(--success-soft)', color: 'var(--success-ink)' }
 }
 
 export default function VacationOverviewScreen() {

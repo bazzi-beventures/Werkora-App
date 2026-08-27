@@ -57,7 +57,7 @@ export function SupplierDocumentsTab({
         <div style={{
           marginBottom: 20,
           padding: '14px 16px',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           background: 'var(--surface-2)',
           border: '1px solid var(--border)',
           display: 'flex',

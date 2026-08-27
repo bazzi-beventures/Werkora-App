@@ -13,6 +13,7 @@ import { backdropCloseProps } from '../../shared/backdropClose'
 import BiBarChart from '../kpis/components/BiBarChart'
 import HorizontalBarChart from '../kpis/components/HorizontalBarChart'
 import KpiCards from '../kpis/components/KpiCards'
+import { useChartTheme } from '../kpis/components/useChartTheme'
 import { ToastHost, useToast } from '../components/useToast'
 import '../kpis/kpi-dashboard.css'
 import './error-logs.css'
@@ -116,7 +117,7 @@ function TicketDetail({ ticket, onClose, onChanged }: DetailProps) {
                   att.url
                     ? <a key={att.path} href={att.url} target="_blank" rel="noreferrer">
                         <img src={att.url} alt="Screenshot zur Meldung"
-                             style={{ maxWidth: 180, maxHeight: 180, borderRadius: 8,
+                             style={{ maxWidth: 180, maxHeight: 180, borderRadius: 'var(--radius-sm)',
                                       border: '1px solid var(--border, #e5e7eb)' }} />
                       </a>
                     // HEIC von iPhones zeigt nicht jeder Browser an — dann bleibt
@@ -207,6 +208,9 @@ function TicketDetail({ ticket, onClose, onChanged }: DetailProps) {
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 export default function SupportTicketsScreen() {
+  // Zweites Horizontal-Chart auf dieser Seite: eigener Slot, damit es sich vom
+  // ersten unterscheidet, statt beide auf Slot 1 zu setzen.
+  const chartTheme = useChartTheme()
   const [dashboard, setDashboard] = useState<SupportDashboard | null>(null)
   const [tickets, setTickets] = useState<SupportTicket[]>([])
   const [tenants, setTenants] = useState<{ id: string; name: string }[]>([])
@@ -320,7 +324,7 @@ export default function SupportTicketsScreen() {
           <BiBarChart
             data={dashboard.by_week as unknown as Record<string, unknown>[]}
             xKey="week"
-            bars={[{ dataKey: 'count', label: 'Meldungen', color: '#3180ab' }]}
+            bars={[{ dataKey: 'count', label: 'Meldungen' }]}
             xInterval="preserveStartEnd"
           />
         </div>
@@ -331,7 +335,7 @@ export default function SupportTicketsScreen() {
           <div className="kpi-bi-section-title">Wo es klemmt (Top-Screens)</div>
           <HorizontalBarChart
             data={dashboard.by_route as unknown as Record<string, unknown>[]}
-            yKey="key" dataKey="count" color="#3180ab"
+            yKey="key" dataKey="count"
           />
         </div>
       )}
@@ -341,7 +345,7 @@ export default function SupportTicketsScreen() {
           <div className="kpi-bi-section-title">Nach Mandant</div>
           <HorizontalBarChart
             data={dashboard.by_tenant.map(t => ({ key: t.name ?? t.key, count: t.count }))}
-            yKey="key" dataKey="count" color="#7c8fa3"
+            yKey="key" dataKey="count" color={chartTheme.series[1]}
           />
         </div>
       )}

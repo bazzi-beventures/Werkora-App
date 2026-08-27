@@ -13,21 +13,21 @@ const chf = (v: number | null | undefined) =>
 // dieselbe Offerte in Liste und Projekt-Detail 'Gesendet' hiess. Die Farben bleiben
 // lokal: dieses Modal rendert farbige Pills, nicht die admin-badge-CSS-Klassen.
 const OFFERTE_STATUS_COLOR: Record<string, string> = {
-  entwurf: '#94a3b8',
-  gesendet: '#f59e0b',
-  akzeptiert: '#22c55e',
-  abgelehnt: '#ef4444',
+  entwurf: 'var(--text-muted)',
+  gesendet: 'var(--warning)',
+  akzeptiert: 'var(--success)',
+  abgelehnt: 'var(--danger)',
 }
 
 const RECHNUNG_STATUS: Record<string, { label: string; color: string }> = {
-  ausstehend: { label: 'Ausstehend', color: '#94a3b8' },
-  gesendet: { label: 'Versendet', color: '#3b82f6' },
-  bezahlt: { label: 'Bezahlt', color: '#22c55e' },
+  ausstehend: { label: 'Ausstehend', color: 'var(--text-muted)' },
+  gesendet: { label: 'Versendet', color: 'var(--info)' },
+  bezahlt: { label: 'Bezahlt', color: 'var(--success)' },
 }
 
 function Badge({ label, color }: { label: string; color: string }) {
   return (
-    <span style={{ background: color, color: '#fff', borderRadius: 6, padding: '1px 8px', fontSize: 11, fontWeight: 600 }}>
+    <span style={{ background: color, color: '#fff', borderRadius: 'var(--radius-xs)', padding: '1px 8px', fontSize: 11, fontWeight: 600 }}>
       {label}
     </span>
   )
@@ -100,7 +100,7 @@ export default function ProjektDrillModal({ projekt: p, from, to, onClose }: Pro
             {p.offertenDetail.map((o, i) => {
               const s = {
                 label: QUOTE_STATUS_LABELS[o.status] ?? o.status,
-                color: OFFERTE_STATUS_COLOR[o.status] ?? '#94a3b8',
+                color: OFFERTE_STATUS_COLOR[o.status] ?? 'var(--text-muted)',
               }
               return (
                 <div key={i} style={rowStyle}>
@@ -135,7 +135,7 @@ export default function ProjektDrillModal({ projekt: p, from, to, onClose }: Pro
           <Section title={`Rechnungen (${p.rechnungenDetail.length})`}>
             {p.rechnungenDetail.length === 0 && emptyLine}
             {p.rechnungenDetail.map((r, i) => {
-              const s = RECHNUNG_STATUS[r.status] ?? { label: r.status, color: '#94a3b8' }
+              const s = RECHNUNG_STATUS[r.status] ?? { label: r.status, color: 'var(--text-muted)' }
               return (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 0', borderBottom: '1px solid var(--border-subtle)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

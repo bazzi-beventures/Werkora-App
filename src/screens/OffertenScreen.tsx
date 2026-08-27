@@ -30,12 +30,12 @@ interface Props {
 // Admin-PWA und Mitarbeiter-PWA auseinander. Die Farben bleiben lokal: hier werden
 // farbige Pills gerendert, nicht die admin-badge-CSS-Klassen.
 const STATUS_COLORS: Record<string, string> = {
-  entwurf: '#64748b',
-  gesendet: '#2563eb',
-  akzeptiert: '#16a34a',
-  abgelehnt: '#dc2626',
-  absage: '#dc2626',
-  archiviert: '#64748b',
+  entwurf: 'var(--muted)',
+  gesendet: 'var(--info)',
+  akzeptiert: 'var(--accent-green)',
+  abgelehnt: 'var(--accent-red)',
+  absage: 'var(--accent-red)',
+  archiviert: 'var(--muted)',
 }
 
 function formatDate(iso: string | null): string {
@@ -106,7 +106,7 @@ export default function OffertenScreen({ logoUrl, onNavHome, onNavArbeitszeit, o
                   <span className="offerten-quote-number">{q.quote_number}</span>
                   <span
                     className="projekte-detail-badge"
-                    style={{ background: STATUS_COLORS[q.status] || '#64748b', color: '#fff' }}
+                    style={{ background: STATUS_COLORS[q.status] || 'var(--muted)', color: '#fff' }}
                   >
                     {QUOTE_STATUS_LABELS[q.status] || q.status}
                   </span>
@@ -135,7 +135,7 @@ export default function OffertenScreen({ logoUrl, onNavHome, onNavArbeitszeit, o
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                       width: '100%', marginTop: 12, padding: '12px 16px',
-                      borderRadius: 10, background: 'var(--accent-blue)', color: '#fff',
+                      borderRadius: 'var(--radius-md)', background: 'var(--accent)', color: '#fff',
                       fontSize: 14, fontWeight: 600, textDecoration: 'none',
                     }}
                   >

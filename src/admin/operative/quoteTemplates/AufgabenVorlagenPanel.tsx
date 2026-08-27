@@ -167,7 +167,7 @@ export function AufgabenVorlagenPanel() {
                   <div
                     key={t.id}
                     style={{
-                      padding: '10px 14px', borderRadius: 8, background: 'var(--surface-2)',
+                      padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)',
                       border: '1px solid var(--border)', opacity: t.is_active ? 1 : 0.6,
                     }}
                   >

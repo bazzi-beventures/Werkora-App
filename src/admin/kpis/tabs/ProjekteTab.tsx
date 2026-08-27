@@ -138,7 +138,7 @@ export default function ProjekteTab() {
       { label: 'Projekte aktiv', value: String(aktiv) },
       { label: 'Total Stunden', value: num(stunden) as string },
       { label: 'Total Kosten', value: kostenUnvollstaendig ? '—' : chf(kosten) },
-      { label: 'Ø Diff Offerte/Ist', value: chf(avgDiff), color: avgDiff >= 0 ? '#22c55e' : '#f87171' },
+      { label: 'Ø Diff Offerte/Ist', value: chf(avgDiff), color: avgDiff >= 0 ? 'var(--success)' : 'var(--danger)' },
     ]
   }, [filtered])
 
@@ -222,8 +222,8 @@ export default function ProjekteTab() {
         data={chartData}
         xKey="name"
         bars={[
-          { dataKey: 'Lohnkosten', color: '#f59e0b', label: 'Lohn (Verr.)' },
-          { dataKey: 'Materialkosten', color: '#3b82f6', label: 'Material (Verr.)' },
+          { dataKey: 'Lohnkosten', label: 'Lohn (Verr.)' },
+          { dataKey: 'Materialkosten', label: 'Material (Verr.)' },
         ]}
         height={300}
       />

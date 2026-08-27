@@ -159,7 +159,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
         <div style={{
           marginBottom: 14,
           padding: '10px 14px',
-          borderRadius: 8,
+          borderRadius: 'var(--radius-sm)',
           background: 'var(--warning-bg, #fff4e5)',
           border: '1px solid var(--warning, #f0ad4e)',
           color: 'var(--warning-fg, #8a5a00)',
@@ -181,7 +181,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           {groupByParent(invoices).map(group => {
             const latest = group[0]
             return (
-              <div key={latest.parent_id ?? latest.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, background: 'var(--surface-2)' }}>
+              <div key={latest.parent_id ?? latest.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 12, background: 'var(--surface-2)' }}>
                 {group.map((inv, idx) => (
                   <ActionRow key={inv.id} style={{ padding: '6px 4px', borderTop: idx > 0 ? '1px dashed var(--border)' : 'none' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, color: idx === 0 ? 'var(--primary)' : 'var(--muted)' }}>V{inv.version}</span>

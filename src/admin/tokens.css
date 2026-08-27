@@ -14,28 +14,43 @@
 :root,
 :root[data-theme="dark"] {
   /* Surface */
-  --bg:            #0F172A;
-  --surface:       #1E293B;
-  --surface-2:     #273449;
-  --border:        #334155;
   --border-subtle: rgba(148, 163, 184, 0.12);
 
   /* Text */
-  --text:          #F8FAFC;
-  --text-muted:    #94A3B8;
   --text-strong:   #FFFFFF;
 
   /* Brand / Status */
   --primary:       #3081AB;
   --primary-hover: #459CC7;
   --primary-soft:  rgba(48, 129, 171, 0.16);
-  --on-accent:     #fff;
+
+  /* Auftragskarte (Einsatzplanung): Farbskala der Dichte-Heatmap und der
+     einzelnen Einsatzpunkte. Als Tokens und nicht als Literale im TSX, weil
+     MapLibre konkrete Farbwerte braucht — ein Hex im Kartencode bliebe hell,
+     wenn der Nutzer dunkel schaltet. Die Komponente liest sie zur Laufzeit
+     und setzt die Layer beim Theme-Wechsel neu. Auf dunklem Grund starten
+     die unteren Stufen kraeftiger, sonst verschwindet die Flaeche im Grau. */
+  --map-heat-1: rgba(253, 224, 71, 0.45);
+  --map-heat-2: rgba(251, 191, 36, 0.62);
+  --map-heat-3: rgba(249, 115, 22, 0.76);
+  --map-heat-4: rgba(220, 38, 38, 0.90);
+  --map-point:        #F87171;
+  --map-point-stroke: rgba(15, 23, 42, 0.85);
   --success:       #22C55E;
   --success-soft:  rgba(34, 197, 94, 0.15);
   --danger:        #EF4444;
   --danger-soft:   rgba(239, 68, 68, 0.15);
   --warning:       #F59E0B;
   --warning-soft:  rgba(245, 158, 11, 0.15);
+
+  /* Ink-Varianten: Statusfarbe als TEXT auf der eigenen Soft-Flaeche.
+     Die Basisfarben sind dafuer im Light-Theme zu hell (--warning auf
+     --warning-soft: 2,8:1) — als Flaeche mit weissem Text bleiben sie
+     richtig, als Schrift braucht es die dunkle Stufe. Im Dark-Theme
+     tragen die Basisfarben selbst genug Kontrast (4,6–5,2:1). */
+  --success-ink:   #22C55E;
+  --warning-ink:   #F59E0B;
+  --danger-ink:    #F87171;
 
   /* Spacing (8px grid) */
   --s-1: 4px;
@@ -46,10 +61,7 @@
   --s-6: 32px;
   --s-7: 48px;
 
-  /* Radius */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
+  /* Radius: die Skala steht in index.css, siehe dort. */
 
   /* Shadow */
   --shadow-card:  0 1px 2px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
@@ -66,20 +78,13 @@
 }
 
 :root[data-theme="light"] {
-  --bg:            #F1F5F9;
-  --surface:       #FFFFFF;
-  --surface-2:     #F1F5F9;
-  --border:        #E2E8F0;
   --border-subtle: rgba(15, 23, 42, 0.06);
 
-  --text:          #1E4E6B;
-  --text-muted:    #64748B;
   --text-strong:   #1E4E6B;
 
   --primary:       #3081AB;
   --primary-hover: #459CC7;
   --primary-soft:  #E0F2FE;
-  --on-accent:     #fff;
   --success:       #16A34A;
   --success-soft:  rgba(22, 163, 74, 0.10);
   --danger:        #DC2626;
@@ -87,8 +92,61 @@
   --warning:       #D97706;
   --warning-soft:  rgba(217, 119, 6, 0.12);
 
+  /* Text auf Soft: 6,3–7,1:1 (die Basisfarben schaffen hier nur 2,8–4,1). */
+  --success-ink:   #166534;
+  --warning-ink:   #92400E;
+  --danger-ink:    #991B1B;
+
   --shadow-card:  0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 4px 14px rgba(15, 23, 42, 0.10);
+
+  /* Auftragskarte auf der grauen swisstopo-Basiskarte: die unteren Stufen
+     duerfen zarter sein als im Dark Mode, sonst wirkt schon ein einzelner
+     Einsatz wie ein Brennpunkt. */
+  --map-heat-1: rgba(254, 240, 138, 0.55);
+  --map-heat-2: rgba(251, 176, 59, 0.68);
+  --map-heat-3: rgba(240, 118, 42, 0.80);
+  --map-heat-4: rgba(203, 45, 40, 0.88);
+  --map-point:        #CB2D28;
+  --map-point-stroke: #FFFFFF;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Was hier NICHT (mehr) steht: --bg, --surface, --border, --text und
+   --on-accent. Diese fuenf definiert index.css ebenfalls auf :root, und
+   die steht im gebauten CSS spaeter — die Werte hier waren wirkungslos.
+   Der Admin rendert seit jeher mit den Monteur-Werten; entfernt wurden
+   also tote Zeilen, kein Verhalten.
+
+   Dass eine Doppelbelegung ueberhaupt entsteht, faengt jetzt
+   scripts/token-gate.mjs ab (npm run lint:gate).
+   ───────────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────
+   Aliasse auf die Monteur-Tokens aus index.css.
+
+   Historisch gab es für dieselben zwei Konzepte je einen eigenen Namen und
+   einen eigenen Wert — hier `--text-muted`/`--surface-2`, in index.css
+   `--muted`/`--surface2`. Gemerkt hat das niemand, weil beide Sätze auf
+   :root liegen: der Admin-Code greift heute 256× auf `--muted` zu, also
+   ohnehin schon auf die Werte von drüben.
+
+   Statt zwei Wahrheiten nebeneinander stehen zu lassen, ist index.css die
+   Quelle und dieser Block die Übersetzung. Die Dark-Werte waren identisch;
+   im Light-Theme gewinnen wir die dort bewusst gewählten Werte
+   (`--muted: #5A6270` mit 5,74:1 statt #64748B mit 4,34:1, und die unbunte
+   Marken-Fläche #F1F3F6 statt des blaustichigen #F1F5F9).
+
+   Ein var() wird erst bei der Benutzung aufgelöst, nicht beim Parsen —
+   die Ladereihenfolge der beiden Dateien spielt deshalb keine Rolle. Ein
+   Fallback steht hier bewusst nicht: index.css hängt an main.tsx und ist
+   damit immer geladen; ein Fallback könnte nur einen der beiden
+   Theme-Werte nennen und wäre im anderen Theme falsch.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --text-muted: var(--muted);
+  --surface-2:  var(--surface2);
 }
 
 /* ─────────────────────────────────────────────────────────────

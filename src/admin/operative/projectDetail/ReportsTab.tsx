@@ -226,7 +226,7 @@ export function ReportsTab({
       </div>
       {aggregateSelection !== null && (
         <div style={{
-          padding: 14, marginBottom: 14, borderRadius: 8,
+          padding: 14, marginBottom: 14, borderRadius: 'var(--radius-sm)',
           border: '1px solid var(--border)', background: 'var(--surface-2)',
         }}>
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
@@ -307,7 +307,7 @@ export function ReportsTab({
             const canAccept = !!onAccept && !!r.is_aggregate && !billed && !r.dissolved_at
               && !signed && !r.pl_accepted_at
             return (
-              <ActionRow key={r.id} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+              <ActionRow key={r.id} style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                 <span style={{ fontSize: 18 }}>📋</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

@@ -140,7 +140,7 @@ export default function PipelineTab() {
       { label: 'Offerten offen', value: String(t.offen), sub: chf(t.offenChf) },
       { label: 'Offerten akzeptiert', value: String(t.akzeptiert), sub: chf(t.akzeptiertChf) },
       { label: 'Rechnungen versendet', value: String(t.rechnungen), sub: chf(t.rechnungenChf) },
-      { label: 'Bezahlt', value: String(t.bezahlt), sub: chf(t.bezahltChf), color: '#22c55e' },
+      { label: 'Bezahlt', value: String(t.bezahlt), sub: chf(t.bezahltChf), color: 'var(--success)' },
     ]
   }, [perLeiter])
 
@@ -235,9 +235,9 @@ export default function PipelineTab() {
         data={chartData}
         xKey="name"
         bars={[
-          { dataKey: 'Offerten offen', color: '#f59e0b', label: 'Offerten offen (CHF)' },
-          { dataKey: 'Fakturiert', color: '#3b82f6', label: 'Fakturiert (CHF)' },
-          { dataKey: 'Bezahlt', color: '#22c55e', label: 'Bezahlt (CHF)' },
+          { dataKey: 'Offerten offen', label: 'Offerten offen (CHF)' },
+          { dataKey: 'Fakturiert', label: 'Fakturiert (CHF)' },
+          { dataKey: 'Bezahlt', label: 'Bezahlt (CHF)' },
         ]}
         height={300}
       />

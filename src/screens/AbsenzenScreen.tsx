@@ -135,7 +135,7 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
               <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 13, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ color: 'var(--muted)', fontSize: 11 }}>Rest</div>
-                  <div style={{ fontWeight: 700, color: entitlement.remaining < 0 ? '#ef4444' : '#22c55e' }}>
+                  <div style={{ fontWeight: 700, color: entitlement.remaining < 0 ? 'var(--accent-red)' : 'var(--accent-green)' }}>
                     {entitlement.remaining} d
                   </div>
                 </div>

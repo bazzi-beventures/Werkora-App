@@ -346,9 +346,9 @@ export default function HrReportsScreen() {
           {unifiedBadgeCount > 0 && (
             <span style={{
               position: 'absolute', top: -6, right: -6,
-              background: '#ef4444', color: '#fff',
+              background: 'var(--danger)', color: '#fff',
               fontSize: 11, fontWeight: 700,
-              borderRadius: 10, padding: '1px 6px', lineHeight: '16px',
+              borderRadius: 'var(--radius-md)', padding: '1px 6px', lineHeight: '16px',
             }}>
               {unifiedBadgeCount}
             </span>
@@ -406,7 +406,7 @@ export default function HrReportsScreen() {
               display: 'flex', alignItems: 'center', gap: 6,
               fontSize: 13, color: 'var(--text)', cursor: 'pointer',
               padding: '6px 10px', border: '1px solid var(--border)',
-              borderRadius: 6, background: showManagement ? 'var(--surface-2)' : 'transparent',
+              borderRadius: 'var(--radius-xs)', background: showManagement ? 'var(--surface-2)' : 'transparent',
               userSelect: 'none', whiteSpace: 'nowrap',
             }}>
               <input
@@ -508,7 +508,7 @@ export default function HrReportsScreen() {
                             style={{
                               position: 'absolute', bottom: -2, right: -2,
                               width: 12, height: 12, borderRadius: '50%',
-                              background: '#22c55e',
+                              background: 'var(--success)',
                               border: '2px solid var(--surface, #0f172a)',
                               boxShadow: '0 0 0 1px rgba(0,0,0,0.2)',
                             }}
@@ -519,7 +519,7 @@ export default function HrReportsScreen() {
                         <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                           {staffName}
                           {isLive && (
-                            <span style={{ fontSize: 11, color: '#22c55e', fontWeight: 600 }}>● live</span>
+                            <span style={{ fontSize: 11, color: 'var(--success)', fontWeight: 600 }}>● live</span>
                           )}
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--muted)' }}>
@@ -534,7 +534,7 @@ export default function HrReportsScreen() {
                         <div style={{ textAlign: 'right' }}>
                           <div style={{
                             fontWeight: 700, fontSize: 14,
-                            color: overtime.saldo >= 0 ? '#22c55e' : '#ef4444',
+                            color: overtime.saldo >= 0 ? 'var(--success)' : 'var(--danger)',
                           }}>
                             {fmtDecimal(overtime.saldo)}
                           </div>

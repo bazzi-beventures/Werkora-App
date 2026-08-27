@@ -351,7 +351,7 @@ export default function ArbeitsZeitScreen({ logoUrl, role, user = null, onNavHom
 
       {/* Pending correction banner */}
       {pendingCorrection && (
-        <div className="action-result" style={{ background: '#fef3c7', color: '#92400e', borderLeft: '3px solid #f59e0b' }}>
+        <div className="action-result" style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber-ink)', borderLeft: '3px solid var(--accent-amber)' }}>
           Korrekturantrag für {pendingCorrection.date} eingereicht. Warte auf Genehmigung…
         </div>
       )}

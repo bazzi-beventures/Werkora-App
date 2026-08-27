@@ -113,7 +113,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
               onClick={header.onBack}
               aria-label="Zurueck"
               style={{
-                width: 36, height: 36, borderRadius: 8, border: 'none',
+                width: 36, height: 36, borderRadius: 'var(--radius-sm)', border: 'none',
                 background: 'transparent', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
@@ -148,7 +148,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
               padding: '10px 14px',
               borderRadius: 12,
               background: isUser
-                ? 'var(--accent-blue, #1e3a5f)'
+                ? 'var(--accent, #1e3a5f)'
                 : 'var(--surface-muted, #f3f4f6)',
               color: isUser ? '#fff' : 'var(--text, #111)',
               fontSize: '0.95rem',
@@ -166,7 +166,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
                       <span style={{ opacity: 0.6, fontStyle: 'italic' }}>denkt nach…</span>
                     )}
               {m.error && (
-                <div style={{ color: '#ef4444', fontWeight: 500, marginTop: 4 }}>
+                <div style={{ color: 'var(--accent-red)', fontWeight: 500, marginTop: 4 }}>
                   {m.error}
                 </div>
               )}
@@ -187,7 +187,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
               onClick={() => send(s)}
               disabled={busy}
               style={{
-                padding: '8px 12px', borderRadius: 16, fontSize: '0.85rem',
+                padding: '8px 12px', borderRadius: 'var(--radius-xl)', fontSize: '0.85rem',
                 background: 'var(--surface-muted, #f3f4f6)', color: 'var(--text, #111)',
                 border: '1px solid var(--border, #e5e7eb)', cursor: 'pointer',
               }}
@@ -213,7 +213,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
           disabled={busy}
           style={{
             flex: 1, padding: '10px 12px',
-            borderRadius: 8, border: '1px solid var(--border, #d1d5db)',
+            borderRadius: 'var(--radius-sm)', border: '1px solid var(--border, #d1d5db)',
             fontSize: '0.95rem', fontFamily: 'inherit', resize: 'none',
             background: 'var(--surface, #fff)', color: 'var(--text, #111)',
           }}
@@ -222,8 +222,8 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
           type="submit"
           disabled={busy || !input.trim()}
           style={{
-            padding: '0 16px', borderRadius: 8, border: 'none',
-            background: 'var(--accent-blue, #1e3a5f)', color: '#fff',
+            padding: '0 16px', borderRadius: 'var(--radius-sm)', border: 'none',
+            background: 'var(--accent, #1e3a5f)', color: '#fff',
             fontWeight: 600, cursor: busy || !input.trim() ? 'not-allowed' : 'pointer',
             opacity: busy || !input.trim() ? 0.5 : 1,
           }}

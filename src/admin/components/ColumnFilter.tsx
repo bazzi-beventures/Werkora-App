@@ -261,7 +261,7 @@ export function ColumnFilter({ label, sections, values, onChange, onOpen }: Prop
           style={{
             position: 'fixed', top: pos.top, right: pos.right,
             background: 'var(--surface, #fff)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            borderRadius: 'var(--radius-sm)', padding: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
             zIndex: 1000, minWidth: 240, maxWidth: 320,
           }}
         >

@@ -95,7 +95,7 @@ function CalendarLegend({ canton }: { canton: string }) {
         </div>
       ))}
       <div className="absence-cal-legend-item">
-        <span className="absence-cal-legend-dot" style={{ background: '#3b82f6', opacity: 0.5 }} />
+        <span className="absence-cal-legend-dot" style={{ background: 'var(--info)', opacity: 0.5 }} />
         Pendent
       </div>
       <div className="absence-cal-legend-item">
@@ -225,7 +225,7 @@ function WeekView({
               return (
                 <th
                   key={i}
-                  style={isToday(d) ? { color: 'var(--accent-blue, #3b82f6)' } : undefined}
+                  style={isToday(d) ? { color: 'var(--accent, #3b82f6)' } : undefined}
                 >
                   <div>{d.toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'numeric' })}</div>
                   {holidayName && (

@@ -36,7 +36,7 @@
 .support-filter-tenant select {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text);
   font-family: inherit;
   font-size: var(--font-sm);

@@ -327,7 +327,7 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 20px' }}>
         <h3 style={{ margin: 0 }}>{quoteType === 'richtofferte' ? 'Neue Richtofferte erstellen' : 'Neue Offerte erstellen'}</h3>
         {master.richtoffAvailable && (
-          <div role="group" aria-label="Offerten-Typ" style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+          <div role="group" aria-label="Offerten-Typ" style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
             {(['offerte', 'richtofferte'] as const).map(t => (
               <button
                 key={t}
@@ -357,7 +357,7 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
       {/* Übernommener Entwurf aus einer früheren Sitzung — reiner Hinweis, die
           Felder sind bereits gefüllt. Wer neu anfangen will, startet leer. */}
       {draft.restoredAt !== null && (
-        <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', textAlign: 'left' }}>
+        <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', textAlign: 'left' }}>
           <span style={{ fontSize: 13 }}>
             Entwurf
             {draft.restoredAt ? ` vom ${new Date(draft.restoredAt).toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''} übernommen.

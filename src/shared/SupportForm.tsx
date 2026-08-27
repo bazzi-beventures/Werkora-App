@@ -179,7 +179,7 @@ export default function SupportForm({ route, appContext }: Props) {
           type="button"
           onClick={() => { setReference(''); setLostFiles(0) }}
           style={{
-            alignSelf: 'flex-start', padding: '8px 14px', borderRadius: 8,
+            alignSelf: 'flex-start', padding: '8px 14px', borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--border, #e5e7eb)', background: 'transparent',
             color: 'inherit', cursor: 'pointer',
           }}
@@ -207,7 +207,7 @@ export default function SupportForm({ route, appContext }: Props) {
         rows={5}
         placeholder="Z.B. Rapport lässt sich nicht speichern, Knopf reagiert nicht …"
         style={{
-          width: '100%', resize: 'vertical', padding: 10, borderRadius: 8,
+          width: '100%', resize: 'vertical', padding: 10, borderRadius: 'var(--radius-sm)',
           border: '1px solid var(--border, #e5e7eb)', background: 'var(--surface, #fff)',
           color: 'inherit', font: 'inherit',
         }}
@@ -231,8 +231,8 @@ export default function SupportForm({ route, appContext }: Props) {
                 type="button"
                 onClick={sendRecording}
                 style={{
-                  padding: '8px 12px', borderRadius: 8, border: 'none',
-                  background: 'var(--brand, #3180ab)', color: '#fff', cursor: 'pointer',
+                  padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: 'none',
+                  background: 'var(--brand, #3081AB)', color: '#fff', cursor: 'pointer',
                   fontSize: '0.9rem', fontWeight: 600,
                 }}
               >
@@ -242,7 +242,7 @@ export default function SupportForm({ route, appContext }: Props) {
                 type="button"
                 onClick={discardRecording}
                 style={{
-                  padding: '8px 12px', borderRadius: 8,
+                  padding: '8px 12px', borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border, #e5e7eb)', background: 'transparent',
                   color: 'inherit', cursor: 'pointer', fontSize: '0.9rem',
                 }}
@@ -256,7 +256,7 @@ export default function SupportForm({ route, appContext }: Props) {
               onClick={startRecording}
               disabled={transcribing || busy}
               style={{
-                padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border, #e5e7eb)',
+                padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border, #e5e7eb)',
                 background: 'transparent', color: 'inherit', fontSize: '0.9rem',
                 cursor: transcribing || busy ? 'default' : 'pointer',
                 opacity: transcribing || busy ? 0.6 : 1,
@@ -286,7 +286,7 @@ export default function SupportForm({ route, appContext }: Props) {
           onClick={() => fileInputRef.current?.click()}
           disabled={files.length >= MAX_SUPPORT_FILES}
           style={{
-            padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border, #e5e7eb)',
+            padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border, #e5e7eb)',
             background: 'transparent', color: 'inherit', cursor: 'pointer', fontSize: '0.9rem',
           }}
         >
@@ -329,8 +329,8 @@ export default function SupportForm({ route, appContext }: Props) {
         onClick={submit}
         disabled={busy || isRecording || transcribing || !message.trim()}
         style={{
-          padding: '10px 16px', borderRadius: 8, border: 'none',
-          background: 'var(--brand, #3180ab)', color: '#fff', cursor: 'pointer',
+          padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: 'none',
+          background: 'var(--brand, #3081AB)', color: '#fff', cursor: 'pointer',
           fontWeight: 600,
           opacity: busy || isRecording || transcribing || !message.trim() ? 0.6 : 1,
         }}

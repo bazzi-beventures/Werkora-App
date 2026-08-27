@@ -386,8 +386,14 @@
 /* ─── Mobile content tweaks ────────────────────────────────── */
 
 @media (max-width: 767px) {
+  /* Das Mandantenlogo steht auch am Handy oben rechts, hinter dem
+     Theme-Schalter — dieselbe Reihenfolge wie auf dem Desktop. Kleiner als
+     dort (36px) und in der Breite gedeckelt, damit es dem Screen-Titel
+     daneben nicht den Platz nimmt: der Titel schrumpft per flex/ellipsis,
+     das Logo nicht (flex-shrink: 0 aus admin.css). */
   .admin-content-logo {
-    display: none;
+    height: 26px;
+    max-width: 96px;
   }
 
   /* Mobile-Topbar traegt schon den Screen-Titel. Den .admin-page-title

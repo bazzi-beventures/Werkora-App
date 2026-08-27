@@ -139,12 +139,45 @@ describe('MigrationBanner — die zwei Dinge, die der Nutzer braucht', () => {
     expect(screen.getByRole('link')).toHaveTextContent(/neu anmelden/)
   })
 
-  it('nennt auf der Vorschaltseite alle drei Schritte', () => {
-    // Anmelden, Symbol, Benachrichtigungen — dieselben drei, die auch in die
-    // Kundeninfo gehoeren. Wer nur eines davon macht, meldet sich spaeter.
+  it('sagt schon auf der ersten Stufe, dass die alte App weg muss', () => {
+    // Der Punkt, den ein reiner Adresswechsel nicht loest: eine installierte
+    // PWA haengt an der Origin, aus der sie installiert wurde. Wer nur im
+    // Browser wechselt und das alte Symbol behaelt, tippt am naechsten Morgen
+    // wieder das alte an — und ist zurueck auf der alten Origin, ohne dass ihm
+    // irgendetwas das sagt.
+    render(<MigrationBanner now={tag(8, 28)} />)
+    expect(screen.getByRole('link')).toHaveTextContent(/alte App löschen/)
+  })
+
+  it('nennt auf der Vorschaltseite alle vier Schritte', () => {
+    // Anmelden, Symbol, Benachrichtigungen, alte App weg — dieselben vier, die
+    // auch in die Kundeninfo gehoeren. Wer nur eines davon macht, meldet sich
+    // spaeter.
     render(<MigrationBanner now={tag(9, 9)} />)
     expect(screen.getByText(/einmal neu anmelden/)).toBeInTheDocument()
     expect(screen.getByText(/neu auf den Startbildschirm/)).toBeInTheDocument()
     expect(screen.getByText(/erneut erlauben/)).toBeInTheDocument()
+    expect(screen.getByText(/alte App deinstallieren/)).toBeInTheDocument()
+  })
+
+  it('haelt das Deinstallieren als LETZTEN Schritt fest', () => {
+    // Reihenfolge ist hier nicht Kosmetik: wer zuerst deinstalliert, loescht
+    // die App, in der die Adresse und diese Anleitung stehen.
+    render(<MigrationBanner now={tag(9, 9)} />)
+    const schritte = screen.getAllByRole('listitem').slice(0, 4).map(li => li.textContent ?? '')
+    expect(schritte[0]).toMatch(/neu anmelden/)
+    expect(schritte[3]).toMatch(/alte App deinstallieren/)
+  })
+
+  it('zeigt die Deinstall-Anleitung fuer Chrome und Edge', () => {
+    // Ohne Anleitung bleibt «deinstallieren» ein Wort: das Symbol vom
+    // Startbildschirm zu wischen entfernt auf Android die App nicht, und im
+    // Desktop-Chrome findet den Menuepunkt niemand von selbst.
+    render(<MigrationBanner now={tag(9, 9)} />)
+    const anleitung = screen.getByText(/Alte App deinstallieren/).closest('details')
+    expect(anleitung).not.toBeNull()
+    expect(anleitung).toHaveTextContent(/Android \(Chrome\)/)
+    expect(anleitung).toHaveTextContent(/chrome:\/\/apps/)
+    expect(anleitung).toHaveTextContent(/edge:\/\/apps/)
   })
 })

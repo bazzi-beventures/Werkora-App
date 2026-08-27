@@ -82,7 +82,7 @@ export default function MaterialTab() {
     const v30 = filtered.reduce((s, r) => s + r.verbrauch_30_tage, 0)
     return [
       { label: 'Aktive Artikel', value: String(aktiv) },
-      { label: 'Lager kritisch', value: String(kritisch), color: kritisch > 0 ? '#f87171' : '#22c55e' },
+      { label: 'Lager kritisch', value: String(kritisch), color: kritisch > 0 ? 'var(--danger)' : 'var(--success)' },
       { label: 'Lagerwert', value: chf(lagerwert) },
       { label: 'Verbrauch 30d', value: num(v30) as string },
     ]
@@ -139,8 +139,8 @@ export default function MaterialTab() {
         data={chartData}
         xKey="name"
         bars={[
-          { dataKey: 'Verbrauch', color: '#3b82f6', label: 'Verbrauch (Stk)' },
-          { dataKey: 'Reichweite', color: '#22c55e', label: 'Reichweite (Tage)' },
+          { dataKey: 'Verbrauch', label: 'Verbrauch (Stk)' },
+          { dataKey: 'Reichweite', label: 'Reichweite (Tage)' },
         ]}
         height={300}
       />

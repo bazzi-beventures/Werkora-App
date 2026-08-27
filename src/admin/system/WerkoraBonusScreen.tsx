@@ -214,8 +214,8 @@ export default function WerkoraBonusScreen() {
             data={chartData}
             xKey="name"
             bars={[
-              { dataKey: 'Offeriert', color: '#94a3b8', label: 'Offeriert' },
-              { dataKey: 'Realisiert', color: '#3081AB', label: 'Realisiert' },
+              { dataKey: 'Offeriert', label: 'Offeriert' },
+              { dataKey: 'Realisiert', label: 'Realisiert' },
             ]}
             height={260}
           />

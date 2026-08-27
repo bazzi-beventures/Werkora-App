@@ -79,7 +79,13 @@ export default function LoginScreen({ logoUrl, onLoggedIn }: Props) {
       onLoggedIn()
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 401) setError('Benutzername oder Passwort falsch.')
+        // ApiError.message trägt das `detail` der Antwort (siehe api/client.ts).
+        // tenant_unavailable heisst: Zugangsdaten stimmen, aber die Firma ist
+        // auf diesem Server nicht freigeschaltet. Ohne eigene Meldung stünde
+        // hier "Passwort falsch" — und man sucht den Fehler beim Passwort.
+        if (err.status === 401 && err.message === 'tenant_unavailable') {
+          setError('Deine Zugangsdaten stimmen, aber deine Firma ist auf diesem Server nicht freigeschaltet. Bitte wende dich an den Support.')
+        } else if (err.status === 401) setError('Benutzername oder Passwort falsch.')
         else if (err.status === 429) setError('Zu viele Versuche. Bitte warte 15 Minuten.')
         else setError(`Fehler: ${err.message}`)
       } else {
@@ -137,7 +143,7 @@ export default function LoginScreen({ logoUrl, onLoggedIn }: Props) {
             style={{
               background: 'var(--surface, #1a1f2e)',
               border: '1px solid var(--border, #2a3148)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '12px 14px',
               fontSize: 15,
               color: 'var(--text)',
@@ -160,7 +166,7 @@ export default function LoginScreen({ logoUrl, onLoggedIn }: Props) {
               style={{
                 background: 'var(--surface, #1a1f2e)',
                 border: '1px solid var(--border, #2a3148)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 padding: '12px 44px 12px 14px',
                 fontSize: 15,
                 color: 'var(--text)',
@@ -213,7 +219,7 @@ export default function LoginScreen({ logoUrl, onLoggedIn }: Props) {
             style={{
               background: 'var(--surface, #1a1f2e)',
               border: '1px solid var(--border, #2a3148)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '12px 14px',
               fontSize: 15,
               color: 'var(--text)',

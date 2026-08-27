@@ -12,7 +12,7 @@ function TimeChange({ before, after, label }: { before: string | null; after: st
     <div style={{ fontSize: 12.5, marginBottom: 4 }}>
       <span style={{ color: 'var(--muted)' }}>{label}: </span>
       {changed && before ? <><span style={{ textDecoration: 'line-through', color: 'var(--muted)', marginRight: 6 }}>{before}</span></> : null}
-      <span style={{ color: changed ? '#22c55e' : 'inherit' }}>{after}</span>
+      <span style={{ color: changed ? 'var(--success)' : 'inherit' }}>{after}</span>
     </div>
   )
 }
@@ -81,7 +81,7 @@ function CorrectionDetail({ c }: { c: Correction }) {
                 {(c.current_auto_break_minutes ?? 0) > 0 && ` (davon ${c.current_auto_break_minutes} automatisch)`}
               </span>
             )}
-            <span style={{ color: c.current_break_minutes !== c.requested_break_minutes ? '#22c55e' : 'inherit' }}>
+            <span style={{ color: c.current_break_minutes !== c.requested_break_minutes ? 'var(--success)' : 'inherit' }}>
               {c.requested_break_minutes} Min.
             </span>
           </div>
@@ -223,7 +223,7 @@ export default function CorrectionsScreen({ onBadgeChange }: { onBadgeChange?: (
                   </tr>
                   {expanded === c.id && (
                     <tr>
-                      <td colSpan={5} style={{ background: '#0f1117', padding: '12px 20px' }}>
+                      <td colSpan={5} style={{ background: 'var(--surface2)', padding: '12px 20px' }}>
                         <CorrectionDetail c={c} />
                       </td>
                     </tr>

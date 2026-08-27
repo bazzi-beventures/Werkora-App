@@ -41,7 +41,7 @@ export function DescPriceFieldset<T extends DescPriceRow>({
     onChange([...rows, { description: defaultDescription, total_price: '' } as T])
   }
   return (
-    <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+    <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
       <legend style={{ fontWeight: 600, padding: '0 8px' }}>{title}</legend>
       {rows.map((row, i) => (
         <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
@@ -82,7 +82,7 @@ export function DiscountsFieldset({
   // das Feld wird gesperrt statt still übergangen zu werden.
   const fixed = hasFixedPrice(fixedPrice)
   return (
-    <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+    <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
       <legend style={{ fontWeight: 600, padding: '0 8px' }}>Rabatte</legend>
       <div style={{ display: 'flex', gap: 16 }}>
         <div style={{ flex: 1 }}>
@@ -155,7 +155,7 @@ export function SkontoFieldset({
   skontoActive, skontoPct, skontoDays, onActiveChange, onPctChange, onDaysChange, error,
 }: SkontoFieldsetProps) {
   return (
-    <fieldset style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+    <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
       <legend style={{ fontWeight: 600, padding: '0 8px' }}>Skonto</legend>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
         <input

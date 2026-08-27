@@ -108,7 +108,7 @@ function CustomerComments({ customerId }: { customerId: string }) {
             {comments.map(c => {
               const isEditing = editingId === c.id
               return (
-                <div key={c.id} style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                <div key={c.id} style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 8 }}>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>{c.author_name || 'Unbekannt'}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

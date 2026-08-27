@@ -9,12 +9,13 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:gate": "node scripts/eslint-gate.mjs",
+    "lint:gate": "node scripts/eslint-gate.mjs && node scripts/token-gate.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
+    "maplibre-gl": "^6.6.0",
     "markdown-it": "^15.0.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

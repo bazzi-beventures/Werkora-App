@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ConfigurationScreen from './ConfigurationScreen'
 import { getSchedulingConfig, updateSchedulingConfig } from '../../api/admin'
+import { SCHEDULING_VIEWS } from '../../api/admin/tenant'
 
 // Client-apiFetch neutralisieren: der Default-Tab (Wochenplan) lädt beim Mount.
 vi.mock('../../api/client', () => ({
@@ -26,7 +27,10 @@ const DEFAULTS = {
     werkstatt: '#0d9488', weiterbildung: '#db2777', reservation: '#65a30d',
     blocker: '#94a3b8', sonstiges: '#475569',
   },
-  views: { month: true, week: true, staff: true, plantafel: true, gantt: true },
+  // Aus der Registry abgeleitet statt abgetippt: eine neue Ansicht (zuletzt
+  // die Karte) liess den Test unten sonst rot laufen, weil sie angehakt
+  // blieb und die Warnung 'mindestens eine Ansicht' nie erschien.
+  views: Object.fromEntries(SCHEDULING_VIEWS.map(v => [v.key, true])),
   grey_after: '',
   grey_until: '',
   day_capacity_hours: 8,
@@ -146,8 +150,8 @@ describe('SchedulingTab', () => {
     const user = await openTab()
 
     await screen.findByLabelText('Plantafel')
-    for (const label of ['Monat', 'Woche', 'Mitarbeiter', 'Plantafel', 'Tagesplan']) {
-      await user.click(screen.getByLabelText(label))
+    for (const v of SCHEDULING_VIEWS) {
+      await user.click(screen.getByLabelText(v.label))
     }
     expect(screen.getByText('Mindestens eine Ansicht muss aktiviert sein.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled()

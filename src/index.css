@@ -16,11 +16,11 @@
      Lade- und Anmeldescreen. Achtung: der Akzent ist zweimal definiert, hier
      (Dark) und unten im Light-Block. Light ist der Default, eine Änderung nur
      hier bliebe unsichtbar. */
-  --accent-blue: #E9A227;
-  --accent-blue-dim: rgba(233,162,39,0.18);
-  --accent-blue-20: rgba(233,162,39,0.25);
-  --accent-blue-25: rgba(233,162,39,0.30);
-  --accent-blue-40: rgba(233,162,39,0.50);
+  --accent: #E9A227;
+  --accent-dim: rgba(233,162,39,0.18);
+  --accent-20: rgba(233,162,39,0.25);
+  --accent-25: rgba(233,162,39,0.30);
+  --accent-40: rgba(233,162,39,0.50);
   --on-accent: #1B2028;
   /* Werkora-Tinte. Absichtlich NICHT --text: --text färbt die ganze
      eingeloggte App, die Marke soll nur die Screens davor tragen. Im
@@ -34,8 +34,44 @@
   --accent-red-dim: rgba(239,68,68,0.10);
   --accent-purple: #a78bfa;
   --accent-purple-dim: rgba(167,139,250,0.12);
-  --radius: 16px;
-  --radius-sm: 10px;
+  /* Ink: Statusfarbe als Text auf der eigenen -dim-Flaeche (siehe tokens.css). */
+  --accent-green-ink: #22c55e;
+  --accent-amber-ink: #f59e0b;
+  --accent-red-ink:   #f87171;
+  /* Info-Status (gesendet/anstehend/pendent): bewusst in BEIDEN Themes derselbe
+     Wert und bewusst KEIN --chart-*: Status bleibt von den Serienfarben
+     getrennt, sonst faerbt ein Palette-Tuning still die Status-Pillen um.
+     Einsatz nur als Pill-Flaeche mit weissem Text (5,2:1) oder als Punkt —
+     nie als Text auf dunklem Grund (2,8:1). */
+  --info: #2563EB;
+  /* Radius-Skala — eine fuer Monteur und Admin. Sie steht hier und nicht in
+     admin/tokens.css, weil index.css ueber main.tsx immer geladen ist.
+
+     Vorher gab es zwei Saetze, die sich denselben Namen teilten:
+     tokens.css --radius-sm: 6px gegen index.css --radius-sm: 10px. Gewonnen
+     hat, was im gebauten CSS spaeter stand (10px) — die fuenf Admin-Stellen
+     rendern also seit jeher runder als gemeint, und eine geaenderte
+     Import-Reihenfolge haette das jederzeit kippen koennen.
+
+     --radius-sm ist neu und schliesst die Luecke, die die Inline-Styles laengst
+     selbst gefuellt hatten: borderRadius 8 war mit 78 Stellen der haeufigste
+     Wert der Codebase, ohne dass eine der beiden Skalen ihn anbot. */
+
+  /* Serien auf die dunkle Flaeche gestuft, siehe Kommentar im Light-Block. */
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
+
+  --radius-xs:  6px;
+  --radius-sm:  8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
   --font: 'DM Sans', sans-serif;
   --mono: 'DM Mono', monospace;
   --app-bg: #0F172A;
@@ -67,12 +103,12 @@
      Knopf der App — auf einer Baustelle bei Sonnenlicht gelesen. Der Unterschied
      ist mit blossem Auge nicht zu sehen. Als FLÄCHE bleibt #E9A227 unverändert.
 
-     --accent-blue-dim ist hier ein deckender Ton, nicht rgba: der Amber-Tint. */
-  --accent-blue:      #9A6716;
-  --accent-blue-dim:  #FDF3DF;
-  --accent-blue-20:   rgba(154,103,22,0.18);
-  --accent-blue-25:   rgba(154,103,22,0.22);
-  --accent-blue-40:   rgba(154,103,22,0.40);
+     --accent-dim ist hier ein deckender Ton, nicht rgba: der Amber-Tint. */
+  --accent:      #9A6716;
+  --accent-dim:  #FDF3DF;
+  --accent-20:   rgba(154,103,22,0.18);
+  --accent-25:   rgba(154,103,22,0.22);
+  --accent-40:   rgba(154,103,22,0.40);
   --on-accent:        #FFFFFF;   /* auf #9A6716 als Fläche: 4,85:1 */
   --brand-ink:        #12161D;
   --accent-green:     #16A34A;
@@ -83,10 +119,38 @@
   --accent-red-dim:   rgba(220,38,38,0.08);
   --accent-purple:    #7C3AED;
   --accent-purple-dim: rgba(124,58,237,0.10);
+  --accent-green-ink: #166534;
+  --accent-amber-ink: #92400E;
+  --accent-red-ink:   #991B1B;
+  --info: #2563EB;
   /* Muss mit --bg gleichziehen: html/body tragen --app-bg, .auth-screen trägt
      --bg und ist auf 480 px begrenzt. Liefen die beiden auseinander, stünde auf
      dem Desktop eine hellere Spalte auf andersfarbigem Grund. */
   --app-bg:           #F6F7F9;
+
+  /* Serienfarben fuer Diagramme — feste Reihenfolge, nie zyklisch weitergedreht.
+     Sie sind bewusst markenneutral und NICHT von der Mandantenfarbe abgeleitet:
+     jeder Mandant hat eine eigene, eine daran haengende Serienpalette waere fuer
+     manche Mandanten unlesbar. Die Mandantenfarbe bleibt Akzent (--accent), die
+     Serien tragen Identitaet.
+
+     Beide Saetze sind gegen die echten Flaechen der App geprueft (#FFFFFF hell,
+     #1E293B dunkel) und bestehen Helligkeitsband, Chroma-Boden, Farbsinn-
+     Trennung (schlechtestes Nachbarpaar dE 9,1 hell / 8,4 dunkel) und den
+     Normalsicht-Boden (19,6 / 19,3). Der dunkle Satz ist dieselben acht
+     Farbtoene, neu auf die dunkle Flaeche gestuft — keine automatische
+     Umkehrung. Wer hier etwas aendert, prueft neu, statt zu schaetzen.
+
+     Status bleibt getrennt: --accent-green/-amber/-red sagen gut/Achtung/
+     Fehler und sind nie "Serie 4". */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
 }
 
 html, body, #root {
@@ -203,14 +267,14 @@ input, textarea { font-family: var(--font); color: var(--text); }
   width: 100%;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 13px 16px;
   font-size: 15px;
   color: var(--text);
   outline: none;
   transition: border-color 0.2s;
 }
-.input:focus { border-color: var(--accent-blue); }
+.input:focus { border-color: var(--accent); }
 .input::placeholder { color: var(--muted); }
 .input-pin {
   letter-spacing: 0.5em;
@@ -226,9 +290,9 @@ input, textarea { font-family: var(--font); color: var(--text); }
    nebenbei erstmals lesbare Knopfschrift. */
 .btn-primary {
   width: 100%; padding: 14px;
-  background: var(--accent-blue);
+  background: var(--accent);
   color: var(--on-accent);
-  border: none; border-radius: var(--radius-sm);
+  border: none; border-radius: var(--radius-md);
   font-size: 15px; font-weight: 500;
   cursor: pointer;
   margin-top: 8px;
@@ -250,10 +314,10 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .btn-fingerprint {
   width: 100%; padding: 20px;
   background: var(--surface);
-  border: 1px solid var(--accent-blue-25);
-  border-radius: var(--radius);
+  border: 1px solid var(--accent-25);
+  border-radius: var(--radius-xl);
   display: flex; flex-direction: column; align-items: center; gap: 10px;
-  font-size: 14px; font-weight: 500; color: var(--accent-blue);
+  font-size: 14px; font-weight: 500; color: var(--accent);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -322,10 +386,10 @@ input, textarea { font-family: var(--font); color: var(--text); }
   justify-content: center;
   height: 40px;
   box-sizing: border-box;
-  background: var(--accent-blue-dim);
-  border: 1px solid var(--accent-blue-25);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-25);
   border-radius: 8px;
-  color: var(--accent-blue);
+  color: var(--accent);
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   -webkit-tap-highlight-color: transparent;
@@ -345,7 +409,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 
 .home-admin-btn:hover,
 .home-theme-btn:hover {
-  background: var(--accent-blue);
+  background: var(--accent);
   color: #fff;
 }
 
@@ -399,8 +463,8 @@ input, textarea { font-family: var(--font); color: var(--text); }
   -webkit-tap-highlight-color: transparent;
 }
 .tile:active { transform: scale(0.97); }
-.tile-blue { border-color: var(--accent-blue-20); }
-.tile-blue:hover { background: var(--surface2); border-color: var(--accent-blue-40); }
+.tile-accent { border-color: var(--accent-20); }
+.tile-accent:hover { background: var(--surface2); border-color: var(--accent-40); }
 .tile-green { border-color: rgba(34,197,94,0.2); }
 .tile-green:hover { background: var(--surface2); border-color: rgba(34,197,94,0.4); }
 
@@ -409,7 +473,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
-.tile-icon-blue { background: var(--accent-blue-dim); }
+.tile-icon-accent { background: var(--accent-dim); }
 .tile-icon-green { background: var(--accent-green-dim); }
 .tile-icon svg { width: 20px; height: 20px; }
 
@@ -431,7 +495,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .status-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   padding: 14px 16px;
   display: flex; align-items: center; justify-content: space-between;
 }
@@ -507,14 +571,14 @@ input, textarea { font-family: var(--font); color: var(--text); }
 
 .context-banner {
   margin: 0 24px 16px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   padding: 14px 16px;
   flex-shrink: 0;
 }
-.context-banner-blue { background: var(--accent-blue-dim); border: 1px solid var(--accent-blue-20); }
+.context-banner-accent { background: var(--accent-dim); border: 1px solid var(--accent-20); }
 .context-banner-green { background: var(--accent-green-dim); border: 1px solid rgba(34,197,94,0.2); }
 .banner-tag { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-.banner-tag-blue { color: var(--accent-blue); }
+.banner-tag-accent { color: var(--accent); }
 .banner-tag-green { color: var(--accent-green); }
 .banner-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
 
@@ -528,7 +592,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .menu-item {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 16px;
   display: flex; align-items: center; gap: 14px;
   cursor: pointer;
@@ -543,7 +607,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   flex-shrink: 0;
 }
 .menu-icon svg { width: 16px; height: 16px; }
-.menu-icon-blue { background: var(--accent-blue-dim); }
+.menu-icon-accent { background: var(--accent-dim); }
 .menu-icon-green { background: var(--accent-green-dim); }
 .menu-icon-amber { background: var(--accent-amber-dim); }
 .menu-icon-red { background: var(--accent-red-dim); }
@@ -558,7 +622,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin: 0 0 4px;
   background: var(--surface);
   border: 1px solid var(--accent-amber-dim);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 16px;
   display: flex; flex-direction: column; gap: 10px;
 }
@@ -568,7 +632,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   flex: 1;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text);
   font-size: 13px;
   padding: 6px 10px;
@@ -589,12 +653,12 @@ input, textarea { font-family: var(--font); color: var(--text); }
   color: var(--muted);
   background: var(--surface);
   border-left: 2px solid var(--accent-amber);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 7px 9px;
 }
 .corr-actions { display: flex; gap: 8px; margin-top: 4px; }
 .corr-btn {
-  flex: 1; padding: 9px; border-radius: var(--radius-sm);
+  flex: 1; padding: 9px; border-radius: var(--radius-md);
   font-size: 13px; font-weight: 500; cursor: pointer; border: none;
 }
 .corr-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -606,7 +670,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin: 0 24px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   padding: 18px 20px;
   display: flex; align-items: center; justify-content: space-between;
   flex-shrink: 0;
@@ -617,7 +681,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .time-card-btn {
   background: var(--accent-red-dim);
   border: 1px solid rgba(239,68,68,0.25);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 10px 14px;
   font-size: 12px; font-weight: 500; color: var(--accent-red);
   cursor: pointer;
@@ -629,7 +693,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin: 0 24px 12px;
   background: var(--accent-green-dim);
   border: 1px solid rgba(34,197,94,0.2);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 12px 16px;
   font-size: 13px;
   color: var(--text);
@@ -687,7 +751,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   font-size: 14px;
 }
 .bubble-user {
-  background: var(--accent-blue);
+  background: var(--accent);
   color: #fff;
   border-bottom-right-radius: 4px;
 }
@@ -740,7 +804,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 }
 .confirm-btn {
   padding: 10px 22px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-family: var(--font);
   font-size: 14px;
   font-weight: 600;
@@ -768,7 +832,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 }
 .disambig-btn {
   padding: 8px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: var(--surface2);
   color: var(--text);
   font-family: var(--font);
@@ -780,14 +844,14 @@ input, textarea { font-family: var(--font); color: var(--text); }
   transition: background 0.15s;
 }
 .disambig-btn:active {
-  background: var(--accent-blue-25);
+  background: var(--accent-25);
 }
 
 .signature-pad-wrapper {
   margin: 12px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -798,7 +862,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin: 12px 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -819,8 +883,8 @@ input, textarea { font-family: var(--font); color: var(--text); }
   cursor: pointer;
 }
 .kleinmaterial-preset.is-selected {
-  background: var(--accent-blue-25, rgba(49,128,171,0.18));
-  border-color: var(--accent-blue, #3180ab);
+  background: var(--accent-25, rgba(49,128,171,0.18));
+  border-color: var(--accent, #3081AB);
 }
 .kleinmaterial-count { display: flex; flex-direction: column; gap: 6px; }
 .kleinmaterial-count label { font-size: 12px; color: var(--muted); }
@@ -870,14 +934,14 @@ input, textarea { font-family: var(--font); color: var(--text); }
   cursor: pointer;
 }
 .leistungsart-chip.is-selected {
-  background: var(--accent-blue-25, rgba(49,128,171,0.18));
-  border-color: var(--accent-blue, #3180ab);
+  background: var(--accent-25, rgba(49,128,171,0.18));
+  border-color: var(--accent, #3081AB);
 }
 /* Feste Breite, damit die Labels mit und ohne Haken auf derselben Kante stehen. */
 .leistungsart-chip-check {
   width: 14px;
   flex: none;
-  color: var(--accent-blue, #3180ab);
+  color: var(--accent, #3081AB);
   font-weight: 700;
 }
 
@@ -892,7 +956,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   gap: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
 }
 .leistungsart-recap-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .leistungsart-recap-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -902,9 +966,9 @@ input, textarea { font-family: var(--font); color: var(--text); }
   min-height: 36px;
   padding: 8px 14px;
   border-radius: 8px;
-  border: 1px solid var(--accent-blue, #3180ab);
+  border: 1px solid var(--accent, #3081AB);
   background: transparent;
-  color: var(--accent-blue, #3180ab);
+  color: var(--accent, #3081AB);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -918,7 +982,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   padding: 12px 14px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
 }
 .abschluss-wahl-label {
   font-size: 11px; color: var(--muted);
@@ -939,9 +1003,9 @@ input, textarea { font-family: var(--font); color: var(--text); }
   cursor: pointer;
 }
 .abschluss-wahl-option.is-active {
-  border-color: var(--accent-blue, #3180ab);
+  border-color: var(--accent, #3081AB);
   background: rgba(49,128,171,0.12);
-  color: var(--accent-blue, #3180ab);
+  color: var(--accent, #3081AB);
 }
 .abschluss-wahl-hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
 
@@ -950,7 +1014,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .teilrapport-hinweis {
   margin: 12px 16px;
   padding: 12px 14px;
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border);
   background: var(--surface);
   font-size: 13px;
@@ -988,7 +1052,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .photo-picker {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   width: 100%;
   max-width: 480px;   /* an die Phone-Breite der App (max-width: 480px) angelehnt */
   max-height: 90vh;
@@ -1104,7 +1168,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .signature-pad-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--fg);
+  color: var(--text);
   text-align: center;
   margin: 0;
 }
@@ -1117,8 +1181,8 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .signature-canvas {
   width: 100%;
   height: 160px;
-  border: 2px solid var(--accent-blue);
-  border-radius: var(--radius-sm);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
   background: #fff;
   touch-action: none;
   cursor: crosshair;
@@ -1180,12 +1244,12 @@ input, textarea { font-family: var(--font); color: var(--text); }
   overflow-y: auto;
   transition: border-color 0.2s;
 }
-.chat-textarea:focus { border-color: var(--accent-blue-40); }
+.chat-textarea:focus { border-color: var(--accent-40); }
 .chat-textarea::placeholder { color: var(--muted); }
 
 .chat-send-btn {
   width: 40px; height: 40px; border-radius: 50%;
-  background: var(--accent-blue);
+  background: var(--accent);
   border: none;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -1219,14 +1283,14 @@ input, textarea { font-family: var(--font); color: var(--text); }
 
 .chat-rec-lock {
   width: 36px; height: 36px; border-radius: 50%;
-  background: var(--accent-blue-dim);
-  border: 1px solid var(--accent-blue-25);
-  color: var(--accent-blue);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-25);
+  color: var(--accent);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: background 0.15s;
 }
-.chat-rec-lock:hover { background: var(--accent-blue-20); }
+.chat-rec-lock:hover { background: var(--accent-20); }
 .chat-rec-lock svg { width: 15px; height: 15px; }
 
 .chat-rec-bar {
@@ -1272,7 +1336,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   display: inline-block;
   width: 3px;
   border-radius: 2px;
-  background: var(--accent-blue);
+  background: var(--accent);
   opacity: 0.7;
   animation: wave-bounce 0.7s ease-in-out infinite alternate;
 }
@@ -1371,7 +1435,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin-top: 3px;
   padding: 3px 6px;
   border: 1px solid var(--accent-amber);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--accent-amber);
   font-size: 10px;
@@ -1394,7 +1458,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin: 12px 16px 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
@@ -1431,10 +1495,10 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .bericht-export-btn {
   width: 100%;
   padding: 13px 16px;
-  background: var(--accent-blue);
+  background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -1691,7 +1755,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   color: var(--text);
 }
 .projekte-detail-card-accent {
-  border-color: var(--accent-blue-20);
+  border-color: var(--accent-20);
 }
 .projekte-detail-title {
   font-size: 12px;
@@ -1725,7 +1789,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .projekte-detail-termin-date {
   font-size: 20px;
   font-weight: 600;
-  color: var(--accent-blue);
+  color: var(--accent);
 }
 .projekte-detail-termin-notiz {
   font-size: 13px;
@@ -1764,7 +1828,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--accent-blue);
+  color: var(--accent);
   text-decoration: none;
   padding: 6px 10px;
   background: var(--surface);
@@ -1864,7 +1928,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .kpi-spinner {
   width: 28px; height: 28px; border-radius: 50%;
   border: 2px solid var(--surface2);
-  border-top-color: var(--accent-blue);
+  border-top-color: var(--accent);
   animation: kpi-spin 0.8s linear infinite;
 }
 @keyframes kpi-spin { to { transform: rotate(360deg); } }
@@ -1882,7 +1946,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .kpi-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-xl);
   padding: 16px 18px;
   position: relative;
   display: flex; flex-direction: column; gap: 4px;
@@ -1913,7 +1977,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .entwurf-section {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 14px;
   display: flex; flex-direction: column; gap: 10px;
 }
@@ -1930,7 +1994,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .entwurf-input, .entwurf-textarea {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text);
   font-size: 14px;
   padding: 9px 11px;
@@ -1943,7 +2007,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   background: var(--accent-amber-dim);
   color: var(--accent-amber);
   border: 1px dashed var(--accent-amber);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 9px;
   font-size: 13px; font-weight: 500;
   cursor: pointer;
@@ -1951,7 +2015,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .entwurf-icon-btn {
   background: transparent;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--muted);
   cursor: pointer;
   height: 36px;
@@ -1962,7 +2026,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   background: var(--accent-amber);
   color: #000;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 13px;
   font-size: 15px; font-weight: 600;
   cursor: pointer;
@@ -1983,7 +2047,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 {
   font-size: 1em; font-weight: 600; margin: 8px 0 4px;
 }
-.chat-md a { color: var(--accent-blue, #1e3a5f); text-decoration: underline; }
+.chat-md a { color: var(--accent, #1e3a5f); text-decoration: underline; }
 .chat-md code {
   background: rgba(0, 0, 0, 0.06);
   padding: 1px 4px; border-radius: 4px;
@@ -2069,10 +2133,10 @@ input, textarea { font-family: var(--font); color: var(--text); }
   -webkit-tap-highlight-color: transparent;
 }
 .wplan-strip-day.weekend { opacity: 0.7; }
-.wplan-strip-day.today { border-color: var(--accent-blue-40); }
+.wplan-strip-day.today { border-color: var(--accent-40); }
 .wplan-strip-day.active {
-  background: var(--accent-blue);
-  border-color: var(--accent-blue);
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
   opacity: 1;
 }
@@ -2100,8 +2164,8 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .wplan-dayhead-date { font-size: 12px; color: var(--muted); margin-top: 2px; }
 .wplan-today-badge {
   font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-  color: var(--accent-blue);
-  background: var(--accent-blue-dim);
+  color: var(--accent);
+  background: var(--accent-dim);
   border-radius: 20px;
   padding: 2px 8px;
 }
@@ -2147,7 +2211,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .wplan-card-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
 .wplan-card-link {
   font-size: 12px;
-  color: var(--accent-blue);
+  color: var(--accent);
   text-decoration: none;
   line-height: 1.4;
   word-break: break-word;
@@ -2173,8 +2237,8 @@ input, textarea { font-family: var(--font); color: var(--text); }
 }
 .wplan-today-btn {
   background: var(--surface);
-  border: 1px solid var(--accent-blue-40);
-  color: var(--accent-blue);
+  border: 1px solid var(--accent-40);
+  color: var(--accent);
   border-radius: 20px;
   padding: 7px 18px;
   font-size: 13px;
@@ -2214,8 +2278,11 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .migration-streifen-z1 { font-size: 0.85rem; font-weight: 600; line-height: 1.2; }
 /* Die Adresse in Monospace: sie wird abgetippt, und in einer Proportionalschrift
    sind 1/l und 0/O auf einem Handydisplay nicht zu unterscheiden. */
+/* 0.72rem statt 0.75: die Zeile traegt seit dem Deinstall-Hinweis zwei
+   Angaben («neu anmelden, alte App loeschen») und darf auf einem 390er-Display
+   nicht in den Ellipsen enden — abgeschnitten waere ausgerechnet der neue Teil. */
 .migration-streifen-z2 {
-  font-size: 0.75rem; font-weight: 500; line-height: 1.2;
+  font-size: 0.72rem; font-weight: 500; line-height: 1.2;
   font-family: var(--mono);
   opacity: 0.85;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -2230,15 +2297,26 @@ input, textarea { font-family: var(--font); color: var(--text); }
   color: inherit; font-size: 22px; line-height: 1;
   padding: 0 4px; opacity: 0.7;
 }
+/* Schmale Geraete (360er-Android): noch eine Stufe kleiner, damit die zweite
+   Zeile ganz dasteht. Klein, aber lesbar schlaegt gross und abgeschnitten. */
+@media (max-width: 380px) {
+  .migration-streifen-z2 { font-size: 0.65rem; }
+}
 
 .migration-vorschalt {
   position: fixed; inset: 0; z-index: 10001;
   background: var(--bg);
-  display: flex; align-items: center; justify-content: center;
+  /* Zentriert ueber `margin: auto` am Kind statt ueber `align-items: center`:
+     seit die Deinstall-Anleitung aufklappbar dazugekommen ist, kann der Inhalt
+     hoeher werden als der Bildschirm. Bei `align-items: center` waere dann der
+     OBERE Teil abgeschnitten und nicht erreichbar — genau der mit der Adresse. */
+  display: flex;
+  overflow-y: auto;
   padding: 24px;
 }
 .migration-vorschalt-inner {
   max-width: 380px; width: 100%;
+  margin: auto;
   display: flex; flex-direction: column; align-items: flex-start;
 }
 .migration-vorschalt-mark {
@@ -2257,22 +2335,51 @@ input, textarea { font-family: var(--font); color: var(--text); }
   margin-bottom: 20px;
 }
 .migration-vorschalt-host { font-family: var(--mono); color: var(--brand-ink); }
+/* Nummeriert, seit das Deinstallieren dazugehoert: die Reihenfolge ist der
+   Punkt. Wer zuerst die alte App loescht, hat die Anleitung mitgeloescht. */
 .migration-vorschalt-liste {
-  list-style: none; padding: 0; margin: 0 0 28px;
+  list-style: none; padding: 0; margin: 0 0 20px;
+  counter-reset: migschritt;
   display: flex; flex-direction: column; gap: 10px;
   font-size: 14px; color: var(--muted); line-height: 1.45;
 }
-.migration-vorschalt-liste li { padding-left: 18px; position: relative; }
+.migration-vorschalt-liste li { padding-left: 22px; position: relative; counter-increment: migschritt; }
 .migration-vorschalt-liste li::before {
-  content: '·'; position: absolute; left: 4px;
+  content: counter(migschritt) '.'; position: absolute; left: 0;
   color: #E9A227; font-weight: 700;
 }
 .migration-vorschalt-liste strong { color: var(--brand-ink); font-weight: 600; }
 
+/* Die Chrome-/Edge-Anleitung: eingeklappt, weil sie nur den Teil der Leute
+   betrifft, der die App wirklich installiert hat — und ausgeklappt lang ist. */
+.migration-vorschalt-anleitung {
+  width: 100%; margin: 0 0 24px;
+  font-size: 13px; color: var(--muted); line-height: 1.45;
+}
+.migration-vorschalt-anleitung > summary {
+  cursor: pointer; padding: 6px 0;
+  color: var(--brand-ink); font-size: 13px; font-weight: 600;
+}
+.migration-vorschalt-anleitung ul {
+  list-style: none; padding: 0; margin: 8px 0 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.migration-vorschalt-anleitung li { padding-left: 18px; position: relative; }
+.migration-vorschalt-anleitung li::before {
+  content: '·'; position: absolute; left: 4px;
+  color: #E9A227; font-weight: 700;
+}
+.migration-vorschalt-anleitung strong { color: var(--brand-ink); font-weight: 600; }
+.migration-vorschalt-anleitung em { font-style: normal; font-weight: 600; }
+.migration-vorschalt-anleitung code {
+  font-family: var(--mono); font-size: 0.92em;
+  color: var(--brand-ink); overflow-wrap: anywhere;
+}
+
 .migration-vorschalt-btn {
   width: 100%; padding: 14px;
   background: #E9A227; color: #1B2028;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 15px; font-weight: 600;
   text-align: center; text-decoration: none;
 }

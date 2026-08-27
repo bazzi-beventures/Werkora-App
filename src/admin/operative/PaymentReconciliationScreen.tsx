@@ -21,7 +21,7 @@ function StatusBadge({ status }: { status: ReconcileStatus }) {
   const m = STATUS_META[status]
   return (
     <span style={{
-      display: 'inline-block', padding: '2px 8px', borderRadius: 10,
+      display: 'inline-block', padding: '2px 8px', borderRadius: 'var(--radius-md)',
       fontSize: 12, fontWeight: 600, color: m.color, background: m.bg,
     }}>{m.label}</span>
   )
@@ -224,8 +224,8 @@ export default function PaymentReconciliationScreen() {
 function SummaryCard({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
     <div style={{
-      minWidth: 120, padding: '10px 14px', borderRadius: 8,
-      border: '1px solid var(--admin-border, #e2e6ec)', background: 'var(--admin-card, #fff)',
+      minWidth: 120, padding: '10px 14px', borderRadius: 'var(--radius-sm)',
+      border: '1px solid var(--border)', background: 'var(--surface)',
     }}>
       <div style={{ fontSize: 22, fontWeight: 700, color: color ?? 'inherit' }}>{value}</div>
       <div style={{ fontSize: 12, opacity: 0.7 }}>{label}</div>

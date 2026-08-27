@@ -22,7 +22,7 @@ export function CommentsPanel({ c, now }: Props) {
           const isEditing = c.editingId === comment.id
           const locked = c.isLocked(comment, now)
           return (
-            <div key={comment.id} style={{ padding: '10px 14px', borderRadius: 8, background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+            <div key={comment.id} style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
               {/* Schmale Seitenleiste (340px): Name + Datum zusammenhalten,
                   Aktionen als rechtsbündige Gruppe, die als Einheit in eine
                   zweite Zeile umbricht – statt den Namen zu zerquetschen. */}

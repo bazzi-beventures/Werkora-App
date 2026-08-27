@@ -2,7 +2,7 @@
  * Mandantenfarbe → vollständige Akzent-Palette, pro Theme.
  *
  * Vorher stand die Akzentfarbe an zwei Orten mit zwei Verfahren: die
- * Monteur-App bekam `brand_color` roh in `--accent-blue` geschrieben, die
+ * Monteur-App bekam `brand_color` roh in `--accent` geschrieben, die
  * Admin-App hatte in `admin/tokens.css` ein festes `--primary: #3081AB` für
  * *alle* Mandanten. Ein Mandant konnte seine Farbe also nur zur Hälfte setzen.
  *
@@ -40,7 +40,7 @@ const INK = '#1B2028'
 
 /** Rückfall, wenn `brand_color` unbrauchbar ist (leer, Kurzform, Müll aus der
  *  Mandanten-Verwaltung). Entspricht dem Default in `db/tenants.py`. */
-const FALLBACK = '#3180ab'
+const FALLBACK = '#3081AB'
 
 export interface ThemePalette {
   /** Akzent als Schrift/Icon auf `--surface` — erfüllt AA gegen die Fläche. */
@@ -326,13 +326,13 @@ function rgba(hex: string, alpha: number): string {
 function block(p: ThemePalette, dark: boolean): string {
   return [
     // Monteur-App
-    `--accent-blue:${p.primary}`,
+    `--accent:${p.primary}`,
     // Im hellen Theme ein deckender Ton statt rgba: auf hellem Grund liest
     // sich ein Tint sauberer als Transparenz (Regel aus index.css).
-    `--accent-blue-dim:${dark ? rgba(p.primary, 0.18) : p.primarySoft}`,
-    `--accent-blue-20:${rgba(p.primary, 0.25)}`,
-    `--accent-blue-25:${rgba(p.primary, 0.30)}`,
-    `--accent-blue-40:${rgba(p.primary, 0.50)}`,
+    `--accent-dim:${dark ? rgba(p.primary, 0.18) : p.primarySoft}`,
+    `--accent-20:${rgba(p.primary, 0.25)}`,
+    `--accent-25:${rgba(p.primary, 0.30)}`,
+    `--accent-40:${rgba(p.primary, 0.50)}`,
     // Admin-App — dieselbe Farbe, andere Token-Namen (historisch gewachsen).
     `--primary:${p.primary}`,
     `--primary-hover:${p.primaryHover}`,

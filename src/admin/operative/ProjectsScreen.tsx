@@ -774,7 +774,7 @@ export default function ProjectsScreen({
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commitPageInput() } }}
                   onBlur={commitPageInput}
                   aria-label="Zur Seite springen"
-                  style={{ width: 52, textAlign: 'center', padding: '2px 4px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, background: 'var(--bg, #fff)', color: 'inherit' }}
+                  style={{ width: 52, textAlign: 'center', padding: '2px 4px', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', fontSize: 13, background: 'var(--bg, #fff)', color: 'inherit' }}
                 />
                 / {totalPages}
               </span>

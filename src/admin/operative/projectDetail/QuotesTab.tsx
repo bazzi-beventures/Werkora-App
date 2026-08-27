@@ -129,7 +129,7 @@ export function QuotesTab({
             const latest = group[0]
             const showWorkaroundBadge = hasWorkaroundInvoice && groupIdx === 0
             return (
-              <div key={latest.parent_id ?? latest.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, background: 'var(--surface-2)' }}>
+              <div key={latest.parent_id ?? latest.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 12, background: 'var(--surface-2)' }}>
                 {groupSize(latest) > 1 && (
                   <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span className="admin-badge admin-badge-approved" style={{ fontSize: 11 }}>{labelFor(latest)}</span>

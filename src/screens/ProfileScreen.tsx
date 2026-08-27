@@ -98,10 +98,10 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px 0 20px' }}>
         <div style={{
           width: 72, height: 72, borderRadius: '50%',
-          background: 'var(--accent-blue-dim)',
-          border: '2px solid var(--accent-blue-20)',
+          background: 'var(--accent-dim)',
+          border: '2px solid var(--accent-20)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 28, fontWeight: 600, color: 'var(--accent-blue)',
+          fontSize: 28, fontWeight: 600, color: 'var(--accent)',
         }}>
           {displayName.charAt(0).toUpperCase()}
         </div>
@@ -112,8 +112,8 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
       <div className="menu-list">
         {/* E-Mail */}
         <div className="menu-item" style={{ cursor: 'default' }}>
-          <div className="menu-icon menu-icon-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <div className="menu-icon menu-icon-accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
               <rect x="2" y="4" width="20" height="16" rx="2"/>
               <path d="M2 7l10 7 10-7"/>
             </svg>
@@ -126,8 +126,8 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
 
         {/* Firma */}
         <div className="menu-item" style={{ cursor: 'default' }}>
-          <div className="menu-icon menu-icon-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <div className="menu-icon menu-icon-accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
               <rect x="2" y="7" width="20" height="15" rx="1"/>
               <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
             </svg>
@@ -140,8 +140,8 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
 
         {/* Rolle */}
         <div className="menu-item" style={{ cursor: 'default' }}>
-          <div className="menu-icon menu-icon-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <div className="menu-icon menu-icon-accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
               <path d="M12 2a5 5 0 1 1 0 10A5 5 0 0 1 12 2z"/>
               <path d="M2 20c0-4 4-7 10-7s10 3 10 7"/>
             </svg>
@@ -154,13 +154,13 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
 
         {/* Darstellung */}
         <div className="menu-item" onClick={handleToggleTheme}>
-          <div className="menu-icon menu-icon-blue">
+          <div className="menu-icon menu-icon-accent">
             {theme === 'dark' ? (
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
             ) : (
-              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
                 <circle cx="12" cy="12" r="4"/>
                 <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
               </svg>
@@ -181,8 +181,8 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
             opacity: pushState === 'denied' || pushState === 'unsupported' ? 0.6 : 1,
           }}
         >
-          <div className="menu-icon menu-icon-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-blue)" strokeWidth="1.8">
+          <div className="menu-icon menu-icon-accent">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>

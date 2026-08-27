@@ -137,7 +137,7 @@ export function WorkflowsTab() {
                   <div
                     key={entry.key}
                     style={{
-                      borderRadius: 8,
+                      borderRadius: 'var(--radius-sm)',
                       border: '1px solid rgba(255,255,255,0.08)',
                       background: enabled ? 'rgba(34,197,94,0.06)' : 'transparent',
                     }}

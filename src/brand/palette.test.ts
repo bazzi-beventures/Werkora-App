@@ -29,7 +29,7 @@ const AA = 4.5
 const PROBEN = [
   '#005AFF', '#FF0101',   // Stähli
   '#196E9C',              // Gehlhaar (Produktion)
-  '#3180ab',              // Default aus db/tenants.py
+  '#3081AB',              // Default aus db/tenants.py
   '#E9A227',              // Werkora-Amber
   '#FFFF00', '#00FF00', '#FF00FF',   // maximal gesättigt
   '#FAFAFA', '#050505',   // an den Rändern
@@ -63,7 +63,7 @@ describe('derivePalette – Kontrast', () => {
   }
 
   it('hebt den Akzent im dunklen Theme an, statt die helle Farbe zu übernehmen', () => {
-    // Der eigentliche Fehler, den diese Umstellung behebt: `--accent-blue`
+    // Der eigentliche Fehler, den diese Umstellung behebt: `--accent`
     // trug im dunklen Theme die helle Mandantenfarbe. #005AFF auf #1E293B
     // sind 3,37:1 — als Link zu blass.
     expect(kontrast('#005AFF', SURFACE.dark)).toBeLessThan(AA)
@@ -99,13 +99,13 @@ describe('derivePalette – Farbtreue', () => {
   })
 
   it('korrigiert eine Farbe, die AA knapp verfehlt', () => {
-    // Der Default #3180ab erreicht auf Weiss nur ~4,4:1 und verfehlt AA damit
+    // Der Default #3081AB erreicht auf Weiss nur ~4,4:1 und verfehlt AA damit
     // um Haaresbreite. Er wird nachgedunkelt — sichtbar ist das nicht, messbar
     // schon. Dieselbe Abwägung steht in index.css beim Amber.
-    expect(kontrast('#3180ab', SURFACE.light)).toBeLessThan(AA)
-    const hell = derivePalette('#3180ab').light.primary
+    expect(kontrast('#3081AB', SURFACE.light)).toBeLessThan(AA)
+    const hell = derivePalette('#3081AB').light.primary
     expect(kontrast(hell, SURFACE.light)).toBeGreaterThanOrEqual(AA)
-    expect(kontrast(hell, '#3180ab'), 'die Korrektur bleibt minimal').toBeLessThan(1.35)
+    expect(kontrast(hell, '#3081AB'), 'die Korrektur bleibt minimal').toBeLessThan(1.35)
   })
 })
 
@@ -165,8 +165,8 @@ describe('derivePalette – unbrauchbare Eingabe', () => {
   it('fällt auf den Default zurück statt NaN zu erzeugen', () => {
     for (const müll of ['', '#abc', 'rot', '#12345', '#1234567', 'undefined']) {
       const p = derivePalette(müll)
-      expect(p.light.primary).toBe(derivePalette('#3180ab').light.primary)
-      expect(p.nav.surface).toBe(derivePalette('#3180ab').nav.surface)
+      expect(p.light.primary).toBe(derivePalette('#3081AB').light.primary)
+      expect(p.nav.surface).toBe(derivePalette('#3081AB').nav.surface)
       for (const wert of Object.values(p.light).concat(Object.values(p.dark))) {
         expect(wert, `${müll} → ${wert}`).toMatch(/^#[0-9A-Fa-f]{3,6}$/)
       }
@@ -193,11 +193,11 @@ describe('paletteCss', () => {
   })
 
   it('setzt die Token beider Apps auf dieselbe Farbe', () => {
-    // --accent-blue gehört der Monteur-App, --primary der Admin-App. Dass die
+    // --accent gehört der Monteur-App, --primary der Admin-App. Dass die
     // Admin-App ihr eigenes festes Blau hatte, war der eigentliche Defekt.
     const dunkel = css.split(':root[data-theme="dark"]{')[1]
     const p = derivePalette('#005AFF')
-    expect(dunkel).toContain(`--accent-blue:${p.dark.primary}`)
+    expect(dunkel).toContain(`--accent:${p.dark.primary}`)
     expect(dunkel).toContain(`--primary:${p.dark.primary}`)
     expect(dunkel).toContain(`--on-accent:${p.dark.onPrimary}`)
   })

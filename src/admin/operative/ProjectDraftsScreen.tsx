@@ -286,7 +286,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
         <div className="admin-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               Erfasst von <strong>{draft.created_by_name ?? '—'}</strong> · {fmtDate(draft.created_at)}
             </div>
             <span className={`admin-badge ${STATUS_BADGE_CLASS[draft.status]}`}>
@@ -341,10 +341,10 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
           {/* Konvertieren-Formular */}
           {isOpen && !rejectMode && (
             <>
-              <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 14 }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>In Projekt umwandeln</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                     <span>Projektname *</span>
                     <input
                       type="text"
@@ -353,7 +353,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                       onChange={e => setProjectName(e.target.value)}
                     />
                   </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                     <span>Objekt-Name (optional)</span>
                     <input
                       type="text"
@@ -363,7 +363,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                       placeholder="z.B. MFH Sonnhalde"
                     />
                   </label>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                     <span>Objekt-Adresse</span>
                     <input
                       type="text"
@@ -373,7 +373,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                     />
                   </label>
                   <div className="admin-form-row">
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                       <span>Ansprechpartner vor Ort</span>
                       <input
                         type="text"
@@ -382,7 +382,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                         onChange={e => setContactName(e.target.value)}
                       />
                     </label>
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                       <span>Telefon</span>
                       <input
                         type="text"
@@ -392,7 +392,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                       />
                     </label>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                     <span>Art der Arbeit (Mehrfachauswahl)</span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 2 }}>
                       {WORK_TYPES.map(t => {
@@ -402,7 +402,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                             key={t.value}
                             style={{
                               display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-                              fontSize: 13, padding: '4px 10px', borderRadius: 6,
+                              fontSize: 13, padding: '4px 10px', borderRadius: 'var(--radius-xs)',
                               background: active ? 'var(--primary)' : 'var(--surface-2)',
                               color: active ? '#fff' : 'var(--text)',
                               border: '1px solid', borderColor: active ? 'var(--primary)' : 'var(--border)',
@@ -422,7 +422,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                   </div>
 
                   {/* ── Kunden-Verknüpfung ── */}
-                  <div style={{ borderTop: '1px dashed var(--color-border)', paddingTop: 12, marginTop: 4 }}>
+                  <div style={{ borderTop: '1px dashed var(--border)', paddingTop: 12, marginTop: 4 }}>
                     <div style={{ fontWeight: 600, marginBottom: 6 }}>Kunde</div>
 
                     {fuzzyMatch && customerMode !== 'existing' && (
@@ -430,7 +430,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                         style={{
                           background: 'var(--accent-amber-dim, rgba(245,158,11,0.12))',
                           border: '1px solid rgba(245,158,11,0.4)',
-                          borderRadius: 8, padding: '8px 10px',
+                          borderRadius: 'var(--radius-sm)', padding: '8px 10px',
                           fontSize: 12, marginBottom: 8,
                           cursor: 'pointer',
                         }}
@@ -494,10 +494,10 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
 
                     {customerMode === 'new' && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                           Vorausgefüllt aus dem Entwurf — bei Bedarf vor dem Anlegen korrigieren.
                         </div>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                           <span>Name *</span>
                           <input
                             type="text"
@@ -507,7 +507,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                           />
                         </label>
                         <div className="admin-form-row">
-                          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                             <span>Telefon</span>
                             <input
                               type="text"
@@ -516,7 +516,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                               onChange={e => setNewCustPhone(e.target.value)}
                             />
                           </label>
-                          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                             <span>E-Mail</span>
                             <input
                               type="email"
@@ -526,7 +526,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                             />
                           </label>
                         </div>
-                        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                        <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                           <span>Adresse</span>
                           <input
                             type="text"
@@ -539,13 +539,13 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                     )}
 
                     {customerMode === 'none' && (
-                      <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                         Projekt wird ohne Kunden-Verknüpfung erstellt. Kunden-Infos aus dem Entwurf werden als Bemerkung übernommen.
                       </div>
                     )}
                   </div>
 
-                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                     Materialien und Notizen werden als Bemerkung ins Projekt übernommen.
                   </div>
                 </div>
@@ -576,9 +576,9 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
           {/* Verwerfen-Modus */}
           {isOpen && rejectMode && (
             <>
-              <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 14 }}>
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>Entwurf verwerfen</div>
-                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                   <span>Grund (optional)</span>
                   <textarea
                     className="admin-input"
@@ -601,7 +601,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                 </button>
                 <button
                   className="admin-btn"
-                  style={{ flex: 1, background: '#ef4444', color: '#fff' }}
+                  style={{ flex: 1, background: 'var(--danger)', color: '#fff' }}
                   disabled={busy !== null}
                   onClick={handleReject}
                 >
@@ -620,11 +620,11 @@ function DraftInfoBlock({ label, children }: { label: string; children: React.Re
   return (
     <div style={{
       background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))',
-      border: '1px solid var(--color-border)',
-      borderRadius: 8,
+      border: '1px solid var(--border)',
+      borderRadius: 'var(--radius-sm)',
       padding: 12,
     }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: 0.05, marginBottom: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.05, marginBottom: 6 }}>
         {label}
       </div>
       <div style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>{children}</div>

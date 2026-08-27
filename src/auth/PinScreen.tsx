@@ -116,7 +116,7 @@ export default function PinScreen({ logoUrl, tenantName, onLoggedIn }: Props) {
             style={{
               background: 'var(--surface, #1a1f2e)',
               border: '1px solid var(--border, #2a3148)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '12px 14px',
               fontSize: 15,
               color: 'var(--text)',
@@ -139,7 +139,7 @@ export default function PinScreen({ logoUrl, tenantName, onLoggedIn }: Props) {
               style={{
                 background: 'var(--surface, #1a1f2e)',
                 border: '1px solid var(--border, #2a3148)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 padding: '12px 44px 12px 14px',
                 fontSize: 15,
                 color: 'var(--text)',
@@ -195,7 +195,7 @@ export default function PinScreen({ logoUrl, tenantName, onLoggedIn }: Props) {
             style={{
               background: 'var(--surface, #1a1f2e)',
               border: '1px solid var(--border, #2a3148)',
-              borderRadius: 10,
+              borderRadius: 'var(--radius-md)',
               padding: '12px 14px',
               fontSize: 15,
               color: 'var(--text)',

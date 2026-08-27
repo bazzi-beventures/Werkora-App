@@ -103,11 +103,16 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
             {text.zeile1}. Die neue Adresse lautet{' '}
             <strong className="migration-vorschalt-host">{zielHost(url)}</strong>.
           </p>
-          <ul className="migration-vorschalt-liste">
+          <ol className="migration-vorschalt-liste">
             <li>Dort <strong>einmal neu anmelden</strong> — die alte Anmeldung gilt nicht mit.</li>
             <li>Das Symbol <strong>neu auf den Startbildschirm</strong> legen.</li>
             <li>Benachrichtigungen <strong>erneut erlauben</strong>.</li>
-          </ul>
+            <li>
+              Erst danach: die <strong>alte App deinstallieren</strong> — sonst öffnet
+              das alte Symbol weiter diese Adresse.
+            </li>
+          </ol>
+          <DeinstallAnleitung />
           <a className="migration-vorschalt-btn" href={url}>Zur neuen Adresse</a>
           <button
             type="button"
@@ -146,5 +151,50 @@ export function MigrationBanner({ now = new Date() }: { now?: Date }) {
         </button>
       )}
     </div>
+  )
+}
+
+
+/**
+ * Wie man die alte App wieder loswird — aufgeklappt nur, wer sie braucht.
+ *
+ * Warum das überhaupt in den Banner gehört: Eine installierte PWA hängt an der
+ * Origin, aus der sie installiert wurde. Wer im Browser auf die neue Adresse
+ * wechselt und das alte Symbol behält, tippt am nächsten Morgen wieder das
+ * alte an und ist zurück auf der alten Origin — der Service Worker bedient sie
+ * aus dem Cache, ohne einen einzigen Hinweis (§4.4). Ab dem Stichtag steht er
+ * dann vor einer App, die nicht mehr geht, und ruft an.
+ *
+ * Als `<details>` und **zuunterst** in der Liste: der Schritt kommt NACH dem
+ * Wechsel. Wer zuerst deinstalliert, löscht die App, in der diese Anleitung
+ * steht — und steht ohne Adresse und ohne Anleitung da.
+ */
+function DeinstallAnleitung() {
+  return (
+    <details className="migration-vorschalt-anleitung">
+      <summary>Alte App deinstallieren — so geht’s</summary>
+      <ul>
+        <li>
+          <strong>Android (Chrome):</strong> Symbol auf dem Startbildschirm
+          gedrückt halten → <em>Deinstallieren</em> → bestätigen.
+        </li>
+        <li>
+          <strong>Windows (Chrome):</strong> In der geöffneten Werkora-App oben
+          rechts auf <em>⋮</em> → <em>Werkora deinstallieren</em>. Sonst{' '}
+          <code>chrome://apps</code> aufrufen, Rechtsklick auf Werkora →{' '}
+          <em>Von Chrome entfernen</em>.
+        </li>
+        <li>
+          <strong>Windows (Edge):</strong> <code>edge://apps</code> aufrufen,
+          Rechtsklick auf Werkora → <em>Deinstallieren</em>. Sonst in der
+          geöffneten App oben rechts auf <em>⋯</em> →{' '}
+          <em>App-Einstellungen</em> → <em>Deinstallieren</em>.
+        </li>
+        <li>
+          <strong>iPhone/iPad (Safari):</strong> Symbol gedrückt halten →{' '}
+          <em>App entfernen</em> → <em>Vom Home-Bildschirm entfernen</em>.
+        </li>
+      </ul>
+    </details>
   )
 }

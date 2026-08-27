@@ -6,8 +6,14 @@ import { useChartTheme } from './useChartTheme'
 
 interface BarDef {
   dataKey: string
-  color: string
   label: string
+  /** Optional. Ohne Angabe bekommt die Serie den naechsten Slot der
+   *  Palette in fester Reihenfolge. Die Palette hat 8 Slots; ab der neunten
+   *  Serie wiederholt sich die Farbe (der Modulo unten ist Absturzsicherung,
+   *  kein Feature) — so viele Serien gehoeren gefaltet oder facettiert.
+   *  Gesetzt wird color nur dort, wo die Farbe etwas bedeutet (Status)
+   *  statt nur zu unterscheiden. */
+  color?: string
 }
 
 interface Props {
@@ -63,7 +69,7 @@ export default function BiBarChart({ data, xKey, bars, height = 260, onBarClick,
             contentStyle={{
               background: t.tooltipBg,
               border: `1px solid ${t.tooltipBorder}`,
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               color: t.tooltipText,
               fontSize: 12,
             }}
@@ -72,8 +78,14 @@ export default function BiBarChart({ data, xKey, bars, height = 260, onBarClick,
           <Legend
             wrapperStyle={{ fontSize: 11, color: t.tickMuted, paddingTop: 8 }}
           />
-          {bars.map((b) => (
-            <Bar key={b.dataKey} dataKey={b.dataKey} name={b.label} fill={b.color} radius={[3, 3, 0, 0]} />
+          {bars.map((b, i) => (
+            <Bar
+              key={b.dataKey}
+              dataKey={b.dataKey}
+              name={b.label}
+              fill={b.color ?? t.series[i % t.series.length]}
+              radius={[3, 3, 0, 0]}
+            />
           ))}
         </BarChart>
       </ResponsiveContainer>

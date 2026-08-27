@@ -309,7 +309,7 @@ export default function ImportScreen({ ownArticleEnabled = false }: Props) {
             {perRow && (
               <div className="admin-form-row admin-form-row-label">
                 <label className="admin-form-label" style={{ margin: 0 }}>
-                  {parsed.supplier_field.label}<span style={{ color: '#ef4444' }}> *</span>
+                  {parsed.supplier_field.label}<span style={{ color: 'var(--danger)' }}> *</span>
                 </label>
                 <select
                   className="admin-form-input"
@@ -324,7 +324,7 @@ export default function ImportScreen({ ownArticleEnabled = false }: Props) {
             {activeFields.map(fld => (
               <div key={fld.key} className="admin-form-row admin-form-row-label">
                 <label className="admin-form-label" style={{ margin: 0 }}>
-                  {fld.label}{fld.required && <span style={{ color: '#ef4444' }}> *</span>}
+                  {fld.label}{fld.required && <span style={{ color: 'var(--danger)' }}> *</span>}
                 </label>
                 <select
                   className="admin-form-input"
@@ -375,14 +375,14 @@ export default function ImportScreen({ ownArticleEnabled = false }: Props) {
         <div className="admin-table-wrap" style={{ padding: 20 }}>
           <div className="admin-section-title">3 · Vorschau & Import</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 13, margin: '10px 0 14px' }}>
-            <span><strong style={{ color: '#22c55e' }}>{previewData.summary.new}</strong> neu</span>
+            <span><strong style={{ color: 'var(--success)' }}>{previewData.summary.new}</strong> neu</span>
             <span><strong style={{ color: '#3b82f6' }}>{previewData.summary.update}</strong> Update</span>
             <span><strong style={{ color: 'var(--muted)' }}>{previewData.summary.unchanged}</strong> unverändert</span>
             {previewData.new_suppliers.length > 0 && (
               <span><strong style={{ color: '#a855f7' }}>{previewData.new_suppliers.length}</strong> Lieferant(en) neu</span>
             )}
             {previewData.summary.errors > 0 && (
-              <span style={{ color: '#ef4444' }}><strong>{previewData.summary.errors}</strong> Fehler</span>
+              <span style={{ color: 'var(--danger)' }}><strong>{previewData.summary.errors}</strong> Fehler</span>
             )}
           </div>
 
@@ -433,7 +433,7 @@ export default function ImportScreen({ ownArticleEnabled = false }: Props) {
                         style={{
                           fontSize: 11,
                           background: row.action === 'new' ? 'rgba(34,197,94,0.15)' : row.action === 'update' ? 'rgba(59,130,246,0.15)' : 'rgba(148,163,184,0.15)',
-                          color: row.action === 'new' ? '#22c55e' : row.action === 'update' ? '#3b82f6' : 'var(--muted)',
+                          color: row.action === 'new' ? 'var(--success)' : row.action === 'update' ? '#3b82f6' : 'var(--muted)',
                         }}
                       >
                         {ACTION_LABEL[row.action]}
@@ -446,9 +446,9 @@ export default function ImportScreen({ ownArticleEnabled = false }: Props) {
           </div>
 
           {previewData.errors.length > 0 && (
-            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
+            <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
               <strong>{previewData.errors.length} Zeile(n) übersprungen:</strong>
-              <ul style={{ margin: '6px 0 0', paddingLeft: 20, color: '#ef4444' }}>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 20, color: 'var(--danger)' }}>
                 {previewData.errors.slice(0, 10).map((e, i) => <li key={i}>Zeile {e.row}: {e.message}</li>)}
                 {previewData.errors.length > 10 && <li>… und {previewData.errors.length - 10} weitere</li>}
               </ul>
@@ -456,7 +456,7 @@ export default function ImportScreen({ ownArticleEnabled = false }: Props) {
           )}
 
           {result && (
-            <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e', borderRadius: 8, padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
+            <div style={{ background: 'rgba(34,197,94,0.1)', border: '1px solid var(--success)', borderRadius: 'var(--radius-sm)', padding: '12px 16px', marginBottom: 16, fontSize: 13 }}>
               <strong>Import abgeschlossen:</strong> {result.imported} neu angelegt, {result.updated} aktualisiert
               {result.skipped > 0 && <>, {result.skipped} unverändert</>}
               {result.new_suppliers.length > 0 && <>, {result.new_suppliers.length} Lieferant(en) neu angelegt</>}.

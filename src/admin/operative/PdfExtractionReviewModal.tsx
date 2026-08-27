@@ -419,7 +419,7 @@ export function PdfExtractionReviewModal({
                 key={i}
                 style={{
                   border: '1px solid var(--border, #e5e7eb)',
-                  borderRadius: 10,
+                  borderRadius: 'var(--radius-md)',
                   padding: 14,
                   background: 'var(--bg-elevated, #fafafa)',
                 }}

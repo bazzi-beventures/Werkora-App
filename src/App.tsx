@@ -404,7 +404,7 @@ export default function App() {
       top: `calc(${migrationVersatz + (isOffline ? 32 : 0)}px + env(safe-area-inset-top, 0px))`,
       left: '50%', transform: 'translateX(-50%)',
       width: '100%', maxWidth: 480, zIndex: 9999,
-      background: 'var(--accent-blue, #1e3a5f)', color: '#fff',
+      background: 'var(--accent, #1e3a5f)', color: '#fff',
       textAlign: 'center', padding: '8px 12px',
       fontSize: '0.85rem', fontWeight: 600,
       boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
@@ -420,7 +420,7 @@ export default function App() {
       left: '50%', transform: 'translateX(-50%)',
       width: 'calc(100% - 32px)', maxWidth: 448, zIndex: 9998,
       background: '#1e3a5f', color: '#fff',
-      borderRadius: 10, padding: '10px 16px',
+      borderRadius: 'var(--radius-md)', padding: '10px 16px',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
       fontSize: '0.875rem',
@@ -429,8 +429,8 @@ export default function App() {
       <button
         onClick={() => window.location.reload()}
         style={{
-          background: '#22c55e', color: '#fff', border: 'none',
-          borderRadius: 6, padding: '5px 12px', cursor: 'pointer',
+          background: 'var(--accent-green)', color: '#fff', border: 'none',
+          borderRadius: 'var(--radius-xs)', padding: '5px 12px', cursor: 'pointer',
           fontWeight: 600, fontSize: '0.85rem',
         }}
       >
@@ -445,7 +445,7 @@ export default function App() {
       top: `calc(${(isOffline ? 32 : 0) + (authExpiredAt !== null ? 40 : 0) + 8}px + env(safe-area-inset-top, 0px))`,
       left: '50%', transform: 'translateX(-50%)',
       width: 'calc(100% - 24px)', maxWidth: 448, zIndex: 9999,
-      background: 'var(--accent-blue, #1e3a5f)', color: '#fff',
+      background: 'var(--accent, #1e3a5f)', color: '#fff',
       borderRadius: 12, padding: '12px 14px',
       display: 'flex', alignItems: 'flex-start', gap: 12,
       boxShadow: '0 6px 20px rgba(0,0,0,0.35)',

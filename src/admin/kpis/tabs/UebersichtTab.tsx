@@ -31,22 +31,22 @@ export default function UebersichtTab() {
       subColor: pctColor,
     },
     { label: 'Kosten Verrechn. (Monat)', value: chf(row.kosten_aktueller_monat), sub: `Lohn (Verr.): ${chf(row.lohnkosten_aktueller_monat)}` },
-    { label: 'Umsatz (Monat)', value: chf(row.umsatz_aktueller_monat), color: '#22c55e' },
+    { label: 'Umsatz (Monat)', value: chf(row.umsatz_aktueller_monat), color: 'var(--success)' },
     {
       label: 'Offene Rechnungen',
       value: String(row.offene_rechnungen_anzahl),
       sub: chf(row.offene_rechnungen_betrag),
-      color: row.offene_rechnungen_anzahl > 5 ? '#f59e0b' : undefined,
+      color: row.offene_rechnungen_anzahl > 5 ? 'var(--warning)' : undefined,
     },
     {
       label: 'Lager kritisch',
       value: String(row.lager_kritisch_anzahl),
-      color: row.lager_kritisch_anzahl > 0 ? '#f87171' : '#22c55e',
+      color: row.lager_kritisch_anzahl > 0 ? 'var(--danger)' : 'var(--success)',
     },
     {
       label: 'Überstunden (gesamt)',
       value: `${row.ueberstunden_gesamt_stunden.toLocaleString('de-CH')} h`,
-      color: row.ueberstunden_gesamt_stunden > 40 ? '#f59e0b' : undefined,
+      color: row.ueberstunden_gesamt_stunden > 40 ? 'var(--warning)' : undefined,
     },
   ]
 

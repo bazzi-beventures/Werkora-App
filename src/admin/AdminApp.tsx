@@ -297,7 +297,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           <div className={isMobile ? 'admin-content-topbar admin-content-topbar--mobile' : 'admin-content-topbar'}>
             {isMobile && <div className="admin-mobile-topbar-title">{SCREEN_TITLES[screen]}</div>}
             {themeToggle}
-            {!isMobile && logoUrl && !logoError && (
+            {logoUrl && !logoError && (
               <img
                 className="admin-content-logo"
                 src={logoUrl}

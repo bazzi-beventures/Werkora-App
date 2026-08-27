@@ -129,9 +129,16 @@ export function zielHost(url: string): string {
  *   Handy den Hinweis sieht, aber am Bürorechner wechseln will, braucht sie zum
  *   Abtippen. Ein Streifen, den man nur antippen kann, hilft genau dann nicht,
  *   wenn jemand das Gerät wechselt — und das ist beim Umzug der Normalfall.
- * - **«Einmal neu anmelden» gehört auf jede Stufe.** Die Anmeldung hängt am
+ * - **«Neu anmelden» gehört auf jede Stufe.** Die Anmeldung hängt am
  *   API-Host, auf der neuen Adresse ist man zwangsläufig ausgeloggt. Wer das
  *   nicht vorher liest, hält den Login-Screen für einen Fehler und ruft an.
+ * - **«Alte App löschen» ebenso.** Eine installierte PWA startet weiter auf
+ *   der alten Origin, egal wie oft im Browser gewechselt wurde — der Service
+ *   Worker bedient sie aus dem Cache (§4.4). Wer nur die Adresse wechselt und
+ *   das alte Symbol behält, landet beim nächsten Antippen wieder hier und
+ *   hält den Umzug für erledigt. Der Streifen ist die einzige Stelle, an der
+ *   das vor dem Stichtag steht; die ausführliche Anleitung (Chrome/Edge)
+ *   hängt an der Vorschaltseite, weil dort Platz dafür ist.
  */
 export function migrationText(
   stufe: MigrationStufe,
@@ -139,7 +146,7 @@ export function migrationText(
   zielUrl: string,
 ): { zeile1: string; zeile2: string } {
   const host = zielHost(zielUrl)
-  const zeile2 = `${host} — dort einmal neu anmelden`
+  const zeile2 = `${host} — neu anmelden, alte App löschen`
 
   if (stufe === 'hinweis') return { zeile1: 'Werkora ist umgezogen', zeile2 }
   if (rest > 1) return { zeile1: `Diese Adresse wird in ${rest} Tagen abgeschaltet`, zeile2 }

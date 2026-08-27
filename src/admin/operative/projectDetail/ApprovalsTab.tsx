@@ -33,7 +33,7 @@ export function ApprovalsTab({ approvals, currentUserId, decidingApprovalId, onS
             const isApprover = !!currentUserId && a.approver_user_id === currentUserId
             const isCreator = !!currentUserId && a.requested_by_user_id === currentUserId
             return (
-              <div key={a.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, background: 'var(--surface-2)' }}>
+              <div key={a.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 12, background: 'var(--surface-2)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{a.title}</span>
                   <span className={`admin-badge ${APPROVAL_STATUS_BADGE[a.status]}`}>{APPROVAL_STATUS_LABELS[a.status]}</span>

@@ -19,7 +19,7 @@ import type { Reorder } from '../QuoteRowControls'
 import type { InstallationTpl, InstallationRow, SpecialMode, SpecialRow, SpecialTpl, StaffRole, Supplier } from './quoteTypes'
 
 export const FIELDSET_STYLE: React.CSSProperties = {
-  border: '1px solid var(--border)', borderRadius: 8, padding: 16, marginBottom: 20,
+  border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20,
 }
 const LEGEND_STYLE: React.CSSProperties = { fontWeight: 600, padding: '0 8px' }
 const CHECKBOX_LABEL_STYLE: React.CSSProperties = {

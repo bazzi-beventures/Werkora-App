@@ -8,12 +8,14 @@ interface Props {
   data: Record<string, unknown>[]
   yKey: string
   dataKey: string
-  color: string
+  /** Optional; ohne Angabe der erste Slot der Serienpalette. */
+  color?: string
   height?: number
 }
 
 export default function HorizontalBarChart({ data, yKey, dataKey, color, height }: Props) {
   const t = useChartTheme()
+  const fill = color ?? t.series[0]
   if (!data.length) return null
 
   const rowHeight = 36
@@ -46,13 +48,13 @@ export default function HorizontalBarChart({ data, yKey, dataKey, color, height 
             contentStyle={{
               background: t.tooltipBg,
               border: `1px solid ${t.tooltipBorder}`,
-              borderRadius: 8,
+              borderRadius: 'var(--radius-sm)',
               color: t.tooltipText,
               fontSize: 12,
             }}
             formatter={(value: unknown) => [`${value} Tage`, 'Total']}
           />
-          <Bar dataKey={dataKey} fill={color} radius={[0, 3, 3, 0]} label={{ position: 'right', fill: t.tickMuted, fontSize: 11 }} />
+          <Bar dataKey={dataKey} fill={fill} radius={[0, 3, 3, 0]} label={{ position: 'right', fill: t.tickMuted, fontSize: 11 }} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -33,14 +33,14 @@ describe('onAccentColor', () => {
   })
 
   it('lässt die Default-Mandantenfarbe auf Weiss', () => {
-    // db/tenants.py setzt #3180ab als Default. Hier wäre Tinte die
+    // db/tenants.py setzt #3081AB als Default. Hier wäre Tinte die
     // schlechtere Wahl (3,7:1 gegen 4,4:1) — das bisherige Verhalten bleibt.
-    expect(onAccentColor('#3180ab')).toBe('#fff')
+    expect(onAccentColor('#3081AB')).toBe('#fff')
   })
 
   it('wählt für jede Farbe die kontrastreichere der beiden Schriften', () => {
     const proben = [
-      '#000000', '#ffffff', '#E9A227', '#A9711A', '#3180ab', '#12161D',
+      '#000000', '#ffffff', '#E9A227', '#A9711A', '#3081AB', '#12161D',
       '#f5f5f5', '#7f7f7f', '#808080', '#c0392b', '#16a34a', '#fde047',
     ]
     for (const farbe of proben) {

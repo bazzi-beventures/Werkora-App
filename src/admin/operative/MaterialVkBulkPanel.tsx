@@ -157,7 +157,7 @@ export default function MaterialVkBulkPanel() {
         </div>
 
         {!pctValid && pctInput !== '' && (
-          <div className="admin-form-hint" style={{ padding: '0 2px 8px', color: '#dc2626' }}>
+          <div className="admin-form-hint" style={{ padding: '0 2px 8px', color: 'var(--danger)' }}>
             Bitte eine Erhöhung zwischen 0 und 500 % eingeben.
           </div>
         )}
@@ -233,7 +233,7 @@ export default function MaterialVkBulkPanel() {
                           <>
                             <strong>{chf(r.new_vk)}</strong>
                             {r.new_vk > r.old_vk && (
-                              <span style={{ color: '#16a34a', marginLeft: 6, fontSize: 12 }}>
+                              <span style={{ color: 'var(--success)', marginLeft: 6, fontSize: 12 }}>
                                 +{(r.new_vk - r.old_vk).toFixed(2)}
                               </span>
                             )}

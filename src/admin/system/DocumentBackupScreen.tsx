@@ -270,13 +270,13 @@ export default function DocumentBackupScreen() {
       </div>
 
       {error && (
-        <div style={{ padding: 16, background: '#fee2e2', color: '#991b1b', borderRadius: 8, marginBottom: 16 }}>
+        <div style={{ padding: 16, background: 'var(--danger-soft)', color: 'var(--danger-ink)', borderRadius: 'var(--radius-sm)', marginBottom: 16 }}>
           {error}
         </div>
       )}
 
       <div style={{
-        maxWidth: 560, border: '1px solid var(--border)', borderRadius: 10,
+        maxWidth: 560, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
         padding: 20, background: 'var(--surface)', marginBottom: 16,
       }}>
         <div style={{ fontWeight: 600, color: 'var(--text-strong)', marginBottom: 12 }}>
@@ -356,14 +356,14 @@ export default function DocumentBackupScreen() {
       {loading && <div className="admin-loading"><div className="kpi-admin-spinner" />Lädt…</div>}
 
       {!loading && !job && (
-        <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, color: 'var(--text-muted)', fontSize: 13, maxWidth: 560 }}>
+        <div style={{ padding: 16, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', color: 'var(--text-muted)', fontSize: 13, maxWidth: 560 }}>
           Noch kein Export erstellt. Mit „Backup erstellen" wird eine ZIP-Sicherung
           gestartet.
         </div>
       )}
 
       {!loading && job && (
-        <div style={{ maxWidth: 560, border: '1px solid var(--border)', borderRadius: 10, padding: 20, background: 'var(--surface)' }}>
+        <div style={{ maxWidth: 560, border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 20, background: 'var(--surface)' }}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
             {describeScope(job.scope, job.range_from, job.range_to)}
             {job.contents.length > 0 && ' · '}
@@ -556,8 +556,8 @@ function ConfirmDialog({
 
         {driveOnly > 0 && (
           <div style={{
-            fontSize: 12, color: '#92400e', background: '#fef3c7',
-            padding: '10px 12px', borderRadius: 8, marginBottom: 14,
+            fontSize: 12, color: 'var(--warning-ink)', background: 'var(--warning-soft)',
+            padding: '10px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 14,
           }}>
             Nicht enthalten: {driveOnly} Datei(en) aus dem Altbestand, die noch auf
             Google Drive liegen und nicht im Werkora-Speicher.
@@ -566,7 +566,7 @@ function ConfirmDialog({
 
         <div style={{
           fontSize: 12, color: 'var(--text-muted)', padding: '10px 12px',
-          background: 'var(--bg, rgba(0,0,0,0.04))', borderRadius: 8, marginBottom: 20,
+          background: 'var(--bg, rgba(0,0,0,0.04))', borderRadius: 'var(--radius-sm)', marginBottom: 20,
         }}>
           {limitLine}
           {preview.active && (
