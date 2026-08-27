@@ -8,7 +8,7 @@ import {
   OverdueProject, getOverdueProjects, updateProjectSchedule, closeProject,
 } from '../../api/admin'
 import { AdminScreen } from '../useAdminNav'
-import { fmtCHF, fmtDate } from '../utils/format'
+import { fmtCHF, fmtDate, todayISO } from '../utils/format'
 import { apiUrl } from '../../api/client'
 import { useToast, ToastHost } from '../components/useToast'
 
@@ -416,10 +416,23 @@ function rowFromProject(p: OverdueProject): RowDraft {
   }
 }
 
+/** Das effektive Ende eines Termins: Enddatum, sonst Startdatum. `end_date` ist am
+ *  Termin optional — ein eintägiger Termin trägt nur ein Startdatum, und die Zeile
+ *  stünde sonst mit "Geplant bis —" da (Pendant zu
+ *  db/project_appointments.py::effective_appointment_end). */
+function effectiveEnd(p: OverdueProject): string | null {
+  return p.end_date ?? p.start_date ?? null
+}
+
+/** Ab wie vielen ausgewählten Projekten das Sammel-Schliessen rückfragt. */
+const BULK_CLOSE_CONFIRM_FROM = 50
+
 function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps) {
   const [projects, setProjects] = useState<OverdueProject[] | null>(null)
   const [drafts, setDrafts] = useState<Record<string, RowDraft>>({})
   const [busy, setBusy] = useState<{ id: string; type: 'save' | 'close' } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkClosing, setBulkClosing] = useState(false)
   const { toast, showToast } = useToast(3000)
 
   useEffect(() => {
@@ -435,6 +448,20 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
 
   function patchDraft(id: string, patch: Partial<RowDraft>) {
     setDrafts(d => ({ ...d, [id]: { ...d[id], ...patch } }))
+  }
+
+  function toggleSelected(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    setSelected(prev => (
+      projects && prev.size < projects.length ? new Set(projects.map(p => p.id)) : new Set()
+    ))
   }
 
   async function handleSave(p: OverdueProject) {
@@ -453,8 +480,13 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
         d.startTime || null,
         d.endTime || null,
       )
-      const today = new Date().toISOString().slice(0, 10)
-      if (d.endDate && d.endDate >= today) {
+      // todayISO() statt toISOString(): letzteres rechnet nach UTC um und liefert in
+      // der Schweiz nachts noch das Datum von gestern — die Zeile bliebe dann stehen,
+      // obwohl der Termin repariert ist. Verglichen wird das effektive Ende, damit ein
+      // eintägiger Termin (nur Startdatum) genauso zählt.
+      const today = todayISO()
+      const newEnd = d.endDate || d.startDate
+      if (newEnd && newEnd >= today) {
         setProjects(list => list ? list.filter(x => x.id !== p.id) : list)
         showToast('Termin aktualisiert', 'success')
         onChanged()
@@ -474,6 +506,12 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
     try {
       await closeProject(p.id)
       setProjects(list => list ? list.filter(x => x.id !== p.id) : list)
+      setSelected(prev => {
+        if (!prev.has(p.id)) return prev
+        const next = new Set(prev)
+        next.delete(p.id)
+        return next
+      })
       showToast('Projekt geschlossen', 'success')
       onChanged()
     } catch {
@@ -481,6 +519,38 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
     } finally {
       setBusy(null)
     }
+  }
+
+  // Sammel-Schliessen für den Altbestand: nie geschlossene Projekte von vor Jahren
+  // (beim Pilotkunden dreistellig) sind einzeln nicht abzuarbeiten, und solange sie
+  // in der Kachel stehen, ist die Zahl als Signal wertlos. Sequentiell über den
+  // bestehenden Endpoint — kein Auto-Schliessen durch das System: die Auswahl bleibt
+  // eine bewusste Handlung des Admins (Spec §4.6/§6.2).
+  async function handleCloseSelected() {
+    if (!projects || selected.size === 0) return
+    const ids = projects.filter(p => selected.has(p.id)).map(p => p.id)
+    if (ids.length >= BULK_CLOSE_CONFIRM_FROM
+      && !window.confirm(`${ids.length} Projekte als abgeschlossen markieren?`)) return
+
+    setBulkClosing(true)
+    const failed: string[] = []
+    for (const id of ids) {
+      try {
+        await closeProject(id)
+      } catch {
+        failed.push(id)
+      }
+    }
+    const closed = new Set(ids.filter(id => !failed.includes(id)))
+    setProjects(list => list ? list.filter(p => !closed.has(p.id)) : list)
+    setSelected(new Set(failed))
+    setBulkClosing(false)
+    if (failed.length === 0) {
+      showToast(`${closed.size} Projekte geschlossen`, 'success')
+    } else {
+      showToast(`${closed.size} geschlossen, ${failed.length} fehlgeschlagen`, 'error')
+    }
+    if (closed.size > 0) onChanged()
   }
 
   const isBusy = (id: string, type: 'save' | 'close') =>
@@ -498,17 +568,55 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
           {projects === null && <div className="admin-loading"><div className="admin-spinner" />Lade…</div>}
           {projects !== null && projects.length === 0 && <div className="admin-empty">Keine überfälligen Projekte</div>}
           {projects !== null && projects.length > 0 && (
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+                paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                <input
+                  type="checkbox"
+                  checked={selected.size === projects.length}
+                  ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < projects.length }}
+                  onChange={toggleAll}
+                  disabled={bulkClosing}
+                />
+                <span>Alle ({projects.length})</span>
+              </label>
+              <button
+                className="admin-btn admin-btn-secondary"
+                style={{ marginLeft: 'auto' }}
+                disabled={selected.size === 0 || bulkClosing || busy !== null}
+                onClick={handleCloseSelected}
+              >
+                {bulkClosing ? 'Schliesse…' : `Ausgewählte schliessen${selected.size > 0 ? ` (${selected.size})` : ''}`}
+              </button>
+            </div>
+          )}
+          {projects !== null && projects.length > 0 && (
             <div className="admin-list">
               {projects.map(p => {
                 const d = drafts[p.id]
                 if (!d) return null
+                const ende = effectiveEnd(p)
                 return (
                   <div key={p.id} className="admin-list-item" style={{ flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.customer_name ?? '—'}</div>
-                      <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 2 }}>
-                        Geplant bis {fmtDate(p.end_date)} ({daysSince(p.end_date)} Tage überfällig)
+                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      <input
+                        type="checkbox"
+                        style={{ marginTop: 4 }}
+                        checked={selected.has(p.id)}
+                        onChange={() => toggleSelected(p.id)}
+                        disabled={bulkClosing}
+                        aria-label={`${p.name} auswählen`}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{p.name}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.customer_name ?? '—'}</div>
+                        <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 2 }}>
+                          Geplant bis {fmtDate(ende)} ({daysSince(ende)} Tage überfällig)
+                        </div>
                       </div>
                     </div>
                     <div className="admin-form-row">
@@ -553,7 +661,7 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                       <button
                         className="admin-btn admin-btn-primary"
                         style={{ flex: 1 }}
-                        disabled={busy !== null}
+                        disabled={busy !== null || bulkClosing}
                         onClick={() => handleSave(p)}
                       >
                         {isBusy(p.id, 'save') ? 'Speichere…' : 'Speichern'}
@@ -561,7 +669,7 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                       <button
                         className="admin-btn admin-btn-secondary"
                         style={{ flex: 1 }}
-                        disabled={busy !== null}
+                        disabled={busy !== null || bulkClosing}
                         onClick={() => handleClose(p)}
                       >
                         {isBusy(p.id, 'close') ? '…' : 'Projekt schliessen'}
@@ -662,7 +770,7 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange }: Pro
             icon={<IconReceipt />}
           />
           <KpiCard
-            label="Angenommene Offerten"
+            label="Angenommene Offerten (14 Tage)"
             value={dashboard?.recently_accepted_quotes ?? null}
             colorClass="green"
             onClick={() => onNav('quotes', 'akzeptiert')}
@@ -670,7 +778,7 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange }: Pro
             badge
           />
           <KpiCard
-            label="Abgelehnte Offerten"
+            label="Abgelehnte Offerten (14 Tage)"
             value={dashboard?.recently_rejected_quotes ?? null}
             colorClass="red"
             onClick={() => onNav('quotes', 'abgelehnt')}
