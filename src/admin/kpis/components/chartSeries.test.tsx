@@ -32,7 +32,7 @@ vi.mock('recharts', () => {
 })
 
 const { default: BiBarChart } = await import('./BiBarChart')
-const { useChartTheme } = await import('./useChartTheme')
+const { useChartTheme } = await import('../../components/useChartTheme')
 
 const DATEN = [
   { monat: '2026-01', a: 10, b: 20, c: 30 },

@@ -225,7 +225,7 @@ export default function SuppliersScreen() {
               ) : suppliers.map(s => (
                 <tr key={s.id} onClick={() => openEdit(s)} style={{ cursor: 'pointer' }}>
                   <td><strong>{s.name}</strong></td>
-                  <td><code style={{ background: 'var(--surface-alt, #f5f5f5)', padding: '2px 6px', borderRadius: 4 }}>{s.prefix}</code></td>
+                  <td><code style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4 }}>{s.prefix}</code></td>
                   <td style={{ color: 'var(--muted)' }}>{s.city || '—'}</td>
                   <td style={{ color: 'var(--muted)' }}>{s.phone || '—'}</td>
                   <td style={{ color: 'var(--muted)', fontSize: 13 }}>{s.prefix}-0001</td>

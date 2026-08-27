@@ -104,7 +104,7 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5 }: P
             </p>
 
             <label className="admin-form-label">Original</label>
-            <div style={{ whiteSpace: 'pre-wrap', background: 'var(--bg-muted, #f7f7f7)', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 13, color: 'var(--muted, #666)', marginBottom: 14 }}>
+            <div style={{ whiteSpace: 'pre-wrap', background: 'var(--surface-2)', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 13, color: 'var(--muted, #666)', marginBottom: 14 }}>
               {original}
             </div>
 

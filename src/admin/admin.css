@@ -1692,7 +1692,7 @@ button.admin-list-item {
   color: var(--text);
   transition: background 0.15s, border-color 0.15s;
 }
-.svc-refresh:hover:not(:disabled) { background: var(--surface-hover, #f9fafb); border-color: var(--text-muted); }
+.svc-refresh:hover:not(:disabled) { background: var(--surface-2); border-color: var(--text-muted); }
 .svc-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
 .svc-refresh-icon { font-size: 14px; line-height: 1; }
 .svc-refresh[data-loading="true"] .svc-refresh-icon { animation: svc-spin 0.9s linear infinite; }
@@ -1989,7 +1989,7 @@ button.admin-list-item {
   padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md, 10px);
-  background: var(--surface-1, var(--surface, #fff));
+  background: var(--surface);
 }
 .approval-card + .approval-card { margin-top: 10px; }
 
@@ -2287,7 +2287,7 @@ button.admin-list-item {
 }
 
 .project-schedule-appt-row:hover {
-  background: var(--surface-hover, rgba(0, 0, 0, 0.04));
+  background: var(--surface-2);
 }
 
 .project-schedule-appt-row.active {
@@ -3826,8 +3826,10 @@ button.admin-list-item {
 }
 
 .schedule-crew-chip.lead {
-  background: var(--cal-crew-bg, #dc2626);
-  color: var(--cal-crew-fg, #ffffff);
+  /* Bewusst themefest: der Chip sitzt auf der farbigen Einsatz-Pille, nicht
+     auf einer Theme-Flaeche — Rot/Weiss traegt in Hell wie Dunkel. */
+  background: #dc2626;
+  color: #ffffff;
 }
 
 /* Lead-Monteur ausserhalb der Kürzel-Chips.
@@ -3961,7 +3963,7 @@ button.admin-list-item {
 }
 
 .admin-bericht-modal-close:hover {
-  background: var(--surface-hover, var(--border));
+  background: var(--border);
   border-color: var(--primary);
 }
 
@@ -4363,4 +4365,92 @@ button.admin-list-item {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+/* ── Nachkalkulation (Projekt-Detail) ────────────────── */
+/* Die Kette Offerte → Verrechnet → Fakturiert → Eigenkosten steht als vier
+   gleichwertige Bloecke nebeneinander; das Ergebnis darunter, weil es die
+   Antwort auf alle vier ist. */
+.nachkalk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.nachkalk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+}
+
+.nachkalk-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nachkalk-block-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.nachkalk-zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: 13px;
+}
+
+.nachkalk-zeile.stark {
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+  margin-top: 2px;
+}
+
+.nachkalk-ergebnis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-4);
+}
+
+.nachkalk-ergebnis-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.nachkalk-ergebnis-wert {
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nachkalk-ergebnis-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Warum eine Zahl "—" ist oder auf einer Naeherung steht — gehoert direkt
+   darunter, nicht in eine Fussnote am Seitenende. */
+.nachkalk-hinweise {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }

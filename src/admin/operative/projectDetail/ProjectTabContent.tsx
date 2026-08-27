@@ -3,6 +3,7 @@ import {
   ApprovalsTab, DocumentsTab, InvoicesTab, QuotesTab, ReportsTab, SupplierDocumentsTab, TasksTab,
 } from './tabs'
 import { hasBillableReport } from './billingRules'
+import { NachkalkulationTab } from './NachkalkulationTab'
 import { StatusTab } from './StatusTab'
 import type { ProjectStatus } from '../../constants/statuses'
 import type { ProjectStatusDialog } from './ProjectStatusDialogs'
@@ -27,7 +28,7 @@ export function ProjectTabContent({
   tab, project, documents, billing, approvals, tasks,
   beschaffungSteps, beschaffung, beschaffungAt, beschaffungSource,
   savingBeschaffung, onBeschaffungChange,
-  quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled,
+  quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
   currentUserId,
   onShowQuoteForm, onShowReportForm, onEditReport, onEditQuote,
@@ -53,6 +54,8 @@ export function ProjectTabContent({
   absageEnabled: boolean
   /** Feature «teilrapport»: schaltet Checkbox und Bündeln-Knopf (nicht das Auflösen). */
   teilrapportEnabled: boolean
+  /** Modul «kpis» + Management-Rolle — siehe useProjectFeatures.nachkalkulation. */
+  nachkalkulationEnabled: boolean
   useAcceptedQuote: boolean
   onUseAcceptedQuoteChange: (v: boolean) => void
   defaultInvoiceEmail: string
@@ -188,6 +191,14 @@ export function ProjectTabContent({
           onEdit={tasks.edit}
           onDelete={tasks.remove}
         />
+      )}
+
+      {/* Eigenkosten und Gewinn dieses Projekts. Das Gate steht doppelt: die
+          Reiterleiste blendet den Knopf aus, und hier faellt der Inhalt weg —
+          sonst laendet ein von Hand gebauter Deep-Link (`…/nachkalkulation`)
+          ohne Modul/Rolle in einem 403 statt in einer leeren Ansicht. */}
+      {tab === 'nachkalkulation' && nachkalkulationEnabled && (
+        <NachkalkulationTab projectId={project.id} />
       )}
 
       {/* Nur die Status-Aktion (Abschliessen/Wiedereroeffnen). Kommentare stehen

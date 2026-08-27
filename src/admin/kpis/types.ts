@@ -33,7 +33,9 @@ export interface KpiProjektRow {
   projekt_id: string
   projekt_nummer: string | null
   projekt_name: string
+  customer_id: string | null
   kunde_name: string | null
+  projektleiter_id: string | null
   distanz_km: number | null
   ist_abgeschlossen: boolean
   anzahl_rapporte: number
@@ -51,6 +53,23 @@ export interface KpiProjektRow {
   lohn_ohne_satz: number
   /** Anzahl Materialpositionen ohne ermittelbaren VK. */
   material_ohne_preis: number
+
+  // Eigenkosten und Gewinn (Migration 20260827b/c). null = unbekannt, weil eine
+  // Zutat fehlt — nie eine zu tief gerechnete Zahl.
+  total_lohnkosten_intern: number | null
+  /** Anzahl Lohnpositionen ohne hinterlegten Monatslohn. */
+  lohn_intern_ohne_satz: number
+  total_materialkosten_intern: number | null
+  /** Anzahl Artikel ohne hinterlegten Einkaufspreis. */
+  material_ohne_ek: number
+  /**
+   * Anzahl Materialzeilen ohne eingefrorenen EK — sie rechnen gegen den heutigen
+   * Katalogpreis (Alt-Zeilen von vor Migration 20260827c). Keine Datenlücke,
+   * aber eine Näherung, die spätere Preispflege rückwirkend verschiebt.
+   */
+  material_ek_geschaetzt: number
+  total_kosten_intern: number | null
+
   offerte_nummer: string | null
   offerte_betrag: number
   offerte_status: string | null
@@ -60,6 +79,15 @@ export interface KpiProjektRow {
   rechnung_betrag: number
   rechnung_status: string | null
   rechnung_bezahlt_am: string | null
+  /** Summe aller gestellten Rechnungen (gesendet + bezahlt) des Projekts. */
+  umsatz_gestellt: number
+  /** Summe des tatsächlich eingegangenen Geldes. */
+  umsatz_bezahlt: number
+  gewinn_gestellt: number | null
+  gewinn_bezahlt: number | null
+  marge_gestellt_pct: number | null
+  marge_bezahlt_pct: number | null
+
   erster_einsatz: string | null
   letzter_einsatz: string | null
   projektdauer_tage: number
@@ -73,31 +101,49 @@ export interface KpiFinanzenMonatRow {
   monat_name: string
   anzahl_rapporte: number
   arbeitsstunden: number
+  /**
+   * Stunden, die NICHT in die Zahlen dieser Zeile eingehen, weil sie auf einem
+   * archivierten (Test-)Projekt oder einem internen Einsatz gebucht sind
+   * (Migration 20260827b). Ausgewiesen statt stillschweigend weggelassen.
+   */
+  stunden_ohne_projektbezug: number
   // null = Position ohne Preis/Stundensatz vorhanden (Migration 20260815).
+  // Die *_intern-Spalten und die Margen kamen mit 20260429, gingen beim
+  // View-Neuaufbau 20260726/20260815 verloren und sind seit 20260827b zurück —
+  // diesmal mit demselben NULL+Marker-Vertrag wie die Verrechnungsspalten.
   lohnkosten: number | null
   /** Anzahl Lohnpositionen ohne hinterlegten Stundensatz. */
   lohn_ohne_satz: number
-  // ACHTUNG: die *_intern-Spalten und die Margen kamen mit Migration 20260429,
-  // wurden aber von 20260726 beim Neuaufbau der View nicht mitgenommen — sie
-  // fehlen in vw_kpi_finanzen_monat und kommen als undefined an (Anzeige „—").
-  // Siehe docs/specs/refactoring-charge-d-notizen.md.
-  lohnkosten_intern: number
+  lohnkosten_intern: number | null
+  /** Anzahl Mitarbeiter ohne hinterlegten Monatslohn. */
   mitarbeiter_ohne_lohn_count: number
   mitarbeiter_aktiv: number
   projekte_aktiv: number
   materialkosten: number | null
   /** Anzahl Materialpositionen ohne ermittelbaren VK. */
   material_ohne_preis: number
-  materialkosten_intern: number
+  materialkosten_intern: number | null
+  /** Anzahl Artikel ohne hinterlegten Einkaufspreis. */
   material_ohne_ek_count: number
+  /** Materialzeilen ohne eingefrorenen EK — gerechnet gegen den heutigen Katalog. */
+  material_ek_geschaetzt: number
   total_kosten: number | null
-  total_kosten_intern: number
-  marge_arbeit: number
-  marge_material: number
+  total_kosten_intern: number | null
+  marge_arbeit: number | null
+  marge_material: number | null
   rechnungen_erstellt: number
   rechnungen_betrag: number
+  /** Umsatz gestellt: Rechnungen beim Kunden (gesendet + bezahlt), Anker `sent_at`. */
+  umsatz_gestellt: number
   rechnungen_bezahlt_anzahl: number
+  /** Umsatz bezahlt: eingegangenes Geld (`paid_amount`, sonst `total_amount`). */
   rechnungen_bezahlt_betrag: number
+  /** Deckungsbeitrag auf der gestellten Basis — null, wenn Eigenkosten unbekannt. */
+  gewinn_gestellt: number | null
+  /** Deckungsbeitrag auf der bezahlten Basis — null, wenn Eigenkosten unbekannt. */
+  gewinn_bezahlt: number | null
+  marge_gestellt_pct: number | null
+  marge_bezahlt_pct: number | null
   debitorenlaufzeit_tage: number
   offerten_erstellt: number
   offerten_betrag: number

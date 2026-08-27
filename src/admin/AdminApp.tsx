@@ -37,6 +37,8 @@ import AdminToolsScreen from './system/AdminToolsScreen'
 import KpiScreen from './kpis/KpiScreen'
 import HelpBubble from '../shared/HelpBubble'
 import { trackNav } from '../shared/breadcrumbs'
+import { takeDeepLink } from '../shared/deepLink'
+import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
 import './tokens.css'
@@ -109,10 +111,30 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // Screen-Wechsel, der noch an der „ungespeicherte Änderungen"-Abfrage hängt.
   const [pendingNav, setPendingNav] = useState<{ screen: AdminScreen; detailId?: string } | null>(null)
   const [savingPendingNav, setSavingPendingNav] = useState(false)
+  // Reiter aus einem Deep-Link (Button in einer Info-Mail). Nur gesetzt, solange
+  // der Sprung noch nicht verbraucht ist — er gilt für genau eine Projektmaske.
+  const [deepLinkTab, setDeepLinkTab] = useState<ProjectTab | null>(null)
 
   useEffect(() => {
     applyTheme(theme)
   }, [theme])
+
+  // Der Sprung aus der Mail. Er wartet seit dem App-Start in shared/deepLink.ts
+  // und wird hier abgeholt, weil erst jetzt jemand da ist, der ihn ausführen
+  // kann. Bewusst ohne `guardedNav`: beim Mount der Admin-App gibt es noch
+  // keine offene Maske mit ungespeicherten Änderungen.
+  //
+  // Leere Deps: der Sprung ist ein Startereignis, kein Zustand. `nav` und
+  // `takeDeepLink` sind absichtlich nicht in der Liste — ein zweiter Lauf
+  // fände ohnehin nichts mehr vor, würde aber eine begonnene Navigation
+  // überschreiben.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const link = takeDeepLink()
+    if (!link) return
+    setDeepLinkTab(link.tab)
+    nav('projects', link.projectId)
+  }, [])
 
   const toggleTheme = () => setTheme(flipTheme)
 
@@ -228,7 +250,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           openNew={detailId === 'new'}
           onConsumedNew={clearDetail}
           openProjectId={detailId && detailId !== 'new' ? detailId : undefined}
-          onConsumedProjectId={clearDetail}
+          openProjectTab={deepLinkTab ?? undefined}
+          onConsumedProjectId={() => { clearDetail(); setDeepLinkTab(null) }}
         />
       )
       case 'project-drafts': return <ProjectDraftsScreen onBadgeChange={loadDashboard} />

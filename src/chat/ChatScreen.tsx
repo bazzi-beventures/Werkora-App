@@ -11,6 +11,7 @@ import ErsatzteilPrompt, { ErsatzteilSelection } from './ErsatzteilPrompt'
 import LeistungsartPrompt, { WORK_TYPES } from './LeistungsartPrompt'
 import { loadDraft, saveDraft } from './rapportDraft'
 import { LeaveWarning, rapportLeaveWarning } from './rapportStart'
+import { RAPPORT_CLOCK_IN_HINT, useRapportClockInBlocked } from '../shared/rapportClockIn'
 
 interface Message {
   id: number
@@ -76,6 +77,13 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   // Bestätigungsschritt. Die Regeln (Verrechnung, Gates, PDF) hängen serverseitig
   // an den Daten, nicht am Flag.
   const teilrapportEnabled = isFeatureEnabled(user, 'teilrapport')
+
+  // Stempel-Pflicht (Feature `rapport_nur_eingestempelt`): ausgestempelt nimmt der
+  // Chat nichts entgegen — der Server würde die Nachricht ohnehin abweisen. Die
+  // Knöpfe darüber bleiben bedienbar: ein bereits erfasster Rapport lässt sich
+  // speichern und unterschreiben, auch wenn zwischendurch ausgestempelt wurde
+  // (dieselbe Grenze zieht `confirm_report` serverseitig bewusst nicht nach).
+  const stempelBlocked = useRapportClockInBlocked(user)
 
   function greetingMessage(): Message {
     return {
@@ -900,8 +908,14 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         <div ref={bottomRef} />
       </div>
 
+      {/* Stempel-Hinweis statt einer Absage pro Nachricht: ohne ihn tippt der
+          Monteur seinen Rapport und liest den Grund erst danach. */}
+      {stempelBlocked && (
+        <div className="chat-stempel-hint">{RAPPORT_CLOCK_IN_HINT}</div>
+      )}
+
       {/* Input — disabled while awaiting confirmation or disambiguation */}
-      <ChatInput onSendText={onSendText} onSendVoice={onSendVoice} onSendPhoto={onSendPhoto} disabled={loading || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null} />
+      <ChatInput onSendText={onSendText} onSendVoice={onSendVoice} onSendPhoto={onSendPhoto} disabled={loading || stempelBlocked || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null} />
 
       {/* Nav bar */}
       <div className="nav-bar">

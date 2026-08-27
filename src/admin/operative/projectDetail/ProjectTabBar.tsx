@@ -7,7 +7,7 @@ import { useTabStrip } from '../../hooks/useTabStrip'
 
 export type ProjectTab =
   | 'details' | 'documents' | 'supplier' | 'quotes' | 'reports'
-  | 'invoices' | 'approvals' | 'tasks' | 'status'
+  | 'invoices' | 'approvals' | 'tasks' | 'nachkalkulation' | 'status'
 
 const TABS: { key: ProjectTab; label: string }[] = [
   { key: 'details', label: 'Projekt Details' },
@@ -18,18 +18,25 @@ const TABS: { key: ProjectTab; label: string }[] = [
   { key: 'reports', label: 'Rapporte' },
   { key: 'invoices', label: 'Rechnungen' },
   { key: 'approvals', label: 'Visierung' },
+  { key: 'nachkalkulation', label: 'Nachkalkulation' },
   { key: 'status', label: 'Status' },
 ]
 
-export function ProjectTabBar({ active, onSelect }: {
+// Die Liste oben ist der KATALOG aller Reiter (und wird als solcher gegen
+// services/app_links.PROJECT_TABS gehalten). Was ein Benutzer tatsächlich sieht,
+// entscheidet `showNachkalkulation`: Eigenkosten und Gewinn gehen nur das
+// Management etwas an, und ohne Modul `kpis` antwortet der Endpunkt ohnehin 403.
+export function ProjectTabBar({ active, onSelect, showNachkalkulation = false }: {
   active: ProjectTab
   onSelect: (tab: ProjectTab) => void
+  showNachkalkulation?: boolean
 }) {
   const tabsRef = useTabStrip(active)
+  const visible = TABS.filter(t => t.key !== 'nachkalkulation' || showNachkalkulation)
 
   return (
     <div className="kpi-admin-tabs" ref={tabsRef} style={{ marginBottom: 20 }}>
-      {TABS.map(t => (
+      {visible.map(t => (
         <button
           key={t.key}
           type="button"

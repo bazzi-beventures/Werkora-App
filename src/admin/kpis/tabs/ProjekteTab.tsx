@@ -2,17 +2,35 @@
 import { useState, useMemo } from 'react'
 import { useKpiData } from '../useKpiData'
 import type { KpiProjektRow, ColumnDef } from '../types'
+import { averageOrNull, finite, percentOrNull, sumOrNull } from '../aggregate'
 import KpiCards from '../components/KpiCards'
 import DataTable from '../components/DataTable'
 import BiBarChart from '../components/BiBarChart'
 import MultiDropdown from '../components/MultiDropdown'
 
-const chf = (v: unknown) =>
-  typeof v === 'number'
-    ? `CHF ${v.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
-    : '—'
-const num = (v: unknown) =>
-  typeof v === 'number' ? v.toLocaleString('de-CH', { maximumFractionDigits: 1 }) : '—'
+// `finite` statt `typeof v === 'number'`: NaN ist eine Zahl und stand sonst als
+// Text „CHF NaN" auf dem Schirm (siehe aggregate.ts).
+const chf = (v: unknown) => {
+  const n = finite(v)
+  return n === null
+    ? '—'
+    : `CHF ${n.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+}
+const num = (v: unknown) => {
+  const n = finite(v)
+  return n === null ? '—' : n.toLocaleString('de-CH', { maximumFractionDigits: 1 })
+}
+const chfSigned = (v: unknown) => {
+  const n = finite(v)
+  if (n === null) return '—'
+  return `${n > 0 ? '+' : ''}CHF ${n.toLocaleString('de-CH', { maximumFractionDigits: 0 })}`
+}
+const pct = (v: unknown) => {
+  const n = finite(v)
+  return n === null ? '—' : `${n.toLocaleString('de-CH', { maximumFractionDigits: 1 })} %`
+}
+const signedColor = (v: number | null) =>
+  v === null ? undefined : v >= 0 ? 'var(--success)' : 'var(--danger)'
 
 /* ── Date presets ─────────────────────────────────────── */
 
@@ -63,6 +81,19 @@ const COLUMNS: ColumnDef<KpiProjektRow>[] = [
   { key: 'total_lohnkosten', label: 'Lohn (Verr.)', align: 'right', format: chf },
   { key: 'total_materialkosten', label: 'Material (Verr.)', align: 'right', format: chf },
   { key: 'total_kosten', label: 'Total (Verr.)', align: 'right', format: chf },
+  { key: 'total_kosten_intern', label: 'Eigenkosten', align: 'right', format: chf },
+  { key: 'umsatz_gestellt', label: 'Umsatz', align: 'right', format: chf },
+  {
+    key: 'gewinn_gestellt',
+    label: 'Gewinn',
+    align: 'right',
+    render: (_v, row) => (
+      <span style={{ color: signedColor(finite(row.gewinn_gestellt)) }}>
+        {chfSigned(row.gewinn_gestellt)}
+      </span>
+    ),
+  },
+  { key: 'marge_gestellt_pct', label: 'Marge %', align: 'right', format: pct },
 ]
 
 /* ── Component ────────────────────────────────────────── */
@@ -124,22 +155,37 @@ export default function ProjekteTab() {
   const cards = useMemo(() => {
     if (!filtered.length) return []
     const aktiv = filtered.filter((r) => !r.ist_abgeschlossen).length
-    const stunden = filtered.reduce((s, r) => s + r.total_arbeitsstunden, 0)
+    const stunden = sumOrNull(filtered, (r) => r.total_arbeitsstunden)
     // Fehlt einem Projekt der Preis/Stundensatz, ist seine Summe null (Migration
     // 20260815). Dann ist auch das Total unbekannt — eine Summe ueber die uebrigen
-    // waere zu niedrig, ohne dass man es sieht.
-    const kostenUnvollstaendig = filtered.some((r) => r.total_kosten == null)
-    const kosten = filtered.reduce((s, r) => s + (r.total_kosten ?? 0), 0)
-    const diffs = filtered.filter((r) => r.differenz_offerte_ist != null)
-    const avgDiff = diffs.length
-      ? diffs.reduce((s, r) => s + (r.differenz_offerte_ist ?? 0), 0) / diffs.length
-      : 0
+    // waere zu niedrig, ohne dass man es sieht. sumOrNull setzt genau das durch.
+    const kosten = sumOrNull(filtered, (r) => r.total_kosten)
+    const gewinn = sumOrNull(filtered, (r) => r.gewinn_gestellt)
+    const umsatz = sumOrNull(filtered, (r) => r.umsatz_gestellt)
+    const marge = percentOrNull(gewinn, umsatz)
+    const avgDiff = averageOrNull(filtered, (r) => r.differenz_offerte_ist)
     return [
-      { label: 'Projekte aktiv', value: String(aktiv) },
-      { label: 'Total Stunden', value: num(stunden) as string },
-      { label: 'Total Kosten', value: kostenUnvollstaendig ? '—' : chf(kosten) },
-      { label: 'Ø Diff Offerte/Ist', value: chf(avgDiff), color: avgDiff >= 0 ? 'var(--success)' : 'var(--danger)' },
+      { label: 'Projekte aktiv', value: String(aktiv), sub: `${filtered.length} im Filter` },
+      { label: 'Total Stunden', value: num(stunden) },
+      { label: 'Total Kosten', value: chf(kosten), sub: 'Verrechnung' },
+      {
+        label: 'Gewinn',
+        value: chfSigned(gewinn),
+        sub: marge === null ? 'Umsatz − Eigenkosten' : `${pct(marge)} Marge`,
+        color: signedColor(gewinn),
+      },
     ]
+  }, [filtered])
+
+  // Top/Flop nach Gewinn. Auf Projektebene zählt die GESTELLTE Basis: ob der
+  // Kunde schon bezahlt hat, ist eine Debitoren-, keine Margenfrage. Projekte
+  // ohne ermittelbaren Gewinn (fehlende Stammdaten) bleiben draussen statt mit
+  // einer 0 in die Flop-Liste zu rutschen.
+  const { top, flop } = useMemo(() => {
+    const mitGewinn = filtered
+      .filter((r) => finite(r.gewinn_gestellt) !== null)
+      .sort((a, b) => (b.gewinn_gestellt ?? 0) - (a.gewinn_gestellt ?? 0))
+    return { top: mitGewinn.slice(0, 5), flop: mitGewinn.slice(-5).reverse() }
   }, [filtered])
 
   const chartData = useMemo(
@@ -228,8 +274,41 @@ export default function ProjekteTab() {
         height={300}
       />
 
+      {/* Top/Flop nach Gewinn — die Frage „welches Projekt ist lukrativ" in zwei Listen */}
+      {(top.length > 0 || flop.length > 0) && (
+        <div className="kpi-topflop">
+          <TopFlopList title="Beste 5 nach Gewinn" rows={top} />
+          <TopFlopList title="Schwächste 5 nach Gewinn" rows={flop} />
+        </div>
+      )}
+
       {/* Full-width table */}
-      <DataTable data={filtered} columns={COLUMNS} defaultSort={{ key: 'total_kosten', dir: 'desc' }} />
+      <DataTable data={filtered} columns={COLUMNS} defaultSort={{ key: 'gewinn_gestellt', dir: 'desc' }} />
+
+      <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+        <strong>Gewinn</strong> ist der Deckungsbeitrag: gestellter Umsatz minus interne Lohn-
+        und Materialkosten. Gemeinkosten (Büro, Fahrzeuge, Miete) sind nicht enthalten.
+        Projekte ohne hinterlegten Monatslohn oder Einkaufspreis zeigen „—" statt einer zu
+        günstig gerechneten Zahl und erscheinen in keiner der beiden Listen.
+      </div>
+    </div>
+  )
+}
+
+/** Kompakte Rangliste — bewusst ohne eigene Tabelle: fünf Zeilen, zwei Werte. */
+function TopFlopList({ title, rows }: { title: string; rows: KpiProjektRow[] }) {
+  if (!rows.length) return null
+  return (
+    <div className="kpi-topflop-card">
+      <div className="kpi-topflop-title">{title}</div>
+      {rows.map((r) => (
+        <div key={r.projekt_id} className="kpi-topflop-row">
+          <span className="kpi-topflop-name" title={r.projekt_name}>{r.projekt_name}</span>
+          <span style={{ color: signedColor(finite(r.gewinn_gestellt)), whiteSpace: 'nowrap' }}>
+            {chfSigned(r.gewinn_gestellt)}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }

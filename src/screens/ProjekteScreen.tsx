@@ -19,6 +19,9 @@ import { sortProjectsNewestFirst } from './projekte/sortProjects'
 import { PROJECT_FILE_ACCEPT, projectFileIcon } from '../shared/projectFileTypes'
 import { mapsUrl } from '../shared/mapsLink'
 import { hasModule, isFeatureEnabled } from '../api/modules'
+import {
+  RAPPORT_CLOCK_IN_HINT, RAPPORT_CLOCK_IN_TITLE, useRapportClockInBlocked,
+} from '../shared/rapportClockIn'
 import type { UserInfo } from '../api/auth'
 import { DownloadIcon } from '../shared/DownloadIcon'
 import { formatDateTime } from '../shared/datetime'
@@ -200,6 +203,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   // Daten, und ein abgeschaltetes Flag darf einen gebündelten Rapport nicht
   // aussehen lassen wie einen gewöhnlichen.
   const teilrapportEnabled = isFeatureEnabled(user, 'teilrapport')
+  // Stempel-Pflicht (Feature `rapport_nur_eingestempelt`): ausgestempelt bleibt der
+  // Rapport-Knopf grau. Anders als `rapport_blocked` hängt das nicht am Projekt,
+  // sondern am Benutzer — dieselbe Sperre gilt deshalb für jedes Projekt.
+  const stempelBlocked = useRapportClockInBlocked(user)
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Project | null>(null)
@@ -207,6 +214,13 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   // Einmaliger Handler genügt: `setSelected(null)` schliesst das Detail immer, und
   // beim nächsten Öffnen registriert der Hook neu.
   useBackButton(selected !== null, () => setSelected(null))
+  // Warum ist «Rapport erstellen» gesperrt? Zwei unabhängige Gründe, die
+  // unterschiedliche Hinweise verdienen: 'offerte' hängt am Projekt (Feature
+  // rapport_offerten_annahme_pflicht, vom Server als `rapport_blocked` geliefert),
+  // 'stempel' am Benutzer (Feature rapport_nur_eingestempelt). Das Projekt gewinnt,
+  // wenn beides zutrifft — es ist der speziellere Grund.
+  const rapportBlockReason: 'offerte' | 'stempel' | null =
+    selected?.rapport_blocked ? 'offerte' : stempelBlocked ? 'stempel' : null
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   // Ohne Einsatzplanung gibt es keine Termine — dann bleibt es bei den Kacheln,
   // und der Umschalter entfällt ganz (die Route /pwa/schedule/week ist ebenso gated).
@@ -541,7 +555,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 if (e.key === 'Enter') { e.preventDefault(); void handleRenameFile(f.id) }
                 if (e.key === 'Escape') setRenamingFileId(null)
               }}
-              style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--card-border, #ddd)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
+              style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
             />
             <button type="button" className="projekte-kontakt-link-btn" style={{ fontSize: 12 }} onClick={() => void handleRenameFile(f.id)}>✓</button>
             <button type="button" className="projekte-kontakt-link-btn" style={{ fontSize: 12 }} onClick={() => setRenamingFileId(null)}>✕</button>
@@ -680,31 +694,37 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             </div>
           )}
 
-          {/* Rapport erstellen — gesperrt, solange keine Offerte des Projekts
-              angenommen ist (Feature rapport_offerten_annahme_pflicht). Die
-              eigentliche Durchsetzung liegt im Backend: der Rapport-Chat lehnt das
-              Projekt ebenfalls ab, auch wenn es frei im Gespräch gewählt wird. */}
+          {/* Rapport erstellen — gesperrt aus zwei Gründen (siehe rapportBlockReason):
+              keine angenommene Offerte des Projekts (Feature
+              rapport_offerten_annahme_pflicht) oder kein laufender Stempel (Feature
+              rapport_nur_eingestempelt). Die eigentliche Durchsetzung liegt in
+              beiden Fällen im Backend: der Rapport-Chat lehnt ebenso ab, auch wenn
+              das Projekt frei im Gespräch gewählt wird. */}
           <button
             type="button"
             onClick={() => onStartRapport({ id: String(selected.id), name: selected.name })}
-            disabled={!!selected.rapport_blocked}
-            title={selected.rapport_blocked ? 'Offerte noch nicht angenommen' : undefined}
+            disabled={rapportBlockReason !== null}
+            title={
+              rapportBlockReason === 'offerte' ? 'Offerte noch nicht angenommen'
+                : rapportBlockReason === 'stempel' ? RAPPORT_CLOCK_IN_TITLE
+                  : undefined
+            }
             style={{
               width: '100%',
               padding: '14px 16px',
-              marginBottom: selected.rapport_blocked ? 6 : 12,
+              marginBottom: rapportBlockReason ? 6 : 12,
               borderRadius: 12,
               border: 'none',
-              background: selected.rapport_blocked ? 'var(--surface-2, #d4d4d8)' : 'var(--accent)',
-              color: selected.rapport_blocked ? 'var(--text-muted, #71717a)' : '#fff',
+              background: rapportBlockReason ? 'var(--surface-2, #d4d4d8)' : 'var(--accent)',
+              color: rapportBlockReason ? 'var(--text-muted, #71717a)' : '#fff',
               fontSize: 15,
               fontWeight: 600,
-              cursor: selected.rapport_blocked ? 'not-allowed' : 'pointer',
+              cursor: rapportBlockReason ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              boxShadow: selected.rapport_blocked ? 'none' : '0 2px 8px rgba(0,0,0,0.12)',
+              boxShadow: rapportBlockReason ? 'none' : '0 2px 8px rgba(0,0,0,0.12)',
             }}
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
@@ -715,10 +735,14 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             </svg>
             Rapport erstellen
           </button>
-          {selected.rapport_blocked && (
+          {rapportBlockReason && (
             <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-muted, #71717a)', textAlign: 'center' }}>
-              Die Offerte für dieses Projekt ist noch nicht angenommen. Der Rapport ist
-              möglich, sobald der Kunde oder der Projektleiter sie angenommen hat.
+              {rapportBlockReason === 'offerte' ? (
+                <>
+                  Die Offerte für dieses Projekt ist noch nicht angenommen. Der Rapport ist
+                  möglich, sobald der Kunde oder der Projektleiter sie angenommen hat.
+                </>
+              ) : RAPPORT_CLOCK_IN_HINT}
             </div>
           )}
 
@@ -1095,7 +1119,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     onChange={e => setUploadCategory(e.target.value as FileCategory)}
                     disabled={uploading}
                     aria-label="Kategorie"
-                    style={{ fontSize: 12, padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--card-border, #ddd)', background: 'var(--surface, #fff)', color: 'var(--text)' }}
+                    style={{ fontSize: 12, padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface, #fff)', color: 'var(--text)' }}
                   >
                     {FILE_CATEGORIES.map(c => (
                       <option key={c.key} value={c.key}>{c.label}</option>
@@ -1173,7 +1197,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 <div className="projekte-detail-empty" style={{ marginBottom: 10 }}>Noch keine Kommentare.</div>
               )}
               {comments.map(c => (
-                <div key={c.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--card-border, #eee)' }}>
+                <div key={c.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{c.author_name || 'Unbekannt'}</span>
                     <span style={{ fontSize: 11, color: 'var(--text-muted, #888)' }}>{formatDateTime(c.created_at)}</span>
@@ -1183,7 +1207,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <input
-                  style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--card-border, #ddd)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
                   placeholder="Kommentar…"
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}

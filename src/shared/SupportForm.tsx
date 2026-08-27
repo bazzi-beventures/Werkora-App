@@ -232,7 +232,7 @@ export default function SupportForm({ route, appContext }: Props) {
                 onClick={sendRecording}
                 style={{
                   padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: 'none',
-                  background: 'var(--brand, #3081AB)', color: '#fff', cursor: 'pointer',
+                  background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer',
                   fontSize: '0.9rem', fontWeight: 600,
                 }}
               >
@@ -330,7 +330,7 @@ export default function SupportForm({ route, appContext }: Props) {
         disabled={busy || isRecording || transcribing || !message.trim()}
         style={{
           padding: '10px 16px', borderRadius: 'var(--radius-sm)', border: 'none',
-          background: 'var(--brand, #3081AB)', color: '#fff', cursor: 'pointer',
+          background: 'var(--accent)', color: 'var(--on-accent)', cursor: 'pointer',
           fontWeight: 600,
           opacity: busy || isRecording || transcribing || !message.trim() ? 0.6 : 1,
         }}

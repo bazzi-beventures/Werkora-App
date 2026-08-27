@@ -619,7 +619,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
 function DraftInfoBlock({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{
-      background: 'var(--color-surface-elevated, rgba(255,255,255,0.03))',
+      background: 'var(--surface-2)',
       border: '1px solid var(--border)',
       borderRadius: 'var(--radius-sm)',
       padding: 12,

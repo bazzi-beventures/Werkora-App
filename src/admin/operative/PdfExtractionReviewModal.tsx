@@ -421,7 +421,7 @@ export function PdfExtractionReviewModal({
                   border: '1px solid var(--border, #e5e7eb)',
                   borderRadius: 'var(--radius-md)',
                   padding: 14,
-                  background: 'var(--bg-elevated, #fafafa)',
+                  background: 'var(--surface-2)',
                 }}
               >
                 {/* Zeile 1: Produktname (gross) */}
@@ -591,7 +591,7 @@ export function PdfExtractionReviewModal({
                       Total in der Offerte ({offerTotal.lines} {offerTotal.lines === 1 ? 'Zeile' : 'Zeilen'}, inkl. Menge)
                       {' · EK '}{fmtCHF(offerTotal.ek)}
                     </span>
-                    <strong style={{ fontSize: 15, color: 'var(--fg, inherit)' }}>{fmtCHF(offerTotal.vk)}</strong>
+                    <strong style={{ fontSize: 15, color: 'var(--text)' }}>{fmtCHF(offerTotal.vk)}</strong>
                   </div>
                 )}
               </div>

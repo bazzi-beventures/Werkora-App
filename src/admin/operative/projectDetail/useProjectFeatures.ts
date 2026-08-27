@@ -23,6 +23,13 @@ export interface ProjectFeatures {
   teilrapport: boolean
   /** Leer = Feature «beschaffungsstatus» aus; sonst die konfigurierten Schritte. */
   beschaffungSteps: BeschaffungStep[]
+  /**
+   * Reiter «Nachkalkulation»: Modul «kpis» UND Management-Rolle — dieselben zwei
+   * Gates wie der Kennzahlen-Screen. Der Reiter zeigt Eigenkosten und Gewinn des
+   * Projekts; das ist keine Zahl für den Projektleiter-Alltag, sondern dieselbe
+   * Auswertung, nur an dem Ort, an dem man sie braucht.
+   */
+  nachkalkulation: boolean
   /** Der angemeldete Benutzer — entscheidet, wer eine Freigabe visieren darf. */
   currentUserId: string | null
 }
@@ -34,6 +41,7 @@ const NONE: ProjectFeatures = {
   absageMail: false,
   teilrapport: false,
   beschaffungSteps: [],
+  nachkalkulation: false,
   currentUserId: null,
 }
 
@@ -51,6 +59,9 @@ export function useProjectFeatures(): ProjectFeatures {
         beschaffungSteps: isFeatureEnabled(me, 'beschaffungsstatus')
           ? enabledBeschaffungSteps(getFeature(me, 'beschaffungsstatus'))
           : [],
+        nachkalkulation:
+          hasModule(me, 'kpis')
+          && (me.role === 'management' || me.role === 'superadmin'),
         currentUserId: me.authorized_user_id,
       })
     }).catch(() => {})

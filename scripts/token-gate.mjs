@@ -22,10 +22,28 @@
 //    geerbten Wert zurück. Es kracht also nicht, es sieht nur falsch aus:
 //    gedämpfter Text kam in voller Textfarbe, weil 31 Stellen ein
 //    `--color-text-secondary` benutzten, das nie existiert hat. MIT Fallback
-//    ist es erlaubt und beabsichtigt — die Einsatzplanung setzt ihre
-//    `--kind-*`-Farben zur Laufzeit aus der Mandanten-Konfiguration.
+//    ist es manchmal beabsichtigt — die Einsatzplanung setzt ihre
+//    `--kind-*`-Farben zur Laufzeit aus der Mandanten-Konfiguration —, aber
+//    eben nur manchmal, siehe 3.
 //
-// 3. NACKTE HEX-FARBEN in TSX (Budget). Ein Hex-Literal, das direkt in einem
+// 3. UNBEKANNTE TOKENS *mit* Fallback (Budget). Der Fallback verhindert den
+//    harten Fehler aus 2 und versteckt damit denselben Vertipper: die Regel
+//    bleibt gültig, die Farbe kommt aber nie aus dem Theme, sondern immer aus
+//    dem einen hartkodierten Wert daneben. Genau so war die Sprechblase des
+//    Hilfe-Bots gebaut — `var(--surface-muted, #f3f4f6)` auf ein Token, das es
+//    nirgends gab: im Light-Theme unauffällig, im Dark-Theme heller Fallback
+//    als Fläche und `--text` (weiss) als Schrift, also weiss auf weiss.
+//    Der Bestand ist seit dem 2026-08-27 sortenrein: die 20 Vertipper
+//    (`--fg`, `--brand`, `--card-border`, `--surface-hover`, `--bg-subtle` …)
+//    sind auf echte Tokens umgestellt, übrig sind exakt die 11 Stellen, die
+//    ihr Token wirklich zur Laufzeit gesetzt bekommen und deshalb einen
+//    Fallback brauchen: `--kind-*` (8, Einsatzplanung aus der
+//    Mandanten-Konfiguration), `--svc-accent` (ServiceStatusScreen),
+//    `--lane-z` (weekGrid) und `--kpi-cards-cols` (KpiCards).
+//    Budget statt Bestand 0, weil diese 11 legitim sind — aber wer ein neues
+//    Token erfindet, statt eines zu benutzen, laeuft auf.
+//
+// 4. NACKTE HEX-FARBEN in TSX (Budget). Ein Hex-Literal, das direkt in einem
 //    Inline-Style steht, kennt keine Themes: es bleibt hell, wenn der Nutzer
 //    dunkel schaltet. Nicht mitgezählt werden Hex als var()-Fallback
 //    (`var(--danger, #ef4444)`) — dort ist der Wert die Absicherung, nicht der
@@ -45,9 +63,15 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
-// Bestand am 2026-08-26, nach den Paketen 01–06 der Token-Serie.
-// Nur senken.
-const HEX_BUDGET = 153
+// Bestand am 2026-08-27, nach den Paketen 01–06 der Token-Serie, der
+// Phantom-Runde (SupportForm gab zwei `#fff` ab) und dem Entfernen von
+// KpiHubScreen/KpiDashboardScreen (docs/specs/kennzahlen-refactoring.md §6 —
+// sie trugen 19 der Treffer). Nur senken.
+const HEX_BUDGET = 132
+
+// Bestand am 2026-08-27, nach dem Aufräumen der Phantom-Tokens: nur noch die
+// 11 Stellen mit echtem Laufzeit-Token (siehe 3 oben). Nur senken.
+const PHANTOM_BUDGET = 11
 
 const SRC = 'src'
 
@@ -97,6 +121,8 @@ for (const fp of files.filter(f => f.endsWith('.css'))) {
 }
 // var(--x) OHNE Komma, also ohne Fallback
 const OHNE_FALLBACK = /var\(\s*(--[a-zA-Z0-9-]+)\s*\)/g
+// var(--x, …) MIT Komma, also mit Fallback
+const MIT_FALLBACK = /var\(\s*(--[a-zA-Z0-9-]+)\s*,/g
 
 // Geprüft werden TSX *und* CSS: in den Stylesheets stehen die meisten var(),
 // und derselbe Vertipper wirkt dort genauso — `.signature-pad-title` stand auf
@@ -105,6 +131,9 @@ const istQuelle = f =>
   (/\.tsx?$/.test(f) && !f.endsWith('.test.tsx') && !f.endsWith('.test.ts')) || f.endsWith('.css')
 
 const unbekannt = []
+// ── 3. Unbekannte Tokens MIT Fallback ────────────────────────────────────────
+// Gleicher Durchlauf, gleiche Quellen — nur das andere var()-Muster.
+const phantom = []
 for (const fp of files.filter(istQuelle)) {
   const inhalt = fp.endsWith('.css')
     ? ohneCssKommentare(readFileSync(fp, 'utf8'))
@@ -115,10 +144,13 @@ for (const fp of files.filter(istQuelle)) {
     for (const m of line.matchAll(OHNE_FALLBACK)) {
       if (!bekannt.has(m[1])) unbekannt.push(`${relative(SRC, fp)}:${i + 1}  ${m[1]}`)
     }
+    for (const m of line.matchAll(MIT_FALLBACK)) {
+      if (!bekannt.has(m[1])) phantom.push(`${relative(SRC, fp)}:${i + 1}  ${m[1]}`)
+    }
   })
 }
 
-// ── 3. Nackte Hex-Farben in TSX ──────────────────────────────────────────────
+// ── 4. Nackte Hex-Farben in TSX ──────────────────────────────────────────────
 const HEX = /#[0-9a-fA-F]{8}\b|#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3,4}\b/g
 const FALLBACK = /var\(\s*--[a-zA-Z0-9-]+\s*,\s*#[0-9a-fA-F]{3,8}\s*\)/g
 
@@ -160,6 +192,21 @@ if (unbekannt.length > 0) {
   console.error('  var(--kind-project, var(--primary))   <- zur Laufzeit gesetzt, deshalb mit Fallback\n')
 }
 
+if (phantom.length > PHANTOM_BUDGET) {
+  fehler = true
+  console.error(
+    `Token-Gate: ${phantom.length}x var(--x, fallback) auf ein Token, das nirgends ` +
+    `definiert ist, erlaubt sind ${PHANTOM_BUDGET}\n`,
+  )
+  for (const p of phantom.slice(0, 30)) console.error('  ' + p)
+  if (phantom.length > 30) console.error(`  … und ${phantom.length - 30} weitere`)
+  console.error('\nDer Fallback faengt den Vertipper ab und versteckt ihn: die Farbe kommt nie')
+  console.error('aus dem Theme, sondern immer aus dem Wert daneben — im Dark-Theme also der')
+  console.error('helle Ton, waehrend die Schrift dem Theme folgt (weiss auf weiss).')
+  console.error('Entweder den richtigen Token-Namen nehmen oder das Token wirklich definieren.')
+  console.error('Nur wer es zur Laufzeit setzt (--kind-*), braucht hier einen Fallback.\n')
+}
+
 if (treffer.length > HEX_BUDGET) {
   fehler = true
   console.error(`Token-Gate: ${treffer.length} nackte Hex-Farben in TSX, erlaubt sind ${HEX_BUDGET}\n`)
@@ -172,10 +219,15 @@ if (treffer.length > HEX_BUDGET) {
 if (fehler) process.exit(1)
 
 const luft = HEX_BUDGET - treffer.length
+const phantomLuft = PHANTOM_BUDGET - phantom.length
 console.log(
-  `Token-Gate sauber — keine Token-Kollision, kein unbekanntes Token, ` +
+  `Token-Gate sauber — keine Token-Kollision, kein unbekanntes Token ohne Fallback, ` +
+  `${phantom.length} mit Fallback (Budget ${PHANTOM_BUDGET}), ` +
   `${treffer.length} nackte Hex-Farben (Budget ${HEX_BUDGET}${luft > 0 ? `, ${luft} Luft` : ''})`,
 )
 if (luft > 0) {
-  console.log(`Hinweis: Budget in scripts/token-gate.mjs auf ${treffer.length} senken.`)
+  console.log(`Hinweis: HEX_BUDGET in scripts/token-gate.mjs auf ${treffer.length} senken.`)
+}
+if (phantomLuft > 0) {
+  console.log(`Hinweis: PHANTOM_BUDGET in scripts/token-gate.mjs auf ${phantom.length} senken.`)
 }

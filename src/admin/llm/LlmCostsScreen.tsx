@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useKpiData } from '../kpis/useKpiData'
-import { useDateRange } from '../kpis/useDateRange'
-import { tickDM } from '../kpis/dateRange'
-import DateRangeBar from '../kpis/components/DateRangeBar'
+import { useDateRange } from '../hooks/useDateRange'
+import { tickDM } from '../components/dateRange'
+import DateRangeBar from '../components/DateRangeBar'
 import type {
   ColumnDef,
   KpiLlmKostenEndpunktRow,

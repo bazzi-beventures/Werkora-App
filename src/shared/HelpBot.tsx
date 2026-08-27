@@ -149,7 +149,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
               borderRadius: 12,
               background: isUser
                 ? 'var(--accent, #1e3a5f)'
-                : 'var(--surface-muted, #f3f4f6)',
+                : 'var(--surface2, #f3f4f6)',
               color: isUser ? '#fff' : 'var(--text, #111)',
               fontSize: '0.95rem',
               lineHeight: 1.4,
@@ -188,7 +188,7 @@ export default function HelpBot({ suggestions = DEFAULT_SUGGESTIONS, header, max
               disabled={busy}
               style={{
                 padding: '8px 12px', borderRadius: 'var(--radius-xl)', fontSize: '0.85rem',
-                background: 'var(--surface-muted, #f3f4f6)', color: 'var(--text, #111)',
+                background: 'var(--surface2, #f3f4f6)', color: 'var(--text, #111)',
                 border: '1px solid var(--border, #e5e7eb)', cursor: 'pointer',
               }}
             >

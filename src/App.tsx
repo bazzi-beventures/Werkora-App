@@ -20,6 +20,7 @@ import { derivePalette, paletteCss } from './brand/palette'
 import { MigrationBanner, MIGRATION_STREIFEN_HOEHE, aktuelleMigrationStufe } from './shared/MigrationBanner'
 import HelpBubble from './shared/HelpBubble'
 import { consumeBack, consumeScreenBack } from './shared/backButton'
+import { captureDeepLink } from './shared/deepLink'
 import { advance, retreat } from './shared/navHistory'
 import { trackNav } from './shared/breadcrumbs'
 import { hasModule, isFeatureEnabled } from './api/modules'
@@ -156,6 +157,14 @@ export default function App() {
     }
     navigator.serviceWorker.addEventListener('message', onMsg)
     return () => navigator.serviceWorker.removeEventListener('message', onMsg)
+  }, [])
+
+  // Cold-Start: App wurde über den Button einer Info-Mail geöffnet
+  // (#/admin/projects/<id>/<tab>). Der Sprung wird gemerkt und von AdminApp
+  // abgeholt, sobald die Admin-App steht — dazwischen liegt im Zweifel ein
+  // ganzer Login. Siehe shared/deepLink.ts.
+  useEffect(() => {
+    captureDeepLink()
   }, [])
 
   // Cold-Start: App wurde durch Antippen einer Benachrichtigung geöffnet,

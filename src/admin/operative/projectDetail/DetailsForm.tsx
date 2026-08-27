@@ -123,7 +123,7 @@ export function DetailsForm({
                   onChange={selectCustomer}
                 />
                 {customerId && (
-                  <div style={{ marginTop: 6, padding: '8px 12px', background: 'var(--bg-subtle, #f5f5f5)', borderRadius: 'var(--radius-xs)', fontSize: 13, color: 'var(--muted)' }}>
+                  <div style={{ marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-xs)', fontSize: 13, color: 'var(--muted)' }}>
                     <strong>Rechnung an:</strong> {billingRecipient || '—'}{billingAddress ? `, ${billingAddress}` : ''}
                   </div>
                 )}

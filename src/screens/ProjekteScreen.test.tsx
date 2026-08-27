@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjekteScreen from './ProjekteScreen'
 import { apiFetch, apiFormFetch } from '../api/client'
+import type { UserInfo } from '../api/auth'
 
 // Rapport-Sperre in der Mitarbeiter-PWA (Feature rapport_offerten_annahme_pflicht):
 // Das Backend liefert pro Projekt `rapport_blocked`; ist es gesetzt, ist der
@@ -84,10 +85,11 @@ async function openProject(
   projects: Record<string, unknown>[],
   onStartRapport = vi.fn(),
   extra: Record<string, unknown> = {},
+  userInfo: UserInfo | null = null,
 ) {
   const user = userEvent.setup()
   routeFetch(projects, extra)
-  render(<ProjekteScreen {...NOOP} onStartRapport={onStartRapport} />)
+  render(<ProjekteScreen {...NOOP} user={userInfo} onStartRapport={onStartRapport} />)
 
   await waitFor(() => expect(screen.getByText('MFH Sonnhalde')).toBeInTheDocument())
   await user.click(screen.getByText('MFH Sonnhalde'))
@@ -132,6 +134,71 @@ describe('ProjekteScreen — Rapport-Sperre', () => {
     expect(button).toBeEnabled()
   })
 })
+
+// Stempel-Pflicht (Feature rapport_nur_eingestempelt): derselbe Knopf, zweiter
+// Grund. Sie hängt nicht am Projekt, sondern am Benutzer — der Screen fragt dafür
+// `/pwa/status` ab. Massgeblich ist auch hier der Server (der Rapport-Chat weist
+// ab); getestet wird die sichtbare Hälfte.
+describe('ProjekteScreen — Stempel-Pflicht', () => {
+  const STEMPEL_USER = {
+    authorized_user_id: 'u1',
+    username: 'hans',
+    display_name: 'Hans Muster',
+    email: null,
+    staff_id: 's1',
+    staff_name: 'Hans Muster',
+    tenant_id: 't1',
+    role: 'user',
+    consent_version: 'v1',
+    consent_required: false,
+    enabled_modules: ['timekeeping'],
+    feature_flags: { rapport_nur_eingestempelt: { enabled: true } },
+  } satisfies UserInfo
+
+  function zeitStatus(status: 'active' | 'inactive') {
+    return { '/pwa/status': { status, clock_in: null, since_minutes: 0 } }
+  }
+
+  it('sperrt den Rapport-Knopf, solange nicht eingestempelt ist', async () => {
+    const { user, button, onStartRapport } = await openProject(
+      [project()], vi.fn(), zeitStatus('inactive'), STEMPEL_USER,
+    )
+
+    await waitFor(() => expect(button).toBeDisabled())
+    expect(screen.getByText(/nicht eingestempelt/)).toBeInTheDocument()
+
+    await user.click(button)
+    expect(onStartRapport).not.toHaveBeenCalled()
+  })
+
+  it('gibt den Knopf frei, sobald eingestempelt ist', async () => {
+    const { button } = await openProject(
+      [project()], vi.fn(), zeitStatus('active'), STEMPEL_USER,
+    )
+
+    expect(button).toBeEnabled()
+    expect(screen.queryByText(/nicht eingestempelt/)).not.toBeInTheDocument()
+  })
+
+  it('sperrt den Superadmin nicht — er ist in keinem Mandanten eingestempelt', async () => {
+    const { button } = await openProject(
+      [project()], vi.fn(), zeitStatus('inactive'),
+      { ...STEMPEL_USER, role: 'superadmin' },
+    )
+
+    expect(button).toBeEnabled()
+  })
+
+  it('sperrt nicht ohne das Modul Zeiterfassung — dort gibt es keinen Stempel', async () => {
+    const { button } = await openProject(
+      [project()], vi.fn(), zeitStatus('inactive'),
+      { ...STEMPEL_USER, enabled_modules: [] },
+    )
+
+    expect(button).toBeEnabled()
+  })
+})
+
 
 // Die Kachelliste zeigt den neuesten Tag oben (Altes rutscht nach unten), einen
 // einzelnen Tag aber weiter als Tagesablauf von oben nach unten. Sie übernahm

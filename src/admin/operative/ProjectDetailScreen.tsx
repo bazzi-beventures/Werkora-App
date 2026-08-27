@@ -47,9 +47,15 @@ interface Props {
    * Aufrufer direkt springen soll; null/undefined = zurück in die Übersicht.
    */
   onSaved: (saved?: Project | null) => void
+  /**
+   * Reiter, auf dem die Maske aufgeht. Nur beim Direktsprung gesetzt (Button in
+   * einer Info-Mail, siehe shared/deepLink.ts) — gelesen wird er ausschliesslich
+   * beim Mount, wie `project` auch.
+   */
+  initialTab?: ProjectTab
 }
 
-export default function ProjectDetailScreen({ project, onClose, onSaved }: Props) {
+export default function ProjectDetailScreen({ project, onClose, onSaved, initialTab }: Props) {
   const isNew = !project
 
   // Module und Feature-Flags des Mandanten (Charge H, H3).
@@ -66,7 +72,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved }: Props
   const [reopenReason, setReopenReason] = useState<'fehler' | 'garantiefall'>('fehler')
   const [reopening, setReopening] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<ProjectTab>('details')
+  const [activeTab, setActiveTab] = useState<ProjectTab>(initialTab ?? 'details')
 
   // Die Projektmaske selbst (Charge H, H3). `focusDetails`, weil die
   // Fehlermeldung im Detail-Reiter steht: wer aus einem anderen Reiter heraus
@@ -333,7 +339,13 @@ export default function ProjectDetailScreen({ project, onClose, onSaved }: Props
       />
 
       {/* ── Tab-Leiste ──────────────────────────────────────── */}
-      {!isNew && <ProjectTabBar active={activeTab} onSelect={setActiveTab} />}
+      {!isNew && (
+        <ProjectTabBar
+          active={activeTab}
+          onSelect={setActiveTab}
+          showNachkalkulation={features.nachkalkulation}
+        />
+      )}
 
       {/* ── Inhalt: aktiver Tab links, Kommentare immer rechts ──── */}
       <div className={isNew ? undefined : 'project-detail-body'}>
@@ -369,6 +381,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved }: Props
           dankEnabled={features.dankMail}
           absageEnabled={features.absageMail}
           teilrapportEnabled={features.teilrapport}
+          nachkalkulationEnabled={features.nachkalkulation}
           useAcceptedQuote={useAcceptedQuote}
           onUseAcceptedQuoteChange={setUseAcceptedQuote}
           defaultInvoiceEmail={form.selectedCustomer?.email ?? project.customer?.email ?? ''}

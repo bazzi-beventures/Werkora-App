@@ -2,7 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend,
   ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { useChartTheme } from './useChartTheme'
+import { useChartTheme } from '../../components/useChartTheme'
 
 interface BarDef {
   dataKey: string

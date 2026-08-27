@@ -6,6 +6,7 @@ import { getAdminStaff } from '../../api/admin/staff'
 import { getMe } from '../../api/auth'
 import { isFeatureEnabled } from '../../api/modules'
 import ProjectDetailScreen from './ProjectDetailScreen'
+import type { ProjectTab } from './projectDetail/ProjectTabBar'
 import { ProjectStatus, PROJECT_STATUS_LABELS, PROJECT_STATUS_BADGE, QUOTE_STATUS_LABELS, INVOICE_STATUS_LABELS } from '../constants/statuses'
 import { BESCHAFFUNG_STEPS, beschaffungStep } from '../constants/beschaffungSteps'
 import { AdminCardList } from '../components/AdminCardList'
@@ -70,6 +71,9 @@ interface ProjectsScreenProps {
   // muss auf der aktuellen Listenseite gar nicht vorkommen.
   openProjectId?: string
   onConsumedProjectId?: () => void
+  // Reiter, auf dem die Maske aufgehen soll (Deep-Link aus einer Info-Mail:
+  // «Rapport eingereicht» → 'reports'). Gilt nur fuer den Sprung oben.
+  openProjectTab?: ProjectTab
 }
 
 const PAGE_SIZE = 50
@@ -156,7 +160,7 @@ function formatDay(iso: string): string {
 }
 
 export default function ProjectsScreen({
-  openNew, onConsumedNew, openProjectId, onConsumedProjectId,
+  openNew, onConsumedNew, openProjectId, onConsumedProjectId, openProjectTab,
 }: ProjectsScreenProps = {}) {
   const { state, patch, reset } = useListState<ProjectsListState>('admin-projects', DEFAULT_STATE, reviveState)
   const {
@@ -175,6 +179,10 @@ export default function ProjectsScreen({
   const [pageInput, setPageInput] = useState(String(state.page))
   const [selected, setSelected] = useState<Project | null>(null)
   const [showNew, setShowNew] = useState(false)
+  // Reiter, auf dem die Maske aufgeht — nur beim Direktsprung gesetzt (Deep-Link
+  // aus einer Info-Mail). Beim Schliessen wieder null, sonst oeffnete das
+  // naechste, von Hand angetippte Projekt ebenfalls auf 'Rapporte'.
+  const [initialTab, setInitialTab] = useState<ProjectTab | null>(null)
   const [showMobileFilter, setShowMobileFilter] = useState(false)
   const isMobile = useIsMobile()
   const [projektleiterOptions, setProjektleiterOptions] = useState<{ id: string; name: string }[]>([])
@@ -244,6 +252,11 @@ export default function ProjectsScreen({
   // Der Ref merkt sich die bereits angestossene id. Ohne ihn würde jedes
   // Neurendern während des laufenden Requests den Effect erneut auslösen: die
   // Consumed-Callbacks sind nicht memoisiert, ihre Identität wechselt ständig.
+  //
+  // `initialTab` wird im selben Zug gesetzt: die Maske liest ihn nur beim Mount,
+  // und der Prop `openProjectTab` ist eine Zeile später schon wieder abgeräumt
+  // (`onConsumedProjectId`). Als lokaler Zustand überlebt er den einen Render,
+  // in dem die Maske aufgeht.
   const jumpedToRef = useRef<string | null>(null)
   useEffect(() => {
     // Zurückgesetzt, sobald der Sprung verbraucht ist — sonst liesse sich
@@ -251,11 +264,12 @@ export default function ProjectsScreen({
     if (!openProjectId) { jumpedToRef.current = null; return }
     if (jumpedToRef.current === openProjectId) return
     jumpedToRef.current = openProjectId
+    const tab = openProjectTab ?? null
     getProject(openProjectId)
-      .then(p => { setShowNew(false); setSelected(p) })
+      .then(p => { setShowNew(false); setInitialTab(tab); setSelected(p) })
       .catch(() => {})
       .finally(() => onConsumedProjectId?.())
-  }, [openProjectId, onConsumedProjectId])
+  }, [openProjectId, openProjectTab, onConsumedProjectId])
 
   // Suche: 300ms Debounce, damit nicht jeder Tastendruck einen Roundtrip ausloest.
   useEffect(() => {
@@ -492,7 +506,8 @@ export default function ProjectsScreen({
         // Projekt": die Maske liest ihren Ausgangsstand nur beim Mount aus dem Prop.
         key={showNew ? 'new' : selected!.id}
         project={showNew ? null : selected}
-        onClose={() => { setSelected(null); setShowNew(false) }}
+        initialTab={initialTab ?? undefined}
+        onClose={() => { setSelected(null); setShowNew(false); setInitialTab(null) }}
         onSaved={saved => {
           setShowNew(false)
           // Frisch angelegtes Projekt → direkt hineinspringen statt auf die Übersicht.

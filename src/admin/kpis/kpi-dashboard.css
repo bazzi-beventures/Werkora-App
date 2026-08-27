@@ -684,3 +684,46 @@
     align-items: stretch;
   }
 }
+
+/* ── Top/Flop nach Gewinn (Projekte-Tab) ─────────────── */
+/* Zwei kompakte Ranglisten statt einer zweiten Tabelle: fuenf Zeilen, zwei
+   Werte. Die Tabelle darunter bleibt der Ort fuer alles Weitere. */
+.kpi-topflop {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.kpi-topflop-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kpi-topflop-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.kpi-topflop-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+}
+
+/* Lange Projektnamen kuerzen statt die Zahl aus der Karte zu druecken. */
+.kpi-topflop-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { type PresetId, dateFilter, periodLabel, presetRange } from './dateRange'
+import { type PresetId, dateFilter, periodLabel, presetRange } from '../components/dateRange'
 
 /**
  * Zeitraum-Zustand der BI-Screens: Preset + freie von/bis-Auswahl, dazu der
