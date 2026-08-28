@@ -217,6 +217,8 @@ const ACTION_LABELS: Record<string, string> = {
   create_aggregate_report: 'Gesamtrapport erstellt',
   dissolve_aggregate_report: 'Gesamtrapport aufgelöst',
   accept_aggregate_report: 'Gesamtrapport ohne Unterschrift abgeschlossen',
+  report_set_partial: 'Rapport in die Teilrapport-Serie aufgenommen',
+  report_unset_partial: 'Rapport aus der Teilrapport-Serie gelöst',
   report_kleinmaterial_recorded: 'Kleinmaterial erfasst',
   report_ersatzteile_recorded: 'Ersatzteile erfasst',
   admin_paper_rapport_pdf: 'Papier-Rapport erzeugt',

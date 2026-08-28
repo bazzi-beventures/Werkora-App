@@ -156,14 +156,20 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
           </svg>
           <span>Mitarbeiter-App</span>
         </button>
-        <div className="admin-user-row">
-          <div className="admin-avatar">{initials}</div>
-          <div className="admin-user-info">
-            <div className="admin-user-name">{displayName}</div>
-            <div className="admin-user-role">{role}</div>
+        {/* Abmelden stand frueher als blosses Symbol am rechten Rand der Zeile und
+            wurde uebersehen. Jetzt eine beschriftete Pille unter dem Namen — in der
+            schmalen Sidebar (<=1024px) bleibt davon wieder nur das Symbol. */}
+        <div className="admin-user-block">
+          <div className="admin-user-row">
+            <div className="admin-avatar">{initials}</div>
+            <div className="admin-user-info">
+              <div className="admin-user-name">{displayName}</div>
+              <div className="admin-user-role">{role}</div>
+            </div>
           </div>
-          <button className="admin-logout-btn" onClick={handleLogout} title="Abmelden">
+          <button className="admin-logout-pill" onClick={handleLogout} title="Abmelden">
             <IconLogout />
+            <span>Logout</span>
           </button>
         </div>
         <div className="admin-powered-by">

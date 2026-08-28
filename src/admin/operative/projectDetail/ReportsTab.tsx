@@ -49,6 +49,11 @@ interface ReportsTabProps {
   // NICHT ans Feature gebunden: ein Mandant, der es abschaltet, muss bestehende
   // Bündelungen noch abschliessen können — sonst bleiben die Stunden gefangen.
   onAccept?: (reportId: number) => Promise<void>
+  // Nimmt einen bestehenden Rapport nachträglich in die Teilrapport-Serie auf und
+  // öffnet danach die Erfassungsmaske für den nächsten Einsatz. Der Weg rückwärts
+  // zur Abschluss-Wahl: dass eine Baustelle über mehrere Tage geht, stellt sich oft
+  // erst am zweiten Tag heraus. Ans Feature gebunden wie das Bündeln.
+  onMarkPartial?: (reportId: number) => Promise<void>
 }
 
 // Status-Badge einer Rapportzeile. Rein und exportiert, damit die Zustandslogik
@@ -97,7 +102,7 @@ export function reportStatusBadge(r: ProjectReport): { label: string; cls: strin
 export function ReportsTab({
   reports, onShowCreateForm, paperRapportUrl, onDelete, onEdit, onRegeneratePdf,
   files, uploading, uploadingCategory, onUploadFile, onDeleteFile, onRenameFile,
-  teilrapportEnabled, onAggregate, onDissolve, onAccept,
+  teilrapportEnabled, onAggregate, onDissolve, onAccept, onMarkPartial,
 }: ReportsTabProps) {
   const [confirmDelete, setConfirmDelete] = useState<ProjectReport | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -109,11 +114,26 @@ export function ReportsTab({
   const [dissolving, setDissolving] = useState(false)
   const [confirmAccept, setConfirmAccept] = useState<ProjectReport | null>(null)
   const [accepting, setAccepting] = useState(false)
+  const [confirmNextEinsatz, setConfirmNextEinsatz] = useState<ProjectReport | null>(null)
+  const [markingPartial, setMarkingPartial] = useState(false)
 
-  // Die freien Teilrapporte stehen bereits in `reports` — anders als in der
+  // Die bündelbaren Einsätze stehen bereits in `reports` — anders als in der
   // Monteur-PWA braucht es dafür keinen zweiten Fetch: der Admin-Reiter lädt
   // ohnehin ALLE Rapporte des Projekts, samt der vier Teilrapport-Spalten.
-  const openPartials = reports.filter(r => r.is_partial && !r.merged_into_report_id && !r.invoice_id)
+  //
+  // Bündelbar ist seit 2026-08-27 nicht nur der markierte Teilrapport, sondern jeder
+  // Einsatz ohne Rechnung, ohne bestehende Bündelung und ohne Kundenunterschrift:
+  // dass eine Baustelle über mehrere Tage geht, merkt man meist erst, wenn der erste
+  // Tag längst als gewöhnlicher Rapport gespeichert ist. Das Bündeln macht die
+  // Angehakten zu Teilrapporten. Der unterschriebene bleibt draussen — seine Abnahme
+  // steht schon (dieselbe Regel serverseitig in `aggregate_blocker`).
+  const bundleable = reports.filter(
+    r => !r.is_aggregate && !r.merged_into_report_id && !r.invoice_id && !r.signature_timestamp,
+  )
+  // Ein laufender Teilrapport wartet immer auf seinen Gesamtrapport; bei gewöhnlichen
+  // Rapporten braucht es mindestens zwei, sonst stünde der Knopf an jedem Projekt mit
+  // einem einzigen offenen Rapport.
+  const showAggregateButton = bundleable.some(r => r.is_partial) || bundleable.length >= 2
 
   async function handleAggregate() {
     if (!onAggregate || !aggregateSelection?.length) return
@@ -139,6 +159,19 @@ export function ReportsTab({
       // Grund im Toast; der Dialog bleibt offen
     } finally {
       setAccepting(false)
+    }
+  }
+
+  async function handleMarkPartial() {
+    if (!onMarkPartial || !confirmNextEinsatz) return
+    setMarkingPartial(true)
+    try {
+      await onMarkPartial(confirmNextEinsatz.id)
+      setConfirmNextEinsatz(null)
+    } catch {
+      // wie oben: Grund im Toast, Dialog bleibt offen
+    } finally {
+      setMarkingPartial(false)
     }
   }
 
@@ -203,14 +236,14 @@ export function ReportsTab({
               Papier-Rapport (PDF)
             </a>
           )}
-          {teilrapportEnabled && onAggregate && openPartials.length > 0 && aggregateSelection === null && (
+          {teilrapportEnabled && onAggregate && aggregateSelection === null && showAggregateButton && (
             <button
               type="button"
               className="admin-btn admin-btn-sm admin-btn-secondary"
-              onClick={() => setAggregateSelection(openPartials.map(r => r.id))}
-              title="Offene Teilrapporte zu einem Gesamtrapport bündeln, den der Kunde einmal unterschreibt. Bis zur Unterschrift wird keiner davon verrechnet."
+              onClick={() => setAggregateSelection(bundleable.map(r => r.id))}
+              title="Offene Einsätze zu einem Gesamtrapport bündeln, den der Kunde einmal unterschreibt. Die Angehakten werden dabei zu Teilrapporten und bis zur Unterschrift nicht verrechnet."
             >
-              Gesamtrapport erstellen ({openPartials.length})
+              Gesamtrapport erstellen ({bundleable.length})
             </button>
           )}
           {onShowCreateForm && (
@@ -232,7 +265,7 @@ export function ReportsTab({
           <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
             Welche Einsätze soll der Gesamtrapport abdecken?
           </div>
-          {openPartials.map(p => (
+          {bundleable.map(p => (
             <label key={p.id} style={{
               display: 'flex', alignItems: 'flex-start', gap: 8,
               padding: '4px 0', fontSize: 13, cursor: 'pointer',
@@ -306,6 +339,12 @@ export function ReportsTab({
             // ist die stärkere Abnahme, aufgelöst und verrechnet sind Endzustände.
             const canAccept = !!onAccept && !!r.is_aggregate && !billed && !r.dissolved_at
               && !signed && !r.pl_accepted_at
+            // «Weiterer Einsatz»: Spiegel von `mark_partial_blocker` — verrechnet,
+            // gebündelt oder selbst ein Behälter geht nicht. Ein bereits freier
+            // Teilrapport darf: dann entfällt nur die Umstellung, und der Knopf
+            // führt direkt in die Maske für den nächsten Tag.
+            const canAddNext = !!onMarkPartial && !!teilrapportEnabled
+              && !billed && !merged && !r.is_aggregate
             return (
               <ActionRow key={r.id} style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                 <span style={{ fontSize: 18 }}>📋</span>
@@ -363,6 +402,18 @@ export function ReportsTab({
                     title="Die Bündelung auflösen — die Teilrapporte werden wieder frei und lassen sich neu zusammenstellen."
                   >
                     Auflösen
+                  </button>
+                )}
+                {canAddNext && (
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-sm admin-btn-secondary"
+                    onClick={() => setConfirmNextEinsatz(r)}
+                    title={r.is_partial
+                      ? 'Noch einen Einsatz auf dieser Baustelle erfassen'
+                      : 'Mehrtägige Baustelle: diesen Rapport in die Serie aufnehmen und den nächsten Einsatz erfassen'}
+                  >
+                    Weiterer Einsatz
                   </button>
                 )}
                 {onEdit && manual && !billed && !signed && !merged && (
@@ -468,6 +519,39 @@ export function ReportsTab({
           variant={confirmDissolve.signature_timestamp || confirmDissolve.pl_accepted_at ? 'danger' : 'primary'}
           onCancel={() => { if (!dissolving) setConfirmDissolve(null) }}
           onConfirm={() => void handleDissolve()}
+        />
+      )}
+
+      {confirmNextEinsatz && (
+        <ConfirmDialog
+          title={confirmNextEinsatz.is_partial ? 'Weiteren Einsatz erfassen?' : 'Zur mehrtägigen Baustelle machen?'}
+          message={
+            <>
+              {confirmNextEinsatz.is_partial ? (
+                <>
+                  Der Rapport vom {fmtDate(confirmNextEinsatz.report_date)} ist bereits
+                  Teil der Serie. Gleich öffnet sich die Maske für den nächsten Einsatz.
+                </>
+              ) : (
+                <>
+                  Der Rapport vom {fmtDate(confirmNextEinsatz.report_date)} wird zum
+                  Teilrapport: er wird später zusammen mit den weiteren Einsätzen zu einem
+                  Gesamtrapport gebündelt, den der Kunde EINMAL unterschreibt.
+                  <div style={{ marginTop: 8 }}>
+                    <strong>Bis dahin wird er nicht verrechnet.</strong> Stunden, Material,
+                    Beschrieb, das PDF und eine bereits geholte Unterschrift bleiben
+                    unverändert.
+                  </div>
+                </>
+              )}
+            </>
+          }
+          confirmLabel="Weiter"
+          busyLabel="Wird umgestellt…"
+          busy={markingPartial}
+          variant="primary"
+          onCancel={() => { if (!markingPartial) setConfirmNextEinsatz(null) }}
+          onConfirm={() => void handleMarkPartial()}
         />
       )}
 

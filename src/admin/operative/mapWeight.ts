@@ -1,4 +1,4 @@
-// Gewichtung und GeoJSON-Aufbereitung der Auftragskarte (Einsatzplanung).
+// Aufwandsrechnung und GeoJSON-Aufbereitung der Auftragskarte (Einsatzplanung).
 //
 // Reine Funktionen, kein React, kein MapLibre — damit die Rechnung ohne
 // gerendertes Pixel prüfbar ist (mapWeight.test.ts).
@@ -33,13 +33,13 @@ export interface MapPoints {
 }
 
 /**
- * Aufwand eines Termins in **Personentagen** — das Gewicht eines Punktes auf
- * der Heatmap.
+ * Aufwand eines Termins in **Personentagen**.
  *
- * Nicht «ein Termin = 1»: das ist der Unterschied zwischen «dort sind drei
- * Termine» und «dort hängt drei Wochen lang das halbe Team». Bei den paar
- * Dutzend Aufträgen einer Dreiwochen-Planung ist das der ganze Aussagewert der
- * Karte — eine reine Punktdichte zeigte nur, wo die Agglomeration liegt.
+ * Die Karte zeigt im Cluster die **Anzahl** Einsätze — das ist die Zahl, nach
+ * der die Disposition sucht. Die Personentage stehen daneben: drei Termine
+ * können ein halber Tag oder drei Wochen mit dem halben Team sein, und für die
+ * Frage «kann ich dort noch etwas dazwischenschieben» ist das der Unterschied.
+ * MapLibre summiert sie beim Clustern selbst auf (`clusterProperties`).
  *
  * @param dayCapacityHours Planbare Einsatzstunden pro Werktag
  *   (`scheduling_config.day_capacity_hours`, Default 8). Bezugsgrösse für
@@ -119,7 +119,9 @@ export function buildMapPoints(
   }
 }
 
-/** Summe der Personentage einer Auswahl — für die Aggregat-Karte im Hover (§7.4). */
+/** Summe der Personentage einer Auswahl — für die Aggregat-Karte im Hover (§7.4).
+ *  Wird nur noch für Einsätze an derselben Adresse gebraucht: bei echten
+ *  Clustern summiert MapLibre über `clusterProperties`. */
 export function summeGewichte(features: MapFeature[]): number {
   return features.reduce((sum, f) => sum + f.properties.weight, 0)
 }

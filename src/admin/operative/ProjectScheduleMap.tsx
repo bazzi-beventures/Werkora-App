@@ -1,16 +1,21 @@
-// Auftragskarte der Einsatzplanung — Dichte-Heatmap auf Schweizer Karte.
+// Auftragskarte der Einsatzplanung — Einsätze als Cluster mit Anzahl.
 //
 // Diese Datei wird per React.lazy nachgeladen (siehe ProjectScheduleCalendar).
-// Das ist load-bearing: der Chunk wiegt gebaut 250 KB gzip (maplibre-gl) plus
-// 11 KB CSS und braucht WebGL. Ein statischer Import hier zöge das in das
-// Bundle JEDES Admin-Screens und damit über die Leitung jedes Monteurs, der
-// nie eine Karte sieht.
+// Das ist load-bearing: maplibre-gl wiegt rund 250 KB gzip und braucht WebGL.
+// Ein statischer Import hier zöge es in das Bundle JEDES Admin-Screens und
+// damit über die Leitung jedes Monteurs, der nie eine Karte sieht.
+//
+// Warum Cluster und nicht die frühere Dichte-Heatmap: ein Farbverlauf über die
+// paar Dutzend Aufträge einer Dreiwochen-Planung zeigt vor allem, wo die
+// Agglomeration liegt — das weiss die Disposition. Eine Zahl im Kreis
+// beantwortet die eigentliche Frage («wie viele hängen dort?») direkt, und
+// Hineinzoomen löst sie in die einzelnen Einsätze auf.
 //
 // Spec: docs/specs/einsatzplanung-auftragskarte.md §7
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as maplibregl from 'maplibre-gl'
-import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature } from 'maplibre-gl'
+import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 import EventHoverCard from './EventHoverCard'
@@ -19,9 +24,9 @@ import { shiftISO, toDateStr } from '../utils/calendarHelpers'
 import { useTheme } from '../../theme'
 import type { CalendarEntry, HoverState, StaffLite } from './scheduleShared'
 
-// Leichte Basiskarte von swisstopo, graue Variante: die Heat-Farben müssen sich
-// vom Untergrund abheben. Auf der bunten Landeskarte konkurrieren Kartenfarben
-// und Heat-Rampe, und die Verdichtung ist nicht mehr ablesbar.
+// Leichte Basiskarte von swisstopo, graue Variante: die Marker müssen sich vom
+// Untergrund abheben. Auf der bunten Landeskarte konkurrieren Kartenfarben und
+// Cluster-Farben, und die Zahlen werden unlesbar.
 const SWISSTOPO_STYLE =
   'https://vectortiles.geo.admin.ch/styles/ch.swisstopo.leichte-basiskarte-grey.vt/style.json'
 
@@ -32,60 +37,40 @@ const ATTRIBUTION = '© swisstopo'
 const SCHWEIZ_BOUNDS: [[number, number], [number, number]] = [[5.9, 45.8], [10.5, 47.8]]
 
 const SOURCE_ID = 'auftraege'
-const HEAT_LAYER = 'auftraege-heat'
-const POINT_LAYER = 'auftraege-punkte'
+const POINT_LAYER = 'auftraege-punkt'
 
-// Ab hier werden die Punkte sichtbar. Darunter bleiben sie transparent, aber
-// treffbar — sonst müsste der Planer auf gut Glück über die Fläche wischen.
-const PUNKTE_SICHTBAR_AB_ZOOM = 13
+// Ab dieser Zoomstufe wird nicht mehr gruppiert: jeder Einsatz steht für sich
+// und ist einzeln ansprechbar. Das ist die Auflösung, die «reinzoomen bis man
+// den einzelnen Auftrag sieht» überhaupt erst garantiert.
+const CLUSTER_MAX_ZOOM = 14
+
+// Radius in Pixeln, innerhalb dessen zusammengefasst wird. Grosszügig, damit
+// eine Gemeinde eine Zahl ergibt und nicht fünf sich überlappende Kreise.
+const CLUSTER_RADIUS = 50
+
+// Grössenstufen der Cluster-Marker (CSS in admin.css). Die Schwellen sind
+// bewusst niedrig: bei einer Dreiwochen-Planung sind zehn Einsätze an einem
+// Ort schon viel.
+const CLUSTER_GROSS_AB = 15
+const CLUSTER_MITTEL_AB = 5
 
 // Gleiche Verzögerung wie die Kalender-Kacheln (scheduleShared HOVER_DELAY_MS):
-// beim Überstreichen mehrerer Punkte sollen keine Karten aufblitzen.
+// beim Überstreichen mehrerer Marker sollen keine Karten aufblitzen.
 const HOVER_DELAY_MS = 220
 
-// Die Farben kommen aus den Design-Tokens (admin/tokens.css), nicht als
-// Literale hierher: MapLibre braucht konkrete Farbwerte, und ein Hex im
-// Kartencode bliebe hell, wenn der Nutzer auf dunkel schaltet. Gelesen wird
-// beim Aufbau und erneut bei jedem Theme-Wechsel.
-const FARB_TOKENS = [
-  '--map-heat-1', '--map-heat-2', '--map-heat-3', '--map-heat-4',
-  '--map-point', '--map-point-stroke',
-] as const
+// Die Farben der Einzelpunkte kommen aus den Design-Tokens (admin/tokens.css),
+// nicht als Literale hierher: MapLibre zeichnet auf ein Canvas und folgt keinem
+// CSS, ein Hex im Kartencode bliebe hell, wenn der Nutzer dunkel schaltet.
+// Die Cluster sind HTML-Marker und holen sich ihre Farben direkt per CSS.
+const FARB_TOKENS = ['--map-point', '--map-point-stroke'] as const
 
 type Farben = Record<(typeof FARB_TOKENS)[number], string>
-
-// Rueckfall, falls ein Token fehlt. MapLibre wirft bei einem leeren Farbwert
-// und riss damit die ganze Karte mit — ein fehlendes Token darf hoechstens
-// die Farbe kosten, nicht die Ansicht. Bewusst rgba() statt Hex: ein
-// Hex-Literal im TSX zaehlt gegen das Budget in scripts/token-gate.mjs, und
-// zu Recht — es waere hier aber die Notbremse und nicht der Regelfall.
-const FARB_FALLBACK: Farben = {
-  '--map-heat-1': 'rgba(254, 240, 138, 0.55)',
-  '--map-heat-2': 'rgba(251, 176, 59, 0.68)',
-  '--map-heat-3': 'rgba(240, 118, 42, 0.80)',
-  '--map-heat-4': 'rgba(203, 45, 40, 0.88)',
-  '--map-point': 'rgba(203, 45, 40, 1)',
-  '--map-point-stroke': 'rgba(255, 255, 255, 1)',
-}
 
 function leseFarben(): Farben {
   const stil = getComputedStyle(document.documentElement)
   const out = {} as Farben
-  for (const token of FARB_TOKENS) {
-    out[token] = stil.getPropertyValue(token).trim() || FARB_FALLBACK[token]
-  }
+  for (const token of FARB_TOKENS) out[token] = stil.getPropertyValue(token).trim()
   return out
-}
-
-function heatmapFarbe(f: Farben) {
-  return [
-    'interpolate', ['linear'], ['heatmap-density'],
-    0,    'rgba(0,0,0,0)',
-    0.2,  f['--map-heat-1'],
-    0.45, f['--map-heat-2'],
-    0.7,  f['--map-heat-3'],
-    1,    f['--map-heat-4'],
-  ]
 }
 
 const PERIODEN = [
@@ -108,14 +93,21 @@ function readPeriod(): number {
   }
 }
 
-/** Mehrere Aufträge unter dem Zeiger — dann sagt die Karte, wie viele. */
+/** Ein Cluster oder mehrere Einsätze auf demselben Pixel — dann sagt die
+ *  Karte, wie viele es sind, statt einen davon willkürlich herauszugreifen. */
 interface AggregatState {
   anzahl: number
   personentage: number
-  von: string
-  bis: string
   x: number
   y: number
+  /** true = echtes Cluster (aufzoombar), false = Überlappung im Maximalzoom. */
+  aufzoombar: boolean
+}
+
+function clusterKlasse(anzahl: number): string {
+  if (anzahl >= CLUSTER_GROSS_AB) return 'gross'
+  if (anzahl >= CLUSTER_MITTEL_AB) return 'mittel'
+  return 'klein'
 }
 
 export default function ProjectScheduleMap({
@@ -134,6 +126,11 @@ export default function ProjectScheduleMap({
   // Der jeweils aktuelle Punktbestand für die Event-Handler. Die Handler werden
   // einmal registriert und dürfen deshalb nicht auf einen Render-Wert schliessen.
   const pointsRef = useRef<{ byId: Map<string, CalendarEntry> }>({ byId: new Map() })
+  // Cluster-Marker, die gerade auf der Karte hängen — Schlüssel ist die
+  // cluster_id. MapLibre liefert bei jedem Rendern neue Feature-Objekte; ohne
+  // diesen Bestand würde jeder Frame alle Marker neu aufbauen und das Hovern
+  // wäre unmöglich.
+  const markerRef = useRef<Map<string, Marker>>(new Map())
 
   const theme = useTheme()
   const [wochen, setWochen] = useState(readPeriod)
@@ -194,52 +191,46 @@ export default function ProjectScheduleMap({
     map.on('error', () => setLadefehler(true))
 
     map.on('load', () => {
-      map.addSource(SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-
-      map.addLayer({
-        id: HEAT_LAYER,
-        type: 'heatmap',
-        source: SOURCE_ID,
-        paint: {
-          // Gewicht = Personentage (mapWeight). Bei 20 Personentagen ist der
-          // Deckel erreicht — darüber wird ein Ort nicht noch röter, sonst
-          // erschlüge ein Grossprojekt die ganze übrige Karte.
-          'heatmap-weight': ['interpolate', ['linear'], ['get', 'weight'], 0, 0, 20, 1],
-          'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 6, 1, 14, 3],
-          // Zoomabhängiger Radius: ohne ihn ist bei Kantonszoom alles ein
-          // Fleck und bei Strassenzoom nichts mehr zu sehen.
-          'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 6, 12, 10, 26, 14, 48],
-          'heatmap-color': heatmapFarbe(leseFarben()) as never,
-          // Beim Hineinzoomen tritt die Fläche zurück und die Punkte übernehmen.
-          'heatmap-opacity': ['interpolate', ['linear'], ['zoom'],
-            PUNKTE_SICHTBAR_AB_ZOOM, 0.85, 16, 0.35],
-        },
+      map.addSource(SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+        cluster: true,
+        clusterMaxZoom: CLUSTER_MAX_ZOOM,
+        clusterRadius: CLUSTER_RADIUS,
+        // Die Personentage werden über das Cluster mitsummiert. MapLibre kann
+        // das serverlos beim Clustern; ohne clusterProperties müssten wir die
+        // Einzelpunkte eines Clusters nachschlagen, was die Bibliothek nicht
+        // ohne Weiteres hergibt.
+        clusterProperties: { personentage: ['+', ['get', 'weight']] },
       })
 
+      // EINZIGER Kartenlayer: die nicht gruppierten Einsätze. Die Cluster sind
+      // HTML-Marker (siehe updateMarkers) — eine Zahl im Kreis bräuchte sonst
+      // einen symbol-Layer, und der hängt an den Schriftglyphen des fremden
+      // swisstopo-Styles. Fehlt dort der Font-Stack, bleibt die Zahl unsichtbar
+      // und niemand merkt es. HTML rendert immer.
       map.addLayer({
         id: POINT_LAYER,
         type: 'circle',
         source: SOURCE_ID,
+        filter: ['!', ['has', 'point_count']],
         paint: {
-          // Grosszügiger als der sichtbare Punkt: das hier ist die
-          // Trefferfläche für Hover und Tap.
-          'circle-radius': 10,
+          // Grosszügiger als der Punkt aussieht: das ist die Trefferfläche
+          // für Hover und Tap.
+          'circle-radius': 9,
           'circle-color': leseFarben()['--map-point'],
-          'circle-stroke-width': 1.5,
+          'circle-stroke-width': 2,
           'circle-stroke-color': leseFarben()['--map-point-stroke'],
-          // Unsichtbar, aber weiterhin per queryRenderedFeatures treffbar —
-          // Deckkraft 0 schliesst ein Feature nicht von der Abfrage aus.
-          'circle-opacity': ['interpolate', ['linear'], ['zoom'],
-            PUNKTE_SICHTBAR_AB_ZOOM - 0.5, 0, PUNKTE_SICHTBAR_AB_ZOOM + 0.5, 0.9],
-          'circle-stroke-opacity': ['interpolate', ['linear'], ['zoom'],
-            PUNKTE_SICHTBAR_AB_ZOOM - 0.5, 0, PUNKTE_SICHTBAR_AB_ZOOM + 0.5, 1],
         },
       })
       setReady(true)
     })
 
+    const markers = markerRef.current
     return () => {
       if (hoverTimerRef.current !== null) window.clearTimeout(hoverTimerRef.current)
+      for (const marker of markers.values()) marker.remove()
+      markers.clear()
       map.remove()
       mapRef.current = null
     }
@@ -254,26 +245,125 @@ export default function ProjectScheduleMap({
     if (!source) return
     source.setData(points.geojson)
 
+    // Marker abräumen, BEVOR die neuen Daten gerendert sind. MapLibre vergibt
+    // cluster_ids je Clusterlauf; nach einem Zeitraumwechsel kann dieselbe id
+    // eine andere Anzahl bezeichnen. Ein zwischengespeicherter Marker trüge
+    // dann die alte Zahl — plausibel aussehend und falsch. Der render-Handler
+    // baut sie im nächsten Frame neu auf.
+    for (const marker of markerRef.current.values()) marker.remove()
+    markerRef.current.clear()
+
     const box = boundsOf(points.geojson.features)
     map.fitBounds(box ?? SCHWEIZ_BOUNDS, { padding: 48, maxZoom: 12, duration: 400 })
     setHover(null)
     setAggregat(null)
   }, [points, ready])
 
-  // ── Farben beim Theme-Wechsel nachziehen ──────────────────────────────────
-  // MapLibre rendert auf ein Canvas: die Layer-Farben sind zur Zeichenzeit
-  // eingefroren und folgen keinem CSS. Ohne diesen Effekt bliebe die Karte in
-  // den Farben stehen, die beim Aufbau galten.
+  // ── Farbe der Einzelpunkte beim Theme-Wechsel nachziehen ──────────────────
+  // Nur der Canvas-Layer braucht das; die Cluster-Marker sind HTML und folgen
+  // dem Theme von selbst.
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
     const farben = leseFarben()
-    map.setPaintProperty(HEAT_LAYER, 'heatmap-color', heatmapFarbe(farben) as never)
     map.setPaintProperty(POINT_LAYER, 'circle-color', farben['--map-point'])
     map.setPaintProperty(POINT_LAYER, 'circle-stroke-color', farben['--map-point-stroke'])
   }, [theme, ready])
 
-  // ── Hover, Tap und Doppelklick ────────────────────────────────────────────
+  // ── Cluster-Marker pflegen ────────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !ready) return
+    const markers = markerRef.current
+
+    const cancelTimer = () => {
+      if (hoverTimerRef.current !== null) {
+        window.clearTimeout(hoverTimerRef.current)
+        hoverTimerRef.current = null
+      }
+    }
+
+    const bauMarkerElement = (clusterId: number, anzahl: number, personentage: number) => {
+      const el = document.createElement('button')
+      el.type = 'button'
+      el.className = `project-map-cluster project-map-cluster-${clusterKlasse(anzahl)}`
+      el.textContent = String(anzahl)
+      el.setAttribute('aria-label', `${anzahl} Einsätze — zum Aufschlüsseln hineinzoomen`)
+
+      el.addEventListener('mouseenter', () => {
+        cancelTimer()
+        const box = el.getBoundingClientRect()
+        hoverTimerRef.current = window.setTimeout(() => {
+          setHover(null)
+          setAggregat({
+            anzahl,
+            personentage,
+            x: box.right,
+            y: box.top,
+            aufzoombar: true,
+          })
+        }, HOVER_DELAY_MS)
+      })
+      el.addEventListener('mouseleave', () => {
+        cancelTimer()
+        setAggregat(null)
+      })
+      // Klick löst das Cluster auf: MapLibre rechnet aus, ab welcher Zoomstufe
+      // es auseinanderfällt. Genau der Weg vom «wie viele» zum «welche».
+      el.addEventListener('click', () => {
+        const source = map.getSource(SOURCE_ID) as GeoJSONSource | undefined
+        if (!source) return
+        void source.getClusterExpansionZoom(clusterId).then(zoom => {
+          const marker = markers.get(String(clusterId))
+          if (!marker) return
+          setAggregat(null)
+          map.easeTo({ center: marker.getLngLat(), zoom, duration: 500 })
+        }).catch(() => { /* Cluster inzwischen weg — dann passiert nichts. */ })
+      })
+      return el
+    }
+
+    const updateMarkers = () => {
+      const sichtbar = new Set<string>()
+      for (const feature of map.querySourceFeatures(SOURCE_ID)) {
+        const props = feature.properties
+        if (!props?.cluster) continue
+        const key = String(props.cluster_id)
+        const anzahl = Number(props.point_count) || 0
+        const personentage = Number(props.personentage) || 0
+        sichtbar.add(key)
+
+        let marker = markers.get(key)
+        if (!marker) {
+          const coords = (feature.geometry as { coordinates: [number, number] }).coordinates
+          marker = new maplibregl.Marker({
+            element: bauMarkerElement(Number(props.cluster_id), anzahl, personentage),
+          }).setLngLat(coords)
+          markers.set(key, marker)
+          marker.addTo(map)
+        }
+      }
+      // Was nicht mehr im Bild ist, muss weg — sonst bleiben Marker als
+      // Geisterkreise am Rand hängen, wenn man verschiebt.
+      for (const [key, marker] of markers) {
+        if (!sichtbar.has(key)) {
+          marker.remove()
+          markers.delete(key)
+        }
+      }
+    }
+
+    const onRender = () => {
+      if (map.isSourceLoaded(SOURCE_ID)) updateMarkers()
+    }
+    map.on('render', onRender)
+    return () => {
+      map.off('render', onRender)
+      cancelTimer()
+    }
+  }, [ready])
+
+  // ── Hover, Tap und Doppelklick auf einzelne Einsätze ──────────────────────
   useEffect(() => {
     const map = mapRef.current
     if (!map || !ready) return
@@ -285,36 +375,29 @@ export default function ProjectScheduleMap({
       }
     }
 
-    /** Baut aus der Pixelposition des Punktes ein DOMRect für die Hover-Karte.
+    /** Baut aus der Zeigerposition ein DOMRect für die Hover-Karte.
      *  EventHoverCard positioniert sich daraus wie über einer Kalender-Kachel —
      *  auf dem Canvas gibt es kein Element mit getBoundingClientRect(). */
-    const rectAt = (clientX: number, clientY: number): DOMRect => {
-      return new DOMRect(clientX - 6, clientY - 6, 12, 12)
-    }
+    const rectAt = (clientX: number, clientY: number): DOMRect =>
+      new DOMRect(clientX - 6, clientY - 6, 12, 12)
 
     const zeige = (features: MapGeoJSONFeature[], clientX: number, clientY: number) => {
       if (!features.length) return
       if (features.length > 1) {
-        // Mehrere Aufträge auf demselben Pixel: eine willkürlich
-        // herausgegriffene Einzelkarte wäre irreführend.
+        // Im Maximalzoom wird nicht mehr gruppiert; zwei Einsätze an derselben
+        // Adresse liegen dann exakt übereinander. Eine willkürlich
+        // herausgegriffene Einzelkarte wäre irreführend — also auch hier die
+        // Anzahl, aber ohne «hineinzoomen»: weiter geht es nicht.
         const alsMapFeatures = features.map(f => ({
           properties: { weight: Number(f.properties?.weight) || 0 },
         })) as MapFeature[]
-        const eintraege = features
-          .map(f => pointsRef.current.byId.get(String(f.properties?.entryId)))
-          .filter((e): e is CalendarEntry => !!e)
-        const daten = eintraege
-          .map(e => (e.start_date ?? '').slice(0, 10))
-          .filter(Boolean)
-          .sort()
         setHover(null)
         setAggregat({
           anzahl: features.length,
           personentage: summeGewichte(alsMapFeatures),
-          von: daten[0] ?? '',
-          bis: daten[daten.length - 1] ?? '',
           x: clientX,
           y: clientY,
+          aufzoombar: false,
         })
         return
       }
@@ -352,13 +435,14 @@ export default function ProjectScheduleMap({
       zeige(features, e.originalEvent.x, e.originalEvent.y)
     }
 
+    // Doppelklick öffnet das Projekt — dieselbe Geste wie auf einer
+    // Kalender-Kachel (openBinding in ProjectScheduleCalendar).
     const onDblClick = (e: maplibregl.MapMouseEvent) => {
       const features = map.queryRenderedFeatures(e.point, { layers: [POINT_LAYER] })
       if (features.length !== 1) return
       const entry = pointsRef.current.byId.get(String(features[0].properties?.entryId))
       // Der ganze Eintrag, nicht seine id: die ist die TERMIN-ID. Der Screen
-      // loest sie ueber resolveEntryProject aufs Projekt auf — genau wie bei
-      // einem Doppelklick auf eine Kalender-Kachel.
+      // löst sie über resolveEntryProject aufs Projekt auf.
       if (entry) onOpenProject?.(entry)
     }
 
@@ -420,13 +504,13 @@ export default function ProjectScheduleMap({
       )}
 
       <div className="project-map-legend">
-        <span className="project-map-scale" aria-hidden="true" />
-        <span>wenig gebundene Mannschaft</span>
-        <span className="project-map-legend-sep">→</span>
-        <span>viel</span>
+        <span className="project-map-cluster project-map-cluster-klein project-map-legend-chip" aria-hidden="true">3</span>
+        <span className="project-map-cluster project-map-cluster-mittel project-map-legend-chip" aria-hidden="true">8</span>
+        <span className="project-map-cluster project-map-cluster-gross project-map-legend-chip" aria-hidden="true">20</span>
+        <span>Einsätze in der Umgebung — Klick zoomt hinein</span>
         <span className="project-map-legend-hint">
-          Gewichtet nach Personentagen (Monteure × Werktage). Ab Zoomstufe {PUNKTE_SICHTBAR_AB_ZOOM} erscheinen
-          die einzelnen Einsätze — Doppelklick öffnet das Projekt.
+          Ab Zoomstufe {CLUSTER_MAX_ZOOM + 1} steht jeder Einsatz einzeln: Zeiger darauf zeigt die Details,
+          Doppelklick öffnet das Projekt.
         </span>
       </div>
 
@@ -444,13 +528,9 @@ export default function ProjectScheduleMap({
             <span className="project-cal-hovercard-label">Aufwand</span>
             <span>{Math.round(aggregat.personentage * 10) / 10} Personentage</span>
           </div>
-          {aggregat.von && (
-            <div className="project-cal-hovercard-row">
-              <span className="project-cal-hovercard-label">Zeitraum</span>
-              <span>{fmt(aggregat.von)} – {fmt(aggregat.bis)}</span>
-            </div>
-          )}
-          <div className="project-map-aggregat-hint">Zum Aufschlüsseln hineinzoomen</div>
+          <div className="project-map-aggregat-hint">
+            {aggregat.aufzoombar ? 'Klick zoomt hinein' : 'Gleiche Adresse'}
+          </div>
         </div>
       )}
     </div>

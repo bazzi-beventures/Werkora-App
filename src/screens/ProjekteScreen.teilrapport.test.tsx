@@ -134,6 +134,38 @@ describe('ProjekteScreen — Gesamtrapport erstellen', () => {
     expect(screen.queryByRole('button', { name: /Gesamtrapport erstellen/ })).not.toBeInTheDocument()
   })
 
+  // Seit 2026-08-27 bündelbar: auch gewöhnliche Rapporte ohne Unterschrift. Der
+  // häufige Fall — zwei fertige Rapporte derselben Baustelle, weil beim ersten noch
+  // niemand wusste, dass es eine Serie wird. Was bündelbar ist, entscheidet der
+  // Server (`/partial-reports`); die PWA zeigt nur, was er liefert.
+  it('erscheint bei zwei gewöhnlichen Rapporten ohne Unterschrift', async () => {
+    const offen = [report({ id: 1 }), report({ id: 2, report_date: '2026-08-06' })]
+    await openDetail(true, {
+      '/pwa/projects/p1/reports': offen,
+      '/pwa/projects/p1/partial-reports': offen,
+    })
+    expect(await screen.findByRole('button', { name: /Gesamtrapport erstellen \(2 Einsätze\)/ }))
+      .toBeInTheDocument()
+  })
+
+  it('bleibt bei EINEM gewöhnlichen Rapport weg — ein Bündel aus einem Einsatz ist eine Unterschrift auf Umwegen', async () => {
+    await openDetail(true, {
+      '/pwa/projects/p1/reports': [report()],
+      '/pwa/projects/p1/partial-reports': [report()],
+    })
+    await screen.findByText(/Storen montiert/)
+    expect(screen.queryByRole('button', { name: /Gesamtrapport erstellen/ })).not.toBeInTheDocument()
+  })
+
+  it('erscheint bei EINEM freien Teilrapport — der wartet immer auf seinen Gesamtrapport', async () => {
+    const eins = [report({ is_partial: true })]
+    await openDetail(true, {
+      '/pwa/projects/p1/reports': eins,
+      '/pwa/projects/p1/partial-reports': eins,
+    })
+    expect(await screen.findByRole('button', { name: /Gesamtrapport erstellen/ })).toBeInTheDocument()
+  })
+
   it('erscheint mit einem freien Teilrapport', async () => {
     await openDetail(true, {
       '/pwa/projects/p1/reports': [report({ is_partial: true })],
@@ -306,5 +338,92 @@ describe('ProjekteScreen — Bündelung auflösen', () => {
     await screen.findByText('Teilrapport – im Gesamtrapport')
     expect(screen.queryByRole('button', { name: 'Löschen' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Unterschrift$/ })).not.toBeInTheDocument()
+  })
+})
+
+// ── «Weiterer Einsatz»: nachträglich in die Serie aufnehmen ──
+//
+// Der Weg rückwärts zur Abschluss-Wahl im Chat: dass eine Baustelle über mehrere
+// Tage geht, stellt sich oft erst am zweiten Tag heraus. Ein Griff macht den
+// bestehenden Rapport zum Teilrapport UND startet den nächsten Einsatz.
+
+describe('ProjekteScreen — Weiterer Einsatz', () => {
+  const BTN = { name: /Weiterer Einsatz/ }
+
+  async function openWith(over: Record<string, unknown>, onStartRapport = vi.fn(), feature = true) {
+    const user = userEvent.setup()
+    routeFetch({
+      '/pwa/projects/p1/reports': [report(over)],
+      '/pwa/projects/p1/partial-reports': [],
+    })
+    render(<ProjekteScreen {...NOOP} user={makeUser(feature)} onStartRapport={onStartRapport} />)
+    await waitFor(() => expect(screen.getByText('MFH Sonnhalde')).toBeInTheDocument())
+    await user.click(screen.getByText('MFH Sonnhalde'))
+    await screen.findByRole('button', { name: /Rapport erstellen/ })
+    return { user, onStartRapport }
+  }
+
+  it('nimmt den Rapport in die Serie auf und startet den nächsten Einsatz', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { user, onStartRapport } = await openWith({})
+
+    await user.click(await screen.findByRole('button', BTN))
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith(
+      '/pwa/projects/p1/reports/1/partial',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ is_partial: true }) }),
+    ))
+    expect(onStartRapport).toHaveBeenCalledWith({ id: 'p1', name: 'MFH Sonnhalde' })
+    confirmSpy.mockRestore()
+  })
+
+  it('fragt vorher — und lässt bei Abbrechen alles wie es war', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { user, onStartRapport } = await openWith({})
+
+    await user.click(await screen.findByRole('button', BTN))
+
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      '/pwa/projects/p1/reports/1/partial', expect.anything(),
+    )
+    expect(onStartRapport).not.toHaveBeenCalled()
+    // Die Rückfrage sagt, was es kostet — nicht nur, dass etwas passiert.
+    expect(confirmSpy.mock.calls[0][0]).toMatch(/nicht verrechnet/)
+    confirmSpy.mockRestore()
+  })
+
+  it('fragt beim schon freien Teilrapport nicht nochmals — da ist nichts umzustellen', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { user, onStartRapport } = await openWith({ is_partial: true })
+
+    await user.click(await screen.findByRole('button', BTN))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    await waitFor(() => expect(onStartRapport).toHaveBeenCalled())
+    confirmSpy.mockRestore()
+  })
+
+  it('bietet es am verrechneten Rapport nicht an', async () => {
+    await openWith({ invoice_id: 9, invoice_locked: true })
+    await screen.findByText('abgerechnet')
+    expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
+  })
+
+  it('bietet es am gebündelten Teilrapport nicht an', async () => {
+    await openWith({ is_partial: true, merged_into_report_id: 100 })
+    await screen.findByText('Teilrapport – im Gesamtrapport')
+    expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
+  })
+
+  it('bietet es am Gesamtrapport nicht an — der Behälter ist kein Kind', async () => {
+    await openWith({ id: 100, is_aggregate: true })
+    await screen.findByText('Gesamtrapport – ohne Unterschrift')
+    expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
+  })
+
+  it('bietet es ohne das Feature nicht an', async () => {
+    await openWith({}, vi.fn(), false)
+    await screen.findByText(/Storen montiert/)
+    expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
   })
 })

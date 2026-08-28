@@ -262,14 +262,19 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 <IconSwitchUser />
                 <span>Zur Mitarbeiter-App</span>
               </button>
-              <div className="admin-mobile-user-row">
-                <div className="admin-mobile-avatar">{initials}</div>
-                <div className="admin-mobile-user-info">
-                  <div className="admin-mobile-user-name">{displayName}</div>
-                  <div className="admin-mobile-user-role">{role}</div>
+              {/* Beschriftete Pille unter dem Namen — gleiche Anordnung wie in der
+                  Desktop-Sidebar, siehe AdminSidebar.tsx. */}
+              <div className="admin-mobile-user-block">
+                <div className="admin-mobile-user-row">
+                  <div className="admin-mobile-avatar">{initials}</div>
+                  <div className="admin-mobile-user-info">
+                    <div className="admin-mobile-user-name">{displayName}</div>
+                    <div className="admin-mobile-user-role">{role}</div>
+                  </div>
                 </div>
-                <button className="admin-mobile-logout-btn" onClick={handleLogout} title="Abmelden">
+                <button className="admin-mobile-logout-pill" onClick={handleLogout} title="Abmelden">
                   <IconLogout />
+                  <span>Logout</span>
                 </button>
               </div>
             </div>

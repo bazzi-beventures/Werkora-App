@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import { useKpiData } from '../useKpiData'
 import type { KpiProjektRow, ColumnDef } from '../types'
-import { averageOrNull, finite, percentOrNull, sumOrNull } from '../aggregate'
+import { averageOrNull, finite, istFakturiert, matchesSuche, percentOrNull, sumOrNull } from '../aggregate'
 import KpiCards from '../components/KpiCards'
 import DataTable from '../components/DataTable'
 import BiBarChart from '../components/BiBarChart'
@@ -103,6 +103,13 @@ export default function ProjekteTab() {
   const [datePreset, setDatePreset] = useState<DatePreset>('all')
   const [statusSel, setStatusSel] = useState<Set<string>>(new Set(['offen', 'abgeschlossen']))
   const [mitarbeiterSel, setMitarbeiterSel] = useState<Set<string> | null>(null) // null = all
+  // Abrechnung: trennt die Projekte, die Aufwand tragen aber (noch) keine
+  // Rechnung — die stehen zwangsläufig im Minus und schwemmen sonst die
+  // Flop-Liste voll. Beide Werte vorausgewählt = wie bisher.
+  const [abrechnungSel, setAbrechnungSel] = useState<Set<string>>(
+    new Set(['fakturiert', 'offen']),
+  )
+  const [suche, setSuche] = useState('')
 
   const mitarbeiterOptions = useMemo(() => {
     if (!data) return []
@@ -131,10 +138,16 @@ export default function ProjekteTab() {
     { value: 'abgeschlossen', count: data?.filter((r) => r.ist_abgeschlossen).length ?? 0 },
   ], [data])
 
+  const abrechnungOptions = useMemo(() => [
+    { value: 'fakturiert', count: data?.filter((r) => istFakturiert(r.umsatz_gestellt)).length ?? 0 },
+    { value: 'offen', count: data?.filter((r) => !istFakturiert(r.umsatz_gestellt)).length ?? 0 },
+  ], [data])
+
   const filtered = useMemo(() => {
     if (!data) return []
     const from = presetFrom(datePreset)
     const to = presetTo(datePreset)
+    const suchbegriff = suche
     return data.filter((r) => {
       if (from) {
         if (!r.letzter_rapport || r.letzter_rapport < from) return false
@@ -144,13 +157,16 @@ export default function ProjekteTab() {
       }
       const statusVal = r.ist_abgeschlossen ? 'abgeschlossen' : 'offen'
       if (!statusSel.has(statusVal)) return false
+      const abrechnungVal = istFakturiert(r.umsatz_gestellt) ? 'fakturiert' : 'offen'
+      if (!abrechnungSel.has(abrechnungVal)) return false
       if (mitarbeiterSel !== null && mitarbeiterSel.size > 0) {
         const names = r.mitarbeiter_liste ? r.mitarbeiter_liste.split(',').map((m) => m.trim()) : []
         if (!names.some((n) => mitarbeiterSel.has(n))) return false
       }
+      if (!matchesSuche(suchbegriff, [r.projekt_nummer, r.projekt_name, r.kunde_name])) return false
       return true
     })
-  }, [data, datePreset, statusSel, mitarbeiterSel])
+  }, [data, datePreset, statusSel, abrechnungSel, mitarbeiterSel, suche])
 
   const cards = useMemo(() => {
     if (!filtered.length) return []
@@ -212,6 +228,14 @@ export default function ProjekteTab() {
     })
   }
 
+  function toggleAbrechnung(v: string) {
+    setAbrechnungSel((prev) => {
+      const next = new Set(prev)
+      next.has(v) ? next.delete(v) : next.add(v)
+      return next
+    })
+  }
+
   function toggleMitarbeiter(v: string) {
     setMitarbeiterSel((prev) => {
       const base = prev ?? allMitarbeiterNames
@@ -251,6 +275,13 @@ export default function ProjekteTab() {
           onToggle={toggleStatus}
           onToggleAll={(all) => setStatusSel(all ? new Set(['offen', 'abgeschlossen']) : new Set())}
         />
+        <MultiDropdown
+          label="Abrechnung"
+          options={abrechnungOptions}
+          selected={abrechnungSel}
+          onToggle={toggleAbrechnung}
+          onToggleAll={(all) => setAbrechnungSel(all ? new Set(['fakturiert', 'offen']) : new Set())}
+        />
         {mitarbeiterOptions.length > 0 && (
           <MultiDropdown
             label="Mitarbeiter"
@@ -260,6 +291,14 @@ export default function ProjekteTab() {
             onToggleAll={(all) => setMitarbeiterSel(all ? null : new Set())}
           />
         )}
+        <input
+          className="kpi-filter-search"
+          type="search"
+          value={suche}
+          onChange={(e) => setSuche(e.target.value)}
+          placeholder="Nummer, Projekt oder Kunde…"
+          aria-label="Projekte durchsuchen"
+        />
         <span className="kpi-filter-count">{filtered.length} Projekte</span>
       </div>
 
@@ -290,6 +329,12 @@ export default function ProjekteTab() {
         und Materialkosten. Gemeinkosten (Büro, Fahrzeuge, Miete) sind nicht enthalten.
         Projekte ohne hinterlegten Monatslohn oder Einkaufspreis zeigen „—" statt einer zu
         günstig gerechneten Zahl und erscheinen in keiner der beiden Listen.
+        {' '}Ein Projekt mit Aufwand, aber noch <strong>ohne Rechnung</strong>, steht
+        zwangsläufig im Minus — die Kosten sind da, der Umsatz noch nicht. Über den Filter
+        <em> Abrechnung → fakturiert</em> bleiben nur Projekte übrig, deren Marge schon
+        aussagekräftig ist.
+        {' '}Gleiche Projektnamen sind möglich (seit 2026-08 nicht mehr eindeutig); die
+        Nummer davor unterscheidet sie.
       </div>
     </div>
   )
@@ -303,7 +348,13 @@ function TopFlopList({ title, rows }: { title: string; rows: KpiProjektRow[] }) 
       <div className="kpi-topflop-title">{title}</div>
       {rows.map((r) => (
         <div key={r.projekt_id} className="kpi-topflop-row">
-          <span className="kpi-topflop-name" title={r.projekt_name}>{r.projekt_name}</span>
+          {/* Nummer vor den Namen: Projektnamen sind seit 20260807b nicht mehr
+              eindeutig. Ohne sie liest sich derselbe Name zweimal wie ein
+              Doppeleintrag, obwohl es zwei verschiedene Projekte sind. */}
+          <span className="kpi-topflop-name" title={`${r.projekt_nummer ?? ''} ${r.projekt_name}`.trim()}>
+            {r.projekt_nummer && <span className="kpi-topflop-nr">{r.projekt_nummer}</span>}
+            {r.projekt_name}
+          </span>
           <span style={{ color: signedColor(finite(r.gewinn_gestellt)), whiteSpace: 'nowrap' }}>
             {chfSigned(r.gewinn_gestellt)}
           </span>

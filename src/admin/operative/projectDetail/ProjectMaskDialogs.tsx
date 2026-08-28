@@ -42,7 +42,7 @@ import type { StaffMember } from './DetailsForm'
 export function ProjectMaskDialogs({
   project, staff, quotes,
   showQuoteForm, onQuoteDone, onQuoteCancel,
-  showReportForm, editReportId, onReportDone, onReportCancel,
+  showReportForm, editReportId, reportDefaultPartial, onReportDone, onReportCancel,
   editQuote, onEditQuoteDone, onEditQuoteClose,
   reportDirtyRef,
 }: {
@@ -56,6 +56,8 @@ export function ProjectMaskDialogs({
   showReportForm: boolean
   /** Gesetzt = dieselbe Maske im Bearbeiten-Modus fuer genau diesen Rapport. */
   editReportId: number | null
+  /** Vorauswahl der Teilrapport-Checkbox bei Neuerfassung — siehe ReportCreateForm. */
+  reportDefaultPartial?: boolean
   onReportDone: () => void
   onReportCancel: () => void
   editQuote: QuoteDetail | null
@@ -155,6 +157,7 @@ export function ProjectMaskDialogs({
               staff={staff}
               quotes={quotes}
               editReportId={editReportId ?? undefined}
+              defaultPartial={reportDefaultPartial}
               onDirtyChange={markReportDirty}
               onDone={() => { reportDirty.current = false; onReportDone() }}
               onCancel={requestReportClose}

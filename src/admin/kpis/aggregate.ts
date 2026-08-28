@@ -92,3 +92,42 @@ export function percentOrNull(part: number | null, whole: number | null): number
   if (part === null || whole === null || whole === 0) return null
   return (part / whole) * 100
 }
+
+/**
+ * Ist ein Projekt fakturiert? Grundlage des Abrechnungs-Filters im Projekte-Tab.
+ *
+ * Warum das eine eigene Funktion ist: ein Projekt mit gebuchtem Aufwand, aber
+ * noch ohne Rechnung, steht zwangsläufig im Minus — die Kosten sind da, der
+ * Umsatz noch nicht. Solche Projekte fluteten die „Schwächste 5"-Liste und
+ * machten sie nutzlos. Der Filter trennt sie ab, statt sie stillschweigend
+ * mitzuzählen.
+ */
+export function istFakturiert(umsatzGestellt: unknown): boolean {
+  return (finite(umsatzGestellt) ?? 0) > 0
+}
+
+/**
+ * Freitext-Treffer über mehrere Felder — case-insensitiv, leerer Begriff
+ * trifft alles.
+ *
+ * Die Projektnummer gehört mit in den Heuhaufen: `projects.name` ist seit
+ * Migration 20260807b nicht mehr eindeutig, die Nummer ist der einzige
+ * verlässliche Sucheinstieg.
+ */
+export function matchesSuche(begriff: string, felder: readonly (string | null | undefined)[]): boolean {
+  const needle = begriff.trim().toLowerCase()
+  if (!needle) return true
+  return felder.filter(Boolean).join(' ').toLowerCase().includes(needle)
+}
+
+/**
+ * Monatsbereich auf 'YYYY-MM'-Strings. Leere Grenzen sind offen.
+ *
+ * Lexikografischer Vergleich ist bei diesem Format korrekt und spart das
+ * Date-Parsing — '2026-02' < '2026-10' stimmt als String wie als Datum.
+ */
+export function imMonatsbereich(jahrMonat: string, von: string, bis: string): boolean {
+  if (von && jahrMonat < von) return false
+  if (bis && jahrMonat > bis) return false
+  return true
+}

@@ -26,3 +26,9 @@ export async function fetchProjektPipeline<T>(): Promise<T[]> {
   const res = (await apiFetch('/pwa/kpi-projekt-pipeline')) as PipelineResponse<T>
   return res.rows
 }
+
+/** Geplante Lieferantenmarge auf Projektware — eigener Endpoint statt View, weil
+ *  die Zähleinheit die Offerten-Entscheidung ist (services/quote_variants.py). */
+export async function fetchLieferantenProjektware<T>(): Promise<T> {
+  return (await apiFetch('/pwa/kpi-lieferanten-projektware')) as T
+}

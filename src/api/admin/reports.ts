@@ -117,6 +117,25 @@ export async function dissolveAggregateReport(
  * Danach sind der Behälter und alle seine Teilrapporte verrechenbar. Das PDF trägt
  * «Abgeschlossen durch … — ohne Kundenunterschrift».
  */
+/**
+ * Nimmt einen bestehenden Rapport nachträglich in die Teilrapport-Serie auf — oder
+ * wieder heraus. Gegenstück zur Monteur-Route, gleiche Prüfkette.
+ *
+ * Das Zurücknehmen (`isPartial: false`) ist der einzige Weg zurück, solange der
+ * Rapport nicht gebündelt ist; danach führt er über «Auflösen». Was sich ändert, ist
+ * genau eine Spalte — Stunden, Material, Text, PDF und eine bereits geholte
+ * Unterschrift bleiben unangetastet. Was es kostet, ist die Verrechenbarkeit bis zur
+ * Unterschrift auf dem Gesamtrapport.
+ */
+export async function markReportPartial(
+  projectId: string, reportId: number, isPartial: boolean,
+): Promise<{ status: string; changed: boolean; is_partial: boolean }> {
+  return apiFetch(`/pwa/admin/projects/${projectId}/reports/${reportId}/partial`, {
+    method: 'POST',
+    body: JSON.stringify({ is_partial: isPartial }),
+  })
+}
+
 export async function acceptAggregateReport(
   projectId: string, reportId: number,
 ): Promise<{ status: string; report_id: number; children: number }> {

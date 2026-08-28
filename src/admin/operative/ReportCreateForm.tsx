@@ -191,6 +191,7 @@ export function ReportCreateForm({
   staff,
   quotes,
   editReportId,
+  defaultPartial,
   onDone,
   onCancel,
   onDirtyChange,
@@ -201,6 +202,12 @@ export function ReportCreateForm({
   // Gesetzt = Bearbeiten-Modus: der Inhalt dieses Rapports wird nachgeladen und
   // beim Speichern per PUT vollständig ersetzt. Nicht gesetzt = Neuerfassung.
   editReportId?: number
+  // Vorauswahl der Teilrapport-Checkbox bei NEUERFASSUNG: gesetzt, wenn das
+  // Projekt bereits einen freien Teilrapport hat. Dieselbe Regel wie im Chat
+  // (Spec §3.10) — wer einmal so arbeitet, meint in aller Regel den nächsten Tag
+  // derselben Serie. Im Bearbeiten-Modus ohne Wirkung: dort gewinnt der
+  // gespeicherte Stand des Rapports.
+  defaultPartial?: boolean
   onDone: () => void
   onCancel: () => void
   // Meldet dem Overlay-Aufrufer, ob ein Schliessen Eingaben wegwerfen würde
@@ -237,9 +244,11 @@ export function ReportCreateForm({
   // Garantie je Einsatz. Vorbelegt aus dem Projekt, aber eigenständig korrigierbar.
   const [isWarranty, setIsWarranty] = useState(!!project.is_warranty)
   // Teilrapport (docs/specs/teilrapport.md §6.3): ein Einsatz einer mehrtägigen
-  // Baustelle, ohne Kundenunterschrift. Anders als «Garantiefall» KEINE Vorbelegung
-  // aus dem Projekt — ob ein Einsatz Teil einer Serie ist, weiss nur, wer ihn erfasst.
-  const [isPartial, setIsPartial] = useState(false)
+  // Baustelle, ohne Kundenunterschrift. Keine Vorbelegung aus dem PROJEKT (anders
+  // als «Garantiefall») — wohl aber aus dem Stand der Serie: läuft auf dem Projekt
+  // schon eine, ist der nächste Einsatz in aller Regel ihr nächster Tag (§3.10,
+  // dieselbe Vorauswahl wie im Chat). Siehe `defaultPartial`.
+  const [isPartial, setIsPartial] = useState(!isEdit && !!defaultPartial)
   const [teilrapportEnabled, setTeilrapportEnabled] = useState(false)
   // Gebündelt = gesperrt (Spec §3.3). Das Gate lehnt das Bearbeiten ohnehin ab, aber
   // die Maske soll es vorher sagen statt beim Speichern.

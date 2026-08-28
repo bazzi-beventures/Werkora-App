@@ -162,6 +162,25 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
     if (detail) setEditQuote(detail)
   }
 
+  // Läuft auf diesem Projekt bereits eine Teilrapport-Serie? Trägt zwei Dinge: die
+  // Vorauswahl der Teilrapport-Checkbox in der Erfassungsmaske (dieselbe Regel wie
+  // im Chat, Spec §3.10) und damit auch den Anschluss nach «Weiterer Einsatz».
+  const hasOpenPartial = billing.reports.some(
+    r => r.is_partial && !r.merged_into_report_id && !r.invoice_id,
+  )
+
+  // «Weiterer Einsatz» am bestehenden Rapport: erst in die Serie aufnehmen, dann die
+  // Erfassungsmaske für den nächsten Tag öffnen. Beide Schritte in einem Griff, weil
+  // sie zusammen gemeint sind — der Reiter hat vorher gefragt, was die Aufnahme
+  // kostet (nicht verrechenbar bis zur Unterschrift auf dem Gesamtrapport).
+  //
+  // Wirft der erste Schritt, bleibt die Maske zu: der Rapport gehört dann nicht zur
+  // Serie, und ein neuer Einsatz daneben wäre genau nicht, was der Anwender wollte.
+  async function handleAddNextEinsatz(reportId: number) {
+    await billing.markPartial(reportId)
+    setShowReportForm(true)
+  }
+
   // `useAcceptedQuote` ist die Checkbox der Rechnungs-Maske, kein Belegzustand —
   // deshalb bleibt sie im Screen und geht hier an den Hook.
   function handleGenerateInvoice(remark: string, quoteIds?: number[]): Promise<boolean> {
@@ -388,6 +407,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
           currentUserId={features.currentUserId}
           onShowQuoteForm={() => setShowQuoteForm(true)}
           onShowReportForm={() => setShowReportForm(true)}
+          onAddNextEinsatz={handleAddNextEinsatz}
           onEditReport={setEditReportId}
           onEditQuote={handleEditQuote}
           onSendQuote={setSendQuote}
@@ -418,6 +438,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
           onQuoteCancel={closeQuoteForm}
           showReportForm={showReportForm}
           editReportId={editReportId}
+          reportDefaultPartial={features.teilrapport && hasOpenPartial}
           onReportDone={() => { closeReportForm(); billing.reloadReports() }}
           onReportCancel={closeReportForm}
           reportDirtyRef={reportMaskDirty}

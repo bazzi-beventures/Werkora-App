@@ -301,6 +301,124 @@ export interface SupplierPricingRow {
   markup_pct: number
 }
 
+/* ── Phase D: Kunde, Lieferant, Funktion (Migration 20260827d) ──
+ *
+ * Überall gilt dieselbe Regel wie in den übrigen KPI-Views: `null` heisst
+ * „unbekannt, weil eine Zutat fehlt" — nie „null Franken". Die zugehörige
+ * Marker-Spalte sagt, wie viele Zeilen es betrifft. */
+
+export interface KpiKundeRow {
+  tenant_id: string
+  customer_id: string | null
+  kunde_name: string
+  /** true = Sammelzeile der Projekte ohne Kundenzuordnung (customer_id NULL). */
+  ist_sammelzeile: boolean
+  /** Archivierte Kunden werden geliefert, aber standardmässig nicht angezeigt. */
+  ist_archiviert: boolean
+  kunde_email: string | null
+  kunde_telefon: string | null
+
+  projekte_anzahl: number
+  projekte_offen: number
+  anzahl_rapporte: number
+  total_arbeitsstunden: number
+
+  umsatz_gestellt: number
+  umsatz_bezahlt: number
+  kosten_intern: number | null
+  /** Anzahl Projekte ohne ermittelbare Eigenkosten — Grund für kosten_intern = null. */
+  projekte_ohne_kosten: number
+  gewinn_gestellt: number | null
+  gewinn_bezahlt: number | null
+  marge_gestellt_pct: number | null
+  marge_bezahlt_pct: number | null
+
+  /** Offert-ENTSCHEIDUNGEN, nicht Dokumente (offerten-varianten.md §9). */
+  offerten_anzahl: number
+  offerten_akzeptiert: number
+  offerten_abgelehnt: number
+  /** akzeptiert ÷ entschieden; null solange nichts entschieden ist. */
+  annahmequote_pct: number | null
+
+  rechnungen_anzahl: number
+  rechnungen_offen: number
+  zahlungserinnerungen_anzahl: number
+  mahnungen_anzahl: number
+  mahnquote_pct: number | null
+
+  letzte_aktivitaet: string | null
+}
+
+export interface KpiLieferantRow {
+  tenant_id: string
+  supplier_id: string | null
+  lieferant: string
+  /** true = Sammelzeile für Artikel ohne hinterlegten Lieferanten. */
+  ist_sammelzeile: boolean
+  artikel_anzahl: number
+  positionen: number
+  menge: number
+  verkaufsvolumen: number | null
+  einkaufsvolumen: number | null
+  positionen_ohne_vk: number
+  positionen_ohne_ek: number
+  /** EK aus dem heutigen Katalog statt aus dem Snapshot — Näherung, gezählt. */
+  positionen_ek_geschaetzt: number
+  marge_chf: number | null
+  marge_pct: number | null
+  letzte_verwendung: string | null
+}
+
+/** Geplante Marge auf bestellter Projektware (GET /pwa/kpi-lieferanten-projektware). */
+export interface LieferantProjektwareRow {
+  supplier_id: string | null
+  lieferant: string
+  ist_sammelzeile: boolean
+  einkaufsvolumen: number
+  verkaufsvolumen: number
+  marge_chf: number
+  marge_pct: number | null
+  margenfaktor_schnitt: number | null
+  positionen: number
+  positionen_ohne_ek: number
+  offerten_anzahl: number
+}
+
+export interface LieferantProjektwareSumme {
+  einkaufsvolumen: number
+  verkaufsvolumen: number
+  marge_chf: number
+  marge_pct: number | null
+  margenfaktor_schnitt: number | null
+  positionen: number
+  positionen_ohne_ek: number
+  offerten_anzahl: number
+  lieferanten_anzahl: number
+}
+
+export interface LieferantProjektwareAntwort {
+  rows: LieferantProjektwareRow[]
+  summe: LieferantProjektwareSumme
+}
+
+/** Deckungsbeitrag je Funktion und Monat — bewusst ohne Personenbezug. */
+export interface KpiFunktionMonatRow {
+  tenant_id: string
+  funktion: string
+  jahr_monat: string // 'YYYY-MM'
+  jahr: number
+  monat: number
+  stunden: number
+  /** Wie viele Personen die Zeile tragen. Bei 1 ist sie faktisch diese Person. */
+  anzahl_mitarbeiter: number
+  anzahl_projekte: number
+  verrechnet_chf: number | null
+  stunden_ohne_satz: number
+  lohnkosten_intern: number | null
+  stunden_ohne_lohn: number
+  deckungsbeitrag: number | null
+}
+
 /* ── Generische Hilfstypen ───────────────────────────── */
 
 export interface ColumnDef<T> {

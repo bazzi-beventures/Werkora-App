@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { averageOrNull, finite, maxOrZero, percentOrNull, sumFieldsOrNull, sumOrNull } from './aggregate'
+import {
+  averageOrNull,
+  finite,
+  imMonatsbereich,
+  istFakturiert,
+  matchesSuche,
+  maxOrZero,
+  percentOrNull,
+  sumFieldsOrNull,
+  sumOrNull,
+} from './aggregate'
 
 describe('finite', () => {
   it('lässt echte Zahlen durch', () => {
@@ -99,5 +109,73 @@ describe('percentOrNull', () => {
     expect(percentOrNull(null, 100)).toBeNull()
     expect(percentOrNull(10, null)).toBeNull()
     expect(percentOrNull(10, 0)).toBeNull()
+  })
+})
+
+describe('istFakturiert', () => {
+  it('erkennt Projekte mit gestelltem Umsatz', () => {
+    expect(istFakturiert(1500)).toBe(true)
+  })
+
+  it('behandelt 0 und null als nicht fakturiert', () => {
+    // Genau diese Projekte laufen zwangsläufig ins Minus: der Aufwand ist
+    // gebucht, der Umsatz noch nicht. Sie fluteten die „Schwächste 5"-Liste.
+    expect(istFakturiert(0)).toBe(false)
+    expect(istFakturiert(null)).toBe(false)
+    expect(istFakturiert(undefined)).toBe(false)
+  })
+
+  it('lässt sich von NaN nicht täuschen', () => {
+    expect(istFakturiert(NaN)).toBe(false)
+  })
+})
+
+describe('matchesSuche', () => {
+  it('trifft über mehrere Felder, case-insensitiv', () => {
+    const felder = ['260768', 'Birchler Seuzach', 'Meier AG']
+    expect(matchesSuche('birchler', felder)).toBe(true)
+    expect(matchesSuche('MEIER', felder)).toBe(true)
+  })
+
+  it('findet über die Projektnummer', () => {
+    // Der eigentliche Zweck: Projektnamen sind seit Migration 20260807b nicht
+    // mehr eindeutig — die Nummer unterscheidet zwei gleichnamige Projekte.
+    expect(matchesSuche('260768', ['260768', 'Birchler Seuzach', null])).toBe(true)
+    expect(matchesSuche('260768', ['260999', 'Birchler Seuzach', null])).toBe(false)
+  })
+
+  it('trifft alles bei leerem oder blossem Leerzeichen-Begriff', () => {
+    expect(matchesSuche('', ['irgendwas'])).toBe(true)
+    expect(matchesSuche('   ', ['irgendwas'])).toBe(true)
+  })
+
+  it('ignoriert leere Felder statt über „null" zu stolpern', () => {
+    expect(matchesSuche('null', [null, undefined, 'Projekt'])).toBe(false)
+  })
+})
+
+describe('imMonatsbereich', () => {
+  it('lässt bei offenen Grenzen alles durch', () => {
+    expect(imMonatsbereich('2026-05', '', '')).toBe(true)
+  })
+
+  it('grenzt nach unten und oben ab, Grenzen eingeschlossen', () => {
+    expect(imMonatsbereich('2026-05', '2026-05', '2026-07')).toBe(true)
+    expect(imMonatsbereich('2026-07', '2026-05', '2026-07')).toBe(true)
+    expect(imMonatsbereich('2026-04', '2026-05', '2026-07')).toBe(false)
+    expect(imMonatsbereich('2026-08', '2026-05', '2026-07')).toBe(false)
+  })
+
+  it('funktioniert mit nur einer Grenze', () => {
+    expect(imMonatsbereich('2026-09', '2026-05', '')).toBe(true)
+    expect(imMonatsbereich('2026-01', '2026-05', '')).toBe(false)
+    expect(imMonatsbereich('2026-01', '', '2026-05')).toBe(true)
+  })
+
+  it('vergleicht über den Jahreswechsel korrekt', () => {
+    // Der Grund für das feste 'YYYY-MM'-Format: als String verglichen stimmt
+    // die Reihenfolge, ein zweistelliger Monat wird nicht als Zahl gelesen.
+    expect(imMonatsbereich('2026-02', '2025-10', '2026-03')).toBe(true)
+    expect(imMonatsbereich('2025-09', '2025-10', '2026-03')).toBe(false)
   })
 })

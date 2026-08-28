@@ -31,7 +31,7 @@ export function ProjectTabContent({
   quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
   currentUserId,
-  onShowQuoteForm, onShowReportForm, onEditReport, onEditQuote,
+  onShowQuoteForm, onShowReportForm, onAddNextEinsatz, onEditReport, onEditQuote,
   onSendQuote, onSendThankyou, onSendOrderConfirmation, onGenerateInvoice, onShowApprovalForm,
   status, settingStatus, reopening, onStatusAction,
 }: {
@@ -62,6 +62,10 @@ export function ProjectTabContent({
   currentUserId: string | null
   onShowQuoteForm: () => void
   onShowReportForm: () => void
+  // «Weiterer Einsatz» an einem bestehenden Rapport: nimmt ihn in die
+  // Teilrapport-Serie auf und öffnet danach die Erfassungsmaske für den
+  // nächsten Tag — beide Schritte in einem Griff, weil sie zusammen gemeint sind.
+  onAddNextEinsatz: (reportId: number) => Promise<void>
   onEditReport: (reportId: number) => void
   onEditQuote: (quoteId: number) => void
   onSendQuote: (q: ProjectQuote) => void
@@ -145,6 +149,7 @@ export function ProjectTabContent({
           onAggregate={billing.aggregateReports}
           onDissolve={billing.dissolveAggregate}
           onAccept={billing.acceptAggregate}
+          onMarkPartial={onAddNextEinsatz}
           paperRapportUrl={apiUrl(`/pwa/admin/projects/${project.id}/paper-rapport.pdf`)}
           files={documents.files}
           uploading={documents.uploading}

@@ -320,6 +320,32 @@ describe('ReportsTab — Bündeln und Auflösen', () => {
     expect(screen.getByRole('button', { name: /Gesamtrapport erstellen \(1\)/ })).toBeInTheDocument()
   })
 
+  // Seit 2026-08-27 bündelbar: auch gewöhnliche Rapporte ohne Unterschrift — der
+  // häufige Fall, wenn beim ersten Tag noch niemand wusste, dass es eine Serie wird.
+  it('zeigt ihn bei zwei gewöhnlichen Rapporten ohne Unterschrift', () => {
+    render(
+      <ReportsTab
+        reports={[makeReport({ id: 1 }), makeReport({ id: 2 })]}
+        teilrapportEnabled onAggregate={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: /Gesamtrapport erstellen \(2\)/ })).toBeInTheDocument()
+  })
+
+  it('zählt unterschriebene und verrechnete Rapporte nicht mit', () => {
+    render(
+      <ReportsTab
+        reports={[
+          makeReport({ id: 1 }),
+          makeReport({ id: 2, signature_timestamp: '2026-08-06T16:00:00Z' }),
+          makeReport({ id: 3, invoice_id: 9 }),
+        ]}
+        teilrapportEnabled onAggregate={vi.fn()}
+      />,
+    )
+    expect(screen.queryByRole('button', { name: /Gesamtrapport erstellen/ })).not.toBeInTheDocument()
+  })
+
   it('zeigt ihn ohne Feature nicht — das Badge aber schon', () => {
     render(<ReportsTab reports={[makeReport({ is_partial: true })]} onAggregate={vi.fn()} />)
     expect(screen.queryByRole('button', { name: /Gesamtrapport erstellen/ })).not.toBeInTheDocument()
@@ -443,5 +469,68 @@ describe('ReportsTab — ohne Unterschrift abschliessen', () => {
     expect(reportStatusBadge(makeReport({
       is_aggregate: true, pl_accepted_at: '2026-08-20T09:00:00Z',
     })).label).toBe('Gesamtrapport – ohne Unterschrift abgeschlossen')
+  })
+})
+
+// ── «Weiterer Einsatz»: nachträglich in die Serie aufnehmen ──
+//
+// Der Weg rückwärts zur Abschluss-Wahl: der Projektleiter zieht einen vergessenen
+// ersten Tag nach. Ein Griff — aufnehmen und danach die Erfassungsmaske für den
+// nächsten Einsatz. Die Rückfrage sagt vorher, was es kostet.
+
+describe('ReportsTab — Weiterer Einsatz', () => {
+  const BTN = { name: 'Weiterer Einsatz' }
+
+  it('erscheint am gewöhnlichen Rapport — mit Feature und Handler', () => {
+    render(<ReportsTab reports={[makeReport()]} teilrapportEnabled onMarkPartial={vi.fn()} />)
+    expect(screen.getByRole('button', BTN)).toBeInTheDocument()
+  })
+
+  it('bleibt ohne Feature weg', () => {
+    render(<ReportsTab reports={[makeReport()]} onMarkPartial={vi.fn()} />)
+    expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
+  })
+
+  it('bleibt ohne Handler weg — Abwärtskompatibilität wie bei den anderen Knöpfen', () => {
+    render(<ReportsTab reports={[makeReport()]} teilrapportEnabled />)
+    expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
+  })
+
+  it('bleibt am verrechneten, gebündelten und am Gesamtrapport weg', () => {
+    for (const over of [
+      { invoice_id: 9 },
+      { is_partial: true, merged_into_report_id: 100 },
+      { is_aggregate: true },
+    ]) {
+      const { unmount } = render(
+        <ReportsTab reports={[makeReport(over)]} teilrapportEnabled onMarkPartial={vi.fn()} />,
+      )
+      expect(screen.queryByRole('button', BTN)).not.toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('fragt vorher und nennt den Preis: bis zur Unterschrift nicht verrechnet', async () => {
+    const user = userEvent.setup()
+    const onMarkPartial = vi.fn().mockResolvedValue(undefined)
+    render(<ReportsTab reports={[makeReport()]} teilrapportEnabled onMarkPartial={onMarkPartial} />)
+
+    await user.click(screen.getByRole('button', BTN))
+    expect(screen.getByText(/nicht verrechnet/)).toBeInTheDocument()
+    expect(onMarkPartial).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Weiter' }))
+    expect(onMarkPartial).toHaveBeenCalledWith(1)
+  })
+
+  it('spricht beim schon freien Teilrapport vom nächsten Einsatz statt vom Umstellen', async () => {
+    const user = userEvent.setup()
+    render(
+      <ReportsTab reports={[makeReport({ is_partial: true })]} teilrapportEnabled onMarkPartial={vi.fn()} />,
+    )
+
+    await user.click(screen.getByRole('button', BTN))
+    expect(screen.getByText('Weiteren Einsatz erfassen?')).toBeInTheDocument()
+    expect(screen.queryByText(/nicht verrechnet/)).not.toBeInTheDocument()
   })
 })

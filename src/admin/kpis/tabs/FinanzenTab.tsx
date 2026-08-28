@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useKpiData } from '../useKpiData'
 import type { KpiFinanzenMonatRow, ColumnDef } from '../types'
-import { averageOrNull, finite, maxOrZero, percentOrNull, sumOrNull } from '../aggregate'
+import { averageOrNull, finite, imMonatsbereich, maxOrZero, percentOrNull, sumOrNull } from '../aggregate'
 import KpiCards from '../components/KpiCards'
 import DataTable from '../components/DataTable'
 import BiBarChart from '../components/BiBarChart'
@@ -55,6 +55,12 @@ export default function FinanzenTab() {
   const { data, loading, error } = useKpiData<KpiFinanzenMonatRow>('vw_kpi_finanzen_monat')
   const currentYear = new Date().getFullYear()
   const [yearFilter, setYearFilter] = useState<number | null>(null)
+  // Eigener Monatsbereich neben den Jahres-Presets (Muster PipelineTab): ein
+  // Geschäftsjahr endet nicht immer im Dezember, und „die letzten fünf Monate"
+  // liess sich vorher gar nicht eingrenzen. Gesetzt wird jeweils nur, was man
+  // ausfüllt — nur „von" heisst „ab diesem Monat".
+  const [monatVon, setMonatVon] = useState('')
+  const [monatBis, setMonatBis] = useState('')
 
   const availableYears = useMemo(() => {
     const years = Array.from(new Set((data ?? []).map((r) => r.jahr))).sort((a, b) => b - a)
@@ -66,10 +72,19 @@ export default function FinanzenTab() {
     ...availableYears.map((y) => ({ key: y, label: String(y) })),
   ]
 
-  const filtered = useMemo(
-    () => yearFilter == null ? (data ?? []) : (data ?? []).filter((r) => r.jahr === yearFilter),
-    [data, yearFilter],
-  )
+  // Der Bereich schlägt das Jahres-Preset: wer ein Von/Bis tippt, meint das —
+  // sonst käme die stille Schnittmenge aus beidem heraus und man sucht, warum
+  // ein Monat fehlt. Das Preset wird beim Setzen des Bereichs auf „Alles"
+  // zurückgestellt, damit die Leiste zeigt, was gilt.
+  const bereichAktiv = Boolean(monatVon || monatBis)
+
+  const filtered = useMemo(() => {
+    let rows = data ?? []
+    if (bereichAktiv) {
+      return rows.filter((r) => imMonatsbereich(r.jahr_monat, monatVon, monatBis))
+    }
+    return yearFilter == null ? rows : rows.filter((r) => r.jahr === yearFilter)
+  }, [data, yearFilter, monatVon, monatBis, bereichAktiv])
 
   const chartData = useMemo(
     () =>
@@ -89,7 +104,12 @@ export default function FinanzenTab() {
   // stillschweigend zu tiefen Zahl (docs/specs/kennzahlen-refactoring.md §3).
   const cards = useMemo(() => {
     if (!filtered.length) return []
-    const ytd = yearFilter != null ? filtered : filtered.filter((r) => r.jahr === currentYear)
+    // Ohne jede Eingrenzung zeigen die Karten das laufende Jahr (nicht „alles"),
+    // sonst stünde in „Umsatz" die Summe seit Firmengründung. Mit Bereich oder
+    // Jahres-Preset gilt genau die Auswahl — die Kachel-Beschriftung sagt welche.
+    const ytd = bereichAktiv || yearFilter != null
+      ? filtered
+      : filtered.filter((r) => r.jahr === currentYear)
     const umsatzGestellt = sumOrNull(ytd, (r) => r.umsatz_gestellt)
     const umsatzBezahlt = sumOrNull(ytd, (r) => r.rechnungen_bezahlt_betrag)
     const kosten = sumOrNull(ytd, (r) => r.total_kosten_intern)
@@ -97,7 +117,9 @@ export default function FinanzenTab() {
     const gewinnBezahlt = sumOrNull(ytd, (r) => r.gewinn_bezahlt)
     const marge = percentOrNull(gewinnGestellt, umsatzGestellt)
     const avgDebi = averageOrNull(ytd, (r) => r.debitorenlaufzeit_tage)
-    const yearLabel = yearFilter != null ? String(yearFilter) : String(currentYear)
+    const yearLabel = bereichAktiv
+      ? [monatVon || 'Beginn', monatBis || 'heute'].join('–')
+      : yearFilter != null ? String(yearFilter) : String(currentYear)
     return [
       {
         label: `Umsatz ${yearLabel}`,
@@ -114,7 +136,7 @@ export default function FinanzenTab() {
       },
       { label: 'Ø Debitorenlaufzeit', value: avgDebi === null ? '—' : `${avgDebi.toFixed(0)} Tage` },
     ]
-  }, [filtered, yearFilter, currentYear])
+  }, [filtered, yearFilter, currentYear, bereichAktiv, monatVon, monatBis])
 
   // Datenqualität-Banner: max() pro Monat als untere Schranke (siehe Plan).
   // Bis 20260827b lief das über Spalten, die es nicht mehr gab — Math.max mit
@@ -131,17 +153,41 @@ export default function FinanzenTab() {
 
   return (
     <div className="kpi-bi-layout">
-      {/* Year presets */}
+      {/* Jahres-Presets + eigener Monatsbereich (Muster PipelineTab) */}
       <div className="kpi-date-presets">
         {yearPresets.map((p) => (
           <button
             key={String(p.key)}
-            className={`kpi-date-btn${yearFilter === p.key ? ' active' : ''}`}
-            onClick={() => setYearFilter(p.key)}
+            className={`kpi-date-btn${!bereichAktiv && yearFilter === p.key ? ' active' : ''}`}
+            onClick={() => { setYearFilter(p.key); setMonatVon(''); setMonatBis('') }}
           >
             {p.label}
           </button>
         ))}
+        <input
+          type="month"
+          className="admin-input"
+          style={{ width: 'auto' }}
+          value={monatVon}
+          onChange={(e) => { setMonatVon(e.target.value); setYearFilter(null) }}
+          aria-label="Von Monat"
+        />
+        <input
+          type="month"
+          className="admin-input"
+          style={{ width: 'auto' }}
+          value={monatBis}
+          onChange={(e) => { setMonatBis(e.target.value); setYearFilter(null) }}
+          aria-label="Bis Monat"
+        />
+        {bereichAktiv && (
+          <button
+            className="kpi-date-btn"
+            onClick={() => { setMonatVon(''); setMonatBis('') }}
+          >
+            Bereich löschen
+          </button>
+        )}
       </div>
 
       {/* Datenqualität-Banner */}

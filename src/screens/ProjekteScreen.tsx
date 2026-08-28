@@ -5,7 +5,7 @@ import {
 } from '../api/projectFiles'
 import {
   createAggregateReport, deleteOwnRapport, dissolveAggregateReport, downloadRapportPdf,
-  fetchOpenPartialReports, fetchProjectReports, ProjectReport,
+  fetchBundleableReports, fetchProjectReports, markReportPartial, ProjectReport,
 } from '../api/chat'
 import { ProjectTask, toggleProjectTaskDone } from '../api/projectTasks'
 import SignaturePad from '../chat/SignaturePad'
@@ -250,7 +250,16 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   // Die freien Teilrapporte kommen aus der eigenen Route, nicht aus `reports`:
   // der Server filtert dort zusätzlich verrechnete heraus und prüft das Feature —
   // eine lokal gefilterte Liste könnte etwas anbieten, was das Gate danach ablehnt.
-  const [openPartials, setOpenPartials] = useState<ProjectReport[]>([])
+  // Bündelbare Einsätze des Projekts (Server: ohne Rechnung, ohne Bündelung, ohne
+  // Unterschrift) — freie Teilrapporte UND gewöhnliche Rapporte. Letztere sind der
+  // häufige Fall: dass die Baustelle länger dauert, merkt man erst am zweiten Tag.
+  const [bundleable, setBundleable] = useState<ProjectReport[]>([])
+  // Gibt es überhaupt etwas zu bündeln? Ein laufender Teilrapport wartet immer auf
+  // seinen Gesamtrapport; bei gewöhnlichen Rapporten braucht es mindestens zwei,
+  // sonst stünde der Knopf an jedem Projekt mit einem einzigen offenen Rapport.
+  const showAggregateButton =
+    bundleable.some(r => r.is_partial) || bundleable.length >= 2
+  const [markingPartialId, setMarkingPartialId] = useState<number | null>(null)
   const [aggregateSelection, setAggregateSelection] = useState<number[] | null>(null)
   const [aggregating, setAggregating] = useState(false)
   const [dissolvingId, setDissolvingId] = useState<number | null>(null)
@@ -288,7 +297,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     setComments([])
     setTasks([])
     setReports([])
-    setOpenPartials([])
+    setBundleable([])
     setAggregateSelection(null)
     setAggregateError(null)
     setLoadingDetail(true)
@@ -300,14 +309,14 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       // Ohne Feature gar kein Request — die Route antwortet dann mit 403, und ein
       // erwarteter Fehler im Netzwerk-Log ist Lärm.
       teilrapportEnabled
-        ? fetchOpenPartialReports(selected.id).catch(() => [] as ProjectReport[])
+        ? fetchBundleableReports(selected.id).catch(() => [] as ProjectReport[])
         : Promise.resolve([] as ProjectReport[]),
     ]).then(([f, c, t, r, p]) => {
       setFiles(f)
       setComments(c)
       setTasks(t)
       setReports(r)
-      setOpenPartials(p)
+      setBundleable(p)
     }).finally(() => setLoadingDetail(false))
   }, [selected?.id])
 
@@ -466,10 +475,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       // davon ab — und die freien Teilrapporte sind es nicht mehr.
       const [fresh, freshPartials] = await Promise.all([
         fetchProjectReports(selected.id),
-        fetchOpenPartialReports(selected.id).catch(() => [] as ProjectReport[]),
+        fetchBundleableReports(selected.id).catch(() => [] as ProjectReport[]),
       ])
       setReports(fresh)
-      setOpenPartials(freshPartials)
+      setBundleable(freshPartials)
       setAggregateSelection(null)
       // Direkt in die Unterschrift — dafür wurde gebündelt. Es ist derselbe
       // Signatur-Weg wie beim gewöhnlichen Rapport (POST /pwa/chat/sign/{id}).
@@ -482,6 +491,47 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     } finally {
       setAggregating(false)
     }
+  }
+
+  /**
+   * «Weiterer Einsatz» an einem bestehenden Rapport: nimmt ihn in die Teilrapport-
+   * Serie auf und springt direkt in den Chat für den nächsten Tag.
+   *
+   * Der Weg rückwärts zur Abschluss-Wahl im Chat — dass eine Baustelle länger dauert,
+   * stellt sich meist erst am zweiten Tag heraus. Beide Schritte in einem Griff, weil
+   * sie zusammen gemeint sind: erst danach taucht der erste Tag in «Gesamtrapport
+   * erstellen» auf, und im Chat ist «Teilrapport» dann von selbst vorausgewählt.
+   *
+   * Was der erste Rapport behält: Stunden, Material, Beschrieb, sein PDF (dort steht
+   * weiterhin «Rapport») und eine bereits geholte Unterschrift. Was er verliert: die
+   * Verrechenbarkeit, bis der Gesamtrapport unterschrieben ist — deshalb sagt die
+   * Rückfrage es, statt es geschehen zu lassen.
+   */
+  async function handleAddNextEinsatz(report: ProjectReport) {
+    if (!selected) return
+    if (!report.is_partial && !window.confirm(
+      `Rapport vom ${formatDate(report.report_date)} zur mehrtägigen Baustelle machen?\n\n`
+      + 'Er wird dann zusammen mit den weiteren Einsätzen zu einem Gesamtrapport '
+      + 'gebündelt, den der Kunde EINMAL unterschreibt.\n\n'
+      + 'Bis dahin wird er nicht verrechnet. Stunden, Material und eine bereits '
+      + 'geholte Unterschrift bleiben unverändert.'
+    )) return
+    setMarkingPartialId(report.id)
+    setAggregateError(null)
+    try {
+      await markReportPartial(selected.id, report.id)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
+      setAggregateError(err instanceof Error && err.message
+        ? err.message
+        : 'Der Rapport konnte nicht zur Serie hinzugefügt werden.')
+      return
+    } finally {
+      setMarkingPartialId(null)
+    }
+    // Erst jetzt in den Chat: die Liste hinter uns ist gleich weg, ein Reload wäre
+    // verschenkt. Beim Zurückkommen lädt der Projekt-Detail sie ohnehin neu.
+    onStartRapport({ id: String(selected.id), name: selected.name })
   }
 
   async function handleDissolve(report: ProjectReport) {
@@ -499,11 +549,11 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         // Ohne Feature keine Liste — auflösen bleibt trotzdem erreichbar (Spec §5.5),
         // nur den Bündeln-Dialog gibt es dann nicht.
         teilrapportEnabled
-          ? fetchOpenPartialReports(selected.id).catch(() => [] as ProjectReport[])
+          ? fetchBundleableReports(selected.id).catch(() => [] as ProjectReport[])
           : Promise.resolve([] as ProjectReport[]),
       ])
       setReports(fresh)
-      setOpenPartials(freshPartials)
+      setBundleable(freshPartials)
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
       setAggregateError(err instanceof Error && err.message
@@ -755,15 +805,22 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             <div className="projekte-detail-card">
               <div className="projekte-detail-title">Rapporte</div>
 
-              {/* Gesamtrapport erstellen: sichtbar ab EINEM freien Teilrapport.
+              {/* Gesamtrapport erstellen: sichtbar, sobald es etwas zu bündeln GIBT —
+                  ein laufender Teilrapport, oder mindestens zwei Einsätze, die noch
+                  auf eine Unterschrift warten. Der zweite Fall ist der häufige: zwei
+                  gewöhnliche Rapporte derselben Baustelle, weil beim ersten noch
+                  niemand wusste, dass es eine Serie wird. Bei EINEM gewöhnlichen
+                  Rapport bleibt der Knopf weg — ein Bündel aus einem Einsatz ist eine
+                  Unterschrift auf Umwegen, dafür gibt es «Unterschrift» direkt.
+
                   Vorausgewählt sind alle — der Normalfall ist «die ganze Woche», und
-                  Abwählen ist ein Klick. Auch die Teilrapporte der Kollegen stehen zur
+                  Abwählen ist ein Klick. Auch die Einsätze der Kollegen stehen zur
                   Wahl: wer am Freitag beim Kunden ist, holt die Unterschrift für alle
                   (docs/specs/teilrapport.md §3.8). */}
-              {teilrapportEnabled && openPartials.length > 0 && aggregateSelection === null && (
+              {teilrapportEnabled && aggregateSelection === null && showAggregateButton && (
                 <button
                   type="button"
-                  onClick={() => setAggregateSelection(openPartials.map(r => r.id))}
+                  onClick={() => setAggregateSelection(bundleable.map(r => r.id))}
                   style={{
                     width: '100%', padding: '10px 12px', marginBottom: 4,
                     borderRadius: 'var(--radius-md)', border: '1px solid var(--accent)',
@@ -771,7 +828,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     fontSize: 14, fontWeight: 600, cursor: 'pointer',
                   }}
                 >
-                  📋 Gesamtrapport erstellen ({openPartials.length} Teilrapport{openPartials.length === 1 ? '' : 'e'})
+                  📋 Gesamtrapport erstellen ({bundleable.length} Einsätze)
                 </button>
               )}
 
@@ -783,7 +840,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
                     Welche Einsätze soll der Kunde unterschreiben?
                   </div>
-                  {openPartials.map(p => {
+                  {bundleable.map(p => {
                     const checked = aggregateSelection.includes(p.id)
                     return (
                       <label key={p.id} style={{
@@ -878,6 +935,13 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 // Auflösen: eigener, unsignierter, unverrechneter Behälter (Spec §3.6).
                 // Den signierten löst nur der Projektleiter auf.
                 const canDissolve = r.is_own && !!r.is_aggregate && !signed && !billed && !r.dissolved_at
+                // «Weiterer Einsatz»: den bestehenden Rapport in die Serie aufnehmen
+                // und gleich den nächsten Tag erfassen. Spiegelt `mark_partial_blocker`
+                // — verrechnet, gebündelt oder selbst ein Behälter geht nicht. Nicht
+                // auf `is_own` beschränkt: die mehrtägige Baustelle ist Teamarbeit,
+                // dieselbe Regel wie beim Bündeln (Spec §3.8). Der Rapport darf schon
+                // Teilrapport sein — dann entfällt nur die Umstellung.
+                const canAddNext = teilrapportEnabled && !billed && !merged && !r.is_aggregate
                 return (
                   <div key={r.id}>
                   <div
@@ -933,6 +997,25 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                           }}
                         >
                           ✍️ Unterschrift
+                        </button>
+                      )}
+                      {canAddNext && (
+                        <button
+                          type="button"
+                          onClick={() => void handleAddNextEinsatz(r)}
+                          disabled={markingPartialId === r.id}
+                          title={r.is_partial
+                            ? 'Noch einen Einsatz auf dieser Baustelle erfassen'
+                            : 'Mehrtägige Baustelle: diesen Rapport in die Serie aufnehmen und den nächsten Einsatz erfassen'}
+                          style={{
+                            padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--accent)', background: 'transparent',
+                            color: 'var(--accent)', fontSize: 13, fontWeight: 600,
+                            cursor: markingPartialId === r.id ? 'default' : 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {markingPartialId === r.id ? '…' : '➕ Weiterer Einsatz'}
                         </button>
                       )}
                       {canDissolve && (

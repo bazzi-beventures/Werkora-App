@@ -13,7 +13,7 @@ import {
 } from '../../../api/admin/quotes'
 import {
   acceptAggregateReport, aggregateProjectReports, deleteProjectReport,
-  dissolveAggregateReport, regenerateReportPdf,
+  dissolveAggregateReport, markReportPartial, regenerateReportPdf,
 } from '../../../api/admin/reports'
 import type { ProjectInvoice, ProjectQuote, ProjectReport } from './types'
 import { hasBillableReport } from './billingRules'
@@ -47,6 +47,8 @@ export interface UseProjectBilling {
   dissolveAggregate: (reportId: number) => Promise<void>
   /** Gesamtrapport ohne Kundenunterschrift abschliessen (docs/specs/teilrapport.md, Nachtrag). */
   acceptAggregate: (reportId: number) => Promise<void>
+  // Nimmt einen bestehenden Rapport nachträglich in die Teilrapport-Serie auf.
+  markPartial: (reportId: number) => Promise<void>
   regenerate: (quoteId: number) => Promise<void>
   addVariant: (quoteId: number, kind: 'variante' | 'mehrfach') => Promise<void>
   updateQuoteStatus: (quoteId: number, status: string) => Promise<void>
@@ -174,6 +176,22 @@ export function useProjectBilling(
           + `${res.released} Teilrapport${res.released === 1 ? '' : 'e'} wieder frei.`)
     } catch (err) {
       cb.onToast(err instanceof Error ? err.message : 'Bündelung konnte nicht aufgelöst werden')
+      throw err
+    }
+  }
+
+  async function markPartial(reportId: number) {
+    if (!project) return
+    try {
+      const res = await markReportPartial(project.id, reportId, true)
+      await reloadReports()
+      cb.onToast(res.changed
+        ? 'Rapport gehört jetzt zur Serie — er wird mit dem Gesamtrapport verrechnet.'
+        : 'Der Rapport gehörte bereits zur Serie.')
+    } catch (err) {
+      // Wirft weiter: der Dialog bleibt offen, damit der Grund (z.B. «hängt an einer
+      // Rechnung») neben dem Rapport steht, den er betrifft.
+      cb.onToast(err instanceof Error ? err.message : 'Der Rapport konnte nicht zur Serie hinzugefügt werden')
       throw err
     }
   }
@@ -360,7 +378,7 @@ export function useProjectBilling(
     generatingInvoice, regeneratingQuoteId, addingVariantId, sendingRejectionId,
     reloadQuotes, reloadInvoices, reloadReports, loadQuoteDetail, deleteReport,
     regenerateReportPdf: regenerateReportPdfFor,
-    aggregateReports, dissolveAggregate, acceptAggregate,
+    aggregateReports, dissolveAggregate, acceptAggregate, markPartial,
     regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage,
     markPaid, unmarkPaid, archive, send, markSentByPost,
   }

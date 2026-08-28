@@ -24,16 +24,19 @@
   --primary-hover: #459CC7;
   --primary-soft:  rgba(48, 129, 171, 0.16);
 
-  /* Auftragskarte (Einsatzplanung): Farbskala der Dichte-Heatmap und der
-     einzelnen Einsatzpunkte. Als Tokens und nicht als Literale im TSX, weil
-     MapLibre konkrete Farbwerte braucht — ein Hex im Kartencode bliebe hell,
-     wenn der Nutzer dunkel schaltet. Die Komponente liest sie zur Laufzeit
-     und setzt die Layer beim Theme-Wechsel neu. Auf dunklem Grund starten
-     die unteren Stufen kraeftiger, sonst verschwindet die Flaeche im Grau. */
-  --map-heat-1: rgba(253, 224, 71, 0.45);
-  --map-heat-2: rgba(251, 191, 36, 0.62);
-  --map-heat-3: rgba(249, 115, 22, 0.76);
-  --map-heat-4: rgba(220, 38, 38, 0.90);
+  /* Auftragskarte (Einsatzplanung): Cluster-Kreise mit der Anzahl Einsaetze
+     und die Farbe der einzelnen Einsatzpunkte.
+     --map-point/-stroke muessen Tokens sein, weil MapLibre den Punkt-Layer auf
+     ein Canvas zeichnet und keinem CSS folgt — ein Hex im Kartencode bliebe
+     hell, wenn der Nutzer dunkel schaltet; die Komponente liest sie zur
+     Laufzeit und setzt den Layer beim Theme-Wechsel neu. Die Cluster sind
+     dagegen HTML-Marker und nehmen ihre Farben direkt per CSS.
+     Drei Stufen nach Anzahl: je mehr Einsaetze, desto kraeftiger. */
+  --map-cluster-klein:   #3081AB;
+  --map-cluster-mittel:  #D97706;
+  --map-cluster-gross:   #DC2626;
+  --map-cluster-ink:     #FFFFFF;
+  --map-cluster-ring:    rgba(15, 23, 42, 0.55);
   --map-point:        #F87171;
   --map-point-stroke: rgba(15, 23, 42, 0.85);
   --success:       #22C55E;
@@ -51,6 +54,24 @@
   --success-ink:   #22C55E;
   --warning-ink:   #F59E0B;
   --danger-ink:    #F87171;
+
+  /* Kennzahlen-Reiter: je Tab eine Kennfarbe (Unterstrich + Beschriftung des
+     aktiven Reiters). Als Tokens und nicht als Literale im TSX — aus demselben
+     Grund wie die Karten-Farben oben: ein Hex im Inline-Style kennt kein Theme.
+     Die Werte sind mitteltonig gewaehlt, damit sie auf hellem wie dunklem Grund
+     tragen; wer einen Reiter dazunimmt, legt hier eine Farbe an. */
+  --kpi-tab-uebersicht:      #0D9488;
+  --kpi-tab-pipeline:        #C026D3;
+  --kpi-tab-projekte:        #B45309;
+  --kpi-tab-kunden:          #0369A1;
+  --kpi-tab-finanzen:        #BE123C;
+  --kpi-tab-deckungsbeitrag: #65A30D;
+  --kpi-tab-arbeitszeit:     #15803D;
+  --kpi-tab-material:        #4338CA;
+  --kpi-tab-lieferanten:     #A16207;
+  --kpi-tab-pricing:         #7C3AED;
+  --kpi-tab-wartung:         #0EA5E9;
+  --kpi-tab-leistungsart:    #0891B2;
 
   /* Spacing (8px grid) */
   --s-1: 4px;
@@ -100,13 +121,13 @@
   --shadow-card:  0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 4px 14px rgba(15, 23, 42, 0.10);
 
-  /* Auftragskarte auf der grauen swisstopo-Basiskarte: die unteren Stufen
-     duerfen zarter sein als im Dark Mode, sonst wirkt schon ein einzelner
-     Einsatz wie ein Brennpunkt. */
-  --map-heat-1: rgba(254, 240, 138, 0.55);
-  --map-heat-2: rgba(251, 176, 59, 0.68);
-  --map-heat-3: rgba(240, 118, 42, 0.80);
-  --map-heat-4: rgba(203, 45, 40, 0.88);
+  /* Auftragskarte auf der grauen swisstopo-Basiskarte: kraeftige Flaechen mit
+     weisser Zahl, damit die Anzahl auch bei kleinem Kreis lesbar bleibt. */
+  --map-cluster-klein:   #2C7396;
+  --map-cluster-mittel:  #C2680A;
+  --map-cluster-gross:   #B91C1C;
+  --map-cluster-ink:     #FFFFFF;
+  --map-cluster-ring:    rgba(255, 255, 255, 0.92);
   --map-point:        #CB2D28;
   --map-point-stroke: #FFFFFF;
 }

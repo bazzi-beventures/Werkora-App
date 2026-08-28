@@ -418,6 +418,26 @@
   margin-left: 4px;
 }
 
+/* Freitext-Suche in der Filterleiste — optisch wie die Dropdown-Knöpfe daneben,
+   damit die Leiste eine Zeile bleibt. Wächst in die verbleibende Breite, faellt
+   auf Handy-Breite in die naechste Zeile (flex-wrap der Leiste). */
+.kpi-filter-search {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.kpi-filter-search::placeholder {
+  color: var(--text-muted);
+}
+
 /* ── Dropdown ────────────────────────────────────────── */
 
 .kpi-dropdown {
@@ -726,4 +746,37 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+/* Projektnummer vor dem Namen in den Top/Flop-Listen — gedaempft, damit der
+   Name die Zeile fuehrt, aber lesbar genug, um zwei gleichnamige Projekte
+   auseinanderzuhalten (projects.name ist seit 20260807b nicht mehr eindeutig). */
+.kpi-topflop-nr {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-right: 6px;
+}
+
+/* Schalter in der Filterleiste (z. B. "Archivierte zeigen"). Optisch die
+   ruhigere Schwester der Dropdown-Knoepfe: kein Rahmen, weil der Zustand schon
+   in der Checkbox steht. */
+.kpi-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* Zwischenueberschrift, wenn ein Tab zwei Tabellen zeigt, die NICHT dieselbe
+   Groesse messen (Lieferanten-Tab: realisierte vs. geplante Marge). Ohne die
+   Ueberschrift laesst sich die zweite Tabelle als Fortsetzung der ersten lesen
+   und beide Zahlen werden im Kopf addiert — genau das ist hier falsch. */
+.kpi-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 4px;
 }

@@ -273,7 +273,16 @@ export async function fetchProjectReports(projectId: string): Promise<ProjectRep
 
 // ─── Teilrapport → Gesamtrapport (docs/specs/teilrapport.md §5.5) ───
 
-export async function fetchOpenPartialReports(projectId: string): Promise<ProjectReport[]> {
+/**
+ * Die bündelbaren Einsätze eines Projekts: ohne Rechnung, ohne bestehende Bündelung,
+ * ohne Kundenunterschrift — freie Teilrapporte UND gewöhnliche Rapporte.
+ *
+ * Letztere sind der häufige Fall: dass eine Baustelle über mehrere Tage geht, merkt
+ * der Monteur meist erst, wenn der erste Tag längst gespeichert ist. Das Bündeln
+ * macht die Angehakten zu Teilrapporten. Der Pfad heisst weiterhin
+ * `partial-reports` — er steht in ausgelieferten PWA-Versionen.
+ */
+export async function fetchBundleableReports(projectId: string): Promise<ProjectReport[]> {
   return apiFetch<ProjectReport[]>(`/pwa/projects/${projectId}/partial-reports`)
 }
 
@@ -291,6 +300,26 @@ export async function dissolveAggregateReport(
 ): Promise<{ status: string; released: number }> {
   return apiFetch(`/pwa/projects/${projectId}/aggregate-report/${reportId}/dissolve`, {
     method: 'POST',
+  })
+}
+
+/**
+ * Nimmt einen bereits gespeicherten Rapport nachträglich in die Teilrapport-Serie auf
+ * — oder wieder heraus (`isPartial: false`).
+ *
+ * Der Weg rückwärts zur Abschluss-Wahl im Chat: dass eine Baustelle über mehrere Tage
+ * geht, stellt sich oft erst am zweiten Tag heraus. Danach erscheint der Rapport in
+ * «Gesamtrapport erstellen», und der nächste Einsatz ist im Chat automatisch als
+ * Teilrapport vorausgewählt.
+ *
+ * `changed: false` heisst «stand schon so» — der Aufruf ist idempotent.
+ */
+export async function markReportPartial(
+  projectId: string, reportId: number, isPartial = true,
+): Promise<{ status: string; changed: boolean; is_partial: boolean }> {
+  return apiFetch(`/pwa/projects/${projectId}/reports/${reportId}/partial`, {
+    method: 'POST',
+    body: JSON.stringify({ is_partial: isPartial }),
   })
 }
 
