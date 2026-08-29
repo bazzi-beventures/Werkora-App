@@ -12,7 +12,10 @@ import { shiftISO } from '../../admin/utils/calendarHelpers'
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
   apiUrl: (p: string) => p,
-  isOfflineError: () => false,
+  // Muss heissen wie das, was die Ansicht importiert — ein Mock, der einen
+  // anderen Namen exportiert, fällt erst auf, wenn ein Test den Fehlerpfad
+  // betritt, und dann als «is not a function».
+  isNetworkError: () => false,
   ApiError: class ApiError extends Error {
     status: number
     constructor(status = 500, msg = '') { super(msg); this.status = status }
@@ -85,6 +88,7 @@ function renderPlan(over: Partial<{ projects: { id: string }[]; onSelect: () => 
   const result = render(
     <Wochenplan
       projects={over.projects ?? PROJEKTE}
+      userId="u1"
       onSelect={onSelect}
       onLoggedOut={() => {}}
     />,

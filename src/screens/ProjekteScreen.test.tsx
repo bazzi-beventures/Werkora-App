@@ -394,7 +394,6 @@ describe('ProjekteScreen — Lieferscheine', () => {
     return {
       id: 'f1',
       filename: 'lieferschein.pdf',
-      file_url: null,
       storage_path: 'tenant/project_files/p1/ls.pdf',
       mime_type: 'application/pdf',
       category: 'lieferschein',

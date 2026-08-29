@@ -78,7 +78,6 @@ export type ProjectFileCategory =
 export interface ProjectFile {
   id: string
   filename: string
-  file_url: string | null
   storage_path?: string | null
   mime_type: string | null
   category: ProjectFileCategory | null
@@ -113,4 +112,38 @@ export interface ProjectComment {
   created_at: string
   // Nur die Verwaltung zeigt Bearbeitungen an; die Monteur-PWA liest das Feld nicht.
   updated_at?: string | null
+}
+
+// ─── Projektzeile der Monteur-PWA ───────────────────────────
+
+// Die Form von `GET /pwa/projects` — die zugewiesenen offenen Projekte des
+// Monteurs (`_assigned_open_projects` in agents/routers/admin_projects.py).
+//
+// Sie steht hier statt im ProjekteScreen, weil sie inzwischen einen zweiten
+// Leser hat: das Offline-Lesepaket (api/offlineStore.ts) legt genau diese Zeilen
+// ab. Bliebe sie im Screen, importierte der Store aus dem Screen, der ihn selbst
+// importiert — ein Zyklus für einen reinen Typ.
+export interface MonteurProject {
+  id: string
+  name: string
+  kind: ProjectKind
+  art_der_arbeit: string[] | null
+  customer_id: string | null
+  customer: EmbeddedCustomer | null
+  object_name: string | null
+  object_address: string | null
+  start_date: string | null
+  end_date: string | null
+  start_time: string | null
+  end_time: string | null
+  kontakte: Kontakt[]
+  bemerkung: string | null
+  geruestfach: number | null
+  // Vom Backend gesetzt (Feature rapport_offerten_annahme_pflicht): das Projekt hat
+  // mindestens eine nicht-archivierte Offerte, aber keine ist angenommen. Der
+  // Rapport-Knopf ist dann gesperrt. Fehlt das Feld (ältere API), gilt "nicht gesperrt".
+  rapport_blocked?: boolean
+  // Server-seitig aus projektleiter_id aufgelöst — wen der Monteur bei Rückfragen
+  // anruft. Null/fehlend, wenn dem Projekt kein Projektleiter zugewiesen ist.
+  projektleiter_name?: string | null
 }

@@ -13,8 +13,6 @@ function makeQuote(over: Partial<ProjectQuote> = {}): ProjectQuote {
     total_amount: 12500,
     status: 'gesendet',
     created_at: '2026-07-20T10:00:00Z',
-    pdf_url: null,
-    xlsx_url: null,
     customer_email: 'kunde@example.ch',
     ...over,
   }
@@ -160,8 +158,8 @@ describe('QuotesTab — Varianten', () => {
 // hochgeladenen Rapporten im Rapporte-Reiter.
 describe('QuotesTab — hochgeladene Offerten', () => {
   const FILES = [
-    { id: 'f1', filename: 'Alt-Offerte_2019.pdf', file_url: null, mime_type: 'application/pdf', category: 'offerte' as const, created_at: '2026-07-01T09:00:00Z' },
-    { id: 'f2', filename: 'Prospekt.pdf', file_url: null, mime_type: 'application/pdf', category: 'anhang' as const, created_at: '2026-07-01T09:00:00Z' },
+    { id: 'f1', filename: 'Alt-Offerte_2019.pdf', mime_type: 'application/pdf', category: 'offerte' as const, created_at: '2026-07-01T09:00:00Z' },
+    { id: 'f2', filename: 'Prospekt.pdf', mime_type: 'application/pdf', category: 'anhang' as const, created_at: '2026-07-01T09:00:00Z' },
   ]
 
   function renderWithFiles(props: Record<string, unknown> = {}) {

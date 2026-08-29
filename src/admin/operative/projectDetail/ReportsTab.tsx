@@ -367,7 +367,7 @@ export function ReportsTab({
                     {r.description ? ` · ${r.description}` : ''}
                   </div>
                 </div>
-                {(r.storage_path || r.pdf_url) ? (
+                {r.storage_path ? (
                   <a href={apiUrl(`/pwa/admin/reports/${r.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">
                     PDF
                   </a>

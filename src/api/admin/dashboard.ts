@@ -38,7 +38,6 @@ export interface PendingApproval {
   id: string
   title: string
   filename: string
-  file_url: string | null
   storage_path?: string | null
   mime_type: string | null
   requested_by_name: string | null

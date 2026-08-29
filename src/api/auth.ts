@@ -1,4 +1,5 @@
 import { apiFetch } from './client'
+import { clearOfflinePackages } from './offlineStore'
 import { clearApiCache } from './swCache'
 
 export interface UserInfo {
@@ -40,6 +41,9 @@ export async function logout(): Promise<void> {
   } finally {
     // Auch wenn der Server-Logout fehlschlägt (offline): gecachte Antworten
     // des abgemeldeten Nutzers dürfen nicht auf dem Gerät zurückbleiben.
+    // Dasselbe gilt für das Offline-Lesepaket — es hängt am Gerät, nicht an der
+    // Session, und der Werkhof teilt sich ein Tablet.
+    clearOfflinePackages()
     await clearApiCache()
   }
 }

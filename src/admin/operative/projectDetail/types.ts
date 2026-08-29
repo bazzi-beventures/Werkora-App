@@ -11,8 +11,6 @@ export interface ProjectQuote {
   total_amount: number
   status: string
   created_at: string
-  pdf_url: string | null
-  xlsx_url: string | null
   storage_path?: string | null
   xlsx_storage_path?: string | null
   customer_email: string | null
@@ -33,7 +31,6 @@ export interface ProjectInvoice {
   status: string
   created_at: string
   paid_at: string | null
-  pdf_url: string | null
   storage_path?: string | null
   created_without_report?: boolean
 }
@@ -50,7 +47,6 @@ export interface ProjectReport {
   // (Massaufnahme/Beratung) fällt der Server auf created_by zurück; fehlt das
   // Feld ganz, ist die Antwort älter als die Ergänzung.
   monteure?: string | null
-  pdf_url: string | null
   storage_path?: string | null
   signature_timestamp: string | null
   invoice_id: number | null
@@ -82,7 +78,6 @@ export interface ProjectApproval {
   id: string
   title: string
   filename: string
-  file_url: string | null
   storage_path?: string | null
   mime_type: string | null
   requested_by_user_id: string | null

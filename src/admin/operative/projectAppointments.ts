@@ -65,6 +65,20 @@ export function emptyDraft(kind: AppointmentKind = 'montage'): AppointmentDraft 
   }
 }
 
+// Ein von Hand angelegter Termin («+ Termin» in der Projektmaske wie in der
+// Einsatzplanung) startet mit gesetztem «eigenes Team»: wer einen Termin
+// einzeln plant, will meist auch die Mannschaft dafür bestimmen — die Auswahl
+// steht damit sofort offen, statt erst nach einem Klick auf das Häkchen.
+//
+// Fachlich ändert das nichts: solange niemand ausgewählt ist, bleibt
+// `monteur_ids` leer (siehe draftPayload) und es gilt weiter das Projekt-Team.
+// Deshalb bleibt `emptyDraft` selbst neutral — der aus der Einsatzplanung
+// vorbelegte Ersttermin (siehe projectDetail/projectForm.ts) erbt bewusst
+// das Projekt-Team.
+export function newAppointmentDraft(kind: AppointmentKind = 'montage'): AppointmentDraft {
+  return { ...emptyDraft(kind), ownTeam: true }
+}
+
 // Termin-Payload für die API. '' ist dort das explizite «Feld leeren»
 // (Partial-PATCH kann mit null nichts löschen), monteur_ids [] löscht das
 // Termin-Team → Projekt-Team gilt wieder.

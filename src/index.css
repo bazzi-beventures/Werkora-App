@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bitter:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+@import './fonts.css';
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1595,6 +1595,35 @@ input, textarea { font-family: var(--font); color: var(--text); }
   font-size: 14px;
   padding: 48px 24px;
   line-height: 1.5;
+}
+
+/* Stand-Badge über einem Screen, der aus dem Offline-Lesepaket rendert
+   (docs/specs/offline-modus.md §3.4). Gehört zum Screen-Inhalt, nicht zum
+   globalen Offline-Banner: es sagt «kein Netz», dieser Streifen sagt, wie alt
+   genau die Daten darunter sind. Ab 24 h (.stale) warnt die Farbe. */
+.offline-stand-badge {
+  margin: 4px 0 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border-left: 3px solid var(--muted);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.offline-stand-badge.stale {
+  background: var(--accent-amber-dim);
+  border-left-color: var(--accent-amber);
+  color: var(--accent-amber-ink);
+}
+
+/* Warum ein Bedienelement in dieser Karte gerade gesperrt ist. Steht dort, wo
+   das Antippen scheitern würde — dieselbe Idee wie .chat-stempel-hint. */
+.projekte-offline-hint {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
 }
 .projekte-grid {
   display: grid;

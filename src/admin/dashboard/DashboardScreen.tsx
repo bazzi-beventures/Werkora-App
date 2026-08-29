@@ -361,7 +361,7 @@ function ApprovalModal({ onClose, onSent }: ApprovalModalProps) {
                       </span>
                     </div>
                   </div>
-                  {(a.storage_path || a.file_url) && (
+                  {a.storage_path && (
                     <a className="approval-file" href={apiUrl(`/pwa/admin/approvals/${a.id}/download`)} target="_blank" rel="noreferrer">
                       <span className="approval-file-icon">PDF</span>
                       <span className="approval-file-name">{a.filename}</span>

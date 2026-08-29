@@ -238,7 +238,7 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
               ) : (
                 <>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {(f.storage_path || f.file_url)
+                    {f.storage_path
                       ? <a href={apiUrl(`/pwa/admin/project-files/${f.id}/download`)} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 500, color: 'var(--primary)', textDecoration: 'none', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.filename}</a>
                       : <span style={{ fontSize: 13, fontWeight: 500 }}>{f.filename}</span>
                     }
@@ -247,7 +247,7 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
                   {/* Der Dateiname öffnet nur (Fotos/PDFs liefert der Proxy `inline`
                       aus). Für "wirklich als Datei speichern" braucht es den
                       eigenen Knopf mit `?download=1` — siehe drive_proxy.py. */}
-                  {(f.storage_path || f.file_url) && (
+                  {f.storage_path && (
                     <a
                       href={apiUrl(`/pwa/admin/project-files/${f.id}/download?download=1`)}
                       download={f.filename}

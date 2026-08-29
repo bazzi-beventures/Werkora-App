@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   AppointmentDraft, applyStartDate, apptToDraft, diffAppointments, draftPayload, draftTeamNames,
-  draftTitle, emptyDraft, fmtDraftWhen, nextAppointment, normalizeDrafts, sortDrafts, todayISO,
-  validateDrafts,
+  draftTitle, emptyDraft, fmtDraftWhen, newAppointmentDraft, nextAppointment, normalizeDrafts,
+  sortDrafts, todayISO, validateDrafts,
 } from './projectAppointments'
 import type { ProjectAppointment } from '../../api/admin'
 
@@ -32,6 +32,26 @@ describe('apptToDraft', () => {
     }
     expect(apptToDraft(row).ownTeam).toBe(false)
     expect(apptToDraft(row).monteurIds).toEqual([])
+  })
+})
+
+describe('newAppointmentDraft', () => {
+  it('legt einen von Hand geplanten Termin mit gesetztem «eigenes Team» an', () => {
+    const d = newAppointmentDraft('aufmass')
+    expect(d).toMatchObject({ id: null, kind: 'aufmass', ownTeam: true, monteurIds: [] })
+  })
+
+  // Das Häkchen öffnet nur die Auswahl — ohne gewählten Monteur bleibt der
+  // Termin am Projekt-Team, wie bisher.
+  it('bleibt ohne Auswahl fachlich beim Projekt-Team', () => {
+    const d = { ...newAppointmentDraft(), startDate: '2026-08-18' }
+    expect(draftPayload(d).monteur_ids).toEqual([])
+  })
+
+  // emptyDraft bleibt der neutrale Ausgangsstand (u.a. für den aus der
+  // Einsatzplanung vorbelegten Ersttermin).
+  it('lässt emptyDraft unangetastet', () => {
+    expect(emptyDraft().ownTeam).toBe(false)
   })
 })
 

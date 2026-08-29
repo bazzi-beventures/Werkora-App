@@ -16,7 +16,6 @@ export interface Invoice {
   status: string
   created_at: string
   paid_at: string | null
-  pdf_url: string | null
   storage_path?: string | null
   customer_email?: string | null
   projektleiter_id: string | null

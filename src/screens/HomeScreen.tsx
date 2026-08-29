@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { apiFetch, ApiError, isOfflineError } from '../api/client'
 import { ModuleName } from '../api/modules'
+import { useOnline } from '../shared/useOnline'
 import { Theme, loadTheme, applyTheme, toggleTheme } from '../theme'
 
 interface Props {
@@ -50,6 +51,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
   const showArbeitszeit = has('timekeeping')
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null)
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
+  const online = useOnline()
 
   function handleToggleTheme() {
     const next = toggleTheme(theme)
@@ -242,7 +244,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
         <div className="status-card">
           <div className="status-left">
             <div className="status-label">Status</div>
-            {sessionStatus?.status === 'active' && (
+            {online && sessionStatus?.status === 'active' && (
               <>
                 <div className="status-value" style={{ fontSize: 16, color: 'var(--accent-green)' }}>
                   {sessionStatus.clock_in ? formatClockIn(sessionStatus.clock_in) : '—'}
@@ -250,7 +252,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
                 <div className="status-label" style={{ marginTop: 2 }}>Eingestempelt</div>
               </>
             )}
-            {sessionStatus?.status === 'on_break' && (
+            {online && sessionStatus?.status === 'on_break' && (
               <>
                 <div className="status-value" style={{ fontSize: 16, color: 'var(--accent-amber)' }}>
                   {sessionStatus.clock_in ? formatClockIn(sessionStatus.clock_in) : '—'}
@@ -258,16 +260,29 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
                 <div className="status-label" style={{ marginTop: 2 }}>In Pause</div>
               </>
             )}
-            {(!sessionStatus || sessionStatus.status === 'inactive') && (
+            {/* Offline: neutraler Hinweis statt eines veralteten Stempel-Status
+                (docs/specs/offline-modus.md §4.3). Der Status kommt live vom
+                Server und liegt bewusst NICHT im Lesepaket — und genau diese
+                Zeile liest der Monteur, um zu prüfen, ob sein Stempel
+                angekommen ist. Ein stehengebliebenes «Eingestempelt» wäre die
+                gefährlichste Anzeige im ganzen Screen. */}
+            {!online && (
+              <>
+                <div className="status-value" style={{ fontSize: 16, color: 'var(--muted)' }}>—</div>
+                <div className="status-label" style={{ marginTop: 2 }}>Offline — Status unbekannt</div>
+              </>
+            )}
+            {online && (!sessionStatus || sessionStatus.status === 'inactive') && (
               <>
                 <div className="status-value" style={{ fontSize: 16, color: 'var(--muted)' }}>—</div>
                 <div className="status-label" style={{ marginTop: 2 }}>Noch nicht eingestempelt</div>
               </>
             )}
           </div>
-          {sessionStatus?.status === 'active' && <div className="status-badge-active">Aktiv</div>}
-          {sessionStatus?.status === 'on_break' && <div className="status-badge-inactive" style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber-ink)' }}>In Pause</div>}
-          {(!sessionStatus || sessionStatus.status === 'inactive') && <div className="status-badge-inactive">Inaktiv</div>}
+          {online && sessionStatus?.status === 'active' && <div className="status-badge-active">Aktiv</div>}
+          {online && sessionStatus?.status === 'on_break' && <div className="status-badge-inactive" style={{ background: 'var(--accent-amber-dim)', color: 'var(--accent-amber-ink)' }}>In Pause</div>}
+          {!online && <div className="status-badge-inactive">Offline</div>}
+          {online && (!sessionStatus || sessionStatus.status === 'inactive') && <div className="status-badge-inactive">Inaktiv</div>}
         </div>
       </div>
       )}

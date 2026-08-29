@@ -12,6 +12,13 @@ import LeistungsartPrompt, { WORK_TYPES } from './LeistungsartPrompt'
 import { loadDraft, saveDraft } from './rapportDraft'
 import { LeaveWarning, rapportLeaveWarning } from './rapportStart'
 import { RAPPORT_CLOCK_IN_HINT, useRapportClockInBlocked } from '../shared/rapportClockIn'
+import { useOnline } from '../shared/useOnline'
+
+// Offline gesperrt statt nach dem Tippen abgelehnt (docs/specs/offline-modus.md
+// §4.1): jede Chat-Antwort braucht das LLM, offline gibt es keine. Der Entwurf
+// bleibt liegen — er lebt im localStorage (rapportDraft.ts), nicht am Netz.
+const OFFLINE_CHAT_HINT =
+  'Der Rapport-Chat braucht eine Internetverbindung — dein Entwurf bleibt gespeichert.'
 
 interface Message {
   id: number
@@ -84,6 +91,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   // speichern und unterschreiben, auch wenn zwischendurch ausgestempelt wurde
   // (dieselbe Grenze zieht `confirm_report` serverseitig bewusst nicht nach).
   const stempelBlocked = useRapportClockInBlocked(user)
+  const online = useOnline()
 
   function greetingMessage(): Message {
     return {
@@ -865,7 +873,10 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
           <div className="confirm-buttons">
             <button
               className="confirm-btn confirm-btn-yes"
-              disabled={pdfDownloading}
+              // Das PDF erzeugt der Server bei jedem Aufruf neu — offline gibt es
+              // nichts herunterzuladen (docs/specs/offline-modus.md §4.1).
+              disabled={pdfDownloading || !online}
+              title={online ? undefined : 'Der PDF-Download braucht eine Internetverbindung.'}
               onClick={async () => {
                 setPdfDownloading(true)
                 try {
@@ -914,8 +925,14 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         <div className="chat-stempel-hint">{RAPPORT_CLOCK_IN_HINT}</div>
       )}
 
+      {/* Der Stempel-Hinweis ist der speziellere Grund und gewinnt — zwei
+          Absagen übereinander erklären nichts, sie stapeln sich nur. */}
+      {!online && !stempelBlocked && (
+        <div className="chat-stempel-hint">{OFFLINE_CHAT_HINT}</div>
+      )}
+
       {/* Input — disabled while awaiting confirmation or disambiguation */}
-      <ChatInput onSendText={onSendText} onSendVoice={onSendVoice} onSendPhoto={onSendPhoto} disabled={loading || stempelBlocked || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null} />
+      <ChatInput onSendText={onSendText} onSendVoice={onSendVoice} onSendPhoto={onSendPhoto} disabled={loading || stempelBlocked || !online || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null} />
 
       {/* Nav bar */}
       <div className="nav-bar">

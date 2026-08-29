@@ -10,7 +10,7 @@ import {
   listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
 } from '../../api/projectTasks'
 import {
-  apptToDraft, draftPayload, emptyDraft, validateDraft,
+  apptToDraft, draftPayload, emptyDraft, newAppointmentDraft, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -137,6 +137,12 @@ function apptToForm(a: ProjectAppointment): ApptFormState {
 
 function emptyApptForm(kind: AppointmentKind = 'montage'): ApptFormState {
   return { ...emptyDraft(kind), seriesId: null, ...EMPTY_SERIES_FIELDS }
+}
+
+// «+ Termin» am Projekt: gleicher Ausgangsstand wie in der Projektmaske —
+// «eigenes Team» ist gesetzt, die Monteur-Auswahl steht also sofort offen.
+function newApptForm(kind: AppointmentKind = 'montage'): ApptFormState {
+  return { ...newAppointmentDraft(kind), seriesId: null, ...EMPTY_SERIES_FIELDS }
 }
 
 function slotToApptForm(slot: PendingSlot, kind: AppointmentKind = 'montage'): ApptFormState {
@@ -1085,7 +1091,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                       <button
                         type="button"
                         className="project-schedule-mini-btn"
-                        onClick={() => { setApptForm(emptyApptForm('montage')); setError(null) }}
+                        onClick={() => { setApptForm(newApptForm('montage')); setError(null) }}
                       >
                         + Termin
                       </button>
@@ -1279,6 +1285,11 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                                 </button>
                               )
                             })}
+                            {apptForm.monteurIds.length === 0 && !apptForm.requireMonteur && (
+                              <span style={{ color: 'var(--muted)', fontSize: 12, alignSelf: 'center' }}>
+                                Keine Auswahl = Projekt-Team.
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>

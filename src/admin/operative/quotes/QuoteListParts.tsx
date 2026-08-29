@@ -79,7 +79,7 @@ export function QuoteRowActions({ quote: q, flags, acting, on }: {
   const busy = acting === q.id
   return (
     <>
-      {(q.storage_path || q.pdf_url) && (
+      {q.storage_path && (
         <a
           href={apiUrl(`/pwa/admin/quotes/${q.id}/pdf`)}
           target="_blank"
@@ -90,7 +90,7 @@ export function QuoteRowActions({ quote: q, flags, acting, on }: {
           PDF
         </a>
       )}
-      {(q.xlsx_storage_path || q.xlsx_url) && (
+      {q.xlsx_storage_path && (
         <a
           href={apiUrl(`/pwa/admin/quotes/${q.id}/xlsx`)}
           target="_blank"

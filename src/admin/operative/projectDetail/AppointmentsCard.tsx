@@ -9,8 +9,8 @@
 import { useState } from 'react'
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS } from '../../../api/admin'
 import {
-  AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, emptyDraft, fmtDraftWhen,
-  nextAppointment, todayISO,
+  AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, fmtDraftWhen,
+  newAppointmentDraft, nextAppointment, todayISO,
 } from '../projectAppointments'
 
 interface Props {
@@ -34,7 +34,7 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
   }
 
   function addAppointment() {
-    const draft = emptyDraft('montage')
+    const draft = newAppointmentDraft('montage')
     onChange([...appointments, draft])
     setOpenKey(draft.key)
   }

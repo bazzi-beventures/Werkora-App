@@ -30,7 +30,6 @@ function quote(over: Record<string, unknown> = {}) {
     quote_date: '2026-08-14',
     valid_until: '2026-09-13',
     created_at: '2026-08-14T10:00:00Z',
-    pdf_url: null,
     storage_path: 'x/y.pdf',
     ...over,
   }

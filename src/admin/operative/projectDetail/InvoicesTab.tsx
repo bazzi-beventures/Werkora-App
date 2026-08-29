@@ -189,7 +189,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                     <span className={`admin-badge ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
                     <span style={{ fontSize: 12, color: 'var(--muted)' }}>{fmtDate(inv.created_at)}</span>
                     <span style={{ flex: 1, textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtCHF(inv.total_amount)}</span>
-                    {(inv.storage_path || inv.pdf_url) && (
+                    {inv.storage_path && (
                       <a href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
                     )}
                     {idx === 0 && (inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
@@ -204,7 +204,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                             verlassen hat, und nur mit vorliegendem PDF — genau die zwei
                             Guards des Endpunkts. Ohne die Bedingungen wäre der Knopf
                             sichtbar, aber jeder Klick ein 409. */}
-                        {(inv.status === 'ausstehend' || inv.status === 'offen') && (inv.storage_path || inv.pdf_url) && (
+                        {(inv.status === 'ausstehend' || inv.status === 'offen') && inv.storage_path && (
                           <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => openPostal(inv)}>
                             Per Post versendet
                           </button>

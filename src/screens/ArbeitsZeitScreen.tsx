@@ -8,6 +8,8 @@ import {
   objectionExpired, OBJECTION_EXPIRED_HINT,
 } from '../api/autoBreak'
 import { UserInfo } from '../api/auth'
+import { hasModule } from '../api/modules'
+import { prefetchOfflinePackage } from '../api/offlineStore'
 import { BerichtType } from './BerichtScreen'
 
 interface Props {
@@ -288,6 +290,19 @@ export default function ArbeitsZeitScreen({ logoUrl, role, user = null, onNavHom
     try {
       const res = await zeitAction(action, { recorded_at })
       setResult({ text: res.reply, isError: !res.action_taken })
+      // Einstempeln ist der verlässlichste Netz-Moment des Tages: morgens, meist
+      // noch im WLAN des Werkhofs, bevor es in die Tiefgarage geht. Genau dann
+      // das Offline-Lesepaket füllen (docs/specs/offline-modus.md §3.3) — mit
+      // `force`, weil die 15-Minuten-Drosselung sonst ausgerechnet diesen Moment
+      // verpassen kann. Läuft nebenher und wirft nie.
+      // `user_light` bleibt aussen vor — reiner Zeiterfasser, sieht keine
+      // Projekte, bekäme auf /pwa/projects einen erwarteten 403.
+      if (action === 'clock_in' && res.action_taken && user && user.role !== 'user_light') {
+        void prefetchOfflinePackage(user.authorized_user_id, {
+          scheduling: hasModule(user, 'scheduling'),
+          force: true,
+        })
+      }
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         onLoggedOut()

@@ -15,7 +15,6 @@ function makeInvoice(over: Partial<ProjectInvoice> = {}): ProjectInvoice {
     status: 'ausstehend',
     created_at: '2026-08-09T10:00:00Z',
     paid_at: null,
-    pdf_url: null,
     storage_path: 'documents/re-2026-083.pdf',
     ...over,
   }
@@ -87,7 +86,7 @@ describe('InvoicesTab — Postversand', () => {
   })
 
   it('bietet den Postversand nicht ohne PDF an — der Endpunkt lehnte mit 409 ab', () => {
-    renderTab([makeInvoice({ storage_path: null, pdf_url: null })])
+    renderTab([makeInvoice({ storage_path: null })])
     expect(screen.queryByRole('button', { name: 'Per Post versendet' })).not.toBeInTheDocument()
   })
 

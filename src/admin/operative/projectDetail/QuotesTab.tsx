@@ -183,10 +183,10 @@ export function QuotesTab({
                         Summe vom Button-Cluster zu trennen. */}
                     <div style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
                       <span style={{ fontWeight: 600, fontSize: 13 }}>{fmtCHF(q.total_amount)}</span>
-                      {(q.storage_path || q.pdf_url) && (
+                      {q.storage_path && (
                         <a href={apiUrl(`/pwa/admin/quotes/${q.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
                       )}
-                      {(q.xlsx_storage_path || q.xlsx_url) && (
+                      {q.xlsx_storage_path && (
                         <a href={apiUrl(`/pwa/admin/quotes/${q.id}/xlsx`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">XLSX</a>
                       )}
                       {idx === 0 && (

@@ -46,10 +46,13 @@ const BOOT_SCRIPT_HASH = createHash('sha256').update(BOOT_SCRIPT_BODY).digest('b
 
 // Strikte CSP nur im Production-Build — in Dev braucht Vite-HMR Inline-Scripts
 // und 'unsafe-eval'. script-src whitelistet nur 'self' + den SHA-256-Hash des
-// Inline-Boot-Skripts. Google Fonts werden in style-src/font-src zugelassen.
+// Inline-Boot-Skripts. Fonts sind selbst gehostet (src/fonts.css, Datenschutz-
+// Spec M1) — die Google-Hosts stehen bewusst NICHT mehr in style-src/font-src,
+// damit ein wieder eingeschleppter fonts.googleapis.com-Import im Prod-Build
+// blockiert wird statt still IPs an Google zu senden.
 // frame-ancestors wird via X-Frame-Options im Backend gesetzt — im <meta>-Tag
 // wird die Direktive vom Browser ignoriert.
-const CSP_META = `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-${BOOT_SCRIPT_HASH}'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; base-uri 'self'; form-action 'self'; object-src 'none'" />`
+const CSP_META = `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-${BOOT_SCRIPT_HASH}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; base-uri 'self'; form-action 'self'; object-src 'none'" />`
 
 export default defineConfig(({ command }) => ({
   base: BASE_PATH,
@@ -91,6 +94,12 @@ export default defineConfig(({ command }) => ({
               cacheName: 'api-cache',
               networkTimeoutSeconds: 10,
               cacheableResponse: { statuses: [200] },
+              // Grenzen statt unbegrenztem Wachstum (docs/specs/offline-modus.md §5).
+              // Der Cache ist seit dem Lesepaket nur noch das zweite Netz — für
+              // alles ausserhalb des Snapshots. Ohne Expiration wuchs er endlos
+              // und alterte nie: eine Antwort von vor drei Monaten wurde offline
+              // ausgeliefert, als wäre sie von heute.
+              expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 3600 },
             },
           },
         ],

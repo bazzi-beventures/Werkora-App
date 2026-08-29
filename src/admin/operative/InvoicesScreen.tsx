@@ -391,7 +391,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                 </div>
                 {/* Aktionen dürfen nicht ins Projekt springen — Klick hier stoppen. */}
                 <div className="admin-card-actions" onClick={e => e.stopPropagation()}>
-                  {(inv.storage_path || inv.pdf_url) && (
+                  {inv.storage_path && (
                     <a
                       href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)}
                       target="_blank"
@@ -471,7 +471,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                       Aktionen sollen das nicht auslösen. */}
                   <td style={{ whiteSpace: 'nowrap', width: '1%' }} onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
-                      {(inv.storage_path || inv.pdf_url) && (
+                      {inv.storage_path && (
                         <a
                           href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)}
                           target="_blank"

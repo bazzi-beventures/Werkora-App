@@ -3,7 +3,10 @@ import {
   ScheduleEntry, ScheduleWeek,
   fetchScheduleWeek, mondayOfISO, shiftDayISO, todayISO,
 } from '../../api/schedule'
-import { ApiError, isOfflineError } from '../../api/client'
+import { ApiError, isNetworkError } from '../../api/client'
+import { loadOfflinePackage, rememberScheduleWeek } from '../../api/offlineStore'
+import { OfflineStandBadge } from '../../shared/OfflineStandBadge'
+import { useOnline } from '../../shared/useOnline'
 import { PROJECT_KIND_LABELS } from '../../shared/projectDetail/types'
 import type { ProjectKind } from '../../shared/projectDetail/types'
 import { mapsUrl } from '../../shared/mapsLink'
@@ -35,6 +38,9 @@ interface WochenplanProject {
 
 interface Props<P extends WochenplanProject> {
   projects: P[]
+  /** Mitarbeiter-id — Schlüssel des Offline-Lesepakets (api/offlineStore.ts).
+   *  Leer, solange kein Nutzer feststeht; dann bleibt es beim Online-Verhalten. */
+  userId: string
   /** Tippen auf einen Einsatz — dasselbe Verhalten wie das Tippen auf eine Kachel. */
   onSelect: (project: P) => void
   onLoggedOut: () => void
@@ -121,7 +127,7 @@ function EntryCard({ entry, onOpen }: { entry: ScheduleEntry; onOpen?: () => voi
   )
 }
 
-export function Wochenplan<P extends WochenplanProject>({ projects, onSelect, onLoggedOut }: Props<P>) {
+export function Wochenplan<P extends WochenplanProject>({ projects, userId, onSelect, onLoggedOut }: Props<P>) {
   // Der ausgewählte TAG ist der ganze Navigationszustand — die Woche ergibt sich
   // aus ihm. Wer am Sonntag weiterwischt, landet am Montag der Folgewoche, ohne
   // dass Tag und Woche getrennt nachgeführt werden müssten.
@@ -131,6 +137,11 @@ export function Wochenplan<P extends WochenplanProject>({ projects, onSelect, on
   const [weeks, setWeeks] = useState<Record<string, ScheduleWeek>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Wochen, die aus dem Offline-Lesepaket kommen statt vom Server — je Montag der
+  // Stand-Zeitpunkt, für den Badge über der Tagesliste.
+  const [snapshotAt, setSnapshotAt] = useState<Record<string, string>>({})
+  const [reloadNonce, setReloadNonce] = useState(0)
+  const online = useOnline()
   const loadedRef = useRef<Set<string>>(new Set())
 
   const monday = mondayOfISO(selectedIso)
@@ -148,6 +159,14 @@ export function Wochenplan<P extends WochenplanProject>({ projects, onSelect, on
       .then(data => {
         if (cancelled) return
         setWeeks(prev => ({ ...prev, [monday]: data }))
+        setSnapshotAt(prev => {
+          if (!(monday in prev)) return prev
+          const next = { ...prev }
+          delete next[monday]
+          return next
+        })
+        // Write-through ins Lesepaket (docs/specs/offline-modus.md §3.3).
+        rememberScheduleWeek(userId, monday, data)
       })
       .catch(err => {
         if (cancelled) return
@@ -155,13 +174,31 @@ export function Wochenplan<P extends WochenplanProject>({ projects, onSelect, on
         // Rest der Sitzung leer — auch wenn das Netz gleich wieder da ist.
         loadedRef.current.delete(monday)
         if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
-        setError(isOfflineError(err)
-          ? 'Keine Verbindung — der Wochenplan braucht Netz.'
+        // isNetworkError statt isOfflineError: auch «Empfangsbalken, aber kein
+        // Durchkommen» soll den Snapshot zeigen — er ist rein lesend (Spec §8).
+        const stored = isNetworkError(err) ? loadOfflinePackage(userId) : null
+        const week = stored?.scheduleWeeks[monday]
+        if (week) {
+          setWeeks(prev => ({ ...prev, [monday]: week }))
+          setSnapshotAt(prev => ({ ...prev, [monday]: stored?.savedAt ?? '' }))
+          return
+        }
+        setError(isNetworkError(err)
+          ? 'Offline — dieser Wochenplan liegt nicht auf dem Gerät.'
           : 'Der Wochenplan konnte nicht geladen werden.')
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [monday, onLoggedOut])
+  }, [monday, userId, onLoggedOut, reloadNonce])
+
+  // Netz zurück, die Ansicht zeigt noch den Snapshot oder eine Fehlermeldung →
+  // frisch laden. Der Fehlschlag hat die Woche in loadedRef schon freigegeben;
+  // der Nonce stösst nur den Effekt neu an. Feuert allein beim Umschalten von
+  // offline auf online — kein Reload-Loop bei Dauerfehlern.
+  useEffect(() => {
+    if (!online) return
+    if (monday in snapshotAt || error !== null) setReloadNonce(n => n + 1)
+  }, [online])
 
   const goDay = useCallback((step: number) => {
     setSelectedIso(iso => shiftDayISO(iso, step))
@@ -257,6 +294,7 @@ export function Wochenplan<P extends WochenplanProject>({ projects, onSelect, on
 
       {/* Tagesinhalt — hier wird gewischt */}
       <div className="wplan-scroll" {...swipe}>
+        {!loading && monday in snapshotAt && <OfflineStandBadge savedAt={snapshotAt[monday]} />}
         {loading && <div className="bericht-loading">Laden…</div>}
         {error && (
           <div className="action-result action-result-error" style={{ margin: '8px 0' }}>{error}</div>

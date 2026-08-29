@@ -13,7 +13,6 @@ interface Quote {
   quote_date: string | null
   valid_until: string | null
   created_at: string
-  pdf_url: string | null
   storage_path?: string | null
 }
 
@@ -127,7 +126,7 @@ export default function OffertenScreen({ logoUrl, onNavHome, onNavArbeitszeit, o
                     <span className="projekte-detail-value">{formatDate(q.valid_until)}</span>
                   </div>
                 )}
-                {(q.storage_path || q.pdf_url) ? (
+                {q.storage_path ? (
                   <a
                     href={apiUrl(`/pwa/quotes/${q.id}/pdf`)}
                     target="_blank"

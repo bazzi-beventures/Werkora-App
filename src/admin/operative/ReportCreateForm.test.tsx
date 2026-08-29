@@ -66,8 +66,6 @@ function makeQuote(over: Partial<ProjectQuote> = {}): ProjectQuote {
     total_amount: 12500,
     status: 'akzeptiert',
     created_at: '2026-07-20T10:00:00Z',
-    pdf_url: null,
-    xlsx_url: null,
     customer_email: null,
     ...over,
   }

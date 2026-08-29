@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react'
 import AppointmentsCard from './AppointmentsCard'
 import { AppointmentDraft, emptyDraft } from '../projectAppointments'
 import { APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS } from '../../../api/admin/scheduling'
@@ -75,6 +75,30 @@ describe('AppointmentsCard', () => {
     expect(next).toHaveLength(2)
     expect(next[0]).toBe(bestehend)
     expect(next[1]).toMatchObject({ id: null, startDate: '', kind: 'montage' })
+  })
+
+  // Wer einen Termin von Hand anlegt, bestimmt meist auch die Mannschaft dafür.
+  // Deshalb ist «eigenes Team» beim neuen Termin gesetzt und die Auswahl offen.
+  it('legt einen neuen Termin mit gesetztem «eigenes Team» an', () => {
+    const onChange = setup([])
+    fireEvent.click(screen.getByText('+ Termin hinzufügen'))
+    const next = onChange.mock.calls[0][0] as AppointmentDraft[]
+    expect(next[0]).toMatchObject({ ownTeam: true, monteurIds: [] })
+  })
+
+  it('zeigt beim neuen Termin die Monteur-Auswahl sofort an', () => {
+    // Die Kachel ist gesteuert: der neue Entwurf kommt über onChange zurück und
+    // wird hier als neuer Prop-Stand nachgereicht — wie im ProjectDetailScreen.
+    const onChange = setup([])
+    fireEvent.click(screen.getByText('+ Termin hinzufügen'))
+    const next = onChange.mock.calls[0][0] as AppointmentDraft[]
+    cleanup()
+    setup(next)
+    fireEvent.click(screen.getByText('Montage'))          // Editor aufklappen
+    expect((screen.getByLabelText('Eigenes Team für diesen Termin') as HTMLInputElement).checked).toBe(true)
+    expect(screen.getByRole('button', { name: 'Petra Schmid' })).toBeTruthy()
+    // Ohne Auswahl bleibt es beim Projekt-Team — der Hinweis sagt das auch.
+    expect(screen.getByText('Keine Auswahl = Projekt-Team.')).toBeTruthy()
   })
 
   it('entfernt einen Termin aus der Liste', () => {

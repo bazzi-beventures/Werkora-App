@@ -8,6 +8,11 @@ import {
   fetchBundleableReports, fetchProjectReports, markReportPartial, ProjectReport,
 } from '../api/chat'
 import { ProjectTask, toggleProjectTaskDone } from '../api/projectTasks'
+import {
+  loadOfflinePackage, rememberProjectComments, rememberProjectTasks, rememberProjects,
+} from '../api/offlineStore'
+import { OfflineStandBadge } from '../shared/OfflineStandBadge'
+import { useOnline } from '../shared/useOnline'
 import SignaturePad from '../chat/SignaturePad'
 import { useBackButton } from '../shared/backButton'
 import { SK } from '../api/storageKeys'
@@ -28,7 +33,7 @@ import { formatDateTime } from '../shared/datetime'
 import { KIND_COLORS } from './kindColors'
 import { CATEGORY_LABELS, PROJECT_KIND_LABELS } from '../shared/projectDetail/types'
 import type {
-  EmbeddedCustomer, Kontakt, ProjectComment, ProjectFile, ProjectFileCategory, ProjectKind,
+  MonteurProject, ProjectComment, ProjectFile, ProjectFileCategory, ProjectKind,
 } from '../shared/projectDetail/types'
 
 // Alles, was der Monteur am Projekt sieht, teilt sich die Form mit der
@@ -41,30 +46,10 @@ const SCOPE = '/pwa' as const
 // Persistenz, Versuchs-Deckel und Reconcile stehen in projekte/taskQueue.ts —
 // hier bleibt nur der Drain-Loop, der die Server-Calls macht.
 
-interface Project {
-  id: string
-  name: string
-  kind: ProjectKind
-  art_der_arbeit: string[] | null
-  customer_id: string | null
-  customer: EmbeddedCustomer | null
-  object_name: string | null
-  object_address: string | null
-  start_date: string | null
-  end_date: string | null
-  start_time: string | null
-  end_time: string | null
-  kontakte: Kontakt[]
-  bemerkung: string | null
-  geruestfach: number | null
-  // Vom Backend gesetzt (Feature rapport_offerten_annahme_pflicht): das Projekt hat
-  // mindestens eine nicht-archivierte Offerte, aber keine ist angenommen. Der
-  // Rapport-Knopf ist dann gesperrt. Fehlt das Feld (ältere API), gilt "nicht gesperrt".
-  rapport_blocked?: boolean
-  // Server-seitig aus projektleiter_id aufgelöst — wen der Monteur bei Rückfragen
-  // anruft. Null/fehlend, wenn dem Projekt kein Projektleiter zugewiesen ist.
-  projektleiter_name?: string | null
-}
+// Die Form steht in shared/projectDetail/types — das Offline-Lesepaket legt
+// dieselben Zeilen ab, und ein Typ, den zwei Module brauchen, gehört keinem
+// Screen mehr.
+type Project = MonteurProject
 
 // Kategorien, die ein Mitarbeiter im Feld vergeben darf — echte Teilmenge der
 // Kategorien aus shared/projectDetail/types. Aus dem Reiter Lieferantendokumente
@@ -91,6 +76,15 @@ const FILE_CATEGORIES: { key: FileCategory; label: string }[] = [
 // der Liste (ADMIN_ONLY_FILE_CATEGORIES in agents/routers/_deps.py), diese Karte
 // zeigt also nie mehr, als die API ohnehin liefert.
 const LIEFERSCHEIN_CATEGORY: FileCategory = 'lieferschein'
+
+// Deklaration statt Fehlversuch (docs/specs/offline-modus.md §4.1): was offline
+// nicht geht, ist ausgegraut und sagt warum. Der teure Fall ist der Upload —
+// ein offline aufgenommenes Foto ging bis hierher kommentarlos verloren (der
+// Upload läuft sofort, ohne Puffer). Ein IndexedDB-Puffer ist Ausbaustufe 2;
+// bis dahin beseitigt das Sperren den stillen Verlust sofort.
+const OFFLINE_UPLOAD_HINT = 'Hochladen braucht eine Internetverbindung.'
+const OFFLINE_DOWNLOAD_HINT = 'Herunterladen braucht eine Internetverbindung.'
+const OFFLINE_COMMENT_HINT = 'Kommentare schreiben braucht eine Internetverbindung.'
 
 interface Props {
   logoUrl?: string
@@ -210,6 +204,23 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Project | null>(null)
+  // Netzstatus als State, damit die Sperren aus §4.1 der Spec beim Wechsel
+  // umschalten statt bis zum nächsten Render stehen zu bleiben.
+  const online = useOnline()
+  // Der Snapshot ist pro Mitarbeiter geschlüsselt. Die id kommt aus dem
+  // localStorage statt aus `user`: der erste Render hat noch keinen User, die
+  // Projektliste lädt aber sofort.
+  const userId = user?.authorized_user_id ?? localStorage.getItem(SK.AUTHORIZED_USER_ID) ?? ''
+  // Gesetzt, sobald die Liste bzw. das Detail aus dem Lesepaket kommt statt vom
+  // Server — trägt den Stand-Badge (ISO-Zeitpunkt des Snapshots).
+  const [listSnapshotAt, setListSnapshotAt] = useState<string | null>(null)
+  const [detailSnapshotAt, setDetailSnapshotAt] = useState<string | null>(null)
+  // Netzwerkfehler ist ein FEHLERzustand mit Retry, kein leerer Normalzustand.
+  // Bis hierher schluckte der `catch` alles ausser 401 und die Liste rendert
+  // «Du bist keinem Projekt zugewiesen» — die einzige Aussage, die sicher falsch war.
+  const [listError, setListError] = useState<string | null>(null)
+  const [reloadNonce, setReloadNonce] = useState(0)
+  const [detailReloadNonce, setDetailReloadNonce] = useState(0)
   // Zurück aus dem Projekt-Detail führt in die Liste, nicht aus dem Screen heraus.
   // Einmaliger Handler genügt: `setSelected(null)` schliesst das Detail immer, und
   // beim nächsten Öffnen registriert der Hook neu.
@@ -278,18 +289,51 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   useEffect(() => {
     let cancelled = false
     async function load() {
+      setLoading(true)
+      setListError(null)
       try {
         const data = await apiFetch('/pwa/projects') as Project[]
-        if (!cancelled) setProjects(data)
+        if (cancelled) return
+        setProjects(data)
+        setListSnapshotAt(null)
+        // Write-through: jeder gelungene Online-Load füllt den Snapshot nach
+        // (Spec §3.3). Kostet nichts und hält ihn auch zwischen zwei Prefetches aktuell.
+        rememberProjects(userId, data)
       } catch (err) {
-        if (!cancelled && err instanceof ApiError && err.status === 401) onLoggedOut()
+        if (cancelled) return
+        if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
+        // isNetworkError statt isOfflineError: auch «Empfangsbalken, aber kein
+        // Durchkommen» soll den Snapshot zeigen. Gefahrlos, weil rein lesend —
+        // die Endlos-Queue-Falle (siehe api/client.ts) betrifft nur Schreib-Queues.
+        const pkg = isNetworkError(err) ? loadOfflinePackage(userId) : null
+        if (pkg && pkg.projects.length > 0) {
+          setProjects(pkg.projects)
+          setListSnapshotAt(pkg.savedAt)
+        } else {
+          setProjects([])
+          setListSnapshotAt(null)
+          setListError(isNetworkError(err)
+            ? 'Offline — deine Projekte konnten noch nicht geladen werden.'
+            : 'Die Projekte konnten nicht geladen werden.')
+        }
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [reloadNonce, userId])
+
+  // Netz zurück, Screen zeigt noch Snapshot oder Fehlerzustand → sofort frisch
+  // laden. Ohne das bliebe der «Offline — Stand …»-Badge stehen, bis der Screen
+  // neu geöffnet wird — eine Ansicht, die «offline» behauptet, während das Gerät
+  // längst wieder Empfang hat. Feuert nur beim Umschalten von offline auf online
+  // (Abhängigkeit ist allein `online`), also kein Reload-Loop bei Dauerfehlern.
+  useEffect(() => {
+    if (!online) return
+    if (listSnapshotAt !== null || listError !== null) setReloadNonce(n => n + 1)
+    if (detailSnapshotAt !== null) setDetailReloadNonce(n => n + 1)
+  }, [online])
 
   useEffect(() => {
     if (!selected) return
@@ -300,25 +344,41 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     setBundleable([])
     setAggregateSelection(null)
     setAggregateError(null)
+    setDetailSnapshotAt(null)
     setLoadingDetail(true)
+    const projectId = selected.id
     Promise.all([
-      listProjectFiles(SCOPE, selected.id).catch(() => [] as ProjectFile[]),
-      apiFetch(`/pwa/projects/${selected.id}/comments`).catch(() => []) as Promise<ProjectComment[]>,
-      apiFetch(`/pwa/projects/${selected.id}/tasks`).catch(() => []) as Promise<ProjectTask[]>,
-      fetchProjectReports(selected.id).catch(() => [] as ProjectReport[]),
+      listProjectFiles(SCOPE, projectId).catch(() => [] as ProjectFile[]),
+      // Kommentare und Aufgaben sind die beiden Teile, die im Lesepaket liegen —
+      // deshalb `null` statt `[]` im Fehlerfall: eine leere Liste ist eine
+      // Aussage («keine Kommentare»), ein fehlgeschlagener Load ist keine.
+      apiFetch(`/pwa/projects/${projectId}/comments`).catch(() => null) as Promise<ProjectComment[] | null>,
+      apiFetch(`/pwa/projects/${projectId}/tasks`).catch(() => null) as Promise<ProjectTask[] | null>,
+      fetchProjectReports(projectId).catch(() => [] as ProjectReport[]),
       // Ohne Feature gar kein Request — die Route antwortet dann mit 403, und ein
       // erwarteter Fehler im Netzwerk-Log ist Lärm.
       teilrapportEnabled
-        ? fetchBundleableReports(selected.id).catch(() => [] as ProjectReport[])
+        ? fetchBundleableReports(projectId).catch(() => [] as ProjectReport[])
         : Promise.resolve([] as ProjectReport[]),
     ]).then(([f, c, t, r, p]) => {
       setFiles(f)
-      setComments(c)
-      setTasks(t)
       setReports(r)
       setBundleable(p)
+      if (c && t) {
+        setComments(c)
+        setTasks(t)
+        rememberProjectComments(userId, projectId, c)
+        rememberProjectTasks(userId, projectId, t)
+        return
+      }
+      // Mindestens ein Teil kam nicht durch → aus dem Lesepaket rendern, mit
+      // Stand-Badge. Was durchkam, gewinnt trotzdem: es ist frischer.
+      const pkg = loadOfflinePackage(userId)
+      setComments(c ?? pkg?.commentsByProject[projectId] ?? [])
+      setTasks(t ?? pkg?.tasksByProject[projectId] ?? [])
+      if (pkg?.savedAt) setDetailSnapshotAt(pkg.savedAt)
     }).finally(() => setLoadingDetail(false))
-  }, [selected?.id])
+  }, [selected?.id, userId, detailReloadNonce])
 
   // Re-Entrancy-Schutz: flatterndes Netz darf keine zwei Drains parallel
   // starten. Der Server-Call ist zwar idempotent (Doppel-Toggle schadet nicht),
@@ -369,9 +429,13 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     const next = !task.is_done
     const checkedAt = next ? new Date().toISOString() : null
     const myName = localStorage.getItem(SK.DISPLAY_NAME)
-    setTasks(prev => prev.map(t => t.id === task.id
+    const updated = tasks.map(t => t.id === task.id
       ? { ...t, is_done: next, done_at: checkedAt, done_by_name: next ? (myName ?? t.done_by_name) : null }
-      : t))
+      : t)
+    setTasks(updated)
+    // Der optimistische Toggle schreibt mit — sonst zeigt die Offline-Liste
+    // nach dem Abhaken wieder den alten Stand (Spec §3.3).
+    rememberProjectTasks(userId, selected.id, updated)
     try {
       await toggleProjectTaskDone(selected.id, task.id, next, checkedAt)
     } catch (err) {
@@ -381,8 +445,11 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       if (isNetworkError(err)) {
         enqueueTaskToggle({ project_id: selected.id, task_id: task.id, is_done: next, queued_at: checkedAt ?? new Date().toISOString() })
       } else {
-        // Echter Fehler → optimistisches Update vollständig zurückrollen.
+        // Echter Fehler → NUR diesen Haken zurückrollen (nicht die ganze Liste:
+        // ein parallel abgehakter zweiter Haken behält seinen Zustand), im
+        // Snapshot ebenso — sonst überlebt der abgelehnte Haken den Reload.
         setTasks(prev => prev.map(t => t.id === task.id ? task : t))
+        rememberProjectTasks(userId, selected.id, updated.map(t => t.id === task.id ? task : t))
       }
     }
   }
@@ -574,6 +641,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       })
       const updated = await apiFetch(`/pwa/projects/${selected.id}/comments`) as ProjectComment[]
       setComments(updated)
+      rememberProjectComments(userId, selected.id, updated)
       setNewComment('')
     } catch {
       // silently ignore
@@ -612,7 +680,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
           </span>
         ) : (
           <span className="projekte-detail-value" style={{ flex: 1 }}>
-            {(f.storage_path || f.file_url)
+            {f.storage_path && online
               ? <a href={projectFileUrl(SCOPE, projectId, f.id)} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none' }}>{f.filename}</a>
               : f.filename
             }
@@ -622,18 +690,32 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
           </span>
         )}
         {/* Der Dateiname öffnet nur — Fotos/PDFs liefert der Proxy `inline` aus.
-            Zum Speichern braucht es `?download=1` (erzwingt `attachment`). */}
-        {renamingFileId !== f.id && (f.storage_path || f.file_url) && (
-          <a
-            href={projectFileUrl(SCOPE, projectId, f.id, { download: true })}
-            download={f.filename}
-            className="projekte-kontakt-link-btn"
-            style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
-            title="Herunterladen"
-            aria-label={`${f.filename} herunterladen`}
-          >
-            <DownloadIcon />
-          </a>
+            Zum Speichern braucht es `?download=1` (erzwingt `attachment`).
+            Offline ist der Knopf gesperrt statt in einen leeren Tab zu führen:
+            die Datei liegt beim Server, nicht im Lesepaket (Spec §4.1). */}
+        {renamingFileId !== f.id && f.storage_path && (
+          online ? (
+            <a
+              href={projectFileUrl(SCOPE, projectId, f.id, { download: true })}
+              download={f.filename}
+              className="projekte-kontakt-link-btn"
+              style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center' }}
+              title="Herunterladen"
+              aria-label={`${f.filename} herunterladen`}
+            >
+              <DownloadIcon />
+            </a>
+          ) : (
+            <span
+              className="projekte-kontakt-link-btn"
+              style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', opacity: 0.4 }}
+              title={OFFLINE_DOWNLOAD_HINT}
+              aria-label={`${f.filename} herunterladen — offline nicht möglich`}
+              aria-disabled="true"
+            >
+              <DownloadIcon />
+            </span>
+          )
         )}
         {renamingFileId !== f.id && (
           <button
@@ -662,6 +744,8 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         </div>
 
         <div className="projekte-detail-scroll">
+          {detailSnapshotAt !== null && <OfflineStandBadge savedAt={detailSnapshotAt} />}
+
           {(() => {
             const k = (selected.kind || 'project') as ProjectKind
             if (k !== 'project') {
@@ -975,12 +1059,16 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                       <button
                         type="button"
                         onClick={() => void handleOpenReportPdf(r)}
-                        disabled={openingReportId === r.id}
+                        // Das PDF baut der Server bei jedem Aufruf neu — offline
+                        // gibt es nichts zu öffnen, also gar nicht erst anbieten.
+                        disabled={openingReportId === r.id || !online}
+                        title={online ? undefined : OFFLINE_DOWNLOAD_HINT}
                         style={{
                           padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                           border: '1px solid var(--accent)', background: 'transparent',
                           color: 'var(--accent)', fontSize: 13, fontWeight: 600,
-                          cursor: openingReportId === r.id ? 'default' : 'pointer',
+                          opacity: online ? 1 : 0.5,
+                          cursor: openingReportId === r.id || !online ? 'default' : 'pointer',
                         }}
                       >
                         {openingReportId === r.id ? '…' : '📄 Ansehen'}
@@ -1221,13 +1309,15 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     type="button"
                     className="projekte-kontakt-link-btn"
                     style={{ fontSize: 12 }}
-                    disabled={uploading}
+                    disabled={uploading || !online}
+                    title={online ? undefined : OFFLINE_UPLOAD_HINT}
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {uploading ? 'Lädt…' : '+ Hochladen'}
                   </button>
                 </div>
               </div>
+              {!online && <div className="projekte-offline-hint">{OFFLINE_UPLOAD_HINT}</div>}
               {otherFiles.length === 0 && (
                 <div className="projekte-detail-empty">Noch keine Dateien hochgeladen.</div>
               )}
@@ -1258,7 +1348,8 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     type="button"
                     className="projekte-kontakt-link-btn"
                     style={{ fontSize: 12 }}
-                    disabled={uploading}
+                    disabled={uploading || !online}
+                    title={online ? undefined : OFFLINE_UPLOAD_HINT}
                     onClick={() => lieferscheinInputRef.current?.click()}
                   >
                     {uploading ? 'Lädt…' : '+ Lieferschein'}
@@ -1288,19 +1379,23 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   <div style={{ fontSize: 13 }}>{c.text}</div>
                 </div>
               ))}
+              {/* Lesen ja, schreiben braucht Netz (Spec §4.3). Offline gesperrt
+                  statt nach dem Tippen abgelehnt — es gibt keine Kommentar-Queue. */}
+              {!online && <div className="projekte-offline-hint">{OFFLINE_COMMENT_HINT}</div>}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <input
                   style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
                   placeholder="Kommentar…"
                   value={newComment}
+                  disabled={!online}
                   onChange={e => setNewComment(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void handleAddComment() } }}
                 />
                 <button
                   type="button"
-                  disabled={addingComment || !newComment.trim()}
+                  disabled={addingComment || !newComment.trim() || !online}
                   onClick={handleAddComment}
-                  style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--accent)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: addingComment || !newComment.trim() ? 0.5 : 1 }}
+                  style={{ padding: '8px 14px', borderRadius: 'var(--radius-sm)', background: 'var(--accent)', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: addingComment || !newComment.trim() || !online ? 0.5 : 1 }}
                 >
                   {addingComment ? '…' : 'Senden'}
                 </button>
@@ -1381,7 +1476,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       )}
 
       {viewMode === 'wochenplan' && (
-        <Wochenplan projects={projects} onSelect={setSelected} onLoggedOut={onLoggedOut} />
+        <Wochenplan projects={projects} userId={userId} onSelect={setSelected} onLoggedOut={onLoggedOut} />
       )}
 
       {viewMode === 'grid' && (
@@ -1390,7 +1485,27 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
           <div className="bericht-loading">Projekte werden geladen…</div>
         )}
 
-        {!loading && projects.length === 0 && (
+        {!loading && listSnapshotAt !== null && <OfflineStandBadge savedAt={listSnapshotAt} />}
+
+        {/* Ehrlicher Fehlerzustand statt eines leeren Normalzustands: «Du bist
+            keinem Projekt zugewiesen» stand hier auch dann, wenn bloss das Netz
+            fehlte — die einzige Aussage, die sicher falsch war. */}
+        {!loading && listError !== null && (
+          <div className="projekte-empty">
+            {listError}
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="projekte-kontakt-link-btn"
+                onClick={() => setReloadNonce(n => n + 1)}
+              >
+                Erneut versuchen
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && listError === null && projects.length === 0 && (
           <div className="projekte-empty">Du bist keinem Projekt zugewiesen.</div>
         )}
 

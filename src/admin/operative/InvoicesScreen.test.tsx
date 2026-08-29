@@ -23,7 +23,6 @@ function invoice(over: Record<string, unknown> = {}) {
     status: 'gesendet',
     created_at: '2026-08-01T10:00:00Z',
     paid_at: null,
-    pdf_url: null,
     storage_path: null,
     projektleiter_id: null,
     project_id: 'p-1',

@@ -118,8 +118,6 @@ export interface Quote {
   total_amount: number
   status: string
   created_at: string
-  pdf_url: string | null
-  xlsx_url: string | null
   storage_path?: string | null
   xlsx_storage_path?: string | null
   reminder_sent_at: string | null

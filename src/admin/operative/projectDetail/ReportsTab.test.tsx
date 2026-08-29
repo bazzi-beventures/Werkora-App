@@ -10,7 +10,6 @@ function makeReport(over: Partial<ProjectReport> = {}): ProjectReport {
     report_date: '2026-07-21',
     description: 'Arbeiten gemäss Offerte',
     created_by: 'Chef',
-    pdf_url: null,
     storage_path: null,
     signature_timestamp: null,
     invoice_id: null,
@@ -131,8 +130,8 @@ describe('ReportsTab — hochgeladene Rapporte', () => {
 
   it('listet nur Dateien der Kategorie rapport', () => {
     const files = [
-      { id: 'f-1', filename: 'papier-rapport.pdf', file_url: null, storage_path: 'p/1', mime_type: 'application/pdf', category: 'rapport' as const, created_at: '2026-07-27T08:00:00Z' },
-      { id: 'f-2', filename: 'baustellenfoto.jpg', file_url: null, storage_path: 'p/2', mime_type: 'image/jpeg', category: 'fotos' as const, created_at: '2026-07-27T08:00:00Z' },
+      { id: 'f-1', filename: 'papier-rapport.pdf', storage_path: 'p/1', mime_type: 'application/pdf', category: 'rapport' as const, created_at: '2026-07-27T08:00:00Z' },
+      { id: 'f-2', filename: 'baustellenfoto.jpg', storage_path: 'p/2', mime_type: 'image/jpeg', category: 'fotos' as const, created_at: '2026-07-27T08:00:00Z' },
     ]
     render(<ReportsTab reports={[]} {...uploadProps} files={files} />)
     expect(screen.getByText('papier-rapport.pdf')).toBeInTheDocument()
@@ -232,7 +231,7 @@ describe('ReportsTab — fehlendes PDF nacherzeugen', () => {
   // stand ohne Dokument da (Storage-Upload beim Signieren gescheitert). Er war
   // damit gar nicht mehr zu öffnen — Bearbeiten, das sonst neu rendert, sperrt
   // das billed-Gate.
-  const missingPdf = { storage_path: null, pdf_url: null }
+  const missingPdf = { storage_path: null }
 
   it('bietet «PDF erzeugen» statt der toten Zeile «kein PDF»', () => {
     render(<ReportsTab reports={[makeReport(missingPdf)]} onRegeneratePdf={vi.fn()} />)

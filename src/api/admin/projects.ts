@@ -52,7 +52,6 @@ export interface ProjectInvoiceSummary {
   total_amount: number
   status: string
   created_at: string
-  pdf_url: string | null
 }
 
 export interface ProjectQuoteSummary {
@@ -60,7 +59,6 @@ export interface ProjectQuoteSummary {
   total_amount: number
   status: string
   created_at: string
-  pdf_url: string | null
 }
 
 export interface Project {

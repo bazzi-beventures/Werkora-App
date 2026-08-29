@@ -24,6 +24,7 @@ import { captureDeepLink } from './shared/deepLink'
 import { advance, retreat } from './shared/navHistory'
 import { trackNav } from './shared/breadcrumbs'
 import { hasModule, isFeatureEnabled } from './api/modules'
+import { prefetchOfflinePackage } from './api/offlineStore'
 import { applyTheme, loadTheme, useTheme } from './theme'
 import { clearDraft, loadDraft } from './chat/rapportDraft'
 import { confirmLeaveRapport, discardPrompt, planRapportStart } from './chat/rapportStart'
@@ -382,6 +383,16 @@ export default function App() {
         const u = userResult as UserInfo
         setUser(u)
         setScreen(nextScreenAfterLogin(u))
+        // Offline-Lesepaket im Netz-Moment füllen (docs/specs/offline-modus.md
+        // §3.3). Erst hier, weil der Snapshot pro Mitarbeiter geschlüsselt ist
+        // und die id aus /pwa/me kommt. Läuft nebenher, gedrosselt auf 15
+        // Minuten, und wirft nie — der Start darf nicht daran hängen.
+        // `user_light` ist reiner Zeiterfasser und sieht gar keine Projekte:
+        // die Route antwortete mit 403, und ein erwarteter Fehler im
+        // Netzwerk-Log ist Lärm.
+        if (u.role !== 'user_light') {
+          void prefetchOfflinePackage(u.authorized_user_id, { scheduling: hasModule(u, 'scheduling') })
+        }
       }
     })
   }, [])

@@ -18,7 +18,6 @@ function makeFile(category: ProjectFileCategory | null, filename: string): Proje
   return {
     id: `f-${filename}`,
     filename,
-    file_url: null,
     storage_path: `documents/${filename}`,
     mime_type: 'application/pdf',
     category,

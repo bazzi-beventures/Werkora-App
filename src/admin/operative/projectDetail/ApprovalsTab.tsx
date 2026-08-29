@@ -38,7 +38,7 @@ export function ApprovalsTab({ approvals, currentUserId, decidingApprovalId, onS
                   <span style={{ fontWeight: 600, fontSize: 14 }}>{a.title}</span>
                   <span className={`admin-badge ${APPROVAL_STATUS_BADGE[a.status]}`}>{APPROVAL_STATUS_LABELS[a.status]}</span>
                   <span style={{ fontSize: 12, color: 'var(--muted)' }}>{fmtDate(a.created_at)}</span>
-                  {(a.storage_path || a.file_url) && (
+                  {a.storage_path && (
                     <a href={apiUrl(`/pwa/admin/approvals/${a.id}/download`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm" style={{ marginLeft: 'auto' }}>
                       📎 {a.filename}
                     </a>
