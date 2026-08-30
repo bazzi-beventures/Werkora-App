@@ -2,14 +2,18 @@ import { useEffect, useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { getAdminStaff, deleteStaff, StaffMember } from '../../api/admin'
 import StaffDetailScreen from './StaffDetailScreen'
+import NewPersonScreen from './NewPersonScreen'
 import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 
 interface Props {
   onNav?: (screen: string, id?: string) => void
+  // Rolle des eingeloggten Benutzers — begrenzt in der Anlage-Maske die
+  // vergebbaren Berechtigungen (Spiegel der Backend-Matrix, siehe userRoles.ts).
+  actingRole: string
 }
 
-export default function StaffScreen({ onNav }: Props) {
+export default function StaffScreen({ onNav, actingRole }: Props) {
   const isMobile = useIsMobile()
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -50,12 +54,27 @@ export default function StaffScreen({ onNav }: Props) {
     (s.email || '').toLowerCase().includes(search.toLowerCase())
   )
 
-  if (selected || showNew) {
+  // Anlegen führt über dieselbe Maske wie in der Benutzerverwaltung: Ein neuer
+  // Mitarbeiter braucht in aller Regel auch ein Login, und die getrennte Anlage
+  // war genau der Schritt, den man vergisst. `origin="staff"` setzt die
+  // Login-Frage nur anders vor — abwählbar bleibt sie.
+  if (showNew) {
+    return (
+      <NewPersonScreen
+        actingRole={actingRole}
+        origin="staff"
+        onClose={() => setShowNew(false)}
+        onSaved={() => { setShowNew(false); load() }}
+      />
+    )
+  }
+
+  if (selected) {
     return (
       <StaffDetailScreen
-        member={showNew ? null : selected}
-        onClose={() => { setSelected(null); setShowNew(false) }}
-        onSaved={() => { setSelected(null); setShowNew(false); load() }}
+        member={selected}
+        onClose={() => setSelected(null)}
+        onSaved={() => { setSelected(null); load() }}
       />
     )
   }
@@ -69,7 +88,7 @@ export default function StaffScreen({ onNav }: Props) {
         </div>
         <button className="admin-btn admin-btn-primary" onClick={() => setShowNew(true)}>
           <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H4a1 1 0 1 1 0-2h5V4a1 1 0 0 1 1-1z" clipRule="evenodd"/></svg>
-          Neuer Mitarbeiter
+          Neue Person
         </button>
       </div>
 

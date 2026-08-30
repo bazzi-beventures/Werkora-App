@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react'
 import { StaffMember, StaffRole, upsertStaff, getStaffRoles } from '../../api/admin'
 
 interface Props {
-  member: StaffMember | null
+  // Nur zum Bearbeiten. Angelegt wird über NewPersonScreen — dort gehören Konto,
+  // Personaldaten und Zugang in eine Maske.
+  member: StaffMember
   onClose: () => void
   onSaved: () => void
 }
 
 export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
-  const isNew = !member
-  const [name, setName] = useState(member?.name ?? '')
-  const [kuerzel, setKuerzel] = useState(member?.kuerzel ?? '')
-  const [funktion, setFunktion] = useState(member?.funktion ?? '')
-  const [hourlyRate, setHourlyRate] = useState(member?.hourly_rate?.toString() ?? '')
-  const [monthlySalary, setMonthlySalary] = useState(member?.monthly_salary?.toString() ?? '')
-  const [rapportpflicht, setRapportpflicht] = useState<boolean>(member?.rapportpflicht ?? true)
-  const [projektleiter, setProjektleiter] = useState<boolean>(member?.projektleiter ?? false)
-  const [vacationDays, setVacationDays] = useState(member?.vacation_days_per_year?.toString() ?? '')
-  const [dateOfBirth, setDateOfBirth] = useState(member?.date_of_birth ?? '')
-  const [pensum, setPensum] = useState(member?.pensum?.toString() ?? '100')
+  const [name, setName] = useState(member.name)
+  const [kuerzel, setKuerzel] = useState(member.kuerzel ?? '')
+  const [funktion, setFunktion] = useState(member.funktion ?? '')
+  const [hourlyRate, setHourlyRate] = useState(member.hourly_rate?.toString() ?? '')
+  const [monthlySalary, setMonthlySalary] = useState(member.monthly_salary?.toString() ?? '')
+  const [rapportpflicht, setRapportpflicht] = useState<boolean>(member.rapportpflicht)
+  const [projektleiter, setProjektleiter] = useState<boolean>(member.projektleiter)
+  const [vacationDays, setVacationDays] = useState(member.vacation_days_per_year?.toString() ?? '')
+  const [dateOfBirth, setDateOfBirth] = useState(member.date_of_birth ?? '')
+  const [pensum, setPensum] = useState(member.pensum?.toString() ?? '100')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [roles, setRoles] = useState<StaffRole[]>([])
@@ -34,7 +35,7 @@ export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
     setSaving(true)
     try {
       await upsertStaff({
-        id: member?.id,
+        id: member.id,
         name: name.trim(),
         kuerzel: kuerzel || undefined,
         funktion: funktion || undefined,
@@ -58,8 +59,8 @@ export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
     <div className="admin-page">
       <div className="admin-page-header">
         <div>
-          <div className="admin-page-title">{isNew ? 'Neuer Mitarbeiter' : member.name}</div>
-          <div className="admin-page-subtitle">{isNew ? 'Mitarbeiter anlegen' : 'Mitarbeiter bearbeiten'}</div>
+          <div className="admin-page-title">{member.name}</div>
+          <div className="admin-page-subtitle">Mitarbeiter bearbeiten</div>
         </div>
         <button className="admin-btn admin-btn-secondary" onClick={onClose}>← Zurück</button>
       </div>
@@ -183,7 +184,7 @@ export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
         </form>
 
         {/* Seiteninfo */}
-        {!isNew && member?.email && (
+        {member.email && (
           <div className="admin-table-wrap" style={{ padding: 20 }}>
             <div className="admin-section-title">Benutzerkonto</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>

@@ -1,19 +1,32 @@
 import { useEffect, useState } from 'react'
 import { listUsers } from '../../api/admin/users'
+import type { AuthUser } from '../../api/admin/users'
 import UserDetailScreen from './UserDetailScreen'
+import NewPersonScreen from '../personal/NewPersonScreen'
 import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 import { mayEditTarget } from './userRoles'
+import { consentBadge } from './consentStatus'
 
-export interface AuthUser {
-  id: string
-  email: string | null
-  display_name: string | null
-  role: string
-  is_active: boolean
-  created_at: string
-  consent_version: string | null
-  username: string | null
+// `AuthUser` stand hier bis zum 30.08.2026 ein zweites Mal — wortgleich zur
+// Fassung in api/admin/users.ts, aber von niemandem importiert. Zwei Deklarationen
+// desselben Typs heisst: Ein neues Feld landet in einer davon, und die andere
+// merkt es nicht. Genau das ist mit `consent_current` fast passiert.
+
+export type { AuthUser }
+
+/**
+ * Drei Zustände statt zwei. «Ja» beantwortete die Frage «gibt es überhaupt eine
+ * bestätigte Fassung» — gefragt ist aber «ist es die aktuelle». Die Entscheidung
+ * steht als reine Funktion in consentStatus.ts und ist dort unit-getestet.
+ */
+function ConsentBadge({ user, withLabel = false }: { user: AuthUser; withLabel?: boolean }) {
+  const badge = consentBadge(user)
+  return (
+    <span className={`admin-badge ${badge.className}`} title={badge.title}>
+      {withLabel ? `Consent: ${badge.label}` : badge.label}
+    </span>
+  )
 }
 
 interface Props {
@@ -54,13 +67,27 @@ export default function UsersScreen({ actingRole }: Props) {
   // Konten oberhalb der eigenen Ebene bleiben zu — das Backend lehnt sie ohnehin ab.
   const canOpen = (u: AuthUser) => mayEditTarget(actingRole, u.role)
 
-  if (selected || showNew) {
+  // Anlegen und Bearbeiten sind zwei verschiedene Aufgaben: Beim Anlegen gehören
+  // Konto, Personaldaten und Zugang zusammen (NewPersonScreen), beim Bearbeiten
+  // weiss man, was man sucht, und geht gezielt in die Kontodaten.
+  if (showNew) {
+    return (
+      <NewPersonScreen
+        actingRole={actingRole}
+        origin="users"
+        onClose={() => setShowNew(false)}
+        onSaved={() => { setShowNew(false); load() }}
+      />
+    )
+  }
+
+  if (selected) {
     return (
       <UserDetailScreen
-        user={showNew ? null : selected}
+        user={selected}
         actingRole={actingRole}
-        onClose={() => { setSelected(null); setShowNew(false) }}
-        onSaved={() => { setSelected(null); setShowNew(false); load() }}
+        onClose={() => setSelected(null)}
+        onSaved={() => { setSelected(null); load() }}
       />
     )
   }
@@ -76,7 +103,7 @@ export default function UsersScreen({ actingRole }: Props) {
         </div>
         <button className="admin-btn admin-btn-primary" onClick={() => setShowNew(true)}>
           <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 3a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H4a1 1 0 1 1 0-2h5V4a1 1 0 0 1 1-1z" clipRule="evenodd"/></svg>
-          Neuer Benutzer
+          Neue Person
         </button>
       </div>
 
@@ -113,9 +140,7 @@ export default function UsersScreen({ actingRole }: Props) {
                   <span className={`admin-badge ${u.is_active ? 'admin-badge-active' : 'admin-badge-rejected'}`}>
                     {u.is_active ? 'Aktiv' : 'Inaktiv'}
                   </span>
-                  <span className={`admin-badge ${u.consent_version ? 'admin-badge-approved' : 'admin-badge-draft'}`}>
-                    Consent: {u.consent_version ? 'Ja' : 'Ausstehend'}
-                  </span>
+                  <ConsentBadge user={u} withLabel />
                 </div>
               </>
             )}
@@ -156,9 +181,7 @@ export default function UsersScreen({ actingRole }: Props) {
                     </span>
                   </td>
                   <td>
-                    <span className={`admin-badge ${u.consent_version ? 'admin-badge-approved' : 'admin-badge-draft'}`}>
-                      {u.consent_version ? 'Ja' : 'Ausstehend'}
-                    </span>
+                    <ConsentBadge user={u} />
                   </td>
                 </tr>
               ))}

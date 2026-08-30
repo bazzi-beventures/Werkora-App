@@ -21,7 +21,9 @@ function EyeIcon({ open }: { open: boolean }) {
 }
 
 interface Props {
-  user: AuthUser | null
+  // Nur zum Bearbeiten. Angelegt wird über NewPersonScreen — dort gehören Konto,
+  // Personaldaten und Zugang in eine Maske.
+  user: AuthUser
   // Rolle des eingeloggten Benutzers — begrenzt die vergebbaren Rollen und die
   // Gefahrenzone (siehe userRoles.ts, Spiegel der Backend-Matrix).
   actingRole: string
@@ -33,11 +35,10 @@ interface Props {
 const MIN_PASSWORD_LENGTH = 12
 
 export default function UserDetailScreen({ user, actingRole, onClose, onSaved }: Props) {
-  const isNew = !user
-  const [email, setEmail] = useState(user?.email ?? '')
-  const [displayName, setDisplayName] = useState(user?.display_name ?? '')
-  const [role, setRole] = useState(user?.role ?? 'user')
-  const [isActive, setIsActive] = useState(user?.is_active ?? true)
+  const [email, setEmail] = useState(user.email ?? '')
+  const [displayName, setDisplayName] = useState(user.display_name ?? '')
+  const [role, setRole] = useState(user.role)
+  const [isActive, setIsActive] = useState(user.is_active)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -53,8 +54,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
   // unveränderte Rolle durch, auch wenn der Handelnde sie nicht neu vergeben dürfte.
   const roleOptions = (() => {
     const opts = [...assignableRoles(actingRole)] as string[]
-    const current = user?.role
-    if (current && !opts.includes(current)) opts.push(current)
+    if (user.role && !opts.includes(user.role)) opts.push(user.role)
     return opts
   })()
 
@@ -64,14 +64,10 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
     setError('')
     setSaving(true)
     try {
-      if (isNew) {
-        await saveUser({ email: email || null, display_name: displayName || null, role })
-      } else {
-        await saveUser(
-          { email: email || null, display_name: displayName || null, role, is_active: isActive },
-          user!.id,
-        )
-      }
+      await saveUser(
+        { email: email || null, display_name: displayName || null, role, is_active: isActive },
+        user.id,
+      )
       onSaved()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
@@ -82,7 +78,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
 
   async function handleSetPassword(e: React.FormEvent) {
     e.preventDefault()
-    if (!user || newPassword.length < MIN_PASSWORD_LENGTH) return
+    if (newPassword.length < MIN_PASSWORD_LENGTH) return
     setSettingPassword(true)
     setError('')
     try {
@@ -98,7 +94,6 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
   }
 
   async function handleAnonymize() {
-    if (!user) return
     setActing(true)
     try {
       await anonymizeUser(user.id)
@@ -115,8 +110,8 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
     <div className="admin-page">
       <div className="admin-page-header">
         <div>
-          <div className="admin-page-title">{isNew ? 'Neuer Benutzer' : (user.display_name || user.email || 'Benutzer')}</div>
-          <div className="admin-page-subtitle">{isNew ? 'Benutzerkonto anlegen' : 'Benutzerkonto bearbeiten'}</div>
+          <div className="admin-page-title">{user.display_name || user.email || 'Benutzer'}</div>
+          <div className="admin-page-subtitle">Benutzerkonto bearbeiten</div>
         </div>
         <button className="admin-btn admin-btn-secondary" onClick={onClose}>← Zurück</button>
       </div>
@@ -144,7 +139,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                 />
                 <div className="admin-form-hint">Optional. Nur für Benachrichtigungen — Login läuft über den Benutzernamen.</div>
               </div>
-              {!isNew && user.username && (
+              {user.username && (
                 <div className="admin-form-group">
                   <label className="admin-form-label">Benutzername</label>
                   <input
@@ -167,18 +162,16 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                   </div>
                 )}
               </div>
-              {!isNew && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <input
-                    type="checkbox"
-                    id="is_active"
-                    checked={isActive}
-                    onChange={e => setIsActive(e.target.checked)}
-                    style={{ width: 16, height: 16, accentColor: 'var(--accent, #3b82f6)', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="is_active" style={{ fontSize: 13.5, cursor: 'pointer' }}>Benutzer aktiv</label>
-                </div>
-              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="checkbox"
+                  id="is_active"
+                  checked={isActive}
+                  onChange={e => setIsActive(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: 'var(--accent, #3b82f6)', cursor: 'pointer' }}
+                />
+                <label htmlFor="is_active" style={{ fontSize: 13.5, cursor: 'pointer' }}>Benutzer aktiv</label>
+              </div>
             </div>
 
             <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -191,8 +184,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
         </form>
 
         {/* Seitenaktionen */}
-        {!isNew && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Passwort setzen */}
             <div className="admin-table-wrap" style={{ padding: 20 }}>
               <div className="admin-section-title">Passwort</div>
@@ -254,8 +246,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
               </div>
             </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Bestätigungen */}
