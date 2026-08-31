@@ -1,5 +1,13 @@
 /* ─── Mobile Admin Shell (≤767px) ─────────────────────────── */
 
+/* Eine Spalte ueber die volle Viewporthoehe: Topbar/Inhalt scrollen innen,
+   die Tab-Leiste ist die letzte Zeile. Genau der Aufbau der Monteur-App
+   (.app-screen + .nav-bar in index.css) — die haelt auf dem iPhone, weil
+   Shell und Leiste EINE Box teilen. Die Leiste darf deshalb nicht
+   `position: fixed` sein: fixed haengt am Viewport, die Shell an 100dvh,
+   und sobald die beiden auseinanderlaufen (Tastatur, Overscroll, iOS-
+   Standalone-Eigenheiten) steht die Leiste irgendwo in der Luft und die
+   Liste ist darueber abgeschnitten. */
 .admin-shell-mobile {
   display: flex;
   flex-direction: column;
@@ -12,6 +20,10 @@
 
 .admin-content-mobile {
   flex: 1;
+  /* min-height:0 macht die automatische Mindesthoehe des Flex-Items platt —
+     ohne sie kann ein langer Inhalt die Shell aufblaehen, statt innen zu
+     scrollen, und schiebt die Tab-Leiste aus dem Bild. */
+  min-height: 0;
   width: 100%;
   max-width: 100vw;
   overflow-y: auto;
@@ -19,10 +31,18 @@
      bleiben innerhalb des Viewports, statt iOS Safari zum Auszoomen zu zwingen. */
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  /* respect iOS status bar / Dynamic Island (status-bar-style: black-translucent) */
-  padding-top: env(safe-area-inset-top, 0px);
-  /* clear the fixed bottom tab bar */
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  /* Kein Scroll-Chaining ans Dokument: sonst federt auf iOS die ganze Seite
+     mit (Rubber-Band) und nimmt die Leisten mit nach oben. */
+  overscroll-behavior: contain;
+  /* Der obere Safe-Area-Inset sitzt an der Topbar selbst (siehe
+     .admin-content-topbar--mobile), nicht hier: `sticky top: 0` klebt am Rand
+     der Padding-Box, mit dem Inset am Scroll-Container waere die Topbar beim
+     Scrollen unter die Statusleiste gerutscht.
+     Unten Platz fuer die Hilfe-Blase (fix bei bottom: 72px, 56px hoch), damit
+     der letzte Listeneintrag darunter hervorgescrollt werden kann. Die
+     Tab-Leiste braucht kein Padding mehr — sie steht im Fluss und belegt
+     eigenen Platz. */
+  padding-bottom: 72px;
 }
 
 .admin-content-mobile .admin-content-inner {
@@ -37,10 +57,13 @@
 /* ─── Bottom Tab Bar ───────────────────────────────────────── */
 
 .admin-mobile-tabbar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  /* Letzte Zeile der Shell-Spalte, nicht `position: fixed` — siehe
+     .admin-shell-mobile. Die Hoehe muss den Safe-Area-Inset ADDIEREN:
+     durch das globale border-box wuerde ein festes height:56px das
+     padding-bottom einrechnen, auf dem iPhone (Home-Indicator ~34px)
+     blieben nur 22px fuer Icon + Label. */
+  flex: 0 0 auto;
+  width: 100%;
   height: calc(56px + env(safe-area-inset-bottom, 0px));
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--surface);
@@ -167,7 +190,11 @@
   z-index: 40;
   justify-content: space-between;
   background: var(--bg);
-  padding: var(--s-3) var(--s-4);
+  /* Der Safe-Area-Inset gehoert an die Topbar, nicht an den Scroll-Container:
+     sie klebt bei top: 0 am Rand der Padding-Box und traegt den Inset so mit —
+     Titel und Logo bleiben unter der Statusleiste, und der Inhalt scrollt
+     hinter einer deckenden Flaeche durch statt unter die Uhr. */
+  padding: calc(var(--s-3) + env(safe-area-inset-top, 0px)) var(--s-4) var(--s-3);
   border-bottom: 1px solid var(--border-subtle);
 }
 

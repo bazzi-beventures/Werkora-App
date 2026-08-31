@@ -559,7 +559,11 @@ export default function ProjectsScreen({
         <div className="admin-filter-bar">
           <input
             className="admin-search"
-            placeholder="Projekt, Kunde, Adresse, Telefon, Beleg-Nr. suchen…"
+            // Am Handy die kurze Fassung: die lange Aufzaehlung passt auf 375px
+            // nicht ins Feld und bricht mitten im Wort ab ("… Beleg-N"), was
+            // eher nach Fehler aussieht als nach Hinweis. Gesucht wird in
+            // beiden Faellen ueber dieselben Felder.
+            placeholder={isMobile ? 'Projekt, Kunde, Beleg-Nr. …' : 'Projekt, Kunde, Adresse, Telefon, Beleg-Nr. suchen…'}
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
           />
