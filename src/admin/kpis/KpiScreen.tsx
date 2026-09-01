@@ -55,7 +55,12 @@ export default function KpiScreen() {
   }
 
   return (
-    <div className="admin-page">
+    // admin-page-wide: alle Tabs sind Charts + breite Tabellen (Kunden hat
+    // 9 Spalten, Projekte noch mehr). Bei den 1200px von .admin-page bleibt
+    // auf grossen Bildschirmen die halbe Breite leer, waehrend die Tabelle
+    // rechts abgeschnitten wird und nur per Scrollbalken erreichbar ist.
+    // Die Grids (auto-fit) und Charts (100%) dehnen sich von selbst aus.
+    <div className="admin-page admin-page-wide">
       <div className="admin-page-header">
         <div>
           <div className="admin-page-title">Kennzahlen</div>

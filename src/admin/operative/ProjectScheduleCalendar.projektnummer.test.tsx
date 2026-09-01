@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjectScheduleCalendar, { CalendarEntry } from './ProjectScheduleCalendar'
 import { entryTitle } from './scheduleShared'
-import { getWeekDays, toDateStr } from '../utils/calendarHelpers'
+import { toDateStr } from '../utils/calendarHelpers'
 
 vi.mock('../../api/admin', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/admin')>()
@@ -17,8 +17,11 @@ vi.mock('../../api/admin', async (importOriginal) => {
 
 const STAFF = [{ id: 's1', name: 'Anna Muster' }]
 
-const week = getWeekDays(new Date())
-const MON = toDateStr(week[0])
+// «Heute» statt Montag der laufenden Woche: der Montag kann im Vormonat liegen
+// (z. B. am 1. September, Mo = 31. August), dann fehlt der Einsatz in der
+// Monatsansicht und die Kachel-Tests laufen rot. Heute liegt immer in beiden
+// Ansichten — Woche (7 Tage) wie Monat.
+const TODAY = toDateStr(new Date())
 
 function entry(over: Partial<CalendarEntry>): CalendarEntry {
   const base = {
@@ -26,8 +29,8 @@ function entry(over: Partial<CalendarEntry>): CalendarEntry {
     name: 'Leerwhg. Tösstalstr. 134 Winterthur',
     project_id_text: '261301',
     kind: 'project',
-    start_date: MON,
-    end_date: MON,
+    start_date: TODAY,
+    end_date: TODAY,
     start_time: '13:30',
     end_time: '15:00',
     monteur_ids: ['s1'],
