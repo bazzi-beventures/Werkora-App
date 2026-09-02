@@ -37,6 +37,12 @@ export interface Kontakt {
   telefon: string
   email: string
   is_site_contact?: boolean
+  // Aus dem Kundenstamm übernommen (Projektmaske: Vorschlag beim Tippen des
+  // Namens). Trägt die id des Kunden, aus dem Name/Telefon/E-Mail stammen — wird
+  // in projects.kontakte mitgespeichert. Fehlt/null = frei erfasste Person; nur
+  // für die fragt die Maske nach dem Anlegen des Projekts, ob sie als Kunde in
+  // den Stamm soll (admin/operative/projectDetail/kontaktKundenstamm.ts).
+  customer_id?: string | null
   // Vom Backend gesetzt, wenn das Projekt keine eigene Ansprechperson hat und der
   // Kundenstamm eingesprungen ist (db.project_contacts_with_customer_fallback).
   // Nicht persistiert — kommt bei jedem Request frisch aus dem Kunden-Embed.
@@ -126,6 +132,10 @@ export interface ProjectComment {
 export interface MonteurProject {
   id: string
   name: string
+  // Projektnummer ("2600559"). Das Einzige, was zwei gleichnamige Projekte
+  // unterscheidbar macht — Namen dürfen sich doppeln — und die Antwort, die der
+  // Rapport-Bot bei mehrdeutigem Namen verlangt. Kann bei Alt-Zeilen fehlen.
+  project_id_text?: string | null
   kind: ProjectKind
   art_der_arbeit: string[] | null
   customer_id: string | null

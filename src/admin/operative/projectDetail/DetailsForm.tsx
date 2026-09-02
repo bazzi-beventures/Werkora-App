@@ -5,6 +5,7 @@ import { WORK_TYPES } from '../../../api/workTypes'
 import { recomputeNextDue } from './projectForm'
 import type { UseProjectForm } from './useProjectForm'
 import type { Customer } from '../../../api/admin/customers'
+import { KontaktNameInput } from './KontaktNameInput'
 
 // Der Reiter «Projekt Details» (Charge H, H3) — die eigentliche Projektmaske.
 // Reines JSX: jeder Wert und jeder Setter kommt aus useProjectForm, damit hier
@@ -42,7 +43,7 @@ export function DetailsForm({
     bemerkung, setBemerkung, geruestfach, setGeruestfach,
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments: handleAppointmentsChange,
-    kontakte, addKontakt, updateKontakt, removeKontakt, toggleSiteContact,
+    kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
     eigentuemer, updateEigentuemer, disposal, updateDisposal,
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,
@@ -194,7 +195,9 @@ export function DetailsForm({
           </div>
 
           {/* ── Ansprechpersonen ──────────────────────────────── */}
-          <div className="admin-table-wrap project-contacts" style={{ padding: 24 }}>
+          {/* overflow visible: die Vorschlagsliste des Namensfelds ragt auf dem
+              Handy (in-flow) unter die Karte hinaus. */}
+          <div className="admin-table-wrap project-contacts" style={{ padding: 24, overflow: 'visible' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
               <div className="admin-section-title" style={{ margin: 0 }}>Ansprechpersonen</div>
               <button type="button" className="admin-btn admin-btn-sm admin-btn-secondary" onClick={addKontakt}>
@@ -207,6 +210,7 @@ export function DetailsForm({
             {kontakte.length > 0 && (
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
                 Stern markiert den <strong>Baustellenkontakt</strong> — diese Person sieht der Monteur ganz oben und sie wird auf Offerte/Rechnung gedruckt.
+                {' '}Beim Tippen des Namens werden Treffer aus dem Kundenstamm vorgeschlagen; ohne Treffer bleibt die Person frei erfasst.
               </div>
             )}
             {kontakte.map((k, i) => (
@@ -231,10 +235,24 @@ export function DetailsForm({
                   {k.is_site_contact ? '★' : '☆'}
                 </button>
                 <div className="admin-form-group" style={{ margin: 0 }}>
-                  <label className="admin-form-label">Name</label>
+                  <label className="admin-form-label">
+                    Name
+                    {k.customer_id && (
+                      <span title="Aus dem Kundenstamm übernommen" style={{ marginLeft: 6, fontSize: 10, fontWeight: 600, color: 'var(--primary)', textTransform: 'none', letterSpacing: 0 }}>
+                        · Kundenstamm
+                      </span>
+                    )}
+                  </label>
                   {/* autoComplete mit unbekanntem Token: verhindert, dass Chrome/Edge das leere
                       Feld ungefragt mit dem Browser-Profilnamen (z.B. "Luca Bazzi") befüllt. */}
-                  <input className="admin-form-input" aria-label="Name" autoComplete="new-kontakt-name" value={k.name} onChange={e => updateKontakt(i, 'name', e.target.value)} />
+                  <KontaktNameInput
+                    ariaLabel="Name"
+                    autoComplete="new-kontakt-name"
+                    customers={customers}
+                    value={k.name}
+                    onChange={v => updateKontakt(i, 'name', v)}
+                    onPick={cand => pickKontaktCustomer(i, cand)}
+                  />
                 </div>
                 <div className="admin-form-group" style={{ margin: 0 }}>
                   <label className="admin-form-label">Kommentar</label>

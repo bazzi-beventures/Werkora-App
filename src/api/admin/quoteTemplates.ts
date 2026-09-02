@@ -105,6 +105,31 @@ export async function saveQuoteSkontoDefaults(input: QuoteSkontoDefaults): Promi
   })
 }
 
+// Gültigkeitsdauer der Offerte in Monaten ab Ausstellungsdatum. Ein Wert für drei
+// Dinge: das "Gültig bis" auf dem PDF, die Laufzeit des Annehmen-/Ablehnen-Links in
+// der Offerten-Mail und die Frist im Standard-Bemerkungstext. `is_default` = der
+// Mandant hat nichts gesetzt, `months` ist der System-Wert.
+export interface QuoteValidity {
+  months: number
+  is_default: boolean
+  min: number
+  max: number
+  default: number
+}
+
+export async function getQuoteValidity(): Promise<QuoteValidity> {
+  return apiFetch<QuoteValidity>('/pwa/admin/quote-validity')
+}
+
+/** `months: null` setzt zurück auf den System-Default. Die Antwort ist der wirksame
+ *  Stand (der Server klemmt auf min/max) — zurückschreiben statt raten. */
+export async function saveQuoteValidity(months: number | null): Promise<QuoteValidity> {
+  return apiFetch<QuoteValidity>('/pwa/admin/quote-validity', {
+    method: 'PATCH',
+    body: JSON.stringify({ months }),
+  })
+}
+
 export async function listQuoteAttachmentTemplates(): Promise<QuoteAttachmentTpl[]> {
   const res = await apiFetch<{ attachments: QuoteAttachmentTpl[] }>('/pwa/admin/quote-attachment-templates')
   return res.attachments ?? []

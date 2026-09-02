@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { reopenProject, saveProjectForm, setProjectStatus } from '../../api/admin/projects'
 import { getAdminStaff } from '../../api/admin/staff'
 import { getAllCustomers } from '../../api/admin/customers'
-import type { Project } from '../../api/admin/projects'
+import type { Kontakt, Project } from '../../api/admin/projects'
 import type { Customer } from '../../api/admin/customers'
+import { CustomerFromKontaktDialog } from './projectDetail/CustomerFromKontaktDialog'
+import { customerToLink, linkKontakteToCustomers } from './projectDetail/kontaktKundenstamm'
 import type { QuoteDetail } from './quotes/quoteTypes'
 import { hasQuoteDraft } from './quotes/quoteDraft'
 import { useToast, ToastHost } from '../components/useToast'
@@ -237,12 +239,45 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
     tasks.reload()
   }, 30_000)
 
+  // Nachfrage «Kunde anlegen?» nach dem Speichern — nur beim Speichern-Knopf,
+  // nicht beim «Speichern und verlassen» der Abfrage: wer weg will, will weg.
+  // Hält `saved` fest, damit der Absprung nach dem Dialog derselbe ist wie ohne.
+  const [customerPrompt, setCustomerPrompt] = useState<{ kontakte: Kontakt[]; saved: Project | null } | null>(null)
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    // Vor `persist`: danach gilt der aktuelle Stand als Ausgangsstand, und die
+    // frei erfassten Personen wären nicht mehr «neu».
+    const unlinked = form.kontakteOhneKundenstamm()
     const saved = await form.persist()
     if (saved === false) return
+    if (unlinked.length > 0) {
+      setCustomerPrompt({ kontakte: unlinked, saved })
+      return
+    }
     // Neues Projekt → der Aufrufer springt direkt hinein statt in die Übersicht.
     onSaved(saved)
+  }
+
+  // Kunden sind angelegt: Zeilen verknüpfen und — hat das Projekt noch keinen
+  // Kunden — den neuen als Projektkunden setzen. Erst dann der Absprung.
+  async function handleCustomersCreated(created: Customer[]) {
+    const saved = customerPrompt?.saved ?? null
+    const target = saved ?? project
+    let updated: Project | null = saved
+    if (target && created.length > 0) {
+      const kontakte = linkKontakteToCustomers(form.kontakte, created)
+      const link = customerToLink(target.customer_id, kontakte, created)
+      const res = await saveProjectForm({
+        name: target.name,
+        kontakte,
+        ...(link ? { customer_id: link } : null),
+      }, target.id)
+      if (saved) updated = res?.project ? { ...saved, ...res.project } : saved
+    }
+    setCustomers(prev => [...prev, ...created])
+    setCustomerPrompt(null)
+    onSaved(updated)
   }
 
   // Verlassen der Maske (Zurück/Abbrechen) — bei ungespeicherten Änderungen erst fragen.
@@ -552,6 +587,15 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
             // Dateiliste muss mit, sonst taucht es erst nach einem Reload auf.
             await Promise.all([billing.reloadQuotes(), documents.reload()])
           }}
+        />
+      )}
+
+      {customerPrompt && (
+        <CustomerFromKontaktDialog
+          kontakte={customerPrompt.kontakte}
+          projectHasCustomer={!!(customerPrompt.saved ?? project)?.customer_id}
+          onCreated={handleCustomersCreated}
+          onSkip={() => { const s = customerPrompt.saved; setCustomerPrompt(null); onSaved(s) }}
         />
       )}
 

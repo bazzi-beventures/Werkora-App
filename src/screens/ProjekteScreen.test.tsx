@@ -539,3 +539,42 @@ describe('ProjekteScreen — Wochenplan als zweite Ansicht', () => {
     expect(await screen.findByRole('button', { name: /Rapport erstellen/ })).toBeInTheDocument()
   })
 })
+
+// ── Gleichnamige Projekte auseinanderhalten ─────────────────────────────────
+// Projektnamen dürfen sich doppeln (zwei Liegenschaften desselben Kunden). Ohne
+// die Projektnummer stehen dann zwei identische Kacheln untereinander und der
+// Monteur tippt auf gut Glück — im Normalfall soll sie aber wegbleiben.
+
+describe('ProjekteScreen – Projektnummer bei gleichnamigen Projekten', () => {
+  it('zeigt die Nummer auf beiden Kacheln, wenn zwei Projekte gleich heissen', async () => {
+    routeFetch([
+      project({ id: 'a', name: 'Büchel Seuzach', project_id_text: '2600559' }),
+      project({ id: 'b', name: 'Büchel Seuzach', project_id_text: '2600387' }),
+    ])
+    render(<ProjekteScreen {...NOOP} onStartRapport={vi.fn()} />)
+
+    await waitFor(() => expect(screen.getAllByText('Büchel Seuzach')).toHaveLength(2))
+    expect(screen.getByText('Nr. 2600559')).toBeInTheDocument()
+    expect(screen.getByText('Nr. 2600387')).toBeInTheDocument()
+  })
+
+  it('lässt die Nummer weg, solange der Name eindeutig ist', async () => {
+    routeFetch([
+      project({ id: 'a', name: 'Büchel Seuzach', project_id_text: '2600559' }),
+      project({ id: 'b', name: 'Walch Seuzach', project_id_text: '2600387' }),
+    ])
+    render(<ProjekteScreen {...NOOP} onStartRapport={vi.fn()} />)
+
+    await waitFor(() => expect(screen.getByText('Büchel Seuzach')).toBeInTheDocument())
+    expect(screen.queryByText(/^Nr\. /)).not.toBeInTheDocument()
+  })
+
+  it('zeigt die Nummer im Detail immer — der Rapport-Bot fragt danach', async () => {
+    const user = userEvent.setup()
+    routeFetch([project({ id: 'a', name: 'Büchel Seuzach', project_id_text: '2600559' })])
+    render(<ProjekteScreen {...NOOP} onStartRapport={vi.fn()} />)
+
+    await user.click(await screen.findByText('Büchel Seuzach'))
+    expect(await screen.findByText('Projekt-Nr. 2600559')).toBeInTheDocument()
+  })
+})

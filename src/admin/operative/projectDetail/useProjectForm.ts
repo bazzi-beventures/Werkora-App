@@ -10,6 +10,7 @@ import {
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
 import { projectBillingAddress, projectCustomerName } from '../../utils/project'
+import { KontaktCandidate, applyKontaktCandidate, kontakteOhneKundenstamm } from './kontaktKundenstamm'
 import {
   ProjectFormValues, disposalEmpty, hasEntsorgungsart, initialProjectForm, isProjectFormDirty,
 } from './projectForm'
@@ -70,8 +71,16 @@ export interface UseProjectForm {
   kontakte: Kontakt[]
   addKontakt: () => void
   updateKontakt: (i: number, field: keyof Kontakt, value: string) => void
+  /** Vorschlag aus dem Kundenstamm in die Zeile übernehmen (Name/Telefon/E-Mail + Verknüpfung). */
+  pickKontaktCustomer: (i: number, cand: KontaktCandidate) => void
   removeKontakt: (i: number) => void
   toggleSiteContact: (i: number) => void
+  /**
+   * Neu erfasste Ansprechpersonen ohne Treffer im Kundenstamm — die Kandidaten
+   * für die Nachfrage «als Kunde anlegen?». VOR `persist` abfragen: danach ist
+   * der aktuelle Stand der Ausgangsstand, und die Liste wäre leer.
+   */
+  kontakteOhneKundenstamm: () => Kontakt[]
   eigentuemer: Eigentuemer
   updateEigentuemer: (field: keyof Eigentuemer, value: string) => void
   disposal: DisposalDetails
@@ -215,6 +224,7 @@ export function useProjectForm(opts: {
         telefon: c.local_contact_phone ?? '',
         email: '',
         is_site_contact: true,
+        customer_id: c.id,
       }])
     }
   }
@@ -235,7 +245,17 @@ export function useProjectForm(opts: {
     setKontakte(prev => [...prev, { name: '', kommentar: '', telefon: '', email: '' }])
   }
   function updateKontakt(i: number, field: keyof Kontakt, value: string) {
-    setKontakte(prev => prev.map((k, idx) => idx === i ? { ...k, [field]: value } : k))
+    setKontakte(prev => prev.map((k, idx) => {
+      if (idx !== i) return k
+      // Ein von Hand geänderter Name löst die Verknüpfung zum Stammkunden: hinter
+      // dem neuen Namen steht sonst weiter ein fremder Kunde. Telefon/E-Mail
+      // dürfen abweichen (Handy statt Festnetz), die Person bleibt dieselbe.
+      const unlink = field === 'name' && !!k.customer_id && value !== k.name
+      return { ...k, [field]: value, ...(unlink ? { customer_id: null } : null) }
+    }))
+  }
+  function pickKontaktCustomer(i: number, cand: KontaktCandidate) {
+    setKontakte(prev => prev.map((k, idx) => idx === i ? applyKontaktCandidate(k, cand) : k))
   }
   function removeKontakt(i: number) {
     setKontakte(prev => prev.filter((_, idx) => idx !== i))
@@ -251,6 +271,8 @@ export function useProjectForm(opts: {
       }))
     })
   }
+
+  const kontakteOhneKundenstammNow = () => kontakteOhneKundenstamm(baseline.kontakte, kontakte, customers)
 
   function toggleMonteur(id: string) {
     setMonteurIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -393,7 +415,8 @@ export function useProjectForm(opts: {
     bemerkung, setBemerkung, geruestfach, setGeruestfach,
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments, loadAppointments,
-    kontakte, addKontakt, updateKontakt, removeKontakt, toggleSiteContact,
+    kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
+    kontakteOhneKundenstamm: kontakteOhneKundenstammNow,
     eigentuemer, updateEigentuemer, disposal, updateDisposal,
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,

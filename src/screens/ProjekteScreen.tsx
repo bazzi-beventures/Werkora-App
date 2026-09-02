@@ -746,6 +746,13 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         <div className="projekte-detail-scroll">
           {detailSnapshotAt !== null && <OfflineStandBadge savedAt={detailSnapshotAt} />}
 
+          {/* Projektnummer: im Detail immer sichtbar, nicht nur bei Namensdopplung.
+              Sie ist die Antwort, die der Rapport-Bot bei mehrdeutigem Namen
+              verlangt — der Monteur muss sie irgendwo nachschlagen können. */}
+          {selected.project_id_text && (
+            <div className="projekte-detail-nummer">Projekt-Nr. {selected.project_id_text}</div>
+          )}
+
           {(() => {
             const k = (selected.kind || 'project') as ProjectKind
             if (k !== 'project') {
@@ -1510,6 +1517,13 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         )}
 
         {!loading && projects.length > 0 && (() => {
+          // Namen dürfen sich doppeln (zwei Liegenschaften desselben Kunden heissen
+          // gleich). Dann — und nur dann — trägt die Kachel zusätzlich die
+          // Projektnummer: sonst stehen zwei identische Kacheln untereinander und der
+          // Monteur tippt auf gut Glück. Im Normalfall bleibt die Nummer weg, sie ist
+          // für ihn keine Information, sondern Rauschen.
+          const nameCount = new Map<string, number>()
+          projects.forEach(p => nameCount.set(p.name, (nameCount.get(p.name) ?? 0) + 1))
           const groupMap = new Map<string, Project[]>()
           const noDateKey = '__none__'
           projects.forEach(p => {
@@ -1560,6 +1574,9 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                               von zwei Spalten. */}
                           <div className="projekte-tile-body">
                             <div className="projekte-tile-name">{p.name}</div>
+                            {(nameCount.get(p.name) ?? 0) > 1 && p.project_id_text && (
+                              <div className="projekte-tile-nummer">Nr. {p.project_id_text}</div>
+                            )}
                             <div className="projekte-tile-sub" style={isInternal ? { color: tileColor, fontWeight: 600 } : undefined}>
                               {isInternal
                                 ? PROJECT_KIND_LABELS[kind]

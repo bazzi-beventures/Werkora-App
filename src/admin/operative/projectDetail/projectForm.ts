@@ -117,6 +117,7 @@ function normalizeForm(v: ProjectFormValues) {
       telefon: k.telefon ?? '',
       email: k.email ?? '',
       is_site_contact: !!k.is_site_contact,
+      customer_id: k.customer_id ?? null,
     })),
     eigentuemer: {
       name: v.eigentuemer?.name ?? '',

@@ -26,6 +26,11 @@ import type {
 // Laden des Formulars von /pwa/admin/quote-standard-notes geholt. Diese Konstante
 // dient nur noch als Fallback, falls der Abruf fehlschlägt. Echte Zeilenumbrüche (\n) —
 // das PDF rendert sie via nl2br als <br>.
+//
+// Die genannten 2 Monate sind der System-Default: der Server setzt die Frist aus
+// tenants.quote_validity_months ein und liefert sie mit dem Text mit. Nur wenn der
+// Abruf scheitert UND der Mandant eine abweichende Dauer eingestellt hat, weicht
+// dieser Fallback ab — dann steht ohnehin ein Netzfehler im Weg.
 export const STANDARD_NOTES = `Preise inkl. Montage und Transport.
 Lieferfrist nach Absprache, nach def. Massaufnahme.
 

@@ -129,6 +129,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_send_quote_rejection: 'Offerte: Absage versendet',
   admin_send_quote_order_confirmation: 'Auftragsbestätigung versendet',
   admin_update_quote_skonto_defaults: 'Skonto-Vorgaben geändert',
+  admin_update_quote_validity: 'Gültigkeitsdauer der Offerten geändert',
   admin_create_quote_attachment_template: 'Offerten-Anhang angelegt',
   admin_delete_quote_attachment_template: 'Offerten-Anhang gelöscht',
   admin_create_special_position_template: 'Sonderposition angelegt',

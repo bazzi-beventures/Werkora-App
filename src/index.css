@@ -1738,6 +1738,21 @@ input, textarea { font-family: var(--font); color: var(--text); }
   color: var(--muted);
   line-height: 1.4;
 }
+/* Projektnummer auf der Kachel — nur bei gleichnamigen Projekten eingeblendet.
+   Monospace, damit sich zwei Nummern beim Überfliegen Ziffer für Ziffer
+   vergleichen lassen; genau dafür steht sie da. */
+.projekte-tile-nummer {
+  font-size: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.projekte-detail-nummer {
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--muted);
+  padding: 0 16px 8px;
+}
 /* Der Hinweis darf umbrechen (volle Breite), aber nicht die Kachel sprengen —
    nach zwei Zeilen wird gekürzt, das Detail zeigt ihn vollständig. */
 .projekte-tile-hinweis {

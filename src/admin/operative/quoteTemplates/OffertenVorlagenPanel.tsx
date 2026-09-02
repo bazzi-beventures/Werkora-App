@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import {
   deletePositionTemplate, deleteQuoteAttachmentTemplate, getQuotePositionTemplates,
-  getQuoteSkontoDefaults, listQuoteAttachmentTemplates, savePositionTemplate,
-  saveQuoteSkontoDefaults as patchQuoteSkontoDefaults, uploadQuoteAttachmentTemplate,
+  getQuoteSkontoDefaults, getQuoteValidity, listQuoteAttachmentTemplates, savePositionTemplate,
+  saveQuoteSkontoDefaults as patchQuoteSkontoDefaults,
+  saveQuoteValidity as patchQuoteValidity, uploadQuoteAttachmentTemplate,
 } from '../../../api/admin/quoteTemplates'
 import type {
-  InstallationTpl, QuoteAttachmentTpl, SpecialTpl,
+  InstallationTpl, QuoteAttachmentTpl, QuoteValidity, SpecialTpl,
 } from '../../../api/admin/quoteTemplates'
 import { getMe } from '../../../api/auth'
 import { isFeatureEnabled } from '../../../api/modules'
@@ -16,6 +17,7 @@ import { AttachmentsSection } from './AttachmentsSection'
 import { PositionTemplateModal } from './PositionTemplateModal'
 import { PositionTemplateTables } from './PositionTemplateTables'
 import { QuoteMailTextSettings, QuotePdfTextSettings } from './QuoteTextSettings'
+import { QuoteValiditySection } from './QuoteValiditySection'
 import { SkontoDefaultsSection } from './SkontoDefaultsSection'
 import {
   EMPTY_FORM,
@@ -75,6 +77,11 @@ export function OffertenVorlagenPanel() {
   const [skontoDefDays, setSkontoDefDays] = useState('')
   const [skontoDefSaved, setSkontoDefSaved] = useState({ pct: '', days: '' })
   const [savingSkontoDef, setSavingSkontoDef] = useState(false)
+  // Gültigkeitsdauer: Eingabefeld als String, der wirksame Stand (inkl. Grenzen und
+  // System-Default) kommt vom Server — das Formular rät ihn nicht.
+  const [validity, setValidity] = useState<QuoteValidity | null>(null)
+  const [validityMonths, setValidityMonths] = useState('')
+  const [savingValidity, setSavingValidity] = useState(false)
   const [attachments, setAttachments] = useState<QuoteAttachmentTpl[]>([])
   // Suchfeld der Anhänge: liegt hier, weil die Sektion bei jedem Neuladen
   // (Spinner) unmountet — in der Sektion selbst wäre der Filter danach weg.
@@ -86,10 +93,11 @@ export function OffertenVorlagenPanel() {
   async function load() {
     setLoading(true)
     try {
-      const [data, skontoDef, att] = await Promise.all([
+      const [data, skontoDef, att, val] = await Promise.all([
         getQuotePositionTemplates(),
         getQuoteSkontoDefaults(),
         listQuoteAttachmentTemplates(),
+        getQuoteValidity(),
       ])
       setInstallation(data.installation ?? [])
       setSpecial(data.special ?? [])
@@ -99,6 +107,8 @@ export function OffertenVorlagenPanel() {
       setSkontoDefPct(defPct)
       setSkontoDefDays(defDays)
       setSkontoDefSaved({ pct: defPct, days: defDays })
+      setValidity(val)
+      setValidityMonths(String(val.months))
     } finally {
       setLoading(false)
     }
@@ -128,6 +138,25 @@ export function OffertenVorlagenPanel() {
       setError(err instanceof Error ? err.message : 'Fehler')
     } finally {
       setSavingSkontoDef(false)
+    }
+  }
+
+  // Gültigkeitsdauer speichern. `reset` setzt zurück auf den System-Default (Spalte NULL).
+  // Die Antwort ist der wirksame Stand (der Server klemmt auf min/max) — sie wird
+  // zurückgeschrieben, sonst zeigt das Feld einen Wert, den der Server so nicht hält.
+  async function saveValidity(reset = false) {
+    setSavingValidity(true)
+    setError('')
+    try {
+      const months = reset ? null : parseInt(validityMonths, 10)
+      const res = await patchQuoteValidity(months != null && !isNaN(months) ? months : null)
+      setValidity(res)
+      setValidityMonths(String(res.months))
+      showToast(res.is_default ? 'Gültigkeitsdauer auf Standard zurückgesetzt' : 'Gültigkeitsdauer gespeichert')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Fehler')
+    } finally {
+      setSavingValidity(false)
     }
   }
 
@@ -319,6 +348,21 @@ export function OffertenVorlagenPanel() {
             onDaysChange={setSkontoDefDays}
             onSave={saveQuoteSkontoDefaults}
           />
+
+          {validity && (
+            <QuoteValiditySection
+              months={validityMonths}
+              saved={String(validity.months)}
+              isDefault={validity.is_default}
+              systemDefault={validity.default}
+              min={validity.min}
+              max={validity.max}
+              saving={savingValidity}
+              error={error}
+              onChange={setValidityMonths}
+              onSave={saveValidity}
+            />
+          )}
 
           <QuoteMailTextSettings thankyou={thankyou} rejection={rejection} orderConfirmation={orderConfirmation} />
         </>
