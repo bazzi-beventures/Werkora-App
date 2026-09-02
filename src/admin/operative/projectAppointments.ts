@@ -172,6 +172,39 @@ export function validateDrafts(list: AppointmentDraft[]): string | null {
   return null
 }
 
+// ─── Projekt-Team-Wechsel ────────────────────────────────────────────────
+
+// Ein Termin ohne eigenes Team erbt das Projekt-Team — und zwar LIVE, nicht
+// eingefroren (Spec einsatzplanung-mehrere-termine.md §1). Wer also für einen
+// zweiten Termin einen anderen Monteur über die Projekt-Team-Chips wählt,
+// besetzt damit auch jeden schon geplanten Termin um, der kein eigenes Team
+// hat — bis zurück in die Vergangenheit, samt Wochenplan-PDF, Rapport-
+// Zuordnung und Reminder. Deshalb fragen beide Masken vor dem Speichern nach,
+// statt still das eine oder das andere zu tun.
+
+// Termine, die ein Projekt-Team-Wechsel still mitzöge: bereits gespeichert
+// (`id`) und ohne eigenes Team. `exceptKey` ist der Termin, den der Planer
+// gerade offen hat — dort ist die Änderung ja gewollt.
+export function appointmentsFollowingProjectTeam(
+  list: AppointmentDraft[], exceptKey?: string | null,
+): AppointmentDraft[] {
+  return list.filter(d => !!d.id && !d.ownTeam && d.key !== exceptKey)
+}
+
+// Zwei Teams inhaltlich vergleichen — die Reihenfolge ist nur die Disposition
+// (erster = Lead), für «hat sich das Team geändert?» zählt sie nicht.
+export function teamsDiffer(a: string[], b: string[]): boolean {
+  return JSON.stringify([...a].sort()) !== JSON.stringify([...b].sort())
+}
+
+// Schreibt ein Team als eigenes Termin-Team fest («bestehende Termine behalten
+// ihr Team»). Aus dem geerbten Team wird damit ein ausdrückliches.
+export function pinProjectTeam(
+  list: AppointmentDraft[], keys: Set<string>, team: string[],
+): AppointmentDraft[] {
+  return list.map(d => keys.has(d.key) ? { ...d, ownTeam: true, monteurIds: [...team] } : d)
+}
+
 // ─── Diff: geladener Stand → Formularstand ───────────────────────────────
 
 export interface AppointmentDiff {

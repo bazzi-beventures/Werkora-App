@@ -10,7 +10,7 @@ import {
   listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
 } from '../../api/projectTasks'
 import {
-  apptToDraft, draftPayload, emptyDraft, newAppointmentDraft, validateDraft,
+  apptToDraft, draftPayload, emptyDraft, newAppointmentDraft, teamsDiffer, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -520,6 +520,20 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     }
   }
 
+  // Rückfrage «Projekt-Team geändert» — wie in der Projektmaske ein
+  // Promise-Tor: `handleSave` legt die Frage hin und wartet, der Dialog löst
+  // sie auf. Antworten: 'keep' schreibt den bestehenden Terminen das BISHERIGE
+  // Projekt-Team fest, 'apply' lässt sie das neue übernehmen, 'cancel' bricht
+  // das Speichern ab.
+  const [teamQuestion, setTeamQuestion] = useState<{ count: number } | null>(null)
+  const teamAnswer = useRef<((answer: 'keep' | 'apply' | 'cancel') => void) | null>(null)
+
+  function answerTeamQuestion(answer: 'keep' | 'apply' | 'cancel') {
+    setTeamQuestion(null)
+    teamAnswer.current?.(answer)
+    teamAnswer.current = null
+  }
+
   async function handleSave() {
     if (!form) return
     setError(null)
@@ -559,6 +573,30 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     const isInternal = form.kind !== 'project'
     let savedMsg = form.id ? 'Eintrag aktualisiert.' : 'Eintrag erstellt.'
     try {
+      // Ein Termin ohne eigenes Team erbt das Projekt-Team live. Ein Wechsel
+      // besetzt sonst still jeden bereits geplanten Termin ohne eigenes Team
+      // um — auch vergangene. Der gerade geöffnete Termin ist ausgenommen:
+      // dort ist die Änderung ja gewollt.
+      const previousTeam = projects.find(p => p.id === form.id)?.monteur_ids ?? []
+      const followers = form.id && previousTeam.length > 0 && teamsDiffer(previousTeam, form.monteurIds)
+        ? appointments.filter(a =>
+            a.project_id === form.id && !a.monteur_ids?.length && a.id !== apptForm?.id)
+        : []
+      if (followers.length > 0) {
+        const answer = await new Promise<'keep' | 'apply' | 'cancel'>(resolve => {
+          teamAnswer.current = resolve
+          setTeamQuestion({ count: followers.length })
+        })
+        if (answer === 'cancel') return
+        if (answer === 'keep') {
+          // VOR dem Projekt-Write: danach sähe der Termin-Änderungs-Push das
+          // schon neue Projekt-Team als Vorher-Zustand und meldete jedem
+          // Monteur eine Änderung, die es gar nicht gibt
+          // (services/project_change_push_service.py::diff_appointment_change).
+          for (const a of followers) await updateAppointment(a.id, { monteur_ids: previousTeam })
+        }
+      }
+
       // Projekt-Stammdaten OHNE Terminfelder — Termine laufen über die
       // appointment-Endpunkte (der Server spiegelt den Ersttermin selbst).
       const saved = await upsertProject({
@@ -1452,6 +1490,24 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
         </aside>
         )}
       </div>
+
+      {teamQuestion && (
+        <ConfirmDialog
+          title="Projekt-Team geändert"
+          message={<>
+            {teamQuestion.count === 1
+              ? 'Ein bereits geplanter Termin dieses Projekts hat kein eigenes Team'
+              : `${teamQuestion.count} bereits geplante Termine dieses Projekts haben kein eigenes Team`}
+            {' '}und würde{teamQuestion.count === 1 ? '' : 'n'} das neue Projekt-Team
+            übernehmen — auch vergangene Termine.
+          </>}
+          confirmLabel="Bestehende behalten"
+          cancelLabel="Abbrechen"
+          extraAction={{ label: 'Überall übernehmen', variant: 'danger', onClick: () => answerTeamQuestion('apply') }}
+          onConfirm={() => answerTeamQuestion('keep')}
+          onCancel={() => answerTeamQuestion('cancel')}
+        />
+      )}
 
       {/* Drei Möglichkeiten (dieser / Serie / abbrechen) — der mittlere Knopf ist
           die extraAction des ConfirmDialog. */}

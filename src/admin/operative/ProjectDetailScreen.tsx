@@ -503,6 +503,24 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
         />
       )}
 
+      {form.teamQuestion && (
+        <ConfirmDialog
+          title="Projekt-Team geändert"
+          message={<>
+            {form.teamQuestion.count === 1
+              ? 'Ein bereits geplanter Termin hat kein eigenes Team'
+              : `${form.teamQuestion.count} bereits geplante Termine haben kein eigenes Team`}
+            {' '}und würde{form.teamQuestion.count === 1 ? '' : 'n'} das neue Projekt-Team
+            übernehmen — auch vergangene Termine.
+          </>}
+          confirmLabel="Bestehende behalten"
+          cancelLabel="Abbrechen"
+          extraAction={{ label: 'Überall übernehmen', variant: 'danger', onClick: () => form.answerTeamQuestion('apply') }}
+          onConfirm={() => form.answerTeamQuestion('keep')}
+          onCancel={() => form.answerTeamQuestion('cancel')}
+        />
+      )}
+
       {comments.confirmDeleteId && (
         <ConfirmDialog
           title="Kommentar löschen?"

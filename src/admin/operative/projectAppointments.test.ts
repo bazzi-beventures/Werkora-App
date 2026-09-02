@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
-  AppointmentDraft, applyStartDate, apptToDraft, diffAppointments, draftPayload, draftTeamNames,
-  draftTitle, emptyDraft, fmtDraftWhen, newAppointmentDraft, nextAppointment, normalizeDrafts,
-  sortDrafts, todayISO, validateDrafts,
+  AppointmentDraft, appointmentsFollowingProjectTeam, applyStartDate, apptToDraft,
+  diffAppointments, draftPayload, draftTeamNames, draftTitle, emptyDraft, fmtDraftWhen,
+  newAppointmentDraft, nextAppointment, normalizeDrafts, pinProjectTeam, sortDrafts,
+  teamsDiffer, todayISO, validateDrafts,
 } from './projectAppointments'
 import type { ProjectAppointment } from '../../api/admin'
 
@@ -232,5 +233,43 @@ describe('todayISO', () => {
     // nächsten Tag und würde den heutigen Termin aus «nächster Termin» kippen.
     const d = new Date(2026, 7, 14, 23, 30)
     expect(todayISO(d)).toBe('2026-08-14')
+  })
+})
+
+describe('Projekt-Team-Wechsel', () => {
+  const gespeichertOhneTeam = draft({ key: 'a-1', id: 'a-1' })
+  const gespeichertMitTeam = draft({ key: 'a-2', id: 'a-2', ownTeam: true, monteurIds: ['s-9'] })
+  const neu = draft({ key: 'neu-1', id: null })
+
+  it('betrifft nur gespeicherte Termine ohne eigenes Team', () => {
+    const list = [gespeichertOhneTeam, gespeichertMitTeam, neu]
+    expect(appointmentsFollowingProjectTeam(list).map(d => d.key)).toEqual(['a-1'])
+  })
+
+  it('lässt den gerade geöffneten Termin aus — dort ist die Änderung gewollt', () => {
+    const zweiter = draft({ key: 'a-3', id: 'a-3' })
+    const list = [gespeichertOhneTeam, zweiter]
+    expect(appointmentsFollowingProjectTeam(list, 'a-3').map(d => d.key)).toEqual(['a-1'])
+  })
+
+  it('teamsDiffer ignoriert die Reihenfolge (die ist nur die Disposition)', () => {
+    expect(teamsDiffer(['s-1', 's-2'], ['s-2', 's-1'])).toBe(false)
+    expect(teamsDiffer(['s-1'], ['s-1', 's-2'])).toBe(true)
+    expect(teamsDiffer([], ['s-1'])).toBe(true)
+  })
+
+  it('pinProjectTeam schreibt das bisherige Team als eigenes Termin-Team fest', () => {
+    const list = [gespeichertOhneTeam, gespeichertMitTeam]
+    const pinned = pinProjectTeam(list, new Set(['a-1']), ['s-1', 's-2'])
+    expect(pinned[0]).toMatchObject({ ownTeam: true, monteurIds: ['s-1', 's-2'] })
+    // Der Termin mit eigenem Team bleibt unangetastet.
+    expect(pinned[1]).toBe(gespeichertMitTeam)
+    // Festgeschriebenes Team geht als echtes Termin-Team an die API.
+    expect(draftPayload(pinned[0]).monteur_ids).toEqual(['s-1', 's-2'])
+  })
+
+  it('nach dem Festschreiben zählt der Termin nicht mehr als Mitläufer', () => {
+    const pinned = pinProjectTeam([gespeichertOhneTeam], new Set(['a-1']), ['s-1'])
+    expect(appointmentsFollowingProjectTeam(pinned)).toEqual([])
   })
 })

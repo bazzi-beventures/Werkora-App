@@ -6,7 +6,8 @@ import { saveProjectForm } from '../../../api/admin/projects'
 import type { Customer } from '../../../api/admin/customers'
 import type { DisposalDetails, Eigentuemer, Kontakt, Project } from '../../../api/admin/projects'
 import {
-  AppointmentDraft, apptToDraft, diffAppointments, draftPayload, validateDrafts,
+  AppointmentDraft, appointmentsFollowingProjectTeam, apptToDraft, diffAppointments, draftPayload,
+  pinProjectTeam, teamsDiffer, validateDrafts,
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
 import { projectBillingAddress, projectCustomerName } from '../../utils/project'
@@ -27,6 +28,13 @@ import {
 //    neu angelegtes Projekt vorher keine id hat, an der Termine haengen.
 // 2. Der Baseline wandert nach jedem Speichern mit. Ohne das schluege die
 //    „ungespeicherte Aenderungen"-Abfrage direkt nach dem Speichern wieder zu.
+
+/**
+ * Antwort auf die Team-Rückfrage: 'keep' schreibt den bestehenden Terminen das
+ * BISHERIGE Projekt-Team fest, 'apply' lässt sie das neue übernehmen (bisheriges
+ * Verhalten), 'cancel' bricht das Speichern ab.
+ */
+export type TeamAnswer = 'keep' | 'apply' | 'cancel'
 
 export interface UseProjectForm {
   name: string
@@ -68,6 +76,13 @@ export interface UseProjectForm {
   toggleMonteur: (id: string) => void
   appointments: AppointmentDraft[]
   changeAppointments: (next: AppointmentDraft[]) => void
+  /**
+   * Offene Rückfrage «Projekt-Team geändert — was wird aus den bestehenden
+   * Terminen?». Gesetzt = der Screen zeigt den Dialog, `persist` wartet auf
+   * `answerTeamQuestion`.
+   */
+  teamQuestion: { count: number } | null
+  answerTeamQuestion: (answer: TeamAnswer) => void
   kontakte: Kontakt[]
   addKontakt: () => void
   updateKontakt: (i: number, field: keyof Kontakt, value: string) => void
@@ -178,6 +193,21 @@ export function useProjectForm(opts: {
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  // Rückfrage «Projekt-Team geändert» — sie fällt MITTEN im Speichern an,
+  // gerendert wird der Dialog aber vom Screen. Deshalb ein Promise-Tor:
+  // `persist` legt die Frage hin und wartet, der Screen löst sie mit
+  // `answerTeamQuestion` auf. So bekommen alle Aufrufer von `persist`
+  // (Speichern, Speichern-und-schliessen, Navigations-Guard) die Rückfrage
+  // ohne eigenes Zutun.
+  const [teamQuestion, setTeamQuestion] = useState<{ count: number } | null>(null)
+  const teamAnswer = useRef<((answer: TeamAnswer) => void) | null>(null)
+
+  function answerTeamQuestion(answer: TeamAnswer) {
+    setTeamQuestion(null)
+    teamAnswer.current?.(answer)
+    teamAnswer.current = null
+  }
 
   const currentForm: ProjectFormValues = {
     name,
@@ -320,6 +350,43 @@ export function useProjectForm(opts: {
     setError('')
     setSaving(true)
     try {
+      // Ein Termin ohne eigenes Team erbt das Projekt-Team live. Wechselt das
+      // Team, während bereits gespeicherte Termine daran hängen, würden die
+      // still mit umbesetzt — auch längst vergangene. Deshalb erst fragen.
+      let currentAppointments = appointments
+      let baselineAppointments = baseline.appointments
+      const followers = schedulingEnabled && baseline.monteurIds.length > 0
+        && teamsDiffer(baseline.monteurIds, monteurIds)
+        ? appointmentsFollowingProjectTeam(appointments)
+        : []
+      if (followers.length > 0) {
+        const answer = await new Promise<TeamAnswer>(resolve => {
+          teamAnswer.current = resolve
+          setTeamQuestion({ count: followers.length })
+        })
+        if (answer === 'cancel') return false
+        if (answer === 'keep') {
+          try {
+            // VOR dem Projekt-Write: danach sähe der Termin-Änderungs-Push das
+            // schon neue Projekt-Team als Vorher-Zustand und meldete jedem
+            // Monteur eine Änderung, die es gar nicht gibt
+            // (services/project_change_push_service.py::diff_appointment_change).
+            for (const d of followers) {
+              await updateAppointment(d.id!, { monteur_ids: baseline.monteurIds })
+            }
+          } catch {
+            return fail('Das bisherige Team konnte nicht auf den bestehenden Terminen festgehalten werden. Bitte erneut versuchen.')
+          }
+          // Auch im Ausgangsstand festschreiben: serverseitig stehen sie jetzt
+          // genau so da, der Termin-Diff weiter unten soll sie nicht ein zweites
+          // Mal schicken.
+          const keys = new Set(followers.map(d => d.key))
+          currentAppointments = pinProjectTeam(appointments, keys, baseline.monteurIds)
+          baselineAppointments = pinProjectTeam(baseline.appointments, keys, baseline.monteurIds)
+          setAppointments(currentAppointments)
+        }
+      }
+
       const res = await saveProjectForm({
         name: name.trim(),
         customer_id: customerId || null,
@@ -358,10 +425,10 @@ export function useProjectForm(opts: {
       const created = isNew ? (res?.project ?? null) : null
       const targetId = created?.id ?? project?.id ?? null
       let apptSyncError = ''
-      let savedAppointments = appointments
+      let savedAppointments = currentAppointments
       if (targetId && schedulingEnabled) {
         try {
-          await syncAppointments(targetId, baseline.appointments, appointments)
+          await syncAppointments(targetId, baselineAppointments, currentAppointments)
         } catch (err: unknown) {
           apptSyncError = err instanceof Error && err.message
             ? `Projektdaten gespeichert — Termine nicht vollständig: ${err.message}`
@@ -375,7 +442,7 @@ export function useProjectForm(opts: {
           setAppointments(savedAppointments)
           appointmentsTouched.current = false
         }
-      } else if (!targetId && appointments.length > 0) {
+      } else if (!targetId && currentAppointments.length > 0) {
         // Projekt-POST ohne zurückgelieferte Zeile: es gibt keine id, an die sich
         // die Termine hängen liessen. Lieber melden als still verschlucken.
         apptSyncError = 'Projekt gespeichert, die Termine konnten aber nicht zugeordnet werden. Bitte im Projekt erneut erfassen.'
@@ -415,6 +482,7 @@ export function useProjectForm(opts: {
     bemerkung, setBemerkung, geruestfach, setGeruestfach,
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments, loadAppointments,
+    teamQuestion, answerTeamQuestion,
     kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
     kontakteOhneKundenstamm: kontakteOhneKundenstammNow,
     eigentuemer, updateEigentuemer, disposal, updateDisposal,
