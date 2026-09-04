@@ -11,7 +11,15 @@
 .admin-shell-mobile {
   display: flex;
   flex-direction: column;
+  /* Die gemessene Fensterhoehe, nicht `100dvh` allein — und schon gar nicht
+     `100%`: `html/body/#root` massen frueher gegen den Initial Containing
+     Block, und der ist auf iOS Safari der GROSSE Viewport. Shell und Dokument
+     meinten damit zwei verschiedene Hoehen; das Dokument liess sich um die
+     Differenz anschieben, die Tab-Leiste rutschte nach oben, darunter stand
+     leere Flaeche, und der untere Rand des Inhalts verschwand hinter der
+     Browserleiste. Details in shared/viewportHeight.ts. */
   height: 100dvh;
+  height: var(--app-vh, 100dvh);
   width: 100%;
   max-width: 100%;
   overflow: hidden;
@@ -30,7 +38,12 @@
   /* Safety net: zu breite Kind-Elemente (z.B. Tabellen ohne admin-table-wrap)
      bleiben innerhalb des Viewports, statt iOS Safari zum Auszoomen zu zwingen. */
   overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  /* Kein `-webkit-overflow-scrolling: touch` — die Eigenschaft stammt aus der
+     Zeit vor iOS 13, wo sie das Momentum-Scrollen erst einschaltete. Seither
+     ist das der Normalfall, und die Eigenschaft legt den Container nur noch in
+     eine eigene Compositing-Ebene: dort bleiben auf neueren iOS-Versionen
+     Flaechen weiss stehen und die Liste haengt nach einer Geste fest. Wer sie
+     zurueckschreibt, holt genau dieses Fehlerbild zurueck. */
   /* Kein Scroll-Chaining ans Dokument: sonst federt auf iOS die ganze Seite
      mit (Rubber-Band) und nimmt die Leisten mit nach oben. */
   overscroll-behavior: contain;
@@ -251,7 +264,6 @@
 .admin-mobile-drawer-scroll {
   overflow-y: auto;
   flex: 1;
-  -webkit-overflow-scrolling: touch;
 }
 
 .admin-mobile-drawer-group {
@@ -538,7 +550,6 @@
        Rand snappen, mit `mandatory` federt die Leiste dort zurueck und kaempft
        zusaetzlich gegen das scrollIntoView aus useTabStrip. */
     scroll-snap-type: x proximity;
-    -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     overscroll-behavior-x: contain;
     /* Die Leiste laeuft randlos ueber die volle Breite: das horizontale Padding

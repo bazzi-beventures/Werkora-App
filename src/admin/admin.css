@@ -2447,27 +2447,42 @@ button.admin-list-item {
   cursor: pointer;
 }
 
-.project-appt-chips {
+/* Team-Chips der Projektmaske: Projekt-Team (Kachel «Einsatzplanung») und das
+   eigene Team eines Termins. Eine Klasse für beide, damit der Lead-Chip nicht
+   an zwei Stellen getrennt eingefärbt wird. */
+.project-team-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
 }
 
-.project-appt-chip {
+.project-team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
   cursor: pointer;
 }
 
-.project-appt-chip.active {
+.project-team-chip.active {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--on-accent, #fff);
+}
+
+/* Lead-Monteur = der zuerst angewählte, gleiche Farbe wie der Lead-Chip in der
+   Einsatzplanung (.project-schedule-chip.lead). Die Regel steht NACH .active,
+   damit sie den Blau-Ton des aktiven Chips überschreibt (gleiche Spezifität). */
+.project-team-chip.lead {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
 }
 
 .project-cal-filter {

@@ -931,11 +931,23 @@ export default function ProjectScheduleCalendar({
   // das Filter aushebeln (hiddenStaff enthält nur bekannte Staff-IDs).
   const staffIds = new Set(staff.map(s => s.id))
   const visibleProjects = projects.filter(p => {
-    // Mitarbeiteransicht: nur Einsätze des fokussierten Mitarbeiters — als
-    // Monteur zugewiesen oder als Projektleiter verantwortlich.
+    // Mitarbeiteransicht: nur Einsätze, auf denen der fokussierte Mitarbeiter
+    // tatsächlich draussen ist — Termin-Team, Fallback Projekt-Team (das steckt
+    // schon in `monteur_ids` der Kalender-Einträge).
+    //
+    // Die Projektleitung zählt hier bewusst NICHT als Zuweisung — gleiche Regel
+    // wie in `_assigned_open_projects` (agents/routers/admin_projects.py) und im
+    // Wochenplan-PDF (services/schedule_export.py), das schon immer nur nach
+    // `monteur_ids` sektioniert. Vorher schwemmte es dem Projektleiter jeden
+    // Termin seines Portfolios in den eigenen Plan, obwohl er dort nicht mitfährt;
+    // sein Plan war damit unbrauchbar, und was der Bildschirm zeigte, wich vom
+    // gedruckten Wochenplan derselben Woche ab. Wer als Projektleiter auch aufs
+    // Feld geht, steht im Team des Einsatzes und kommt darüber in die Ansicht.
+    // Alle seine Projekte sieht er weiterhin über den Projektleiter-Filter der
+    // Einsatzplanung.
     if (view === 'staff') {
       if (!focusedStaff) return false
-      return (p.monteur_ids?.includes(focusedStaff.id) ?? false) || p.projektleiter_id === focusedStaff.id
+      return p.monteur_ids?.includes(focusedStaff.id) ?? false
     }
     if (hiddenStaff.size === 0) return true
     if (!p.monteur_ids || p.monteur_ids.length === 0) return false

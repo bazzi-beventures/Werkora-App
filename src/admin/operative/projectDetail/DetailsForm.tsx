@@ -389,22 +389,38 @@ export function DetailsForm({
               </div>
               <div className="admin-form-group">
                 <label className="admin-form-label">Monteure</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                <div className="project-team-chips">
                   {staff.length === 0 && (
                     <span style={{ color: 'var(--muted)', fontSize: 13 }}>Keine Mitarbeiter gefunden.</span>
                   )}
-                  {staff.map(s => (
-                    <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13, padding: '4px 10px', borderRadius: 'var(--radius-xs)', background: monteurIds.includes(s.id) ? 'var(--primary)' : 'var(--surface-2)', color: monteurIds.includes(s.id) ? '#fff' : 'var(--text)', border: '1px solid', borderColor: monteurIds.includes(s.id) ? 'var(--primary)' : 'var(--border)' }}>
-                      <input
-                        type="checkbox"
-                        style={{ display: 'none' }}
-                        checked={monteurIds.includes(s.id)}
-                        onChange={() => toggleMonteur(s.id)}
-                      />
-                      {s.name}
-                    </label>
-                  ))}
+                  {staff.map(s => {
+                    const active = monteurIds.includes(s.id)
+                    // Lead = der zuerst angewählte Monteur (monteur_ids[0]) — dieselbe
+                    // Regel wie in der Einsatzplanung, wo er rot erscheint. Ohne die
+                    // Markierung hier sieht man erst im Kalender, wen man gewählt hat.
+                    const lead = monteurIds[0] === s.id
+                    return (
+                      <label
+                        key={s.id}
+                        className={`project-team-chip${active ? ' active' : ''}${lead ? ' lead' : ''}`}
+                        title={lead ? 'Lead-Monteur (zuerst gewählt)' : undefined}
+                      >
+                        <input
+                          type="checkbox"
+                          style={{ display: 'none' }}
+                          checked={active}
+                          onChange={() => toggleMonteur(s.id)}
+                        />
+                        {s.name}
+                      </label>
+                    )
+                  })}
                 </div>
+                {monteurIds.length > 1 && (
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+                    Rot = Lead-Monteur (der zuerst gewählte). Abwählen und neu wählen ändert ihn.
+                  </div>
+                )}
               </div>
 
               {schedulingEnabled && (

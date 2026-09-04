@@ -21,9 +21,11 @@ import {
   QueuedTaskToggle, enqueueTaskToggle, loadTaskQueue, reconcileTaskQueue, saveTaskQueue, taskKey,
 } from './projekte/taskQueue'
 import { sortProjectsNewestFirst } from './projekte/sortProjects'
+import { filterProjectsBySearch } from './projekte/searchProjects'
 import { PROJECT_FILE_ACCEPT, projectFileIcon } from '../shared/projectFileTypes'
 import { mapsUrl } from '../shared/mapsLink'
 import { hasModule, isFeatureEnabled } from '../api/modules'
+import { looksLikeEmail, setCustomerEmail } from '../api/customerEmail'
 import {
   RAPPORT_CLOCK_IN_HINT, RAPPORT_CLOCK_IN_TITLE, useRapportClockInBlocked,
 } from '../shared/rapportClockIn'
@@ -84,6 +86,7 @@ const LIEFERSCHEIN_CATEGORY: FileCategory = 'lieferschein'
 // bis dahin beseitigt das Sperren den stillen Verlust sofort.
 const OFFLINE_UPLOAD_HINT = 'Hochladen braucht eine Internetverbindung.'
 const OFFLINE_DOWNLOAD_HINT = 'Herunterladen braucht eine Internetverbindung.'
+const OFFLINE_EMAIL_HINT = 'Die Kunden-E-Mail lässt sich nur online erfassen.'
 const OFFLINE_COMMENT_HINT = 'Kommentare schreiben braucht eine Internetverbindung.'
 
 interface Props {
@@ -233,6 +236,17 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   const rapportBlockReason: 'offerte' | 'stempel' | null =
     selected?.rapport_blocked ? 'offerte' : stempelBlocked ? 'stempel' : null
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  // Suche über Name und Projektnummer — ohne Tenant-Feature, also bei jedem
+  // Mandanten da (siehe projekte/searchProjects.ts). Nur die Kachel-Ansicht
+  // filtert damit; der Wochenplan ist eine Kalender-Darstellung, in der eine
+  // ausgedünnte Woche mehr verwirrt als hilft.
+  const [search, setSearch] = useState('')
+  // Tenant-Feature: die Liste zeigt alle offenen Projekte des Mandanten, nicht nur
+  // die eigenen Einsätze (Server-seitig, agents/routers/admin_projects.py). Hier
+  // hängt nur die Beschriftung daran — "Meine Projekte" und "Du bist keinem Projekt
+  // zugewiesen" wären damit schlicht falsch.
+  const alleProjekteSichtbar = isFeatureEnabled(user, 'projects_show_all_to_staff')
+  const gefilterteProjekte = filterProjectsBySearch(projects, search)
   // Ohne Einsatzplanung gibt es keine Termine — dann bleibt es bei den Kacheln,
   // und der Umschalter entfällt ganz (die Route /pwa/schedule/week ist ebenso gated).
   const showWochenplan = hasModule(user, 'scheduling')
@@ -280,6 +294,16 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   const [uploadCategory, setUploadCategory] = useState<FileCategory>('fotos')
   const [newComment, setNewComment] = useState('')
   const [addingComment, setAddingComment] = useState(false)
+  // Kunden-E-Mail nachtragen (Spec docs/specs/kunden-email-erfassen.md). Das Feld
+  // steht bei den Projektinfos, nicht im Rapport-Chat: gefragt wird nicht, es ist
+  // eine Angabe, die man ergänzt, wenn man sie ohnehin gerade hat. `editing` ist
+  // getrennt vom Leer-Fall, weil eine gepflegte Adresse zuerst als Wert dasteht
+  // und erst auf «Ändern» zum Eingabefeld wird — sonst überschriebe ein
+  // Fehlgriff die Adresse, die schon stimmte.
+  const [emailDraft, setEmailDraft] = useState('')
+  const [emailEditing, setEmailEditing] = useState(false)
+  const [savingEmail, setSavingEmail] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   // Eigener Input für die Lieferschein-Karte: die Kategorie steckt im Aufruf, nicht
   // im State — ein gemeinsamer Input müsste uploadCategory vor dem Klick umsetzen
@@ -345,6 +369,11 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     setAggregateSelection(null)
     setAggregateError(null)
     setDetailSnapshotAt(null)
+    // Ein halb getippter Entwurf gehört zu dem Projekt, in dem er entstanden ist —
+    // sonst schlüge er beim nächsten geöffneten Projekt einem fremden Kunden vor.
+    setEmailDraft('')
+    setEmailEditing(false)
+    setEmailError(null)
     setLoadingDetail(true)
     const projectId = selected.id
     Promise.all([
@@ -628,6 +657,44 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         : 'Der Gesamtrapport konnte nicht aufgelöst werden.')
     } finally {
       setDissolvingId(null)
+    }
+  }
+
+  async function handleSaveCustomerEmail() {
+    const customer = selected?.customer
+    if (!selected || !customer) return
+    const value = emailDraft.trim()
+    if (!looksLikeEmail(value)) {
+      setEmailError('Das sieht nicht nach einer E-Mail-Adresse aus.')
+      return
+    }
+    setSavingEmail(true)
+    setEmailError(null)
+    try {
+      const saved = await setCustomerEmail(selected.id, value)
+      // Lokal nachziehen statt neu laden: derselbe Kunde hängt an mehreren
+      // Projekten des Monteurs, und der Offline-Snapshot trägt dieselben Zeilen —
+      // ohne das Nachziehen stünde die Adresse beim nächsten Öffnen wieder leer da.
+      const withEmail = (p: Project): Project => (
+        p.customer && p.customer.id === customer.id
+          ? { ...p, customer: { ...p.customer, email: saved } }
+          : p
+      )
+      setProjects(prev => {
+        const next = prev.map(withEmail)
+        rememberProjects(userId, next)
+        return next
+      })
+      setSelected(prev => (prev ? withEmail(prev) : prev))
+      setEmailEditing(false)
+      setEmailDraft('')
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
+      setEmailError(isNetworkError(err)
+        ? OFFLINE_EMAIL_HINT
+        : 'Die Adresse konnte nicht gespeichert werden.')
+    } finally {
+      setSavingEmail(false)
     }
   }
 
@@ -1180,6 +1247,12 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             const customerAddress = selected.customer?.address || null
             const showCustomerAddress = !!customerAddress
               && customerAddress.trim() !== (objectAddress ?? '').trim()
+            const customerEmail = (selected.customer?.email ?? '').trim()
+            // Eingabefeld statt Anzeige: entweder es gibt noch keine Adresse, oder
+            // der Monteur hat «Ändern» gedrückt. Ohne Kundenzeile am Projekt
+            // (Skeleton) entfällt die Zeile ganz — es gäbe nichts, woran die
+            // Adresse hängen könnte, und der Server wiese sie mit 400 ab.
+            const emailInputOpen = !customerEmail || emailEditing
             return (
               <div className="projekte-detail-card">
                 <div className="projekte-detail-title">Projektinfos</div>
@@ -1187,6 +1260,88 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   <div className="projekte-detail-row">
                     <span className="projekte-detail-label">Kunde</span>
                     <span className="projekte-detail-value">{selected.customer?.billing_name || selected.customer?.name}</span>
+                  </div>
+                )}
+                {/* Kunden-E-Mail — die einzige Zeile dieser Karte, die man
+                    beschreiben kann (Spec docs/specs/kunden-email-erfassen.md).
+                    Bei vielen Kunden fehlt die Adresse, und der Einsatz ist die
+                    Gelegenheit, sie zu bekommen: der Monteur steht neben dem
+                    Kunden. Im Rapport-Chat wird bewusst NICHT danach gefragt —
+                    dort ist sie eine Frage zu viel; hier ist sie ein Feld, das man
+                    ausfüllt, wenn man die Angabe gerade hat. */}
+                {selected.customer && (
+                  <div className="projekte-detail-row">
+                    <span className="projekte-detail-label">Kunden-E-Mail</span>
+                    <span className="projekte-detail-value" style={{ flex: 1, minWidth: 0 }}>
+                      {emailInputOpen ? (
+                        <>
+                          <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <input
+                              type="email"
+                              inputMode="email"
+                              autoCapitalize="off"
+                              autoCorrect="off"
+                              spellCheck={false}
+                              aria-label="Kunden-E-Mail"
+                              placeholder="name@firma.ch"
+                              value={emailDraft}
+                              disabled={savingEmail || !online}
+                              onChange={e => { setEmailDraft(e.target.value); setEmailError(null) }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') { e.preventDefault(); void handleSaveCustomerEmail() }
+                                if (e.key === 'Escape' && customerEmail) { setEmailEditing(false); setEmailDraft('') }
+                              }}
+                              style={{ flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: 13, background: 'var(--surface, #fff)', color: 'var(--text)' }}
+                            />
+                            <button
+                              type="button"
+                              className="projekte-kontakt-link-btn"
+                              style={{ fontSize: 12 }}
+                              disabled={savingEmail || !online || !emailDraft.trim()}
+                              title={online ? undefined : OFFLINE_EMAIL_HINT}
+                              onClick={() => void handleSaveCustomerEmail()}
+                            >
+                              {savingEmail ? '…' : 'Speichern'}
+                            </button>
+                            {customerEmail && (
+                              <button
+                                type="button"
+                                className="projekte-kontakt-link-btn"
+                                style={{ fontSize: 12 }}
+                                disabled={savingEmail}
+                                onClick={() => { setEmailEditing(false); setEmailDraft(''); setEmailError(null) }}
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </span>
+                          {emailError && (
+                            <span style={{ display: 'block', fontSize: 12, color: 'var(--danger, #ef4444)', marginTop: 4 }}>
+                              {emailError}
+                            </span>
+                          )}
+                          {!online && !emailError && (
+                            <span className="projekte-offline-hint">{OFFLINE_EMAIL_HINT}</span>
+                          )}
+                        </>
+                      ) : (
+                        <span style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <a href={`mailto:${customerEmail}`} style={{ color: 'var(--accent)', textDecoration: 'none', minWidth: 0, overflowWrap: 'anywhere' }}>
+                            {customerEmail}
+                          </a>
+                          <button
+                            type="button"
+                            className="projekte-kontakt-link-btn"
+                            style={{ fontSize: 12 }}
+                            disabled={!online}
+                            title={online ? 'Adresse korrigieren' : OFFLINE_EMAIL_HINT}
+                            onClick={() => { setEmailDraft(customerEmail); setEmailEditing(true) }}
+                          >
+                            Ändern
+                          </button>
+                        </span>
+                      )}
+                    </span>
                   </div>
                 )}
                 {selected.object_name && (
@@ -1449,7 +1604,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   return (
     <div className="app-screen">
       <div className="inner-header">
-        <div className="inner-title">Meine Projekte</div>
+        <div className="inner-title">{alleProjekteSichtbar ? 'Projekte' : 'Meine Projekte'}</div>
         {logoUrl && <img src={logoUrl} alt="Logo" className="header-logo" />}
       </div>
 
@@ -1486,6 +1641,39 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         <Wochenplan projects={projects} userId={userId} onSelect={setSelected} onLoggedOut={onLoggedOut} />
       )}
 
+      {/* Suche über Name und Projektnummer. Steht ausserhalb von
+          `projekte-grid-scroll`, damit sie beim Scrollen der Kacheln stehen bleibt —
+          bei einer langen Liste (Feature `projects_show_all_to_staff`) ist genau das
+          der Fall, in dem man sie braucht. Bewusst ohne Mindest-Listenlänge: ein
+          Feld, das mal da ist und mal nicht, sucht man beim nächsten Mal zuerst. */}
+      {viewMode === 'grid' && !loading && projects.length > 0 && (
+        <div className="projekte-suche">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <circle cx="7" cy="7" r="4.5"/>
+            <path d="M10.5 10.5L14 14"/>
+          </svg>
+          <input
+            type="search"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Projekt oder Nummer suchen"
+            aria-label="Projekt oder Nummer suchen"
+            enterKeyHint="search"
+            autoComplete="off"
+          />
+          {search !== '' && (
+            <button
+              type="button"
+              className="projekte-suche-clear"
+              onClick={() => setSearch('')}
+              aria-label="Suche leeren"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
+
       {viewMode === 'grid' && (
       <div className="projekte-grid-scroll">
         {loading && (
@@ -1513,20 +1701,41 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         )}
 
         {!loading && listError === null && projects.length === 0 && (
-          <div className="projekte-empty">Du bist keinem Projekt zugewiesen.</div>
+          <div className="projekte-empty">
+            {alleProjekteSichtbar
+              ? 'Zurzeit gibt es keine offenen Projekte.'
+              : 'Du bist keinem Projekt zugewiesen.'}
+          </div>
         )}
 
-        {!loading && projects.length > 0 && (() => {
+        {/* Treffer-Null ist nicht dasselbe wie Liste-leer: hier hilft kein
+            "erneut versuchen", sondern ein anderer Suchbegriff. */}
+        {!loading && listError === null && projects.length > 0 && gefilterteProjekte.length === 0 && (
+          <div className="projekte-empty">
+            Kein Projekt gefunden für «{search.trim()}».
+            <div style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="projekte-kontakt-link-btn"
+                onClick={() => setSearch('')}
+              >
+                Suche zurücksetzen
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!loading && gefilterteProjekte.length > 0 && (() => {
           // Namen dürfen sich doppeln (zwei Liegenschaften desselben Kunden heissen
           // gleich). Dann — und nur dann — trägt die Kachel zusätzlich die
           // Projektnummer: sonst stehen zwei identische Kacheln untereinander und der
           // Monteur tippt auf gut Glück. Im Normalfall bleibt die Nummer weg, sie ist
           // für ihn keine Information, sondern Rauschen.
           const nameCount = new Map<string, number>()
-          projects.forEach(p => nameCount.set(p.name, (nameCount.get(p.name) ?? 0) + 1))
+          gefilterteProjekte.forEach(p => nameCount.set(p.name, (nameCount.get(p.name) ?? 0) + 1))
           const groupMap = new Map<string, Project[]>()
           const noDateKey = '__none__'
-          projects.forEach(p => {
+          gefilterteProjekte.forEach(p => {
             const key = p.start_date || noDateKey
             const arr = groupMap.get(key) ?? []
             arr.push(p)
@@ -1574,7 +1783,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                               von zwei Spalten. */}
                           <div className="projekte-tile-body">
                             <div className="projekte-tile-name">{p.name}</div>
-                            {(nameCount.get(p.name) ?? 0) > 1 && p.project_id_text && (
+                            {/* Sonst nur bei doppelten Namen. Während einer Suche
+                                immer: wer nach einer Nummer sucht, will an der
+                                Kachel sehen, dass es die richtige ist. */}
+                            {(search.trim() !== '' || (nameCount.get(p.name) ?? 0) > 1) && p.project_id_text && (
                               <div className="projekte-tile-nummer">Nr. {p.project_id_text}</div>
                             )}
                             <div className="projekte-tile-sub" style={isInternal ? { color: tileColor, fontWeight: 600 } : undefined}>

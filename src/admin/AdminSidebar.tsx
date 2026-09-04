@@ -119,6 +119,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
 
         <div className="admin-nav-group-label">Stammdaten</div>
         <NavItem label="Lieferanten" target="suppliers" current={screen} onNav={onNav} icon={<IconTag />} />
+        {has('supplier_wiki') && (
+          <NavItem label="Lieferanten-Wiki" target="supplier-wiki" current={screen} onNav={onNav} icon={<IconDocument />} />
+        )}
         <NavItem label="Material / Lager" target="materials" current={screen} onNav={onNav} icon={<IconBox />} />
         {isManagement && (
           <NavItem label="Personal" target="staff-roles" current={screen} onNav={onNav} icon={<IconUsers />} />

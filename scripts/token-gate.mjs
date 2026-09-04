@@ -68,8 +68,11 @@ import { join, relative } from 'node:path'
 // KpiHubScreen/KpiDashboardScreen (docs/specs/kennzahlen-refactoring.md §6 —
 // sie trugen 19 der Treffer). Seit Phase D sind auch die zwoelf Kennfarben der
 // Kennzahlen-Reiter Tokens (--kpi-tab-*): neun Treffer weniger, obwohl drei
-// Reiter dazugekommen sind. Nur senken.
-const HEX_BUDGET = 123
+// Reiter dazugekommen sind. 2026-09-04: die Monteur-Chips der Projektmaske
+// haben ihr Inline-`#fff` an die Klasse .project-team-chip abgegeben. 2026-09-04:
+// die Hilfe-Blase schreibt ihr Symbol in `--on-accent` statt in festem `#fff`.
+// Nur senken.
+const HEX_BUDGET = 121
 
 // Bestand am 2026-08-27, nach dem Aufräumen der Phantom-Tokens: nur noch die
 // 11 Stellen mit echtem Laufzeit-Token (siehe 3 oben). Nur senken.

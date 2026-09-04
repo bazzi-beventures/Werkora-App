@@ -17,7 +17,7 @@ const KNOWN_MODULES = [
   'ai', 'help_bot', 'clock_in_reminder', 'hr_weekly_report', 'clock_out_reminder',
   'auto_clockout_correction_reminder', 'approval_push', 'morning_briefing',
   'project_change_push', 'admin_clock_in_push', 'aftersales', 'document_backup',
-  'rapport_check_mail', 'task_board', 'newsletter', 'support',
+  'rapport_check_mail', 'task_board', 'newsletter', 'support', 'supplier_wiki',
 ]
 
 describe('moduleOfAction', () => {

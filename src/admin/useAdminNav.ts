@@ -20,6 +20,7 @@ export type AdminScreen =
   | 'aftersales'
   | 'payment-reconciliation'
   | 'suppliers'
+  | 'supplier-wiki'
   | 'staff-roles'
   | 'materials'
   | 'pricing-rules'

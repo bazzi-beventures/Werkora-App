@@ -164,4 +164,18 @@ describe('AppointmentsCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Petra Schmid' }))
     expect(onChange.mock.calls[1][0][0].monteurIds).toEqual([])
   })
+
+  it('hebt den zuerst gewählten Monteur als Lead hervor', () => {
+    // Reihenfolge zählt: Petra wurde zuerst gewählt, also ist sie der Lead —
+    // dieselbe Regel wie in der Einsatzplanung (monteur_ids[0]).
+    setup([draft({ ownTeam: true, monteurIds: ['s-2', 's-1'] })])
+    fireEvent.click(screen.getByText('Montage'))
+    const petra = screen.getByRole('button', { name: 'Petra Schmid' })
+    const marvin = screen.getByRole('button', { name: 'Marvin Walser' })
+    expect(petra).toHaveClass('lead')
+    expect(petra).toHaveAttribute('title', expect.stringContaining('Lead-Monteur'))
+    expect(marvin).toHaveClass('active')
+    expect(marvin).not.toHaveClass('lead')
+    expect(screen.getByText(/Rot = Lead-Monteur/)).toBeTruthy()
+  })
 })

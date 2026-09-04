@@ -199,6 +199,9 @@ const ACTION_LABELS: Record<string, string> = {
   admin_create_customer: 'Kunde angelegt',
   admin_update_customer: 'Kunde geändert',
   admin_delete_customer: 'Kunde gelöscht',
+  // Der Monteur trägt die Adresse vom Einsatz aus nach — der einzige Schreibzugriff
+  // der Mitarbeiter-PWA auf den Kundenstamm (Spec kunden-email-erfassen.md).
+  user_set_customer_email: 'Kunden-E-Mail erfasst',
 
   // ── Benutzer & Stammdaten ──
   admin_create_staff: 'Mitarbeiter angelegt',

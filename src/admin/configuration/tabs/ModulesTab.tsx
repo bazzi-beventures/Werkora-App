@@ -33,6 +33,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   ai:               { label: 'AI-Funktionen',     desc: 'Mistral-Chat, Voxtral-Voice, KPI-Insights', category: 'ki' },
   help_bot:         { label: 'Hilfe-Bot',         desc: 'In-App-Hilfe per Chat über die Bedien-Handbücher', category: 'ki' },
   support:          { label: 'Support-Meldung',   desc: 'Support-Knopf in der Hilfe-Blase (Monteur-PWA und Admin): Problem beschreiben oder diktieren, bis zu drei Screenshots anhängen. Der Server legt einen Aktivitäts-Snapshot der letzten 15 Minuten bei, die Meldung läuft beim Superadmin ein. Bewusst ohne Hilfe-Bot nutzbar.', category: 'ki' },
+  supplier_wiki:    { label: 'Lieferanten-Wiki', desc: 'Handbücher der Lieferanten (Montageanleitungen, Datenblätter) hochladen; die Monteure fragen sie in der Hilfe-Blase unter «<Firma> Wiki» ab und öffnen das PDF direkt. Eigene Wissensbasis, unabhängig vom Hilfe-Bot.', category: 'ki' },
   document_backup:  { label: 'Datensicherung',    desc: 'Management kann alle Dokumente (Rechnungen/Offerten/Rapporte) als ein ZIP exportieren; Fertig-Meldung per Push, Download-Link 12 h gültig', category: 'other' },
   // Benachrichtigungen — Mail
   hr_weekly_report: { label: 'Wochen-HR-Übersicht', desc: 'Wöchentliches HR-Journal per Mail am Montag (benötigt HR). Journal & Überstunden-Salden werden weiterhin erstellt — nur die Mail entfällt.', category: 'notifications', channel: 'mail' },

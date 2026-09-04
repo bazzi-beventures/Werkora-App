@@ -30,6 +30,7 @@ import PaymentReconciliationScreen from './operative/PaymentReconciliationScreen
 import PricingRulesScreen from './operative/PricingRulesScreen'
 import QuoteTemplatesScreen from './operative/QuoteTemplatesScreen'
 import SuppliersScreen from './masterdata/SuppliersScreen'
+import SupplierWikiScreen from './wiki/SupplierWikiScreen'
 import StaffRolesScreen from './masterdata/StaffRolesScreen'
 import UsersScreen from './system/UsersScreen'
 import DocumentBackupScreen from './system/DocumentBackupScreen'
@@ -92,6 +93,7 @@ const SCREEN_TITLES: Record<AdminScreen, string> = {
   'aftersales': 'After Sales',
   'payment-reconciliation': 'Zahlungsabgleich',
   'suppliers': 'Lieferanten',
+  'supplier-wiki': 'Lieferanten-Wiki',
   'staff-roles': 'Personal',
   'materials': 'Material / Lager',
   'pricing-rules': 'Preisregeln',
@@ -262,6 +264,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'aftersales':   return guard('aftersales', <AftersalesScreen />)
       case 'payment-reconciliation': return guard('payment_matching', <PaymentReconciliationScreen />)
       case 'suppliers':    return <SuppliersScreen />
+      case 'supplier-wiki': return guard('supplier_wiki', <SupplierWikiScreen />)
       case 'staff-roles':  return <StaffRolesScreen />
       case 'materials':    return <MaterialsScreen user={user} />
       case 'pricing-rules':return <PricingRulesScreen />

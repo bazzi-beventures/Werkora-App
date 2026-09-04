@@ -154,3 +154,87 @@ describe('HelpBubble — Hilfe und Support unabhängig schaltbar', () => {
   })
 })
 
+
+describe('HelpBubble — hält Abstand zur GEMESSENEN Leiste (iPhone-Fehlerbild)', () => {
+  /** Eine Tab-Leiste ins Dokument hängen, deren Rechteck jsdom sonst mit 0 misst. */
+  function mountNavBar(height: number) {
+    const bar = document.createElement('div')
+    bar.className = 'admin-mobile-tabbar'
+    bar.getBoundingClientRect = () => ({
+      top: window.innerHeight - height, bottom: window.innerHeight,
+      left: 0, right: window.innerWidth, width: window.innerWidth, height,
+      x: 0, y: window.innerHeight - height, toJSON: () => ({}),
+    })
+    document.body.appendChild(bar)
+    return bar
+  }
+
+  it('setzt den Ruhezustand über die Leiste statt auf die gerechneten 72px', () => {
+    // 56px Leiste + 34px Home-Indicator: genau der Fall, in dem der gerechnete
+    // Wert (72px) die Blase auf «Rechnungen»/«Mehr» setzte.
+    const bar = mountNavBar(90)
+    render(<HelpBubble />)
+    expect(getFab().style.bottom).toBe('106px')   // 90 gemessen + 16 Luft
+    bar.remove()
+  })
+
+  it('klemmt auch beim Ziehen über der gemessenen Leiste', () => {
+    const bar = mountNavBar(90)
+    render(<HelpBubble />)
+    const fab = getFab()
+    fireEvent.pointerDown(fab, { clientX: 0, clientY: 0, pointerId: 1 })
+    fireEvent.pointerMove(fab, { clientX: 9999, clientY: 9999, pointerId: 1 })
+    fireEvent.pointerUp(fab, { clientX: 9999, clientY: 9999, pointerId: 1 })
+
+    const top = parseInt(fab.style.top, 10)
+    // Unterkante der Blase bleibt über der Oberkante der Leiste.
+    expect(top + FAB).toBeLessThanOrEqual(window.innerHeight - 90)
+    bar.remove()
+  })
+
+  it('fällt ohne Leiste im Bild auf den gerechneten Wert zurück (Desktop-Admin)', () => {
+    render(<HelpBubble />)
+    expect(getFab().style.bottom).toBe(`${BOTTOM_RESERVE}px`)
+  })
+})
+
+describe('HelpBubble — Mandantenfarbe der umgebenden App', () => {
+  it('nimmt im Admin das Admin-Token --primary', () => {
+    render(<HelpBubble appContext="admin" />)
+    expect(getFab().style.background).toContain('--primary')
+  })
+
+  it('nimmt in der Monteur-App das Token --accent', () => {
+    render(<HelpBubble appContext="pwa" />)
+    expect(getFab().style.background).toContain('--accent')
+  })
+
+  it('schreibt das Symbol in --on-accent statt in festem Weiss', () => {
+    render(<HelpBubble appContext="admin" />)
+    expect(getFab().style.color).toContain('--on-accent')
+  })
+})
+
+describe('HelpBubble — folgt der Leiste über Screenwechsel hinweg', () => {
+  it('nimmt eine Leiste auf, die erst nach dem Mount dazukommt', () => {
+    // Die Blase wird einmal auf App-Ebene gerendert und überlebt jeden
+    // Screenwechsel; die Leiste darunter nicht. Ein Screen ohne Leiste
+    // (Rapport, Anmeldung) darf keinen zu kleinen Abstand hinterlassen,
+    // wenn danach wieder einer mit Leiste kommt.
+    const { rerender } = render(<HelpBubble />)
+    expect(getFab().style.bottom).toBe(`${BOTTOM_RESERVE}px`)
+
+    const bar = document.createElement('div')
+    bar.className = 'nav-bar'
+    bar.getBoundingClientRect = () => ({
+      top: window.innerHeight - 90, bottom: window.innerHeight,
+      left: 0, right: window.innerWidth, width: window.innerWidth, height: 90,
+      x: 0, y: window.innerHeight - 90, toJSON: () => ({}),
+    })
+    document.body.appendChild(bar)
+
+    rerender(<HelpBubble />)
+    expect(getFab().style.bottom).toBe('106px')
+    bar.remove()
+  })
+})

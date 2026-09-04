@@ -22,6 +22,7 @@ export type ModuleName =
   | 'task_board'
   | 'support'
   | 'newsletter'
+  | 'supplier_wiki'
 
 export function hasModule(user: UserInfo | null, name: ModuleName): boolean {
   if (!user) return false

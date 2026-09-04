@@ -193,26 +193,39 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                       Eigenes Team für diesen Termin
                     </label>
                     {d.ownTeam ? (
-                      <div className="project-appt-chips">
-                        {staff.length === 0 && (
-                          <span style={{ color: 'var(--muted)', fontSize: 13 }}>Keine Mitarbeiter gefunden.</span>
+                      <>
+                        <div className="project-team-chips">
+                          {staff.length === 0 && (
+                            <span style={{ color: 'var(--muted)', fontSize: 13 }}>Keine Mitarbeiter gefunden.</span>
+                          )}
+                          {staff.map(s => {
+                            // Lead = der zuerst angewählte Monteur, rot wie in der
+                            // Einsatzplanung und in der Projekt-Team-Kachel darüber.
+                            const lead = d.monteurIds[0] === s.id
+                            return (
+                              <button
+                                key={s.id}
+                                type="button"
+                                className={`project-team-chip${d.monteurIds.includes(s.id) ? ' active' : ''}${lead ? ' lead' : ''}`}
+                                title={lead ? 'Lead-Monteur (zuerst gewählt)' : undefined}
+                                onClick={() => toggleMonteur(d, s.id)}
+                              >
+                                {s.name}
+                              </button>
+                            )
+                          })}
+                          {d.monteurIds.length === 0 && (
+                            <span style={{ color: 'var(--muted)', fontSize: 12, alignSelf: 'center' }}>
+                              Keine Auswahl = Projekt-Team.
+                            </span>
+                          )}
+                        </div>
+                        {d.monteurIds.length > 1 && (
+                          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+                            Rot = Lead-Monteur (der zuerst gewählte). Abwählen und neu wählen ändert ihn.
+                          </div>
                         )}
-                        {staff.map(s => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            className={`project-appt-chip${d.monteurIds.includes(s.id) ? ' active' : ''}`}
-                            onClick={() => toggleMonteur(d, s.id)}
-                          >
-                            {s.name}
-                          </button>
-                        ))}
-                        {d.monteurIds.length === 0 && (
-                          <span style={{ color: 'var(--muted)', fontSize: 12, alignSelf: 'center' }}>
-                            Keine Auswahl = Projekt-Team.
-                          </span>
-                        )}
-                      </div>
+                      </>
                     ) : (
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
                         Es gilt das Projekt-Team{team.names ? `: ${team.names}` : ' (noch niemand zugeteilt)'}.

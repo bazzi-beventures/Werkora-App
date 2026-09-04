@@ -3,6 +3,12 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  /* Die sichtbare Fensterhöhe. Steht hier als Vorgabe, damit das Stylesheet
+     allein schon stimmt; zur Laufzeit überschreibt shared/viewportHeight.ts
+     sie auf `<html>` mit dem gemessenen Pixelwert. Warum gemessen statt
+     gerechnet, steht in jenem Modul. */
+  --app-vh: 100dvh;
+
   --bg: #0F172A;
   --surface: #1E293B;
   --surface2: #273449;
@@ -154,7 +160,15 @@
 }
 
 html, body, #root {
-  height: 100%;
+  /* NICHT `height: 100%`: das misst gegen den Initial Containing Block, und
+     der ist auf iOS Safari der GROSSE Viewport — die Fläche hinter den
+     Browserleisten mitgerechnet. Das Dokument war damit höher als das, was
+     man sieht, liess sich um die Differenz anschieben und nahm die untere
+     Leiste mit nach oben. Hier steht jetzt dasselbe Maß wie in den Shells
+     (siehe shared/viewportHeight.ts), damit das Dokument selbst gar nichts
+     mehr zu scrollen hat. */
+  height: 100dvh;
+  height: var(--app-vh, 100dvh);
   background: var(--app-bg);
   font-family: var(--font);
   color: var(--text);
@@ -169,7 +183,12 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .app-screen {
   display: flex;
   flex-direction: column;
+  /* Gemessene Fensterhöhe statt `100dvh` allein: iOS zieht den dvh-Wert beim
+     Ein-/Ausfahren der Browserleisten verzögert nach und liefert ihn im
+     Standalone-Modus je nach Version mit oder ohne Home-Indicator. Der
+     Rückfall bleibt 100dvh, falls die Variable fehlt. */
   height: 100dvh;
+  height: var(--app-vh, 100dvh);
   background: var(--bg);
   max-width: 480px;
   margin: 0 auto;
@@ -184,6 +203,7 @@ input, textarea { font-family: var(--font); color: var(--text); }
   align-items: center;
   justify-content: center;
   height: 100dvh;
+  height: var(--app-vh, 100dvh);
   background: var(--bg);
   gap: 12px;
 }
@@ -1582,6 +1602,57 @@ input, textarea { font-family: var(--font); color: var(--text); }
   background: var(--accent-amber-dim);
   color: var(--accent-amber);
   border-color: var(--accent-amber-dim);
+}
+
+/* Suche über Name und Projektnummer, über der Kachelliste. Ausserhalb des
+   Scroll-Containers, damit sie beim Scrollen stehen bleibt. */
+.projekte-suche {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 16px 0;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+.projekte-suche svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.projekte-suche input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  /* 16px, nicht 14: iOS Safari zoomt beim Fokus in jedes Eingabefeld mit
+     kleinerer Schrift hinein und lässt den Screen verschoben zurück. */
+  font-size: 16px;
+  padding: 10px 0;
+  outline: none;
+}
+.projekte-suche input::placeholder {
+  color: var(--muted);
+}
+/* Die native Kreuz-Taste von type="search" (WebKit) doppelt unseren eigenen
+   Knopf und sitzt an anderer Stelle. */
+.projekte-suche input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.projekte-suche-clear {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 2px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .projekte-grid-scroll {

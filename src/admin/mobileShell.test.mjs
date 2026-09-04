@@ -36,6 +36,27 @@ describe('Admin-Mobile-Shell', () => {
     expect(block('.admin-mobile-tabbar')).toMatch(/height:\s*calc\(56px \+ env\(safe-area-inset-bottom/)
   })
 
+  it('misst die Shell an der gemessenen Fensterhoehe, nicht an 100%', () => {
+    // `height: 100%` misst gegen den Initial Containing Block — auf iOS Safari
+    // der GROSSE Viewport, hinter den Browserleisten. Shell und Dokument
+    // meinten dann zwei Hoehen: die Seite liess sich anschieben, die Leiste
+    // rutschte hoch, der untere Inhalt verschwand.
+    const shell = block('.admin-shell-mobile')
+    expect(shell).toMatch(/height:\s*var\(--app-vh, 100dvh\)/)
+    // Rueckfallkette: ohne die Variable (Test, Fehler vor dem ersten Render)
+    // bleibt 100dvh stehen.
+    expect(shell).toMatch(/height:\s*100dvh/)
+  })
+
+  it('haelt das Legacy-Momentum-Scrolling draussen', () => {
+    // `-webkit-overflow-scrolling: touch` stammt aus der Zeit vor iOS 13 und
+    // legt den Container heute nur noch in eine eigene Compositing-Ebene —
+    // dort bleiben Flaechen weiss und die Liste haengt nach einer Geste fest.
+    // Ohne Kommentare geprueft: einer davon nennt die Eigenschaft genau
+    // deshalb beim Namen, damit sie niemand zurueckschreibt.
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/-webkit-overflow-scrolling/)
+  })
+
   it('traegt den oberen Safe-Area-Inset an der klebenden Topbar, nicht am Scroll-Container', () => {
     // `sticky top: 0` klebt am Rand der Padding-Box: liegt der Inset am
     // Scroll-Container, rutscht die Topbar beim Scrollen unter die Uhr.

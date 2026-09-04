@@ -719,7 +719,10 @@ export default function App() {
     onBubbleScreen && hasModule(user, 'help_bot') && isFeatureEnabled(user, 'help_bot_pwa')
   const showSupport =
     onBubbleScreen && hasModule(user, 'support') && isFeatureEnabled(user, 'support_pwa')
-  const showHelpBubble = showHelp || showSupport
+  // Lieferanten-Wiki: nur das Modul, kein zusätzliches Feature-Flag — der Reiter
+  // gehört von Haus aus dem Monteur, nicht dem Admin (Spec docs/specs/lieferanten-wiki.md).
+  const showWiki = onBubbleScreen && hasModule(user, 'supplier_wiki')
+  const showHelpBubble = showHelp || showSupport || showWiki
 
   return (
     <>
@@ -734,6 +737,8 @@ export default function App() {
           columnMaxWidth={480}
           showHelp={showHelp}
           showSupport={showSupport}
+          showWiki={showWiki}
+          tenantName={tenantName}
           route={screen}
           appContext="pwa"
         />

@@ -30,6 +30,8 @@ const pctCell = (v: unknown) => (typeof v === 'number' ? `${v.toLocaleString('de
 const ENDPOINT_LABELS: Record<string, string> = {
   help_bot: 'Hilfe-Bot (Chat)',
   help_embed: 'Hilfe-Bot (Embedding)',
+  wiki_bot: 'Lieferanten-Wiki (Chat)',
+  wiki_embed: 'Lieferanten-Wiki (Embedding)',
   pwa_chat: 'PWA-Chat',
   kpi: 'KPI-Analyse',
   material: 'Material-Matching',

@@ -35,8 +35,17 @@ export interface StaffRole {
   sort_order?: number | null
 }
 
+// Anzeige-Reihenfolge aller Mitarbeiter-Listen: alphabetisch nach Name.
+// Die Reihenfolge aus der DB ist die Anlagereihenfolge — in einer Auswahl mit
+// 18 Monteuren (Projekt-Team, Plantafel-Zeilen, Tagesplan-Auswahl) sucht man
+// darin jeden Namen einzeln. `de-CH` sortiert Umlaute einheimisch ein
+// («Schäfler» zwischen «Schafer» und «Schafler», nicht hinter «Z»).
+export function sortStaffByName<T extends { name?: string | null }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'de-CH'))
+}
+
 export async function getAdminStaff(): Promise<StaffMember[]> {
-  return apiFetch<StaffMember[]>('/pwa/admin/staff')
+  return sortStaffByName(await apiFetch<StaffMember[]>('/pwa/admin/staff'))
 }
 
 export async function getStaffRoles(): Promise<StaffRole[]> {
