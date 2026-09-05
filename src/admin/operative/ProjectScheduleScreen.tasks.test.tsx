@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjectScheduleScreen from './ProjectScheduleScreen'
 import {
-  listAppointments, getSchedulingConfig, upsertProject,
+  listAppointments, loadSchedulingConfig, upsertProject,
 } from '../../api/admin'
 import {
   listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
@@ -35,7 +35,7 @@ vi.mock('../../api/admin', async (importOriginal) => {
     createAppointment: vi.fn(),
     updateAppointment: vi.fn(),
     deleteAppointment: vi.fn(),
-    getSchedulingConfig: vi.fn(),
+    loadSchedulingConfig: vi.fn(),
     upsertProject: vi.fn(),
     resolveScheduleDistances: vi.fn().mockResolvedValue({ distances: [] }),
   }
@@ -68,7 +68,9 @@ function mockLoad(tasks: unknown[] = [TASK]) {
     return Promise.resolve(PROJECT)
   })
   vi.mocked(listAppointments).mockResolvedValue([] as never)
-  vi.mocked(getSchedulingConfig).mockResolvedValue({ config: {}, defaults: DEFAULTS } as never)
+  // Der Screen holt die Anzeige-Config gemergt und gecacht (loadSchedulingConfig),
+  // bewusst neben dem grossen Datenladen — siehe ProjectScheduleScreen.
+  vi.mocked(loadSchedulingConfig).mockResolvedValue(DEFAULTS as never)
   vi.mocked(upsertProject).mockResolvedValue({ project: { id: 'p1' } } as never)
   vi.mocked(listAdminProjectTasks).mockResolvedValue(tasks as never)
   vi.mocked(addAdminProjectTask).mockResolvedValue(undefined as never)

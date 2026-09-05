@@ -1,5 +1,6 @@
 ﻿import { Fragment, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import type { Project } from '../../api/admin/projects'
+import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import {
   SCHEDULING_VIEWS,
   type SchedulingConfig, type SchedulingViewKey,
@@ -21,6 +22,7 @@ import {
 } from '../utils/ganttGrid'
 import ProjectScheduleGantt from './ProjectScheduleGantt'
 import {
+  absenceLookup,
   crewMembers, entryTitle, fmtTime, fmtTimeRange, hasUnassignedEntries, kindSymbol,
   neededDistancePairs, overlapConflictIds, pillBg, pillClass, pillExtraLines,
   projectCoversDay, projectMonteurNames, readDragPayload, reassignTeam, rowEntries,
@@ -64,6 +66,16 @@ interface Props {
   onVisibleStaffChange?: (visibleIds: string[] | null) => void
   // Tenant-Anzeige-Config: Einsatz-Art-Farben + optionale Kachel-Felder.
   schedulingConfig?: SchedulingConfig
+  // Die Config ist noch unterwegs. Ohne sie gilt «fehlender Key = Ansicht an» —
+  // die Reiterleiste zeigte also alle sechs Ansichten und blendete die
+  // abgeschalteten erst beim Eintreffen aus. Solange dieses Flag steht, bleibt
+  // die Leiste stattdessen leer und der Inhalt im Ladezustand: lieber kurz
+  // nichts als kurz eine Ansicht, die es im Mandanten nicht gibt.
+  configPending?: boolean
+  // Genehmigte Absenzen im geladenen Fenster. Die Plantafel schraffiert damit
+  // die Zellen der Abwesenden — der Konflikt ist so sichtbar, BEVOR jemand
+  // hineinzieht; der Server lehnt danach ohnehin ab (mit Rückfrage).
+  absences?: ScheduleAbsence[]
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -558,7 +570,7 @@ function WeekView({
 
 function PlantafelView({
   projects, staff, rowStaff, fields, currentDate, onSelect, onOpenProject, onReschedule, onCreateCell, holidays,
-  showDistances,
+  showDistances, absences,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -576,6 +588,8 @@ function PlantafelView({
   holidays: Map<string, string>
   // Fahrdistanzen zwischen aufeinanderfolgenden Einsätzen anzeigen (Tenant-Config).
   showDistances?: boolean
+  // Genehmigte Absenzen im geladenen Fenster (leer = Modul aus oder nichts los).
+  absences?: ScheduleAbsence[]
 }) {
   const days = getWeekDays(currentDate)
   // Hover-Zelle beim Drag: `${dayISO}|${rowId}` (rowId '' = «Ohne Monteur»).
@@ -594,6 +608,8 @@ function PlantafelView({
   const distBetween = useScheduleDistances(
     showDistances ? neededDistancePairs(projects, staffIds, rowStaff, days) : [],
   )
+
+  const absentOn = absenceLookup(absences ?? [])
 
 
   function handleDrop(e: React.DragEvent, day: Date, rowId: string | null) {
@@ -656,12 +672,15 @@ function PlantafelView({
           const cellKey = `${dayISO}|${rowId ?? ''}`
           const entries = cellEntries(rowId, d)
           const conflicts = rowId !== null ? overlapConflictIds(entries) : new Set<string>()
+          // «Ohne Monteur» ist niemand — dort gibt es auch keine Abwesenheit.
+          const absence = rowId !== null ? absentOn(rowId, dayISO) : null
           return (
             <div
               key={dayISO}
               className={
                 `project-cal-board-cell${isToday(d) ? ' today' : ''}` +
                 `${holidays.has(dayISO) ? ' holiday' : ''}` +
+                `${absence ? ' absent' : ''}` +
                 `${hoverCell === cellKey ? ' project-cal-drop-hover' : ''}` +
                 `${onCreateCell ? ' creatable' : ''}`
               }
@@ -672,8 +691,9 @@ function PlantafelView({
                 // Nur Klicks auf die freie Zellfläche — Chips öffnen ihr Panel selbst.
                 if (onCreateCell && e.target === e.currentTarget) onCreateCell(dayISO, rowId)
               }}
-              title={onCreateCell ? 'Klicken, um hier einen Einsatz zu planen' : undefined}
+              title={absence ?? (onCreateCell ? 'Klicken, um hier einen Einsatz zu planen' : undefined)}
             >
+              {absence && <div className="project-cal-board-absence">{absence}</div>}
               {entries.map((p, i) => {
                 const next = entries[i + 1]
                 const km = showDistances && rowId !== null && next ? distBetween(p, next) : null
@@ -840,7 +860,7 @@ function readGanttSpan(): number {
 
 export default function ProjectScheduleCalendar({
   projects, staff, loading, canton = 'ZH', onSelect, onOpenProject, onReschedule, onCreateSlot,
-  onVisibleWeekChange, onVisibleStaffChange, schedulingConfig,
+  onVisibleWeekChange, onVisibleStaffChange, schedulingConfig, configPending = false, absences,
 }: Props) {
   const [viewMode, setViewMode] = useState<SchedulingViewKey>('month')
   const isMobile = useIsMobile()
@@ -853,6 +873,10 @@ export default function ProjectScheduleCalendar({
   const viewEnabled = (k: SchedulingViewKey) => schedulingConfig?.views?.[k] !== false
   const availableViews = SCHEDULING_VIEWS.filter(v => viewEnabled(v.key))
   const view: SchedulingViewKey = viewEnabled(viewMode) ? viewMode : (availableViews[0]?.key ?? 'month')
+  // Solange die Config fehlt, steht `view` nur auf dem Default und nicht auf der
+  // Ansicht, die der Mandant tatsächlich zuerst sieht — alles, was daran hängt
+  // (Reiter, Filterzeilen, Zoom, Inhalt), wartet deshalb wie beim Datenladen.
+  const busy = loading || configPending
   // Einsatz-Art-Farben als scoped CSS-Variablen (--kind-*) auf dem Kalender-Root.
   const kindColorVars: React.CSSProperties = {}
   for (const [k, v] of Object.entries(schedulingConfig?.colors || {})) {
@@ -1016,8 +1040,12 @@ export default function ProjectScheduleCalendar({
   return (
     <div style={kindColorVars}>
       <div className="absence-cal-toolbar">
+        {/* Ohne Config wird hier NICHT gerendert (siehe configPending): welche
+            Ansichten es gibt, entscheidet der Mandant — eine Leiste, die erst
+            alle sechs zeigt und dann auf drei zusammenfällt, verrät Ansichten,
+            die dieser Mandant gar nicht gebucht hat. */}
         <div style={{ display: 'flex', gap: 6 }}>
-          {isMobile ? (
+          {configPending ? null : isMobile ? (
             <>
               <button
                 className={`admin-btn admin-btn-sm ${view !== 'staff' ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
@@ -1069,7 +1097,7 @@ export default function ProjectScheduleCalendar({
         )}
       </div>
 
-      {!loading && view === 'staff' && staff.length > 0 && (
+      {!busy && view === 'staff' && staff.length > 0 && (
         <div className="project-cal-staff-switcher">
           <span className="project-cal-filter-label">Mitarbeiter</span>
           <div className="project-cal-staff-switcher-nav">
@@ -1102,7 +1130,7 @@ export default function ProjectScheduleCalendar({
         </div>
       )}
 
-      {!loading && view !== 'staff' && staff.length > 0 && (
+      {!busy && view !== 'staff' && staff.length > 0 && (
         <div className="project-cal-filter">
           <div className="project-cal-filter-head">
             <span>
@@ -1136,7 +1164,7 @@ export default function ProjectScheduleCalendar({
         </div>
       )}
 
-      {!loading && !isMobile && (view === 'week' || view === 'staff' || view === 'gantt') && (
+      {!busy && !isMobile && (view === 'week' || view === 'staff' || view === 'gantt') && (
         <div className="project-cal-zoom">
           {view === 'gantt' && (
             <>
@@ -1176,7 +1204,7 @@ export default function ProjectScheduleCalendar({
         </div>
       )}
 
-      {loading ? (
+      {busy ? (
         <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>
       ) : view === 'staff' && !focusedStaff ? (
         <div className="admin-empty">Keine Mitarbeiter verfügbar.</div>
@@ -1237,6 +1265,7 @@ export default function ProjectScheduleCalendar({
             : undefined}
           holidays={holidays}
           showDistances={schedulingConfig?.show_distances !== false}
+          absences={absences}
         />
       ) : view === 'month' ? (
         <MonthView
@@ -1268,8 +1297,8 @@ export default function ProjectScheduleCalendar({
 
       {/* Die Karte bringt ihre eigene Legende mit (Farbskala, Gewichtung) —
           zwei Legenden übereinander sind Lärm. */}
-      {!loading && !isMobile && view !== 'map' && <CalendarLegend canton={canton} />}
-      {!loading && isMobile && (
+      {!busy && !isMobile && view !== 'map' && <CalendarLegend canton={canton} />}
+      {!busy && isMobile && (
         <div className="project-cal-agenda-hint">
           Einsatz antippen zum Bearbeiten, <strong>+</strong> für neuen Einsatz.
         </div>

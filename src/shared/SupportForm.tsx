@@ -162,7 +162,13 @@ export default function SupportForm({ route, appContext }: Props) {
   // Gerät registriert, VAPID nicht konfiguriert) — diese Anzeige nie.
   if (reference) {
     return (
-      <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{
+        // Gleiche Regel wie im Formular: eigene Höhe, sonst wird die Quittung
+        // im niedrigen Panel abgeschnitten statt scrollbar (mit Fehlerhinweis
+        // zu verlorenen Bildern wird sie schnell länger, als das Panel hoch ist).
+        height: '100%', overflowY: 'auto',
+        padding: 16, display: 'flex', flexDirection: 'column', gap: 12,
+      }}>
         <div style={{ fontWeight: 600 }}>Meldung {reference} ist eingegangen.</div>
         <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
           Wir schauen sie uns an. Notiere dir die Nummer, falls du nachfragen möchtest.
@@ -195,7 +201,16 @@ export default function SupportForm({ route, appContext }: Props) {
     // ersten Bildes liegt der Fokus oft nicht mehr im Textfeld, und ein zweites
     // Strg+V soll trotzdem ankommen.
     <div onPaste={handlePaste}
-         style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto' }}>
+         style={{
+           // `height: 100%` gehört zwingend zum `overflowY: auto`: ohne eigene
+           // Höhe wächst dieses Feld einfach auf Inhaltshöhe, scrollt also nie
+           // — und weil das Panel in HelpBubble `overflow: hidden` trägt, wurde
+           // stattdessen unten abgeschnitten (auf dem Handy fiel der
+           // DSGVO-Hinweis mitten im Satz weg, teils auch «Meldung senden»).
+           // HelpBot und WikiBot füllen ihren Platz genauso.
+           height: '100%', overflowY: 'auto',
+           padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
+         }}>
       <label htmlFor="support-message" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
         Was ist passiert?
       </label>

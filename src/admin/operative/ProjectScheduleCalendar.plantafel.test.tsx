@@ -48,6 +48,7 @@ const CONFIG_ALL: SchedulingConfig = {
 function renderCal(opts: {
   entries?: CalendarEntry[]
   config?: SchedulingConfig | undefined
+  configPending?: boolean
   onReschedule?: (id: string, d: number, t?: string | null, m?: string[]) => void
   onCreateSlot?: (dayISO: string, start: string, end: string, monteurId: string | null) => void
 } = {}) {
@@ -60,6 +61,7 @@ function renderCal(opts: {
       onReschedule={opts.onReschedule ?? vi.fn()}
       onCreateSlot={opts.onCreateSlot}
       schedulingConfig={opts.config}
+      configPending={opts.configPending}
     />,
   )
 }
@@ -142,6 +144,35 @@ describe('Plantafel', () => {
     fireEvent.drop(targetCell, { dataTransfer })
 
     expect(onReschedule).toHaveBeenCalledWith('a1', 1, undefined, ['s2'])
+  })
+
+  // Ohne Config gilt «fehlender Key = Ansicht an». Die Reiterleiste zeigte
+  // deshalb bis zum Eintreffen der Antwort alle sechs Ansichten und fiel dann
+  // auf die des Mandanten zusammen — der Planer sah kurz Ansichten, die es bei
+  // ihm gar nicht gibt. Solange configPending steht, bleibt die Leiste leer.
+  it('zeigt keine Ansichten-Buttons, solange die Config unterwegs ist', () => {
+    const { container, rerender } = renderCal({ configPending: true })
+    for (const label of ['Monat', 'Woche', 'Mitarbeiter', 'Plantafel', 'Tagesplan', 'Karte']) {
+      expect(screen.queryByRole('button', { name: label })).not.toBeInTheDocument()
+    }
+    // Auch der Inhalt wartet: sonst blitzte die Default-Ansicht (Monat) auf,
+    // bevor die erste erlaubte Ansicht greift.
+    expect(container.querySelector('.absence-cal-month-grid')).not.toBeInTheDocument()
+    expect(screen.getByText('Laden…')).toBeInTheDocument()
+
+    rerender(
+      <ProjectScheduleCalendar
+        projects={[entry({})]}
+        staff={STAFF}
+        loading={false}
+        onSelect={vi.fn()}
+        onReschedule={vi.fn()}
+        schedulingConfig={{ ...CONFIG_ALL, views: { month: false, week: false, staff: false, gantt: false, plantafel: true } }}
+        configPending={false}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Plantafel' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Monat' })).not.toBeInTheDocument()
   })
 
   it('abgeschaltete Ansichten erscheinen nicht als Button; Fallback auf die erste erlaubte', () => {

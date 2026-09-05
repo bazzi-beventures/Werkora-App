@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { sendMessageStream, sendVoice, confirmReport, cancelReport, disambiguateMaterial, chooseProject, uploadPhoto, downloadRapportPdf, deleteOwnRapport, ChatResponse, DisambiguationOption, ProjectChoiceOption, SummaryItem } from '../api/chat'
-import { ApiError, isOfflineError } from '../api/client'
+import { ApiError, isNetworkError, isOfflineError } from '../api/client'
+import {
+  countPending, drainPhotoQueue, enqueuePhoto, recordedAtLabel,
+  EnqueueResult, MAX_PENDING_PHOTOS,
+} from '../api/photoQueue'
 import { UserInfo } from '../api/auth'
 import { getFeature, isFeatureEnabled, KleinmaterialPromptConfig } from '../api/modules'
 import MessageBubble from './MessageBubble'
@@ -19,6 +23,22 @@ import { useOnline } from '../shared/useOnline'
 // bleibt liegen — er lebt im localStorage (rapportDraft.ts), nicht am Netz.
 const OFFLINE_CHAT_HINT =
   'Der Rapport-Chat braucht eine Internetverbindung — dein Entwurf bleibt gespeichert.'
+
+// Der Foto-Knopf ist die AUSNAHME von der Sperre oben (Ausbaustufe 2 der Spec,
+// §6): Fotos brauchen kein LLM, nur Speicherplatz. Sie wandern in den Puffer
+// (api/photoQueue.ts) und gehen raus, sobald wieder Netz da ist.
+const PHOTO_QUEUED_HINT =
+  'Foto gemerkt — es wird hochgeladen, sobald du wieder Verbindung hast.'
+
+/** Was dem Monteur gesagt wird, wenn das Puffern NICHT geklappt hat. Ein
+ *  «gemerkt» darf nur stehen, wenn das Foto wirklich liegt — sonst wartet er
+ *  auf einen Upload, den niemand mehr machen kann. */
+const ENQUEUE_FAILED_TEXT: Record<Exclude<EnqueueResult, 'queued'>, string> = {
+  full: `Es warten schon ${MAX_PENDING_PHOTOS} Fotos auf die Verbindung — mehr passen nicht in einen Rapport. `
+    + 'Bitte zuerst online gehen.',
+  too_large: 'Das Foto ist zu gross (max. 10 MB) und lässt sich nicht merken.',
+  unavailable: 'Das Foto konnte nicht zwischengespeichert werden — bitte mit Verbindung erneut aufnehmen.',
+}
 
 interface Message {
   id: number
@@ -136,6 +156,14 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   const [summaryItems, setSummaryItems] = useState<SummaryItem[]>(() => draft?.summaryItems ?? [])
   const [messages, setMessages] = useState<Message[]>(() => draft?.messages ?? [greetingMessage()])
   const [loading, setLoading] = useState(false)
+  // Wie viele Fotos im Offline-Puffer auf die Verbindung warten. Nur die ZAHL
+  // im State: die Bilder selbst bleiben in IndexedDB, ein Blob pro Render durch
+  // React zu reichen wäre auf einem Baustellen-Handy verschwendeter Speicher.
+  const [waitingPhotos, setWaitingPhotos] = useState(0)
+  // Zählt die Anlässe, zu denen der Puffer abgearbeitet werden soll (siehe den
+  // Drain-Effekt weiter unten). Ein Zähler statt eines Flags, damit zwei
+  // Anlässe kurz nacheinander nicht zu einem verschmelzen.
+  const [drainTick, setDrainTick] = useState(0)
   const [pendingConfirm, setPendingConfirm] = useState(() => draft?.pendingConfirm ?? false)
   const [pendingDisambiguation, setPendingDisambiguation] = useState(() => draft?.pendingDisambiguation ?? false)
   const [pendingQuoteQuestion, setPendingQuoteQuestion] = useState(() => draft?.pendingQuoteQuestion ?? false)
@@ -255,6 +283,67 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  /**
+   * Wartende Fotos nachliefern, sobald wieder Verbindung da ist.
+   *
+   * Läuft auch beim ÖFFNEN des Chats, nicht nur auf das `online`-Event: die
+   * Verbindung kann zurückgekommen sein, während die App gar nicht lief (Handy
+   * in der Tasche, App vom System beendet). Dann feuert nie ein Event, und ohne
+   * diesen Anlauf läge das Foto bis in alle Ewigkeit im Puffer.
+   *
+   * Der Chat ist der richtige Ort dafür und nicht App.tsx: das Foto gehört in
+   * den Rapport, an dem der Monteur gerade arbeitet — und was mit ihm passiert,
+   * soll er hier im Verlauf lesen, statt es irgendwo im Hintergrund zu erraten.
+   *
+   * Bewusst ohne `addMessage`: die Funktion wird bei jedem Render neu gebunden
+   * und zöge als Abhängigkeit einen Drain-Lauf pro Render nach sich. `setMessages`
+   * ist stabil.
+   */
+  useEffect(() => {
+    // Zweiter Anlass neben `online`: der Monteur holt die App wieder nach vorn.
+    // Nötig, weil `navigator.onLine` im Funkloch mit Empfangsbalken gar nie auf
+    // false springt — dann bliebe ein hier gepuffertes Foto liegen, solange der
+    // Chat offen ist. Bewusst KEIN Timer: jeder Tick wäre ein Fehlversuch gegen
+    // den Deckel, und fünf Minuten Tunnel dürfen kein Foto kosten.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setDrainTick(n => n + 1)
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const userId = user.authorized_user_id
+    const appendBot = (texts: string[]) => {
+      if (texts.length === 0) return
+      setMessages(prev => [
+        ...prev,
+        ...texts.map(text => ({ id: nextId(), role: 'bot' as const, text, timestamp: now() })),
+      ])
+    }
+
+    void (async () => {
+      const waiting = await countPending(userId)
+      if (cancelled) return
+      setWaitingPhotos(waiting)
+      if (waiting === 0 || !online) return
+
+      const res = await drainPhotoQueue(userId, uploadPhoto)
+      if (cancelled) return
+      setWaitingPhotos(res.remaining)
+      appendBot([
+        ...res.uploaded.map(p => `📸 Das Foto von ${recordedAtLabel(p.recordedAt)} ist jetzt hochgeladen.`),
+        // Ein aufgegebenes Foto darf nicht still verschwinden — sonst wartet der
+        // Monteur auf einen Upload, den es nicht mehr gibt.
+        ...res.dropped.map(p =>
+          `📸 Das Foto von ${recordedAtLabel(p.recordedAt)} liess sich nicht hochladen. Bitte neu aufnehmen.`),
+      ])
+    })()
+
+    return () => { cancelled = true }
+  }, [online, drainTick, user.authorized_user_id])
 
   function addMessage(msg: Omit<Message, 'id'>) {
     setMessages(prev => [...prev, { ...msg, id: nextId() }])
@@ -587,9 +676,40 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     handleResponse('🎤 Sprachnachricht', sendVoice(blob))
   }
 
-  function onSendPhoto(file: File) {
+  /** Legt das Foto in den Offline-Puffer und sagt ehrlich, ob das geklappt hat. */
+  async function queuePhoto(file: File) {
+    const result = await enqueuePhoto(user.authorized_user_id, file)
+    if (result !== 'queued') {
+      addMessage({ role: 'bot', text: ENQUEUE_FAILED_TEXT[result], timestamp: now() })
+      return
+    }
+    setWaitingPhotos(await countPending(user.authorized_user_id))
+    addMessage({ role: 'bot', text: PHOTO_QUEUED_HINT, timestamp: now() })
+  }
+
+  async function onSendPhoto(file: File) {
     if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice) return
-    handleResponse('📸 Foto', uploadPhoto(file))
+    addMessage({ role: 'user', text: '📸 Foto', timestamp: now() })
+    if (!online) { await queuePhoto(file); return }
+
+    setLoading(true)
+    try {
+      const res = await uploadPhoto(file)
+      addMessage({
+        role: 'bot', text: res.reply, timestamp: now(), action_taken: res.action_taken,
+      })
+      handleActionState(res)
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
+      // `navigator.onLine` lügt im Funkloch mit Empfangsbalken: der Browser meldet
+      // «online», die Verbindung trägt trotzdem nicht. Gepuffert wird deshalb am
+      // tatsächlichen Fehlschlag, nicht nur am Flag — sonst ginge genau das Foto
+      // verloren, das der Monteur am Rand des Empfangs aufnimmt.
+      if (isNetworkError(err)) { await queuePhoto(file); return }
+      addMessage({ role: 'bot', text: 'Fehler beim Senden. Bitte erneut versuchen.', timestamp: now() })
+    } finally {
+      setLoading(false)
+    }
   }
 
   // Find the last message with disambiguation options (for rendering buttons)
@@ -931,8 +1051,27 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         <div className="chat-stempel-hint">{OFFLINE_CHAT_HINT}</div>
       )}
 
-      {/* Input — disabled while awaiting confirmation or disambiguation */}
-      <ChatInput onSendText={onSendText} onSendVoice={onSendVoice} onSendPhoto={onSendPhoto} disabled={loading || stempelBlocked || !online || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null} />
+      {/* Kein Absage-Hinweis, sondern ein Zustand: hier steht, dass etwas
+          unterwegs ist. Deshalb auch dann, wenn oben schon eine Absage steht. */}
+      {waitingPhotos > 0 && (
+        <div className="chat-stempel-hint">
+          {waitingPhotos === 1
+            ? '📸 Ein Foto wartet auf die Verbindung — es wird automatisch hochgeladen.'
+            : `📸 ${waitingPhotos} Fotos warten auf die Verbindung — sie werden automatisch hochgeladen.`}
+        </div>
+      )}
+
+      {/* Input — disabled while awaiting confirmation or disambiguation.
+          Der Foto-Knopf hat seine EIGENE Sperre: er bleibt offline bedienbar,
+          weil das Foto in den Puffer geht (api/photoQueue.ts). Alles andere im
+          Chat braucht das LLM und bleibt gesperrt. */}
+      <ChatInput
+        onSendText={onSendText}
+        onSendVoice={onSendVoice}
+        onSendPhoto={onSendPhoto}
+        disabled={loading || stempelBlocked || !online || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null}
+        photoDisabled={loading || stempelBlocked || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null}
+      />
 
       {/* Nav bar */}
       <div className="nav-bar">

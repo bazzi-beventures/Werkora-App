@@ -6,6 +6,14 @@ interface Props {
   onSendVoice: (blob: Blob) => void
   onSendPhoto?: (file: File) => void
   disabled?: boolean
+  /** Nur den Foto-Knopf sperren. Ohne Wert gilt `disabled`.
+   *
+   *  Offline liegen die beiden auseinander: Tippen und Sprechen brauchen das
+   *  LLM und bleiben gesperrt, das Foto wandert in den Puffer und geht raus,
+   *  sobald wieder Netz da ist (api/photoQueue.ts). Ein einziges `disabled`
+   *  für alles hätte genau die Aufnahme verhindert, für die der Monteur auf
+   *  dem Dach steht. */
+  photoDisabled?: boolean
 }
 
 function formatTime(s: number) {
@@ -14,7 +22,8 @@ function formatTime(s: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`
 }
 
-export default function ChatInput({ onSendText, onSendVoice, onSendPhoto, disabled }: Props) {
+export default function ChatInput({ onSendText, onSendVoice, onSendPhoto, disabled, photoDisabled }: Props) {
+  const photoBlocked = photoDisabled ?? disabled
   const [text, setText] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -113,7 +122,7 @@ export default function ChatInput({ onSendText, onSendVoice, onSendPhoto, disabl
           className="chat-photo-btn"
           onClick={handlePhotoClick}
           title="Foto aufnehmen"
-          disabled={disabled}
+          disabled={photoBlocked}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.8">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>

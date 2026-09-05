@@ -2,7 +2,7 @@
 // Teil des api/admin/-Barrels (Charge H1): eine Datei je Domäne, gebündelt in
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
-import { apiFetch } from '../client'
+import { apiFetch, ApiError } from '../client'
 
 // Spec: docs/specs/einsatzplanung-mehrere-termine.md. Die Legacy-Felder auf dem
 // Projekt spiegeln serverseitig den Ersttermin.
@@ -90,7 +90,7 @@ export async function getProjectAppointments(projectId: string): Promise<Project
 // der ERSTE Termin, `series_count` sagt, wie viele daraus wurden.
 export async function createAppointment(
   projectId: string,
-  data: Partial<ProjectAppointment> & { recurrence?: AppointmentRecurrence | null },
+  data: Partial<ProjectAppointment> & { recurrence?: AppointmentRecurrence | null } & AbsenceOverride,
 ): Promise<ProjectAppointment & { series_count?: number }> {
   return apiFetch<ProjectAppointment & { series_count?: number }>(`/pwa/admin/projects/${projectId}/appointments`, {
     method: 'POST', body: JSON.stringify(data),
@@ -102,7 +102,7 @@ export async function createAppointment(
 // Wiederholung verschieden, ein gemeinsames Datum liesse die Serie auf einen
 // Tag zusammenfallen.
 export async function updateAppointment(
-  id: string, data: Partial<ProjectAppointment>, scope: AppointmentScope = 'single',
+  id: string, data: Partial<ProjectAppointment> & AbsenceOverride, scope: AppointmentScope = 'single',
 ): Promise<ProjectAppointment> {
   return apiFetch<ProjectAppointment>(`/pwa/admin/appointments/${id}`, {
     method: 'PATCH', body: JSON.stringify({ ...data, scope }),
@@ -112,3 +112,47 @@ export async function updateAppointment(
 export async function deleteAppointment(id: string, scope: AppointmentScope = 'single'): Promise<void> {
   await apiFetch(`/pwa/admin/appointments/${id}?scope=${scope}`, { method: 'DELETE' })
 }
+
+// ─── Absenzen in der Einsatzplanung ─────────────────────────
+// Genehmigte Absenzen im Wochenfenster: die Plantafel markiert damit die Zellen
+// der Abwesenden, damit der Konflikt VOR dem Drop sichtbar ist statt erst als
+// Rückfrage danach. Eigener Endpunkt statt getAdminAbsences() — der liefert
+// alles seit 2020 und ohne staff_id, also ohne Bezug zu einer Monteur-Zeile.
+
+export interface ScheduleAbsence {
+  // null bei Altzeilen, die nur den Namen tragen — die lassen sich keiner Zeile
+  // zuordnen und bleiben in der Tafel unsichtbar (der Server sperrt trotzdem).
+  staff_id: string | null
+  staff_name: string
+  type: string
+  date_start: string
+  date_end: string
+  // Fertig formatiert vom Server («Ferien 24.08.–28.08.2026») — dieselbe
+  // Beschriftung wie in der Rückfrage, damit Tafel und Meldung übereinstimmen.
+  label: string
+}
+
+export async function listScheduleAbsences(dateFrom: string, dateTo: string): Promise<ScheduleAbsence[]> {
+  return apiFetch<ScheduleAbsence[]>(
+    `/pwa/admin/schedule/absences?date_from=${encodeURIComponent(dateFrom)}&date_to=${encodeURIComponent(dateTo)}`
+  )
+}
+
+// ─── Absenz-Sperre ──────────────────────────────────────────
+// Jeder Schreibpfad, der jemanden auf ein Datum setzt, antwortet mit 409, wenn
+// der Eingeplante dann eine genehmigte Absenz hat. Die Sperre ist überstimmbar:
+// der Client zeigt den Text als Rückfrage und schickt denselben Request erneut
+// mit `ignore_absence_conflicts: true`.
+
+// Fehlercode des Servers (agents/routers/_deps.py::enforce_no_absence_conflict).
+// Über den Code statt über den Meldungstext, damit ein anderer 409 desselben
+// Endpunkts nicht versehentlich als «Trotzdem einplanen?» daherkommt.
+export const ABSENCE_CONFLICT_CODE = 'absence_conflict'
+
+/** Klartext der Absenz-Rückfrage, wenn `e` genau die ist — sonst null. */
+export function absenceConflictMessage(e: unknown): string | null {
+  return e instanceof ApiError && e.code === ABSENCE_CONFLICT_CODE ? e.message : null
+}
+
+// Überstimmen: dasselbe Feld an allen Schreibpfaden (Termin, Projekt, Entwurf).
+export interface AbsenceOverride { ignore_absence_conflicts?: boolean }

@@ -27,6 +27,20 @@ function installStorage(name: 'localStorage' | 'sessionStorage') {
 installStorage('localStorage')
 installStorage('sessionStorage')
 
+// jsdom bringt kein IndexedDB mit. Der Offline-Foto-Puffer (api/photoQueue.ts)
+// liegt dort, weil ein Handyfoto für localStorage zu gross ist — ohne Polyfill
+// liefe jeder Test daran vorbei (die Modulfunktionen fangen ein fehlendes
+// IndexedDB ab und tun brav nichts, was den Test grün ausgehen liesse, ohne
+// dass je etwas gepuffert wurde). `fake-indexeddb` ist die Referenz-
+// Implementierung der Spezifikation und bleibt reines Test-Werkzeug.
+if (typeof globalThis.indexedDB === 'undefined') {
+  const { indexedDB, IDBKeyRange } = await import('fake-indexeddb')
+  for (const target of [globalThis, window] as object[]) {
+    Object.defineProperty(target, 'indexedDB', { value: indexedDB, writable: true, configurable: true })
+    Object.defineProperty(target, 'IDBKeyRange', { value: IDBKeyRange, writable: true, configurable: true })
+  }
+}
+
 // jsdom implementiert window.matchMedia nicht. useIsMobile() ruft es beim ersten
 // Render auf — ohne Polyfill wirft jede Komponente, die den Hook nutzt. Default
 // `matches: false` = Desktop-Breakpoint; wer Mobile testen will, überschreibt

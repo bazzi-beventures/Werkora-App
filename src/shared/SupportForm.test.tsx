@@ -153,4 +153,26 @@ describe('SupportForm', () => {
     render(<SupportForm route="dashboard" appContext="pwa" />)
     expect(screen.getByText(/an den Werkora-Support übermittelt/)).toBeTruthy()
   })
+
+  // Das Panel in HelpBubble trägt `overflow: hidden`. Ein Formular ohne eigene
+  // Höhe wächst darin auf Inhaltshöhe und wird unten schlicht abgeschnitten —
+  // auf dem Handy fehlte so der DSGVO-Hinweis mitten im Satz. jsdom rechnet
+  // kein Layout, geprüft wird deshalb die Regel selbst.
+  it('füllt den Panel-Platz und scrollt, statt abgeschnitten zu werden', async () => {
+    sendSupportTicket.mockResolvedValue({
+      ticket_no: 7, reference: 'WS-7', created_at: '', attachment_count: 0,
+    })
+    const { container } = render(<SupportForm route="dashboard" appContext="pwa" />)
+    const form = container.firstElementChild as HTMLElement
+    expect(form.style.height).toBe('100%')
+    expect(form.style.overflowY).toBe('auto')
+
+    // Auch die Quittung: mit Fehlerhinweis wird sie schnell länger als das Panel.
+    fireEvent.change(screen.getByLabelText('Was ist passiert?'), { target: { value: 'x' } })
+    fireEvent.click(screen.getByRole('button', { name: /Meldung senden/ }))
+    await waitFor(() => expect(screen.getByText(/WS-7/)).toBeTruthy())
+    const quittung = container.firstElementChild as HTMLElement
+    expect(quittung.style.height).toBe('100%')
+    expect(quittung.style.overflowY).toBe('auto')
+  })
 })

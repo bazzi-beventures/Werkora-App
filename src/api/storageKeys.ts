@@ -8,4 +8,7 @@ export const SK = {
   TENANT_SLUG: `tenantSlug${s}`,
   AUTHORIZED_USER_ID: `authorizedUserId${s}`,
   DISPLAY_NAME: `displayName${s}`,
+  // Zwischenspeicher der Einsatzplanung-Anzeige (Ansichten/Farben/Felder) —
+  // reiner Cache, siehe api/admin/tenant.ts. Darf jederzeit fehlen.
+  SCHEDULING_CONFIG: `schedulingConfig${s}`,
 }

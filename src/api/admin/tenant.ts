@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import { SK } from '../storageKeys'
 
 export interface TenantModulesResponse {
   enabled_modules: string[]
@@ -108,10 +109,91 @@ export async function getSchedulingConfig(): Promise<TenantSchedulingResponse> {
 export async function updateSchedulingConfig(
   config: SchedulingConfig,
 ): Promise<{ config: SchedulingConfig }> {
-  return apiFetch<{ config: SchedulingConfig }>('/pwa/admin/tenant/scheduling', {
+  const res = await apiFetch<{ config: SchedulingConfig }>('/pwa/admin/tenant/scheduling', {
     method: 'PATCH',
     body: JSON.stringify({ config }),
   })
+  // Der Cache trägt die alte Ansichtsliste — nach dem Speichern wäre er falsch.
+  // Verwerfen statt überschreiben: die neuen Defaults kennt nur die GET-Antwort.
+  clearCachedSchedulingConfig()
+  return res
+}
+
+// Mandanten-Override über die System-Defaults legen. Fehlende Keys erben den
+// Default — deshalb pro Feld mergen und nicht das ganze Objekt ersetzen.
+function mergeSchedulingConfig(
+  res: TenantSchedulingResponse,
+): SchedulingConfig {
+  const { config: cfg, defaults: def } = res
+  return {
+    fields: { ...def.fields, ...(cfg.fields || {}) },
+    colors: { ...def.colors, ...(cfg.colors || {}) },
+    views: { ...(def.views || {}), ...(cfg.views || {}) },
+    show_distances: cfg.show_distances ?? def.show_distances ?? true,
+    grey_after: cfg.grey_after ?? def.grey_after ?? '',
+    grey_until: cfg.grey_until ?? def.grey_until ?? '',
+    day_capacity_hours: cfg.day_capacity_hours ?? def.day_capacity_hours,
+  }
+}
+
+// ─── Cache der Einsatzplanung-Anzeige ───────────────────────
+//
+// Warum überhaupt: die Einsatzplanung entscheidet an der Config, WELCHE Reiter
+// (Monat/Woche/Plantafel/…) es im Mandanten gibt. Solange sie fehlt, gilt
+// «fehlender Key = an» — der Planer sähe also für die Dauer des Requests alle
+// sechs Ansichten und danach die drei, die sein Mandant wirklich hat. Der Cache
+// macht den ersten Frame beim Wiederöffnen korrekt; beim allerersten Öffnen
+// bleibt die Reiterleiste stattdessen leer, bis die Antwort da ist
+// (`configPending` in ProjectScheduleCalendar) — lieber kurz nichts als kurz
+// falsch.
+//
+// Der Slug hängt mit im Eintrag: wer sich im selben Browser an einem anderen
+// Mandanten anmeldet, darf dessen Ansichten nicht erben.
+
+interface CachedSchedulingConfig {
+  slug: string
+  config: SchedulingConfig
+}
+
+function currentSlug(): string {
+  try {
+    return window.localStorage.getItem(SK.TENANT_SLUG) || ''
+  } catch {
+    return ''
+  }
+}
+
+export function readCachedSchedulingConfig(): SchedulingConfig | undefined {
+  try {
+    const raw = window.localStorage.getItem(SK.SCHEDULING_CONFIG)
+    if (!raw) return undefined
+    const parsed = JSON.parse(raw) as CachedSchedulingConfig
+    if (!parsed?.config || parsed.slug !== currentSlug()) return undefined
+    return parsed.config
+  } catch {
+    // Kaputter Eintrag, Private-Mode, fremdes Format: Cache ist optional.
+    return undefined
+  }
+}
+
+export function clearCachedSchedulingConfig(): void {
+  try {
+    window.localStorage.removeItem(SK.SCHEDULING_CONFIG)
+  } catch { /* egal */ }
+}
+
+function writeCachedSchedulingConfig(config: SchedulingConfig): void {
+  try {
+    const entry: CachedSchedulingConfig = { slug: currentSlug(), config }
+    window.localStorage.setItem(SK.SCHEDULING_CONFIG, JSON.stringify(entry))
+  } catch { /* voller/gesperrter Storage darf den Kalender nicht stören */ }
+}
+
+/** Anzeige-Config gemergt laden und für den nächsten Aufruf zwischenspeichern. */
+export async function loadSchedulingConfig(): Promise<SchedulingConfig> {
+  const merged = mergeSchedulingConfig(await getSchedulingConfig())
+  writeCachedSchedulingConfig(merged)
+  return merged
 }
 
 // Fahrdistanzen (km) zwischen Objektadressen für die Plantafel — cache-first,

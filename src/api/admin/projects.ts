@@ -11,6 +11,7 @@
 // (Die Monteur-PWA behält ihre eigene Fassung bis Charge H5.)
 
 import { apiFetch, apiBlobFetch, apiFormFetch } from '../client'
+import type { AbsenceOverride } from './scheduling'
 import {
   deleteProjectFile as deleteFile, listProjectFiles as listFiles,
   renameProjectFile as renameFile, uploadProjectFile as uploadFile,
@@ -213,7 +214,9 @@ export async function getProject(id: string): Promise<Project> {
   return apiFetch<Project>(`/pwa/admin/projects/${id}`)
 }
 
-export async function upsertProject(data: Partial<Project> & { id?: string }): Promise<Project> {
+export async function upsertProject(
+  data: Partial<Project> & { id?: string } & AbsenceOverride,
+): Promise<Project> {
   const method = data.id ? 'PATCH' : 'POST'
   const url = data.id ? `/pwa/admin/projects/${data.id}` : '/pwa/admin/projects'
   return apiFetch<Project>(url, { method, body: JSON.stringify(data) })

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  upsertProject, getSchedulingConfig, SchedulingConfig,
+  upsertProject, loadSchedulingConfig, readCachedSchedulingConfig, SchedulingConfig,
   ProjectAppointment, AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS,
   DEFAULT_APPOINTMENT_KIND, AppointmentRecurrence,
   listAppointments, createAppointment, updateAppointment, deleteAppointment,
+  listScheduleAbsences, absenceConflictMessage, type ScheduleAbsence,
 } from '../../api/admin'
 import {
   ProjectTask,
@@ -198,9 +199,21 @@ interface Props {
 export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   const [projects, setProjects] = useState<Project[]>([])
   const [appointments, setAppointments] = useState<ProjectAppointment[]>([])
+  // Genehmigte Absenzen im geladenen Fenster — Markierung in der Plantafel.
+  const [absences, setAbsences] = useState<ScheduleAbsence[]>([])
   const [staff, setStaff] = useState<StaffLite[]>([])
+  // Kundenstamm: nur für die «Kunde»-Auswahl im Planungs-Panel. Er lag früher im
+  // Erst-Ladepaket des Kalenders und hielt ihn auf — eine volle Tabelle, die der
+  // Planer erst sieht, wenn er das Panel überhaupt öffnet.
   const [customers, setCustomers] = useState<CustomerLite[]>([])
-  const [schedulingConfig, setSchedulingConfig] = useState<SchedulingConfig | undefined>(undefined)
+  const customersLoaded = useRef(false)
+  // Anzeige-Config: aus dem Cache vorbelegt, damit die Reiterleiste beim
+  // Wiederöffnen sofort stimmt. `configPending` bleibt true, bis die Antwort da
+  // ist — ohne Cache zeigt der Kalender solange gar keine Reiter statt aller.
+  const [schedulingConfig, setSchedulingConfig] = useState<SchedulingConfig | undefined>(
+    readCachedSchedulingConfig,
+  )
+  const [configPending, setConfigPending] = useState(true)
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<FormState | null>(null)
   const [apptForm, setApptForm] = useState<ApptFormState | null>(null)
@@ -211,6 +224,12 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   const [pendingSlot, setPendingSlot] = useState<PendingSlot | null>(null)
   // Offene Rückfrage «nur dieser Termin oder ganze Serie?» beim Löschen.
   const [seriesDeletePrompt, setSeriesDeletePrompt] = useState<ProjectAppointment | null>(null)
+  // Rückfrage «trotzdem einplanen?»: der Server lehnt einen Einsatz in einer
+  // genehmigten Absenz mit 409 ab, überstimmbar. `onConfirm` wiederholt genau
+  // denselben Schreibvorgang mit gesetztem Override.
+  const [absencePrompt, setAbsencePrompt] = useState<
+    { message: string; onConfirm: () => void; onCancel?: () => void } | null
+  >(null)
   const [visibleWeekIso, setVisibleWeekIso] = useState<string>('')
   const [visibleStaffIds, setVisibleStaffIds] = useState<string[] | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -235,38 +254,25 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       // Termine in einem grosszügigen Fenster um heute laden — deckt jede
       // realistische Kalender-Navigation ab, ohne Range-State durchzureichen.
       const todayIso = toDateStr(new Date())
-      const [proj, appts, st, cust, sched] = await Promise.all([
+      const [proj, appts, abs, st] = await Promise.all([
         // /projects/schedule statt /projects: schon server-seitig auf planbare
         // Projekte gefiltert und ohne Offerten-/Rechnungs-Embeds. Vorher kamen
         // alle je angelegten Projekte samt beider Beleg-Tabellen über die
         // Leitung, nur damit die Zeile hier gleich wieder wegfiel.
         getScheduleProjects(),
         listAppointments(shiftISO(todayIso, -400), shiftISO(todayIso, 600)).catch(() => [] as ProjectAppointment[]),
+        // Absenzen nur für das Fenster, in dem geplant wird — rückwärts kurz
+        // (die Vergangenheit ändert niemand mehr), vorwärts so weit wie die
+        // Termine. Fehler bleiben still: ohne Markierung plant man wie bisher,
+        // und die Sperre sitzt ohnehin serverseitig.
+        listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, 600))
+          .catch(() => [] as ScheduleAbsence[]),
         getAdminStaff(),
-        listAllCustomers(),
-        // Anzeige-Config ist optional — Fehler darf den Kalender nicht blockieren.
-        // Aber nicht stumm: ohne sie gelten die System-Defaults (alle Ansichten,
-        // keine Sperrstunde), der Planer sähe also klammheimlich einen anderen
-        // Plan als der Rest des Mandanten.
-        getSchedulingConfig().catch(() => null),
       ])
       setProjects(proj)
       setAppointments(appts)
+      setAbsences(abs)
       setStaff(st)
-      setCustomers(cust)
-      if (sched) {
-        setSchedulingConfig({
-          fields: { ...sched.defaults.fields, ...(sched.config.fields || {}) },
-          colors: { ...sched.defaults.colors, ...(sched.config.colors || {}) },
-          views: { ...(sched.defaults.views || {}), ...(sched.config.views || {}) },
-          show_distances: sched.config.show_distances ?? sched.defaults.show_distances ?? true,
-          grey_after: sched.config.grey_after ?? sched.defaults.grey_after ?? '',
-          grey_until: sched.config.grey_until ?? sched.defaults.grey_until ?? '',
-          day_capacity_hours: sched.config.day_capacity_hours ?? sched.defaults.day_capacity_hours,
-        })
-      } else {
-        showToast('Anzeige-Einstellungen nicht geladen — Standardansicht aktiv.', 'error')
-      }
     } catch {
       showToast('Daten konnten nicht geladen werden.', 'error')
     } finally {
@@ -274,7 +280,40 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     }
   }
 
+  // Anzeige-Config bewusst NEBEN loadAll und nicht darin: sie ist ein winziger
+  // Tenant-Lookup, die Kalenderdaten sind Projekte, ~1000 Tage Termine und die
+  // Absenzen. Im gemeinsamen Promise.all hing die Reiterleiste am langsamsten
+  // dieser Requests — sichtbar als Ansichten, die es im Mandanten nicht gibt.
+  useEffect(() => {
+    let alive = true
+    loadSchedulingConfig()
+      .then(cfg => { if (alive) setSchedulingConfig(cfg) })
+      .catch(() => {
+        // Fehler darf den Kalender nicht blockieren, aber auch nicht stumm
+        // bleiben: ohne Config gelten die System-Defaults (alle Ansichten,
+        // keine Sperrstunde), der Planer sähe also klammheimlich einen anderen
+        // Plan als der Rest des Mandanten.
+        if (alive) showToast('Anzeige-Einstellungen nicht geladen — Standardansicht aktiv.', 'error')
+      })
+      .finally(() => { if (alive) setConfigPending(false) })
+    return () => { alive = false }
+  }, [])
+
   useEffect(() => { loadAll() }, [])
+
+  // Kundenstamm erst beim ersten Öffnen des Panels — und dann nur einmal.
+  useEffect(() => {
+    if (!panelOpen || customersLoaded.current) return
+    customersLoaded.current = true
+    listAllCustomers()
+      .then(setCustomers)
+      .catch(() => {
+        // Erneut versuchen, wenn das Panel das nächste Mal aufgeht: ohne Liste
+        // liesse sich einem Einsatz kein Kunde zuordnen.
+        customersLoaded.current = false
+        showToast('Kundenstamm nicht geladen.', 'error')
+      })
+  }, [panelOpen])
 
   // Click-outside für Picker-Dropdown
   useEffect(() => {
@@ -504,19 +543,39 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       monteur_ids: teamChanged ? monteurIds! : appt.monteur_ids,
     }
     setAppointments(prev => prev.map(a => a.id === id ? optimistic : a))
+    // Partial-PATCH: '' = Feld explizit löschen (ganztägig), fehlend = unverändert.
+    const payload: Partial<ProjectAppointment> = { start_date: newStartDate }
+    if (appt.end_date) payload.end_date = newEndDate ?? ''
+    if (startTime !== undefined) {
+      payload.start_time = newStartTime ?? ''
+      payload.end_time = newEndTime ?? ''
+    }
+    if (teamChanged) payload.monteur_ids = monteurIds
+    const revert = () => setAppointments(prev => prev.map(a => a.id === id ? appt : a))
     try {
-      // Partial-PATCH: '' = Feld explizit löschen (ganztägig), fehlend = unverändert.
-      const payload: Partial<ProjectAppointment> = { start_date: newStartDate }
-      if (appt.end_date) payload.end_date = newEndDate ?? ''
-      if (startTime !== undefined) {
-        payload.start_time = newStartTime ?? ''
-        payload.end_time = newEndTime ?? ''
-      }
-      if (teamChanged) payload.monteur_ids = monteurIds
       await updateAppointment(id, payload)
-    } catch {
-      setAppointments(prev => prev.map(a => a.id === id ? appt : a))
-      showToast('Verschieben fehlgeschlagen.', 'error')
+    } catch (e) {
+      const conflict = absenceConflictMessage(e)
+      if (!conflict) {
+        revert()
+        showToast('Verschieben fehlgeschlagen.', 'error')
+        return
+      }
+      // Die optimistische Anzeige bleibt vorerst stehen: der Chip liegt schon
+      // dort, wo der Planer ihn hingezogen hat, und die Rückfrage entscheidet
+      // nur noch, ob es dabei bleibt. Beim Abbrechen springt er zurück.
+      setAbsencePrompt({
+        message: conflict,
+        onConfirm: async () => {
+          try {
+            await updateAppointment(id, { ...payload, ignore_absence_conflicts: true })
+          } catch {
+            revert()
+            showToast('Verschieben fehlgeschlagen.', 'error')
+          }
+        },
+        onCancel: revert,
+      })
     }
   }
 
@@ -534,7 +593,14 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     teamAnswer.current = null
   }
 
-  async function handleSave() {
+  /**
+   * `override`/`savedProjectId` setzt nur die Absenz-Rückfrage (siehe unten):
+   * `override` schickt denselben Request mit gesetzter Übersteuerung, und
+   * `savedProjectId` überspringt den Projekt-Teil, wenn der im ersten Anlauf
+   * schon durchgelaufen ist — sonst entstünde beim Neuanlegen ein zweites
+   * Projekt. Der Speichern-Knopf ruft die Funktion ohne Argumente auf.
+   */
+  async function handleSave(override = false, savedProjectId?: string) {
     if (!form) return
     setError(null)
     if (!form.name.trim()) {
@@ -572,50 +638,61 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     setSaving(true)
     const isInternal = form.kind !== 'project'
     let savedMsg = form.id ? 'Eintrag aktualisiert.' : 'Eintrag erstellt.'
+    let targetId = savedProjectId
     try {
-      // Ein Termin ohne eigenes Team erbt das Projekt-Team live. Ein Wechsel
-      // besetzt sonst still jeden bereits geplanten Termin ohne eigenes Team
-      // um — auch vergangene. Der gerade geöffnete Termin ist ausgenommen:
-      // dort ist die Änderung ja gewollt.
-      const previousTeam = projects.find(p => p.id === form.id)?.monteur_ids ?? []
-      const followers = form.id && previousTeam.length > 0 && teamsDiffer(previousTeam, form.monteurIds)
-        ? appointments.filter(a =>
-            a.project_id === form.id && !a.monteur_ids?.length && a.id !== apptForm?.id)
-        : []
-      if (followers.length > 0) {
-        const answer = await new Promise<'keep' | 'apply' | 'cancel'>(resolve => {
-          teamAnswer.current = resolve
-          setTeamQuestion({ count: followers.length })
-        })
-        if (answer === 'cancel') return
-        if (answer === 'keep') {
-          // VOR dem Projekt-Write: danach sähe der Termin-Änderungs-Push das
-          // schon neue Projekt-Team als Vorher-Zustand und meldete jedem
-          // Monteur eine Änderung, die es gar nicht gibt
-          // (services/project_change_push_service.py::diff_appointment_change).
-          for (const a of followers) await updateAppointment(a.id, { monteur_ids: previousTeam })
+      if (!savedProjectId) {
+        // Ein Termin ohne eigenes Team erbt das Projekt-Team live. Ein Wechsel
+        // besetzt sonst still jeden bereits geplanten Termin ohne eigenes Team
+        // um — auch vergangene. Der gerade geöffnete Termin ist ausgenommen:
+        // dort ist die Änderung ja gewollt.
+        const previousTeam = projects.find(p => p.id === form.id)?.monteur_ids ?? []
+        const followers = form.id && previousTeam.length > 0 && teamsDiffer(previousTeam, form.monteurIds)
+          ? appointments.filter(a =>
+              a.project_id === form.id && !a.monteur_ids?.length && a.id !== apptForm?.id)
+          : []
+        if (followers.length > 0) {
+          const answer = await new Promise<'keep' | 'apply' | 'cancel'>(resolve => {
+            teamAnswer.current = resolve
+            setTeamQuestion({ count: followers.length })
+          })
+          if (answer === 'cancel') return
+          if (answer === 'keep') {
+            // VOR dem Projekt-Write: danach sähe der Termin-Änderungs-Push das
+            // schon neue Projekt-Team als Vorher-Zustand und meldete jedem
+            // Monteur eine Änderung, die es gar nicht gibt
+            // (services/project_change_push_service.py::diff_appointment_change).
+            // `override` muss mit: sonst fragt der zweite Anlauf nach einer
+            // bestätigten Absenz-Übersteuerung genau hier wieder nach.
+            for (const a of followers) {
+              await updateAppointment(a.id, {
+                monteur_ids: previousTeam,
+                ...(override ? { ignore_absence_conflicts: true } : {}),
+              })
+            }
+          }
         }
-      }
 
-      // Projekt-Stammdaten OHNE Terminfelder — Termine laufen über die
-      // appointment-Endpunkte (der Server spiegelt den Ersttermin selbst).
-      const saved = await upsertProject({
-        id: form.id || undefined,
-        name: form.name,
-        customer_id: isInternal ? null : (form.customerId || null),
-        ...({
-          kind: form.kind,
-          projektleiter_id: form.projektleiterId || null,
-          monteur_ids: form.monteurIds,
-          bemerkung: form.bemerkung || null,
-        } as Record<string, unknown>),
-      }) as unknown as { project?: { id?: string } } & { id?: string }
-      const targetId = form.id || saved.project?.id || saved.id
+        // Projekt-Stammdaten OHNE Terminfelder — Termine laufen über die
+        // appointment-Endpunkte (der Server spiegelt den Ersttermin selbst).
+        const saved = await upsertProject({
+          id: form.id || undefined,
+          name: form.name,
+          customer_id: isInternal ? null : (form.customerId || null),
+          ...(override ? { ignore_absence_conflicts: true } : {}),
+          ...({
+            kind: form.kind,
+            projektleiter_id: form.projektleiterId || null,
+            monteur_ids: form.monteurIds,
+            bemerkung: form.bemerkung || null,
+          } as Record<string, unknown>),
+        }) as unknown as { project?: { id?: string } } & { id?: string }
+        targetId = form.id || saved.project?.id || saved.id
+      }
       if (apptForm && apptForm.startDate && targetId) {
         // Payload wie im Detail-Editor: '' leert ein Feld explizit (Partial-PATCH
         // kann mit null nichts löschen), monteur_ids [] gibt das Projekt-Team
         // zurück, und die Bezeichnung geht nur bei kind 'sonstiges' mit.
-        const payload = draftPayload(apptForm)
+        const payload = { ...draftPayload(apptForm), ...(override ? { ignore_absence_conflicts: true } : {}) }
         if (apptForm.id) {
           await updateAppointment(
             apptForm.id, payload,
@@ -640,7 +717,15 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
         if (fresh) setForm(projectToForm(fresh))
       }
       setApptForm(null)
-    } catch {
+    } catch (e) {
+      const conflict = absenceConflictMessage(e)
+      if (conflict) {
+        setAbsencePrompt({
+          message: conflict,
+          onConfirm: () => void handleSave(true, targetId || undefined),
+        })
+        return
+      }
       setError('Speichern fehlgeschlagen.')
     } finally {
       setSaving(false)
@@ -895,6 +980,8 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
             onVisibleWeekChange={setVisibleWeekIso}
             onVisibleStaffChange={setVisibleStaffIds}
             schedulingConfig={schedulingConfig}
+            configPending={configPending && !schedulingConfig}
+            absences={absences}
           />
         </div>
 
@@ -1468,7 +1555,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                 <div className="project-schedule-actions">
                   <button
                     className="admin-btn admin-btn-primary"
-                    onClick={handleSave}
+                    onClick={() => void handleSave()}
                     disabled={saving}
                   >
                     {saving ? 'Speichern…' : 'Speichern'}
@@ -1530,6 +1617,29 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
           busy={saving}
           onConfirm={() => void handleDeleteAppt(seriesDeletePrompt, 'series')}
           onCancel={() => setSeriesDeletePrompt(null)}
+        />
+      )}
+
+      {/* Absenz-Rückfrage: der Server hat den Schreibvorgang mit 409 abgelehnt,
+          weil ein Eingeplanter an dem Tag genehmigte Absenz hat. Ferien werden
+          getauscht und Krankmeldungen enden früher als eingetragen — deshalb
+          eine Rückfrage statt einer verschlossenen Tür (Spec §5.2). */}
+      {absencePrompt && (
+        <ConfirmDialog
+          title="Absenz im Einsatzzeitraum"
+          message={absencePrompt.message}
+          warning="Der Einsatz wird trotzdem gespeichert — die Absenz bleibt bestehen."
+          confirmLabel="Trotzdem einplanen"
+          cancelLabel="Abbrechen"
+          onConfirm={() => {
+            const { onConfirm } = absencePrompt
+            setAbsencePrompt(null)
+            onConfirm()
+          }}
+          onCancel={() => {
+            absencePrompt.onCancel?.()
+            setAbsencePrompt(null)
+          }}
         />
       )}
 

@@ -10,6 +10,7 @@ import { resolveScheduleDistances } from '../../api/admin'
 import {
   APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS, AppointmentKind, DEFAULT_APPOINTMENT_KIND,
 } from '../../api/admin/scheduling'
+import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import type { Project } from '../../api/admin/projects'
 import { projectCustomerName } from '../utils/project'
 import { diffDays, hhmmToMin, parseDateStr, shiftISO, toDateStr } from '../utils/calendarHelpers'
@@ -408,6 +409,39 @@ export function reassignTeam(
   const team = (currentTeam || []).filter(id => id !== sourceRowId)
   if (!team.includes(targetRowId)) team.push(targetRowId)
   return team
+}
+
+/**
+ * Nachschlagefunktion «ist dieser Monteur an diesem Tag abwesend?» aus der
+ * Absenzliste einer Woche.
+ *
+ * Vor 2026-08 lud der Einsatzplanungs-Screen Absenzen gar nicht — man konnte
+ * jemanden in eine genehmigte Ferienwoche ziehen, und erst der Server (seit
+ * derselben Änderung) sagte etwas dazu. Die Markierung hier ist der Teil, der
+ * den Fehler VERHINDERT statt ihn abzufangen: eine schraffierte Zelle wird gar
+ * nicht erst zum Ziel eines Drops.
+ *
+ * Rückgabe ist das Label der Absenz («Ferien 24.08.–28.08.2026») oder null.
+ * Zeilen ohne `staff_id` (Altbestand, nur Name) lassen sich keiner Tafel-Zeile
+ * zuordnen und fallen still weg — der Server sperrt sie trotzdem.
+ */
+export function absenceLookup(absences: ScheduleAbsence[]): (staffId: string, dayISO: string) => string | null {
+  const byStaff = new Map<string, ScheduleAbsence[]>()
+  for (const a of absences) {
+    if (!a.staff_id || !a.date_start) continue
+    const list = byStaff.get(a.staff_id)
+    if (list) list.push(a)
+    else byStaff.set(a.staff_id, [a])
+  }
+  return (staffId, dayISO) => {
+    for (const a of byStaff.get(staffId) ?? []) {
+      // Beide Ränder zählen mit — date_end ist der letzte Absenztag, nicht der
+      // erste Arbeitstag danach (gleiche Konvention wie serverseitig in
+      // services/scheduling_conflicts.py::spans_overlap).
+      if (dayISO >= a.date_start && dayISO <= (a.date_end || a.date_start)) return a.label
+    }
+    return null
+  }
 }
 
 export const PAIR_SEP = '\u0001'

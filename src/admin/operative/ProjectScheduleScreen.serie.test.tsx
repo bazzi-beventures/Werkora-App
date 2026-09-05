@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import ProjectScheduleScreen from './ProjectScheduleScreen'
 import {
   listAppointments, createAppointment, updateAppointment, deleteAppointment,
-  getSchedulingConfig, upsertProject,
+  loadSchedulingConfig, upsertProject,
 } from '../../api/admin'
 import { apiFetch } from '../../api/client'
 
@@ -26,7 +26,7 @@ vi.mock('../../api/admin', async (importOriginal) => {
     createAppointment: vi.fn(),
     updateAppointment: vi.fn(),
     deleteAppointment: vi.fn(),
-    getSchedulingConfig: vi.fn(),
+    loadSchedulingConfig: vi.fn(),
     upsertProject: vi.fn(),
     resolveScheduleDistances: vi.fn().mockResolvedValue({ distances: [] }),
   }
@@ -66,7 +66,9 @@ function mockLoad(appointments: unknown[] = [SERIES_APPT]) {
     return Promise.resolve(PROJECT)
   })
   vi.mocked(listAppointments).mockResolvedValue(appointments as never)
-  vi.mocked(getSchedulingConfig).mockResolvedValue({ config: {}, defaults: DEFAULTS } as never)
+  // Der Screen holt die Anzeige-Config gemergt und gecacht (loadSchedulingConfig),
+  // bewusst neben dem grossen Datenladen — siehe ProjectScheduleScreen.
+  vi.mocked(loadSchedulingConfig).mockResolvedValue(DEFAULTS as never)
   vi.mocked(upsertProject).mockResolvedValue({ project: { id: 'p1' } } as never)
   vi.mocked(createAppointment).mockResolvedValue({ ...SERIES_APPT, series_count: 5 } as never)
   vi.mocked(updateAppointment).mockResolvedValue(SERIES_APPT as never)

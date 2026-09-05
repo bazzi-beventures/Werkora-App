@@ -12,7 +12,12 @@ export const apiUrl = (path: string): string => `${BASE_URL}${path}`
 // CSRF-Schutz: Server prüft Origin-Header serverseitig (siehe agents/app.py).
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  // Maschinenlesbarer Code aus einem strukturierten Fehler-Body
+  // ({detail: {code, message}}), sonst undefined. `message` bleibt der Klartext
+  // für die Anzeige; der Code ist für Aufrufer, die AUF einen bestimmten Fehler
+  // reagieren müssen (z.B. 'absence_conflict' → Rückfrage statt Fehlermeldung)
+  // und sich dafür nicht auf Meldungstexte verlassen sollen.
+  constructor(public status: number, message: string, public code?: string) {
     super(message)
   }
 }
@@ -58,7 +63,7 @@ function handleExpiredSession(status: number, detail: string, path: string): boo
   return true
 }
 
-async function parseErrorDetail(res: Response): Promise<string> {
+async function parseErrorDetail(res: Response): Promise<{ text: string; code?: string }> {
   // Diagnose-Breadcrumb (Spec docs/specs/support-ticket.md §5.3). Hier, weil
   // JEDER Fehlerpfad des Clients durch diese Funktion läuft — ein Aufruf statt
   // drei. Festgehalten werden nur Pfad und Statuscode, nie Inhalte: die Spur
@@ -69,12 +74,14 @@ async function parseErrorDetail(res: Response): Promise<string> {
     /* res.url leer/relativ (Testumgebung) — die Spur ist Beiwerk, nie ein Fehler */
   }
   let detail: unknown = res.statusText
+  let code: string | undefined
   try {
     const body = await res.json()
     // detail ist meist ein String-Code; strukturierte Fehler (z.B. Passwort-Policy)
     // liefern {code, message} — dann den Klartext zeigen statt "[object Object]".
     if (body.detail && typeof body.detail === 'object' && typeof body.detail.message === 'string') {
       detail = body.detail.message
+      if (typeof body.detail.code === 'string') code = body.detail.code
     } else {
       // `detail` ist die app-weite Fehlerform (FastAPI HTTPException). Manche
       // neueren Endpoints (z.B. manueller Rapport) antworten mit `{ error: … }` —
@@ -93,7 +100,7 @@ async function parseErrorDetail(res: Response): Promise<string> {
   //      keine Reason-Phrase mehr kennt.
   //   2. FastAPI-Validierungsfehler liefern `detail` als Array von Objekten.
   const text = typeof detail === 'string' ? detail.trim() : ''
-  return text || `Serverfehler (HTTP ${res.status})`
+  return { text: text || `Serverfehler (HTTP ${res.status})`, code }
 }
 
 export interface ApiFetchOptions extends RequestInit {
@@ -124,11 +131,11 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     })
 
     if (!res.ok) {
-      const detail = await parseErrorDetail(res)
-      if (handleExpiredSession(res.status, detail, path)) {
+      const { text, code } = await parseErrorDetail(res)
+      if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
-      throw new ApiError(res.status, detail)
+      throw new ApiError(res.status, text, code)
     }
 
     return res.json()
@@ -166,11 +173,11 @@ export async function apiBlobFetch(
     })
 
     if (!res.ok) {
-      const detail = await parseErrorDetail(res)
-      if (handleExpiredSession(res.status, detail, path)) {
+      const { text, code } = await parseErrorDetail(res)
+      if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
-      throw new ApiError(res.status, detail)
+      throw new ApiError(res.status, text, code)
     }
 
     const disposition = res.headers.get('Content-Disposition') ?? ''
@@ -210,11 +217,11 @@ export async function* apiStreamFetch(
   }
 
   if (!res.ok) {
-    const detail = await parseErrorDetail(res)
-    if (handleExpiredSession(res.status, detail, path)) {
+    const { text, code } = await parseErrorDetail(res)
+    if (handleExpiredSession(res.status, text, path)) {
       throw new ApiError(res.status, 'Sitzung abgelaufen')
     }
-    throw new ApiError(res.status, detail)
+    throw new ApiError(res.status, text, code)
   }
 
   if (!res.body) {
@@ -270,11 +277,11 @@ export async function apiFormFetch<T = unknown>(path: string, form: FormData): P
     })
 
     if (!res.ok) {
-      const detail = await parseErrorDetail(res)
-      if (handleExpiredSession(res.status, detail, path)) {
+      const { text, code } = await parseErrorDetail(res)
+      if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
-      throw new ApiError(res.status, detail)
+      throw new ApiError(res.status, text, code)
     }
 
     return res.json()

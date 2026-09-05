@@ -3534,6 +3534,33 @@ button.admin-list-item {
   background: var(--surface-2);
 }
 
+/* Abwesend: genehmigte Absenz an diesem Tag. Schraffur statt Volltonfläche —
+   die Zelle bleibt ein gültiges Drop-Ziel (die Sperre ist überstimmbar), sie
+   soll nur nicht mehr aussehen wie eine freie. Ein bereits liegender Einsatz
+   bleibt darauf lesbar. */
+.project-cal-board-cell.absent {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 5px,
+    var(--surface-2) 5px,
+    var(--surface-2) 10px
+  );
+}
+
+/* Grund der Abwesenheit («Ferien 24.08.–28.08.2026»), klein über den Chips. */
+.project-cal-board-absence {
+  font-size: 10px;
+  line-height: 1.2;
+  color: var(--muted);
+  font-style: italic;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Einsatz-Chip: kompakt (Zeit + Titel), Details im Tooltip/Klick-Panel. */
 .project-cal-board-chip {
   border-radius: 4px;
