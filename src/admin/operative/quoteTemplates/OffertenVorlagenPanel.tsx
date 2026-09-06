@@ -16,7 +16,7 @@ import { useTenantText } from '../../components/TenantTextSetting'
 import { AttachmentsSection } from './AttachmentsSection'
 import { PositionTemplateModal } from './PositionTemplateModal'
 import { PositionTemplateTables } from './PositionTemplateTables'
-import { QuoteMailTextSettings, QuotePdfTextSettings } from './QuoteTextSettings'
+import { QuoteDescriptionPromptSetting, QuoteMailTextSettings, QuotePdfTextSettings } from './QuoteTextSettings'
 import { QuoteValiditySection } from './QuoteValiditySection'
 import { SkontoDefaultsSection } from './SkontoDefaultsSection'
 import {
@@ -70,7 +70,12 @@ export function OffertenVorlagenPanel() {
   const orderConfirmation = useTenantText('/pwa/admin/quote-order-confirmation-text', 'text', {
     showToast, savedMsg: 'Auftragsbestätigung gespeichert',
   })
-  const textsLoading = [stdNotes, disc, discR, skontoText, thankyou, rejection, orderConfirmation].some(s => s.loading)
+  // Kein PDF- und kein Mailtext: die Vorgabe steuert, wie der Knopf «Beschreibung
+  // formulieren» im Offert-Formular aus Stichworten Fliesstext macht.
+  const descriptionPrompt = useTenantText('/pwa/admin/quote-description-prompt', 'text', {
+    showToast, savedMsg: 'Formulierungs-Vorgabe gespeichert', resetPayload: '',
+  })
+  const textsLoading = [stdNotes, disc, discR, skontoText, thankyou, rejection, orderConfirmation, descriptionPrompt].some(s => s.loading)
 
   // Skonto-Vorgabe: beide Felder als String im State (Eingabefeld), Zahl erst beim Speichern.
   const [skontoDefPct, setSkontoDefPct] = useState('')
@@ -212,9 +217,17 @@ export function OffertenVorlagenPanel() {
     if (!editing) return
     const fee = parseFloat(form.default_fee.replace(',', '.'))
     if (!form.label.trim() || isNaN(fee) || fee < 0) return
-    if (editing.kind === 'special' && form.pricing_mode === 'stunden') {
-      const h = parseFloat(form.default_hours.replace(',', '.'))
-      if (isNaN(h) || h <= 0) { setError('Bitte gültige Stundenzahl angeben'); return }
+    // Stunden und Stück brauchen beide einen Mengen-Vorschlag; nur die Pauschale
+    // kommt ohne aus (1 × Betrag).
+    const withQuantity = editing.kind === 'special' && form.pricing_mode !== 'pauschal'
+    if (withQuantity) {
+      const menge = parseFloat(form.default_hours.replace(',', '.'))
+      if (isNaN(menge) || menge <= 0) {
+        setError(form.pricing_mode === 'stueck'
+          ? 'Bitte gültige Stückzahl angeben'
+          : 'Bitte gültige Stundenzahl angeben')
+        return
+      }
     }
     setSaving(true)
     setError('')
@@ -227,7 +240,7 @@ export function OffertenVorlagenPanel() {
           notes: form.notes.trim() || null,
           ...(editing.kind === 'special' ? {
             pricing_mode: form.pricing_mode,
-            default_hours: form.pricing_mode === 'stunden'
+            default_hours: withQuantity
               ? parseFloat(form.default_hours.replace(',', '.'))
               : null,
           } : {}),
@@ -365,6 +378,8 @@ export function OffertenVorlagenPanel() {
           )}
 
           <QuoteMailTextSettings thankyou={thankyou} rejection={rejection} orderConfirmation={orderConfirmation} />
+
+          <QuoteDescriptionPromptSetting state={descriptionPrompt} />
         </>
       )}
 

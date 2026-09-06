@@ -39,3 +39,19 @@ export function mayEditTarget(actingRole: string | null | undefined, targetRole:
 export function mayAnonymize(actingRole: string | null | undefined): boolean {
   return actingRole === 'management' || actingRole === 'superadmin'
 }
+
+/**
+ * Darf diese Rolle das Beta-Häkchen setzen? (docs/specs/beta-tester.md §3.6)
+ *
+ * **Nur der Superadmin**, und gepflegt wird es im Tab Testing unter
+ * Admin-Tools → Konfiguration — nicht mehr in der Benutzerverwaltung
+ * (Betreiberentscheid 2026-09-06). Beta gehört ganz zum Betreiber: Er
+ * entscheidet, WAS in die Beta geht, und auch WER testet.
+ *
+ * Spiegel von `_assert_may_set_beta` in agents/routers/admin_users.py —
+ * verbindlich ist das Backend. Die Benutzerverwaltung ZEIGT den Status
+ * weiterhin (Spalte «Beta»); wer ihn ändern will, geht in den Testing-Tab.
+ */
+export function maySetBetaTester(actingRole: string | null | undefined): boolean {
+  return actingRole === 'superadmin'
+}

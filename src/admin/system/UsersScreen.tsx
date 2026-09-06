@@ -7,6 +7,7 @@ import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 import { mayEditTarget } from './userRoles'
 import { consentBadge } from './consentStatus'
+import { BetaBadge } from '../../shared/BetaBadge'
 
 // `AuthUser` stand hier bis zum 30.08.2026 ein zweites Mal — wortgleich zur
 // Fassung in api/admin/users.ts, aber von niemandem importiert. Zwei Deklarationen
@@ -141,6 +142,7 @@ export default function UsersScreen({ actingRole }: Props) {
                     {u.is_active ? 'Aktiv' : 'Inaktiv'}
                   </span>
                   <ConsentBadge user={u} withLabel />
+                  {u.beta_tester && <BetaBadge title="Beta-Tester — sieht neue Funktionen vor allen anderen" />}
                 </div>
               </>
             )}
@@ -155,11 +157,12 @@ export default function UsersScreen({ actingRole }: Props) {
                 <th>Rolle</th>
                 <th>Status</th>
                 <th>Consent</th>
+                <th>Beta</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="admin-table-empty">Keine Benutzer gefunden.</td></tr>
+                <tr><td colSpan={7} className="admin-table-empty">Keine Benutzer gefunden.</td></tr>
               ) : filtered.map(u => (
                 <tr
                   key={u.id}
@@ -182,6 +185,13 @@ export default function UsersScreen({ actingRole }: Props) {
                   </td>
                   <td>
                     <ConsentBadge user={u} />
+                  </td>
+                  {/* Wer testet, steht in der Liste — sonst muss man jedes Konto
+                      einzeln öffnen, um es herauszufinden (Spec §6.4). */}
+                  <td>
+                    {u.beta_tester
+                      ? <BetaBadge title="Sieht neue Funktionen vor allen anderen" />
+                      : <span style={{ color: 'var(--muted)' }}>—</span>}
                   </td>
                 </tr>
               ))}

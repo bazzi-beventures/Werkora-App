@@ -14,28 +14,53 @@
 import { parseNum, pctToFactor, round2 } from '../../utils/quotePricing'
 import type {
   EditChargeRow, EditExtraRow, EditFreeRow, EditLaborRow, EditTravelRow,
-  ExtraChargeRow, ExtraProductRow, InstallationRow, LaborRow, MaterialRow, SpecialRow,
+  ExtraChargeRow, ExtraProductRow, InstallationRow, LaborRow, MaterialRow, SpecialMode, SpecialRow,
 } from './quoteTypes'
 
 export type QuoteItem = Record<string, unknown>
 
 // ─── Sonderpositionen (in beiden Masken gleich) ─────────────
 
+/** Einheit der Mengenspalte je Preismodell. 'pauschal' hat keine Menge (1 × Betrag)
+ *  und trägt deshalb 'Pau' — die Offerte zeigt dort keinen Ansatz, sondern eine Summe. */
+const SPECIAL_UNIT: Record<SpecialMode, string> = { pauschal: 'Pau', stunden: 'h', stueck: 'Stk' }
+
+/** Modelle mit Mengengerüst: `hours` ist dort die Menge (Stunden bzw. Stückzahl),
+ *  `unit_price` der Ansatz je Einheit. */
+function hasQuantity(mode: SpecialMode): boolean {
+  return mode === 'stunden' || mode === 'stueck'
+}
+
+/**
+ * Rückweg für die Bearbeiten-Maske: aus der Einheit einer gespeicherten
+ * Sonderposition das Preismodell ablesen.
+ *
+ * Die Position selbst trägt kein Modell — sie ist {description, quantity, unit,
+ * unit_price, total_price}, und die Einheit ist die einzige Spur davon. Alles
+ * Unbekannte wird zur Pauschale: 1 × Betrag stimmt für jede Altposition, weil
+ * `total_price` dort dem `unit_price` entspricht.
+ */
+export function specialModeFromUnit(unit: string | null | undefined): SpecialMode {
+  const found = (Object.keys(SPECIAL_UNIT) as SpecialMode[])
+    .find(mode => SPECIAL_UNIT[mode] === (unit ?? '').trim())
+  return found ?? 'pauschal'
+}
+
 /** Baut aus einer SpecialRow die Backend-Position
  *  {description, quantity, unit, unit_price, total_price}. */
 export function buildSpecialItem(r: SpecialRow): QuoteItem {
-  if (r.mode === 'stunden') {
-    const h = parseNum(r.hours)
-    const rate = parseNum(r.unit_price)
-    return { description: r.description, quantity: h, unit: 'h', unit_price: rate, total_price: round2(h * rate) }
+  const unit = SPECIAL_UNIT[r.mode] ?? SPECIAL_UNIT.pauschal
+  const rate = parseNum(r.unit_price)
+  if (hasQuantity(r.mode)) {
+    const qty = parseNum(r.hours)
+    return { description: r.description, quantity: qty, unit, unit_price: rate, total_price: round2(qty * rate) }
   }
-  const p = parseNum(r.unit_price)
-  return { description: r.description, quantity: 1, unit: 'Pau', unit_price: p, total_price: p }
+  return { description: r.description, quantity: 1, unit, unit_price: rate, total_price: rate }
 }
 
 export function specialRowValid(r: SpecialRow): boolean {
   if (!r.description) return false
-  return r.mode === 'stunden'
+  return hasQuantity(r.mode)
     ? parseNum(r.hours) > 0 && parseNum(r.unit_price) > 0
     : parseNum(r.unit_price) > 0
 }
@@ -69,6 +94,19 @@ export function installationItems(rows: InstallationRow[]): QuoteItem[] {
       unit_price: parseNum(r.unit_price),
       total_price: parseNum(r.unit_price),
     }))
+}
+
+// Basis-Preis einer Waren-Zeile vor der Endziffern-Aufrundung (Feature
+// `werkora_bonus`) unverändert durchreichen. Ohne diese zwei Felder kann das
+// Backend die bonusfreie Basis nicht mehr herstellen: der eingehende Preis IST
+// dann der aufgeschlagene, und ein Neurechnen legte den nächsten Aufschlag
+// obendrauf (5'588 → 5'685 → 5'790). Es bremst sich in dem Fall zwar selbst und
+// rechnet gar nicht — dann friert der Bonus aber beim ersten Speichern ein.
+// Siehe docs/specs/werkora-bonus-produktpositionen.md §4.3 und EditFreeRow.
+function withBonusBase(item: QuoteItem, r: EditFreeRow | EditExtraRow): QuoteItem {
+  if (r.bonusBaseUnitPrice !== undefined) item.werkora_bonus_base_unit_price = r.bonusBaseUnitPrice
+  if (r.bonusBaseTotalPrice !== undefined) item.werkora_bonus_base_total_price = r.bonusBaseTotalPrice
+  return item
 }
 
 // Kalkulations-Metadaten einer Produktzeile (EK, Aufschlag, Lieferant, Breakdown).
@@ -199,14 +237,14 @@ export function editLaborItems(rows: EditLaborRow[]): QuoteItem[] {
 export function editMaterialItems(rows: EditFreeRow[]): QuoteItem[] {
   return rows
     .filter(r => r.description && parseNum(r.quantity) > 0)
-    .map(r => ({
+    .map(r => withBonusBase({
       description: r.description,
       quantity: parseNum(r.quantity),
       unit: r.unit,
       unit_price: parseNum(r.unit_price),
       total_price: round2(parseNum(r.quantity) * parseNum(r.unit_price)),
       optional: !!r.optional,
-    }))
+    }, r))
 }
 
 export function editExtraProductItems(rows: EditExtraRow[]): QuoteItem[] {
@@ -223,7 +261,7 @@ export function editExtraProductItems(rows: EditExtraRow[]): QuoteItem[] {
       }
       // EK/Marge/Lieferant/Positions erhalten — preisneutral, gingen aber bisher
       // beim Bearbeiten der Offerte verloren.
-      return withProductMeta(item, r)
+      return withBonusBase(withProductMeta(item, r), r)
     })
 }
 

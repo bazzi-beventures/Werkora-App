@@ -4,6 +4,20 @@ import type { EditState, FormState } from './types'
 
 // Erfassen/Bearbeiten einer Positions-Vorlage. Der Zustand (Formular, Fehler,
 // Dirty-Check) liegt weiter im Panel — diese Datei ist die Maske dazu.
+
+/** Beschriftung des Betragsfelds je Preismodell einer Sonderposition — der Betrag
+ *  bedeutet in jedem Modell etwas anderes (Summe, Ansatz je Stunde, Preis je Stück). */
+const SPECIAL_FEE_LABEL: Record<SpecialMode, string> = {
+  pauschal: 'Betrag CHF *',
+  stunden: 'Stundenansatz CHF/h *',
+  stueck: 'Stückpreis CHF/Stk *',
+}
+
+/** Beschriftung des Mengen-Vorschlags. 'pauschal' hat keine Menge und kein Feld. */
+const SPECIAL_QUANTITY_LABEL: Record<Exclude<SpecialMode, 'pauschal'>, string> = {
+  stunden: 'Vorgeschlagene Stunden *',
+  stueck: 'Vorgeschlagene Stückzahl *',
+}
 interface Props {
   editing: EditState
   form: FormState
@@ -65,13 +79,14 @@ export function PositionTemplateModal({
               >
                 <option value="pauschal">Pauschale (Fixbetrag)</option>
                 <option value="stunden">Stundenansatz (CHF/h)</option>
+                <option value="stueck">Stückpreis (CHF/Stk)</option>
               </select>
             </div>
           )}
 
           <div className="admin-form-group">
             <label className="admin-form-label">
-              {isSpecialModal && form.pricing_mode === 'stunden' ? 'Stundenansatz CHF/h *' : 'Betrag CHF *'}
+              {isSpecialModal ? SPECIAL_FEE_LABEL[form.pricing_mode] : 'Betrag CHF *'}
             </label>
             <input
               className="admin-form-input"
@@ -85,13 +100,15 @@ export function PositionTemplateModal({
             />
           </div>
 
-          {isSpecialModal && form.pricing_mode === 'stunden' && (
+          {/* Mengen-Vorschlag: dieselbe Spalte (default_hours) für Stunden und Stück —
+              bei einer Pauschale gibt es keine Menge, also auch kein Feld. */}
+          {isSpecialModal && form.pricing_mode !== 'pauschal' && (
             <div className="admin-form-group">
-              <label className="admin-form-label">Vorgeschlagene Stunden *</label>
+              <label className="admin-form-label">{SPECIAL_QUANTITY_LABEL[form.pricing_mode]}</label>
               <input
                 className="admin-form-input"
                 type="number"
-                step="0.5"
+                step={form.pricing_mode === 'stueck' ? '1' : '0.5'}
                 min="0"
                 value={form.default_hours}
                 onChange={e => setForm(f => ({ ...f, default_hours: e.target.value }))}

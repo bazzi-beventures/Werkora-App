@@ -4,7 +4,7 @@ import {
   buildCreateQuotePayload, buildEditQuotePayload, buildSpecialItem, createExtraProductItems,
   createLaborItems, createMaterialItems, descPriceItems, editExtraProductItems,
   editLaborItems, editMaterialItems, editTravelItems, installationItems, specialItems,
-  specialRowValid,
+  specialModeFromUnit, specialRowValid,
 } from './quotePayload'
 import type { CreateQuoteInput, EditQuoteInput } from './quotePayload'
 
@@ -113,6 +113,12 @@ describe('Was in keine Position gehört', () => {
     expect(editTravelItems([{ description: 'Fahrtpauschale', total_price: '0' }])).toEqual([])
   })
 
+  it('Sonderposition nach Stück braucht die Stückzahl wie der Stundenansatz die Stunden', () => {
+    expect(specialRowValid({ description: 'Demontage', mode: 'stueck', unit_price: '85', hours: '' })).toBe(false)
+    expect(specialRowValid({ description: 'Demontage', mode: 'stueck', unit_price: '0', hours: '6' })).toBe(false)
+    expect(specialRowValid({ description: 'Demontage', mode: 'stueck', unit_price: '85', hours: '6' })).toBe(true)
+  })
+
   it('Sonderposition braucht Beschreibung und Betrag, nach Stunden zusätzlich die Stunden', () => {
     expect(specialRowValid({ description: '', mode: 'pauschal', unit_price: '100', hours: '' })).toBe(false)
     expect(specialRowValid({ description: 'X', mode: 'pauschal', unit_price: '0', hours: '' })).toBe(false)
@@ -165,6 +171,56 @@ describe('Kalkulations-Metadaten der Produktzeilen', () => {
   })
 })
 
+describe('Basis-Preise der Endziffern-Aufrundung überleben das Bearbeiten', () => {
+  // Der teuerste Verlust im ganzen Payload: ohne diese zwei Felder kann das Backend
+  // die bonusfreie Basis nicht mehr herstellen. Es bremst sich zwar selbst und
+  // rechnet den Bonus dann gar nicht neu — aber genau damit friert er beim ersten
+  // Speichern ein. Siehe docs/specs/werkora-bonus-produktpositionen.md §4.3.
+  const aufgeschlagen = {
+    description: 'Storenpanzer', quantity: '4', unit: 'Stk', unit_price: '769.50',
+    bonusBaseUnitPrice: 750, bonusBaseTotalPrice: 3000,
+  }
+
+  it('Material reicht sie unverändert zurück', () => {
+    const [item] = editMaterialItems([aufgeschlagen])
+    expect(item).toMatchObject({
+      unit_price: 769.5,
+      werkora_bonus_base_unit_price: 750,
+      werkora_bonus_base_total_price: 3000,
+    })
+  })
+
+  it('Weitere Produkte reichen sie unverändert zurück', () => {
+    const [item] = editExtraProductItems([aufgeschlagen])
+    expect(item).toMatchObject({
+      werkora_bonus_base_unit_price: 750,
+      werkora_bonus_base_total_price: 3000,
+    })
+  })
+
+  it('Zeilen ohne Aufschlag tragen die Felder nicht', () => {
+    const plain = { description: 'Endleiste', quantity: '3', unit: 'Stk', unit_price: '55.50' }
+    const [material] = editMaterialItems([plain])
+    expect(material).not.toHaveProperty('werkora_bonus_base_unit_price')
+    expect(material).not.toHaveProperty('werkora_bonus_base_total_price')
+    expect(editExtraProductItems([plain])[0]).not.toHaveProperty('werkora_bonus_base_unit_price')
+  })
+
+  it('beim Erstellen gibt es sie nicht — eine neue Offerte trägt noch keinen Aufschlag', () => {
+    const [item] = createExtraProductItems([
+      { description: 'Motor', quantity: '1', unit: 'Stk', unit_price: '310' },
+    ])
+    expect(item).not.toHaveProperty('werkora_bonus_base_unit_price')
+  })
+
+  it('gehen über den vollen Bearbeiten-Payload mit', () => {
+    const payload = buildEditQuotePayload({ ...EMPTY_EDIT, materialRows: [aufgeschlagen] })
+    expect(payload.material_items).toEqual([
+      expect.objectContaining({ werkora_bonus_base_unit_price: 750 }),
+    ])
+  })
+})
+
 describe('Fixpreis und Skonto im Payload', () => {
   it('leerer Fixpreis wird null (ein gesetzter lässt sich so wieder entfernen)', () => {
     expect(buildCreateQuotePayload({ ...EMPTY_CREATE, fixedPrice: '  ' }).fixed_price).toBeNull()
@@ -194,5 +250,43 @@ describe('Fixpreis und Skonto im Payload', () => {
   it('Bearbeiten schickt die Kundenzuordnung immer mit ("" = aufheben)', () => {
     expect(buildEditQuotePayload({ ...EMPTY_EDIT, customerId: '' }).customer_id).toBe('')
     expect(buildEditQuotePayload({ ...EMPTY_EDIT, customerId: 'c1' }).customer_id).toBe('c1')
+  })
+})
+
+
+// Sonderpositionen tragen ihr Preismodell nicht mit — die Einheit der gespeicherten
+// Position ist die einzige Spur davon. Hin- und Rückweg müssen deshalb dieselbe
+// Tabelle benutzen, sonst wird aus einem Stückpreis beim Bearbeiten eine Pauschale
+// (und aus «6 × 85» ein Betrag von 85).
+describe('Sonderpositionen: Preismodell hin und zurück', () => {
+  it('rechnet den Stückpreis als Menge × Ansatz', () => {
+    const [item] = specialItems([
+      { description: 'Demontage und Entsorgung', mode: 'stueck', unit_price: '85', hours: '6' },
+    ])
+    expect(item).toEqual({
+      description: 'Demontage und Entsorgung',
+      quantity: 6,
+      unit: 'Stk',
+      unit_price: 85,
+      total_price: lineTotal(6, 85),
+    })
+  })
+
+  it('behält Pauschale und Stundenansatz unverändert', () => {
+    expect(specialItems([{ description: 'X', mode: 'pauschal', unit_price: '85', hours: '' }])[0])
+      .toEqual({ description: 'X', quantity: 1, unit: 'Pau', unit_price: 85, total_price: 85 })
+    expect(specialItems([{ description: 'X', mode: 'stunden', unit_price: '95', hours: '2' }])[0])
+      .toEqual({ description: 'X', quantity: 2, unit: 'h', unit_price: 95, total_price: lineTotal(2, 95) })
+  })
+
+  it('liest das Preismodell aus der Einheit zurück', () => {
+    expect(specialModeFromUnit('Stk')).toBe('stueck')
+    expect(specialModeFromUnit('h')).toBe('stunden')
+    expect(specialModeFromUnit('Pau')).toBe('pauschal')
+    // Altpositionen und Unbekanntes werden zur Pauschale: 1 × Betrag stimmt dort,
+    // weil total_price dem unit_price entspricht.
+    expect(specialModeFromUnit('')).toBe('pauschal')
+    expect(specialModeFromUnit(null)).toBe('pauschal')
+    expect(specialModeFromUnit('Stück')).toBe('pauschal')
   })
 })

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { logout } from '../api/auth'
+import type { BetaFeature } from '../api/auth'
 import { Theme, loadTheme, applyTheme, toggleTheme } from '../theme'
 import { PushState, getPushState, enablePush, disablePush } from '../api/push'
+import { BetaSection } from '../shared/BetaSection'
 
 interface Props {
   displayName: string
@@ -9,6 +11,13 @@ interface Props {
   role: string
   tenantName: string
   logoUrl?: string
+  /** Laufende Beta-Features dieses Kontos (docs/specs/beta-tester.md §6.2).
+   *  Leer für alle, die nicht testen — dann fehlt der Abschnitt ganz. */
+  betaFeatures?: BetaFeature[]
+  /** Modulnamen im Betatest (ganze Bereiche statt einzelner Knöpfe). */
+  betaModules?: string[]
+  /** Kann von hier aus eine Rückmeldung geschickt werden (Modul `support`)? */
+  canReportSupport?: boolean
   onBack: () => void
   onLoggedOut: () => void
 }
@@ -42,7 +51,10 @@ function pushLabel(state: PushState | 'loading', busy: boolean): string {
   }
 }
 
-export default function ProfileScreen({ displayName, email, role, tenantName, logoUrl, onBack, onLoggedOut }: Props) {
+export default function ProfileScreen({
+  displayName, email, role, tenantName, logoUrl,
+  betaFeatures = [], betaModules = [], canReportSupport = false, onBack, onLoggedOut,
+}: Props) {
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
   const [pushState, setPushState] = useState<PushState | 'loading'>('loading')
   const [pushBusy, setPushBusy] = useState(false)
@@ -192,6 +204,16 @@ export default function ProfileScreen({ displayName, email, role, tenantName, lo
             <div className="menu-label">{pushLabel(pushState, pushBusy)}</div>
           </div>
         </div>
+
+        {/* Neue Funktionen im Test — nur für Beta-Tester, und nur wenn gerade
+            etwas läuft. Steht hier und nicht auf der Startseite: die ist
+            Zeiterfassung, dort gehört nichts hin, was nicht Stempeln ist
+            (docs/specs/beta-tester.md §12/3). */}
+        {(betaFeatures.length > 0 || betaModules.length > 0) && (
+          <div style={{ margin: '16px 0 0' }}>
+            <BetaSection features={betaFeatures} modules={betaModules} canReport={canReportSupport} />
+          </div>
+        )}
 
         {/* Abmelden */}
         <div className="menu-item" onClick={handleLogout} style={{ marginTop: 16 }}>

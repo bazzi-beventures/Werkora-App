@@ -148,3 +148,34 @@ export function QuoteMailTextSettings({ thankyou, rejection, orderConfirmation }
     </>
   )
 }
+
+
+// Kein PDF- und kein Mail-Text: die Vorgabe steuert den Knopf «Beschreibung
+// formulieren» im Offert-Formular. Sie steht trotzdem hier bei den Textbausteinen,
+// weil sie dasselbe ist — ein Stück Firmensprache, das jemand pflegen können muss.
+export function QuoteDescriptionPromptSetting({ state }: { state: UseTenantTextResult }) {
+  return (
+    <TenantTextSetting
+      title="Beschreibung formulieren (KI-Vorgabe)"
+      subtitle={
+        <>
+          Der Knopf «Beschreibung formulieren» im Offert-Formular macht aus Stichworten
+          («Hagelschaden Ersatz Lamellenstoren, neu Lamisol 90 konventionell, Farbe
+          VSR 140») den Fliesstext für die Offerte. Hier steht, wie dieser Text
+          aufgebaut sein und klingen soll — womit er einsteigt, womit er schliesst,
+          was ausdrücklich erwähnt gehört.
+        </>
+      }
+      state={state}
+      editor="textarea"
+      rows={12}
+      placeholder="Aufbau und Schreibstil der Offertbeschreibung…"
+      saveLabel="Vorgabe speichern"
+      hint={
+        'Vorschläge werden immer erst nach Bestätigung übernommen. Unabhängig von dieser '
+        + 'Vorgabe gilt: die KI erfindet keine Produkte, Farben, Masse oder Leistungen, '
+        + 'die nicht in den Stichworten stehen. Leer lassen setzt auf die Standard-Vorgabe zurück.'
+      }
+    />
+  )
+}

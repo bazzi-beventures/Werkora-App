@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { assignableRoles, mayAnonymize, mayEditTarget } from './userRoles'
+import { assignableRoles, mayAnonymize, mayEditTarget, maySetBetaTester } from './userRoles'
 
 // Muss zur Backend-Matrix in agents/routers/admin_users.py passen — laufen die
 // beiden auseinander, zeigt die Oberfläche Knöpfe, die in einem 403 enden.
@@ -42,5 +42,15 @@ describe('mayAnonymize', () => {
     expect(mayAnonymize('management')).toBe(true)
     expect(mayAnonymize('superadmin')).toBe(true)
     expect(mayAnonymize('admin')).toBe(false)
+  })
+})
+
+describe('maySetBetaTester', () => {
+  it('bleibt dem Superadmin vorbehalten — gepflegt wird es im Testing-Tab', () => {
+    expect(maySetBetaTester('superadmin')).toBe(true)
+    expect(maySetBetaTester('management')).toBe(false)
+    expect(maySetBetaTester('admin')).toBe(false)
+    expect(maySetBetaTester('user')).toBe(false)
+    expect(maySetBetaTester(null)).toBe(false)
   })
 })

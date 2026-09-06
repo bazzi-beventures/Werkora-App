@@ -4,6 +4,7 @@ import {
   TenantFeaturesResponse, FeatureRegistryEntry, FeatureFieldSchema,
 } from '../../../api/admin'
 import { useToast, ToastHost } from '../../components/useToast'
+import { BetaBadge } from '../../../shared/BetaBadge'
 
 // ─── Workflows-Tab: konfigurierbare Feature-Flags pro Tenant ─────────────────
 //
@@ -86,6 +87,10 @@ export function WorkflowsTab() {
       return next
     })
   }
+
+  // Wie viele Konten dieses Mandanten tragen das Beta-Häkchen? Kommt aus derselben
+  // Antwort wie die Registry (Spec §6.5) — 0, solange niemand markiert ist.
+  const betaTesterCount = data.beta_tester_count ?? 0
 
   // gruppiere Einträge nach category in der Reihenfolge data.categories
   const byCategory = new Map<string, FeatureRegistryEntry[]>()
@@ -170,6 +175,7 @@ export function WorkflowsTab() {
                         <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--muted)' }}>
                           ({entry.key})
                         </span>
+                        {entry.stage === 'beta' && <> <BetaBadge /></>}
                       </span>
                       {dirty && (
                         <span style={{ fontSize: 11, color: 'var(--warning, #d97706)', flexShrink: 0 }}>
@@ -186,6 +192,17 @@ export function WorkflowsTab() {
                         <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
                           {entry.description}
                         </div>
+
+                        {/* Ein eingeschaltetes Beta-Flag ohne markierte Tester tut
+                            nichts — ohne diesen Satz sucht man den Fehler im Feature
+                            (docs/specs/beta-tester.md §6.5). */}
+                        {entry.stage === 'beta' && (
+                          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
+                            {betaTesterCount > 0
+                              ? `Sichtbar für ${betaTesterCount} ${betaTesterCount === 1 ? 'markierten Tester' : 'markierte Tester'} in diesem Mandanten — alle anderen merken nichts davon.`
+                              : 'Noch kein Tester markiert — das Flag hat aktuell keine Wirkung. Das Häkchen setzt die Geschäftsleitung in der Benutzerverwaltung.'}
+                          </div>
+                        )}
 
                         <div style={{ display: 'grid', gap: 12 }}>
                           {/* Der Aktiv-Schalter sitzt bereits in der Kopfzeile. */}

@@ -5,6 +5,7 @@ import {
 } from '../../../api/admin'
 import { useTenantSetting } from '../useTenantSetting'
 import { useToast, ToastHost } from '../../components/useToast'
+import { BetaBadge } from '../../../shared/BetaBadge'
 
 // Modul-Kategorien für die gruppierte Darstellung im Module-Tab.
 // 'notifications' wird zusätzlich nach Kanal (Mail/Push) unterteilt.
@@ -75,16 +76,33 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
   const { toast, showToast } = useToast()
   // Registry-Teil der Antwort (bekannte Module + Dependencies) — ändert sich nur
   // durch Neuladen, deshalb neben dem editierbaren Wert (enabled-Liste) gehalten.
-  const [meta, setMeta] = useState<{ known: string[]; deps: Record<string, string[]> } | null>(null)
+  const [meta, setMeta] = useState<{
+    known: string[]
+    deps: Record<string, string[]>
+    // Module, die das Betatest-Häkchen tragen dürfen (config.BETA_CAPABLE_MODULES).
+    // Leer, solange eine ältere Antwort das Feld nicht führt — dann bleibt der
+    // Tab beim bisherigen Verhalten und zeigt gar kein Beta-Häkchen.
+    betaCapable: string[]
+    testerCount: number
+  } | null>(null)
   // Reminder-Uhrzeiten (Feature-Flags): feature-key -> HH:MM. Nur im Notifications-View relevant.
   const [reminderTimes, setReminderTimes] = useState<Record<string, string>>({})
 
+  // Zwei Listen, ein Speichervorgang: `enabled` ist der An/Aus-Schalter,
+  // `beta` die Teilmenge davon, die nur Tester sehen. Zusammen in EINEM Wert,
+  // damit «ungespeichert» und der Speichern-Knopf beide Häkchen umfassen —
+  // sonst könnte man das Beta-Häkchen setzen und beim Verlassen verlieren.
   const {
-    value: enabled, setValue: setEnabled, loading, saving, dirty, reload, persist,
-  } = useTenantSetting<string[]>({
+    value: sel, setValue: setSel, loading, saving, dirty, reload, persist,
+  } = useTenantSetting<{ enabled: string[]; beta: string[] }>({
     load: async () => {
       const result = await getTenantModules()
-      setMeta({ known: result.known_modules, deps: result.dependencies })
+      setMeta({
+        known: result.known_modules,
+        deps: result.dependencies,
+        betaCapable: result.beta_capable_modules ?? [],
+        testerCount: result.beta_tester_count ?? 0,
+      })
       // Aktuelle Reminder-Uhrzeiten aus den Feature-Overrides ziehen (nur Notifications-Tab).
       if (view === 'notifications') {
         try {
@@ -97,11 +115,17 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
           setReminderTimes(times)
         } catch { /* Uhrzeiten optional — Toggle funktioniert auch ohne */ }
       }
-      return [...result.enabled_modules].sort()
+      return {
+        enabled: [...result.enabled_modules].sort(),
+        beta: [...(result.beta_modules ?? [])].sort(),
+      }
     },
-    save: async (mods) => {
-      const result = await updateTenantModules([...mods].sort())
-      return [...result.enabled_modules].sort()
+    save: async (v) => {
+      const result = await updateTenantModules([...v.enabled].sort(), [...v.beta].sort())
+      return {
+        enabled: [...result.enabled_modules].sort(),
+        beta: [...(result.beta_modules ?? [])].sort(),
+      }
     },
     onToast: showToast,
     savedMsg: 'Module gespeichert',
@@ -117,11 +141,16 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
     }
   }
 
-  if (loading || !enabled || !meta) {
+  if (loading || !sel || !meta) {
     return <><div className="admin-loading"><div className="admin-spinner" /> Module werden geladen…</div><ToastHost toast={toast} /></>
   }
 
-  const selected = new Set(enabled)
+  const selected = new Set(sel.enabled)
+  const inBeta = new Set(sel.beta)
+  const betaCapable = new Set(meta.betaCapable)
+  // Ausserhalb von renderModuleRow gezogen: dort verdeckt ein lokales `meta`
+  // (die Beschriftung des Moduls) den Zustand gleichen Namens.
+  const testerCount = meta.testerCount
   const dependencies = meta.deps
 
   // Live-Validierung: fehlende Dependencies pro Modul
@@ -136,9 +165,24 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
 
   function toggle(module: string) {
     const next = new Set(selected)
+    const nextBeta = new Set(inBeta)
+    if (next.has(module)) {
+      next.delete(module)
+      // Ein abgeschaltetes Modul kann nicht «an, nur für Tester» sein — die
+      // Invariante beta ⊆ enabled hält auch der Server, aber ein Häkchen, das
+      // nach dem Abschalten stehen bliebe, sähe hier aus wie ein Fehler.
+      nextBeta.delete(module)
+    } else {
+      next.add(module)
+    }
+    setSel({ enabled: Array.from(next).sort(), beta: Array.from(nextBeta).sort() })
+  }
+
+  function toggleBeta(module: string) {
+    const next = new Set(inBeta)
     if (next.has(module)) next.delete(module)
     else next.add(module)
-    setEnabled(Array.from(next).sort())
+    setSel({ enabled: [...sel!.enabled], beta: Array.from(next).sort() })
   }
 
   function save() {
@@ -177,6 +221,36 @@ export function ModulesTab({ view }: { view: 'modules' | 'notifications' }) {
           {deps.length > 0 && (
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
               Benötigt: {deps.map(d => MODULE_LABELS[d]?.label ?? d).join(', ')}
+            </div>
+          )}
+          {/* Zweites Häkchen: an, aber nur für Beta-Tester
+              (docs/specs/beta-tester.md). Nur bei Modulen mit Oberfläche —
+              ein Melde-Modul hat nichts, was sich pro Konto zeigen liesse,
+              und ein Schalter ohne Wirkung ist schlimmer als keiner. */}
+          {isOn && betaCapable.has(m) && (
+            <div
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8 }}
+              onClick={e => { e.preventDefault(); e.stopPropagation() }}
+            >
+              <input
+                type="checkbox"
+                checked={inBeta.has(m)}
+                onChange={() => toggleBeta(m)}
+                onClick={e => e.stopPropagation()}
+                style={{ marginTop: 2 }}
+              />
+              <div style={{ fontSize: 12 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  Nur im Betatest <BetaBadge />
+                </span>
+                <div style={{ color: 'var(--muted)', marginTop: 2, lineHeight: 1.5 }}>
+                  {inBeta.has(m)
+                    ? (testerCount > 0
+                        ? `Die Oberfläche sehen nur die ${testerCount} markierten Tester — alle anderen im Betrieb nicht mehr. Hintergrundläufe (Mails, Push, Pflichtprüfungen) laufen unverändert weiter.`
+                        : 'Noch kein Tester markiert — damit sieht dieses Modul gerade NIEMAND. Tester setzt du im Tab Testing.')
+                    : 'Modul einschalten, seine Oberfläche aber zunächst nur den Beta-Testern zeigen.'}
+                </div>
+              </div>
             </div>
           )}
           {MODULE_TIME_FEATURE[m] && isOn && (

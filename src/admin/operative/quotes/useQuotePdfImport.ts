@@ -6,15 +6,18 @@
 //
 //   Datei wählen → extrahieren → Review-Modal → «Übernehmen» hängt die Zeilen an
 //   und merkt das PDF zur Ablage vor → nach dem Speichern der Offerte landet es
-//   als Projekt-Datei unter «Lieferantendokumente > Bestellungen».
+//   als Projekt-Datei unter «Lieferantendokumente > Bestellungen» — benannt nach
+//   Projektnummer und Projektname statt nach dem, was der Lieferant seiner Datei
+//   mitgegeben hat (s. supplierDocFilename).
 //
 // Bei «Abbrechen» wird die Quelle verworfen — ein ungenutztes PDF soll nicht im
 // Projekt liegen.
 
 import { useRef, useState } from 'react'
 import { extractQuotePdf } from '../../../api/admin/quotes'
-import { uploadProjectFile } from '../../../api/admin/projects'
+import { getProject, uploadProjectFile } from '../../../api/admin/projects'
 import { pdfUploadErrorMessage } from '../QuoteFormParts'
+import { renameFile, supplierDocFilename } from './supplierDocName'
 import type { ConfirmedExtraProduct, PdfExtractionResponse } from '../PdfExtractionReviewModal'
 
 const NO_PRODUCTS_HINT =
@@ -56,8 +59,9 @@ export interface QuotePdfImport {
   openManualEntry: () => void
   confirmReview: (confirmed: ConfirmedExtraProduct[]) => void
   cancelReview: () => void
-  /** Vorgemerkte Quell-PDFs beim Projekt ablegen. Best-effort: die Offerte ist zu
-   *  diesem Zeitpunkt bereits gespeichert, ein Ablagefehler darf sie nicht kippen. */
+  /** Vorgemerkte Quell-PDFs beim Projekt ablegen — benannt nach Projektnummer und
+   *  Projektname (supplierDocFilename). Best-effort: die Offerte ist zu diesem
+   *  Zeitpunkt bereits gespeichert, ein Ablagefehler darf sie nicht kippen. */
   fileSupplierDocs: (projectId: string) => Promise<void>
   hasSupplierDocs: boolean
 }
@@ -119,9 +123,15 @@ export function useQuotePdfImport(
   }
 
   async function fileSupplierDocs(projectId: string) {
-    for (const f of supplierDocs) {
+    // Projektnummer und -name für den Ablagenamen. Ein eigener Abruf statt eines
+    // weiteren Parameters: beide Masken legen ab, aber nur die Erstell-Maske hat
+    // die Projektzeile zur Hand — die Bearbeiten-Maske kennt vom Projekt nur die
+    // ID. Best-effort wie die Ablage selbst; schlägt der Abruf fehl, behält die
+    // Datei den Namen des Lieferanten (supplierDocFilename gibt ihn dann zurück).
+    const project = await getProject(projectId).catch(() => null)
+    for (const [i, f] of supplierDocs.entries()) {
       try {
-        await uploadProjectFile(projectId, f, 'bestellungen')
+        await uploadProjectFile(projectId, renameFile(f, supplierDocFilename(f.name, project, i)), 'bestellungen')
       } catch (err) {
         console.error('Lieferanten-PDF konnte nicht im Projekt abgelegt werden:', err)
       }

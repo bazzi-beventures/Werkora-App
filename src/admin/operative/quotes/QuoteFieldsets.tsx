@@ -29,6 +29,30 @@ const BUTTON_ROW_STYLE: React.CSSProperties = { display: 'flex', gap: 8, flexWra
 
 const OPTIONAL_HINT = 'Eventualposition — nicht im Total, erscheint mit Preis auf der Offerte'
 
+const BONUS_BASE_TITLE =
+  'In diesem Preis steckt die automatische Endziffern-Aufrundung. Der Wert daneben ist '
+  + 'der kalkulierte Preis ohne sie. Wer den Preis von Hand überschreibt, setzt damit '
+  + 'eine neue Basis — der Aufschlag wird beim Speichern frisch daraus gezogen.'
+
+/** Zeigt bei aufgeschlagenen Waren-Zeilen den kalkulierten Preis ohne Aufschlag.
+ *
+ * Seit docs/specs/werkora-bonus-produktpositionen.md verschwindet der Werkora Bonus
+ * in den Einzelpreisen statt in einer eigenen Zeile. Das Eingabefeld zeigt weiterhin
+ * den GESPEICHERTEN Preis — was gedruckt wurde, muss in der Maske stehen. Ohne diesen
+ * Hinweis wäre aber nicht mehr erkennbar, warum dort 769.50 statt der kalkulierten
+ * 750.00 steht. Zeilen ohne Aufschlag zeigen nichts an. */
+export function BonusBaseHint({ base }: { base?: number }) {
+  if (base === undefined) return null
+  return (
+    <span
+      style={{ fontSize: 11, color: 'var(--muted)', alignSelf: 'center', whiteSpace: 'nowrap' }}
+      title={BONUS_BASE_TITLE}
+    >
+      Basis {fmtCHF(base)}
+    </span>
+  )
+}
+
 // ─── Lohn ───────────────────────────────────────────────────
 
 interface LaborRowView { description: string; quantity: string; hidden?: boolean }
@@ -147,6 +171,9 @@ interface ExtraRowView {
   ek?: string
   margin_pct?: string
   optional?: boolean
+  // Preis vor der Endziffern-Aufrundung (Feature `werkora_bonus`) — nur zur
+  // Anzeige, siehe BonusBaseHint. Beim Erstellen immer undefined.
+  bonusBaseUnitPrice?: number
 }
 
 interface ExtraProductsFieldsetProps<T extends ExtraRowView> {
@@ -193,6 +220,7 @@ export function ExtraProductsFieldset<T extends ExtraRowView>({
           <input className="admin-form-input" style={{ flex: 1, minWidth: 75 }} placeholder="Preis/Stk" value={row.unit_price}
             title={row.ek?.trim() ? 'Verkaufspreis (aus EK × Aufschlag; überschreibbar)' : 'Verkaufspreis pro Stück'}
             onChange={e => onUpdate(i, { unit_price: e.target.value } as Partial<T>)} />
+          <BonusBaseHint base={row.bonusBaseUnitPrice} />
           {optionalEnabled && (
             <label style={CHECKBOX_LABEL_STYLE} title={OPTIONAL_HINT}>
               <input type="checkbox" checked={!!row.optional} onChange={e => onUpdate(i, { optional: e.target.checked } as Partial<T>)} />
@@ -256,6 +284,27 @@ export function InstallationFieldset({ rows, templates, onChange }: {
 
 // ─── Sonderpositionen (Demontage / Entsorgung) ──────────────
 
+/** Beschriftung der Mengenspalte je Preismodell — dieselbe Eingabe, andere Einheit.
+ *  'pauschal' hat keine Menge und steht deshalb nicht drin. */
+const SPECIAL_QUANTITY_LABEL: Record<Exclude<SpecialMode, 'pauschal'>, string> = {
+  stunden: 'Stunden',
+  stueck: 'Stück',
+}
+
+/** Zusatz hinter dem Betrag auf dem Vorlagen-Knopf: ohne ihn stünde bei einem
+ *  Stückpreis derselbe Text wie bei einer Pauschale — «CHF 85» für 85 pro Stück. */
+const SPECIAL_FEE_SUFFIX: Record<SpecialMode, string> = {
+  pauschal: '',
+  stunden: '/h',
+  stueck: '/Stk',
+}
+
+/** Beschriftung des Ansatzes je Einheit. */
+const SPECIAL_RATE_LABEL: Record<Exclude<SpecialMode, 'pauschal'>, string> = {
+  stunden: 'CHF/h',
+  stueck: 'CHF/Stk',
+}
+
 export function SpecialPositionsFieldset({ rows, templates, onChange }: {
   rows: SpecialRow[]
   templates: SpecialTpl[]
@@ -274,17 +323,26 @@ export function SpecialPositionsFieldset({ rows, templates, onChange }: {
             onChange={e => update(i, { mode: e.target.value as SpecialMode })}>
             <option value="pauschal">Pauschale</option>
             <option value="stunden">Stundenansatz</option>
+            <option value="stueck">Stückpreis</option>
           </select>
-          {row.mode === 'stunden' ? (
-            <>
-              <input className="admin-form-input" style={{ flex: 1, minWidth: 70 }} placeholder="Stunden" value={row.hours}
-                onChange={e => update(i, { hours: e.target.value })} />
-              <input className="admin-form-input" style={{ flex: 1, minWidth: 80 }} placeholder="CHF/h" value={row.unit_price}
-                onChange={e => update(i, { unit_price: e.target.value })} />
-            </>
-          ) : (
+          {row.mode === 'pauschal' ? (
             <input className="admin-form-input" style={{ flex: 1, minWidth: 90 }} placeholder="Betrag CHF" value={row.unit_price}
               onChange={e => update(i, { unit_price: e.target.value })} />
+          ) : (
+            /* Stunden und Stück teilen sich dieselbe Mengenspalte (SpecialRow.hours) —
+               nur Beschriftung und Einheit unterscheiden sich. */
+            <>
+              <input className="admin-form-input" style={{ flex: 1, minWidth: 70 }}
+                placeholder={SPECIAL_QUANTITY_LABEL[row.mode]}
+                aria-label={SPECIAL_QUANTITY_LABEL[row.mode]}
+                value={row.hours}
+                onChange={e => update(i, { hours: e.target.value })} />
+              <input className="admin-form-input" style={{ flex: 1, minWidth: 80 }}
+                placeholder={SPECIAL_RATE_LABEL[row.mode]}
+                aria-label={SPECIAL_RATE_LABEL[row.mode]}
+                value={row.unit_price}
+                onChange={e => update(i, { unit_price: e.target.value })} />
+            </>
           )}
           <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => onChange(rows.filter((_, j) => j !== i))} title="Entfernen">✕</button>
         </div>
@@ -298,7 +356,7 @@ export function SpecialPositionsFieldset({ rows, templates, onChange }: {
               unit_price: String(tpl.default_fee),
               hours: tpl.default_hours != null ? String(tpl.default_hours) : '',
             }])}>
-            + {tpl.label} ({tpl.pricing_mode === 'stunden' ? `CHF ${tpl.default_fee}/h` : `CHF ${tpl.default_fee}`})
+            + {tpl.label} (CHF {tpl.default_fee}{SPECIAL_FEE_SUFFIX[tpl.pricing_mode] ?? ''})
           </button>
         ))}
         <button className="admin-btn admin-btn-secondary admin-btn-sm"
@@ -337,7 +395,15 @@ export function QuoteTextFields({
     <>
       <div style={{ marginBottom: 20 }}>
         <label className="admin-form-label">Produktbeschreibung</label>
-        <SpellcheckTextarea value={productDescription} onChange={onProductDescriptionChange} placeholder="Beschreibung der angebotenen Produkte…" />
+        {/* `compose`: aus Stichworten («Hagelschaden Ersatz Lamellenstoren, neu
+            Lamisol 90 konventionell, Farbe VSR 140») wird der fertige Offerttext.
+            Genau hier und sonst nirgends — dieses Feld steht so im Kundendokument. */}
+        <SpellcheckTextarea
+          value={productDescription}
+          onChange={onProductDescriptionChange}
+          placeholder="Beschreibung der angebotenen Produkte…"
+          compose
+        />
       </div>
       <div style={{ marginBottom: 20 }}>
         <label className="admin-form-label">Bemerkungen</label>

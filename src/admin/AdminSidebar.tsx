@@ -1,6 +1,8 @@
 import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
+import type { BetaFeature } from '../api/auth'
 import { ModuleName } from '../api/modules'
+import { BetaSection } from '../shared/BetaSection'
 import {
   IconDashboard, IconUsers, IconCalendar, IconClock, IconDocument, IconBox,
   IconFolder, IconReceipt, IconCash, IconTag, IconKey, IconChart,
@@ -16,6 +18,12 @@ interface Props {
   role: string
   tenantName: string
   enabledModules: string[]
+  /** Laufende Beta-Features dieses Kontos (docs/specs/beta-tester.md §6.2). */
+  betaFeatures?: BetaFeature[]
+  /** Modulnamen im Betatest. */
+  betaModules?: string[]
+  /** Modul `support` aktiv — sonst gibt es keinen Rückweg in der App. */
+  canReportSupport?: boolean
   showTaskBoard?: boolean
   badges?: {
     corrections?: number
@@ -51,7 +59,7 @@ function NavItem({ label, target, current, onNav, badge, icon }: NavItemProps) {
   )
 }
 
-export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, badges }: Props) {
+export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, betaFeatures = [], betaModules = [], canReportSupport = false, showTaskBoard, badges }: Props) {
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isManagement = role === 'management' || role === 'superadmin'
   const isSuperadmin = role === 'superadmin'
@@ -153,6 +161,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
       </nav>
 
       <div className="admin-sidebar-footer">
+        {/* Was dieses Konto vor allen anderen sieht — derselbe Abschnitt wie im
+            Profil der Mitarbeiter-App (docs/specs/beta-tester.md §6.2). */}
+        <BetaSection features={betaFeatures} modules={betaModules} canReport={canReportSupport} compact />
         <button className="admin-switch-btn" onClick={onSwitchToUser} title="Zur Mitarbeiter-App wechseln">
           <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
             <path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-7 9a7 7 0 1 1 14 0H3z" />

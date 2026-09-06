@@ -7,18 +7,35 @@ import { SK } from '../storageKeys'
 
 export interface TenantModulesResponse {
   enabled_modules: string[]
+  /** Teilmenge von enabled_modules: an, aber nur für Beta-Tester sichtbar
+   *  (docs/specs/beta-tester.md). */
+  beta_modules?: string[]
   known_modules: string[]
   dependencies: Record<string, string[]>
+  /** Welche Module das Betatest-Häkchen tragen dürfen — der Rest wirkt im
+   *  Hintergrund (Scheduler/Mail/Push) und hat keine Oberfläche, die sich pro
+   *  Konto zeigen liesse. */
+  beta_capable_modules?: string[]
+  /** Aktive Konten dieses Mandanten mit Beta-Häkchen. */
+  beta_tester_count?: number
 }
 
 export async function getTenantModules(): Promise<TenantModulesResponse> {
   return apiFetch<TenantModulesResponse>('/pwa/admin/tenant/modules')
 }
 
-export async function updateTenantModules(modules: string[]): Promise<{ enabled_modules: string[] }> {
-  return apiFetch<{ enabled_modules: string[] }>('/pwa/admin/tenant/modules', {
+export interface TenantModulesSaved {
+  enabled_modules: string[]
+  beta_modules: string[]
+}
+
+export async function updateTenantModules(
+  modules: string[],
+  betaModules: string[],
+): Promise<TenantModulesSaved> {
+  return apiFetch<TenantModulesSaved>('/pwa/admin/tenant/modules', {
     method: 'PATCH',
-    body: JSON.stringify({ enabled_modules: modules }),
+    body: JSON.stringify({ enabled_modules: modules, beta_modules: betaModules }),
   })
 }
 
@@ -238,6 +255,9 @@ export interface FeatureRegistryEntry {
   category: string
   default: Record<string, unknown>
   schema: FeatureFieldSchema[]
+  /** «beta» = nur Konten mit Beta-Häkchen sehen es (docs/specs/beta-tester.md).
+   *  Der Server liefert das Feld immer; das `?` deckt nur eine ältere Antwort ab. */
+  stage?: 'beta' | 'ga'
 }
 
 export interface TenantFeaturesResponse {
@@ -245,6 +265,9 @@ export interface TenantFeaturesResponse {
   categories: string[]
   overrides: Record<string, Record<string, unknown>>
   effective: Record<string, Record<string, unknown>>
+  /** Aktive Konten dieses Mandanten mit Beta-Häkchen — beantwortet an einem
+   *  Beta-Eintrag die Frage «warum passiert nichts?» (Spec §6.5). */
+  beta_tester_count?: number
 }
 
 export async function getTenantFeatures(): Promise<TenantFeaturesResponse> {

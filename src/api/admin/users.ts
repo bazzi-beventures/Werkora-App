@@ -17,6 +17,10 @@ export interface AuthUser {
   // Versionsnummer steht deshalb nirgends im Frontend.
   consent_current: boolean
   username: string | null
+  /** Sieht dieses Konto Features der Stufe «Beta»? (docs/specs/beta-tester.md).
+   *  Setzen darf das Häkchen nur Management/Superadmin — das Backend lehnt den
+   *  eingeschränkten Admin mit 403 `management_required` ab. */
+  beta_tester?: boolean
 }
 
 export interface AuthUserInput {
@@ -25,6 +29,9 @@ export interface AuthUserInput {
   role: string
   // Nur beim Ändern: deaktivierte Konten können sich nicht mehr anmelden.
   is_active?: boolean
+  // Weglassen heisst «nicht anfassen» — das Backend rührt das Häkchen dann nicht
+  // an. Nur Management/Superadmin dürfen es setzen (docs/specs/beta-tester.md §5.7).
+  beta_tester?: boolean
 }
 
 export async function listUsers(): Promise<AuthUser[]> {
@@ -63,6 +70,8 @@ export interface CreateUserInput {
   display_name: string | null
   email: string | null
   role: string
+  /** Gleich beim Anlegen als Beta-Tester markieren (nur Management/Superadmin). */
+  beta_tester?: boolean
   staff?: StaffProfileInput | null
   initial_password?: string | null
   generate_pin?: boolean

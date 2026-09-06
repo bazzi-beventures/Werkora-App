@@ -9,7 +9,17 @@ vi.mock('../../api/client', () => ({
   ApiError: class ApiError extends Error {},
 }))
 vi.mock('../../api/auth', () => ({ getMe: vi.fn().mockResolvedValue({}) }))
-vi.mock('../../api/modules', () => ({ isFeatureEnabled: () => false }))
+// Der Mock deckt beide Nutzer von `isFeatureEnabled` ab: den Screen selbst
+// (eigentuemer_kontakt) und `availableSalutations` in api/admin/customers.
+// Standardmäßig ist alles aus; einzelne Tests schalten per `enableFeature` frei.
+const { mockIsFeatureEnabled } = vi.hoisted(() => ({
+  mockIsFeatureEnabled: vi.fn((_user: unknown, _key: string) => false),
+}))
+vi.mock('../../api/modules', () => ({ isFeatureEnabled: mockIsFeatureEnabled }))
+
+function enableFeature(key: string) {
+  mockIsFeatureEnabled.mockImplementation((_user: unknown, k: string) => k === key)
+}
 
 // AddressAutocomplete/CompanySearch machen eigene Netzwerk-Calls und Portale —
 // fuer den Dubletten-Hinweis irrelevant.
@@ -130,7 +140,16 @@ describe('CustomersScreen — Anrede', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useRealTimers()
+    // clearAllMocks löscht nur die Aufrufe, nicht die Implementierung — sonst
+    // trüge ein einzelner enableFeature-Test in alle folgenden hinein.
+    mockIsFeatureEnabled.mockImplementation(() => false)
   })
+
+  function salutationOptions(): string[] {
+    return Array.from(
+      screen.getByLabelText('Anrede').querySelectorAll('option'),
+    ).map(o => o.textContent ?? '')
+  }
 
   function savedCustomerPayload() {
     const call = mockFetch.mock.calls.find(
@@ -169,5 +188,44 @@ describe('CustomersScreen — Anrede', () => {
     render(<CustomersScreen />)
     expect(await screen.findByText('Herr')).toBeInTheDocument()
     expect(screen.getByText('Hans Müller')).toBeInTheDocument()
+  })
+
+  // «Frau und Herr» hängt am Flag `anrede_frau_und_herr` (Migration 20260905):
+  // Mandanten, die nur Verwaltungen beliefern, sollen die dritte Zeile nicht sehen.
+  it('bietet «Frau und Herr» ohne Flag nicht an', async () => {
+    routeFetch([])
+    await openNewCustomerForm()
+    expect(salutationOptions()).toEqual(['—', 'Herr', 'Frau'])
+  })
+
+  it('bietet «Frau und Herr» mit Flag an und schickt den Schlüssel', async () => {
+    enableFeature('anrede_frau_und_herr')
+    routeFetch([])
+    const input = await openNewCustomerForm()
+    await waitFor(() => expect(salutationOptions()).toContain('Frau und Herr'))
+
+    fireEvent.change(input, { target: { value: 'Müller' } })
+    fireEvent.change(screen.getByLabelText('Anrede'), { target: { value: 'frau_und_herr' } })
+    fireEvent.click(screen.getByText('Speichern'))
+
+    await waitFor(() => expect(savedCustomerPayload().salutation).toBe('frau_und_herr'))
+  })
+
+  it('behält eine gespeicherte Paar-Anrede im Formular, wenn das Flag aus ist', async () => {
+    // Ohne diese Ausnahme fiele die Anrede beim nächsten Speichern still auf
+    // «—» zurück — das Formular schickt immer den vollen Stand.
+    mockFetch.mockImplementation(async (path: string) => {
+      if (path.startsWith('/pwa/admin/customers/name-check')) return { matches: [] }
+      if (path.startsWith('/pwa/admin/customers/list')) {
+        return { ...EMPTY_LIST, rows: [{ ...MUELLER, salutation: 'frau_und_herr' }], total: 1 }
+      }
+      if (path.endsWith('/comments')) return []
+      return { id: 'cust-1' }
+    })
+    render(<CustomersScreen />)
+    fireEvent.click(await screen.findByText('Hans Müller'))
+
+    await waitFor(() => expect(salutationOptions()).toContain('Frau und Herr'))
+    expect((screen.getByLabelText('Anrede') as HTMLSelectElement).value).toBe('frau_und_herr')
   })
 })

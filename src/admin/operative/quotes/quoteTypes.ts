@@ -61,15 +61,40 @@ export interface ExtraProductRow {
 export interface ExtraChargeRow { description: string; total_price: string }
 export interface InstallationRow { description: string; unit_price: string }
 
-// Sonderpositionen (Demontage/Entsorgung): pauschal → unit_price = Fixbetrag;
-// stunden → unit_price = Stundenansatz, hours = Stundenzahl.
+// Sonderpositionen (Demontage/Entsorgung), drei Preismodelle:
+//   pauschal → unit_price = Fixbetrag, keine Menge (1 × Betrag)
+//   stunden  → unit_price = Stundenansatz, hours = Stundenzahl
+//   stueck   → unit_price = Stückpreis,   hours = Stückzahl
+//
+// `hours` trägt bei 'stueck' also die Stückzahl. Bewusst dasselbe Feld statt eines
+// zweiten: es ist dieselbe Mengenspalte an derselben Stelle der Maske, nur mit
+// anderer Einheit — genauso wie `special_position_templates.default_hours` in der
+// Datenbank (Migration 20260906_special_positions_stueck.sql). Ein zweites Feld wäre
+// zudem eine Shape-Änderung am Offert-Entwurf im localStorage (APP_DATA_VERSION).
 export interface SpecialRow { description: string; mode: SpecialMode; unit_price: string; hours: string }
 
 // ─── Zeilen im Bearbeiten-Formular ──────────────────────────
 
 export type EditLaborRow = { description: string; quantity: string; unit_price: string; hidden?: boolean }
 // `optional` (Workflow "optionale_positionen"): Eventualposition, nicht im Total.
-export type EditFreeRow = { description: string; quantity: string; unit: string; unit_price: string; optional?: boolean }
+//
+// `bonusBaseUnitPrice`/`bonusBaseTotalPrice`: der Preis dieser Zeile VOR der
+// automatischen Endziffern-Aufrundung (Feature `werkora_bonus`). Der Aufschlag
+// steckt seit der Umstellung in den Waren-Preisen statt in einer eigenen Zeile
+// (docs/specs/werkora-bonus-produktpositionen.md) — ohne die Basis liesse er sich
+// nicht mehr zurückrechnen. Die Felder werden beim Bearbeiten UNVERÄNDERT
+// zurückgeschickt; gehen sie verloren, erkennt das Backend einen veralteten Client
+// und rechnet den Bonus lieber gar nicht neu, statt einen zweiten obendrauf zu
+// legen (§4.3). Preisneutral wie ek/margin_pct — die Maske rechnet nicht damit.
+export type EditFreeRow = {
+  description: string
+  quantity: string
+  unit: string
+  unit_price: string
+  optional?: boolean
+  bonusBaseUnitPrice?: number
+  bonusBaseTotalPrice?: number
+}
 // Produktzeilen aus PDF-Extraktion / manueller Erfassung führen zusätzlich EK, Aufschlag,
 // Lieferant und den Positions-Breakdown mit. Preisneutral, aber sie müssen ein Edit überleben.
 export type EditExtraRow = EditFreeRow & {

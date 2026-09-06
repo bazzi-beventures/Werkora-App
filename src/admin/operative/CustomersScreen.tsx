@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  SALUTATIONS, addCustomerComment, checkCustomerName, deleteCustomer, deleteCustomerComment,
-  getCustomerComments, listCustomers, salutationLabel, saveCustomer, updateCustomerComment,
+  addCustomerComment, availableSalutations, checkCustomerName, deleteCustomer,
+  deleteCustomerComment, getCustomerComments, listCustomers, salutationLabel, saveCustomer,
+  updateCustomerComment,
 } from '../../api/admin/customers'
 import type {
   AdditionalEmail, Customer, CustomerComment, CustomerNameMatch, CustomersListResponse,
 } from '../../api/admin/customers'
 import { getMe } from '../../api/auth'
+import type { UserInfo } from '../../api/auth'
 import { isFeatureEnabled } from '../../api/modules'
 import { AddressAutocomplete } from '../../shared/AddressAutocomplete'
 import { CompanySearch } from '../../shared/CompanySearch'
@@ -212,7 +214,7 @@ function CustomerForm({
   const isNew = !initial
   const [name, setName] = useState(initial?.name ?? '')
   // Anrede: '' = keine (Firmen, Verwaltungen). Gehalten wird der Schlüssel
-  // ('herr'/'frau'), nicht die Druckform — die baut das PDF selbst.
+  // ('herr'/'frau'/'frau_und_herr'), nicht die Druckform — die baut das PDF selbst.
   const [salutation, setSalutation] = useState(initial?.salutation ?? '')
   const [company, setCompany] = useState(initial?.company ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
@@ -232,7 +234,7 @@ function CustomerForm({
   const [localContactPhone, setLocalContactPhone] = useState(initial?.local_contact_phone ?? '')
   const [ownerContactName, setOwnerContactName] = useState(initial?.owner_contact_name ?? '')
   const [ownerContactPhone, setOwnerContactPhone] = useState(initial?.owner_contact_phone ?? '')
-  const [showOwnerContact, setShowOwnerContact] = useState(false)
+  const [me, setMe] = useState<UserInfo | null>(null)
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -241,8 +243,13 @@ function CustomerForm({
   const nameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    getMe().then(me => setShowOwnerContact(isFeatureEnabled(me, 'eigentuemer_kontakt'))).catch(() => {})
+    getMe().then(setMe).catch(() => {})
   }, [])
+
+  const showOwnerContact = isFeatureEnabled(me, 'eigentuemer_kontakt')
+  // Anrede-Auswahl kommt vom Flag (`anrede_frau_und_herr`) — die gespeicherte
+  // Anrede des Kunden bleibt darin, auch wenn ihr Flag inzwischen aus ist.
+  const salutations = availableSalutations(me, initial?.salutation)
 
   // Dubletten-Hinweis: Gleiche Kundennamen sind erlaubt (der Unique-Constraint auf
   // dem Namen ist bewusst weggefallen — «Hans Müller» gibt es nun mal mehrfach).
@@ -347,7 +354,9 @@ function CustomerForm({
                 Hinweis unten am Namensfeld hängen bleibt und die Anrede nicht
                 die halbe Zeilenbreite bekommt. */}
             <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: '0 0 110px' }}>
+              {/* 150px statt 110: «Frau und Herr» (Flag anrede_frau_und_herr) wird
+                  im geschlossenen Select sonst abgeschnitten. */}
+              <div style={{ flex: '0 0 150px' }}>
                 <label className="admin-form-label" htmlFor="customer-salutation">Anrede</label>
                 <select
                   id="customer-salutation"
@@ -356,7 +365,7 @@ function CustomerForm({
                   onChange={e => setSalutation(e.target.value)}
                 >
                   <option value="">—</option>
-                  {SALUTATIONS.map(s => (
+                  {salutations.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>

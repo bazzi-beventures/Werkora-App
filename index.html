@@ -6,6 +6,11 @@
          In Dev bleibt sie weg, weil Vite-HMR Inline-Scripts braucht. -->
     __CSP_META__
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Farbe der Titel-/Statusleiste, die der Browser um die installierte PWA
+         zeichnet. Werkora-Schwarz ist nur der Startwert für die Zeit vor dem
+         Login: sobald der Mandant geladen ist, setzt App.tsx
+         (applyThemeColor) den dunklen Ton der Firmenfarbe — sonst liegt über
+         der Mandantenleiste ein schwarzer Streifen, der zu nichts gehört. -->
     <meta name="theme-color" content="#12161D" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

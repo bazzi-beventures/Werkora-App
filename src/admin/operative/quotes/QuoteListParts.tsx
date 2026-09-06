@@ -11,6 +11,19 @@ import { fmtDate } from '../../utils/format'
 import { isQuoteWithoutFeedback } from '../quoteFeedback'
 import type { Quote } from './quoteTypes'
 
+/** Status, in denen die Offerte noch inhaltlich bearbeitet werden darf.
+ *
+ * Steht hier statt zweimal inline, weil zwei Stellen davon abhängen und sie nicht
+ * auseinanderlaufen dürfen: der «Bearbeiten»-Knopf unten UND der Klick auf die
+ * ganze Zeile bzw. Karte in der Offertenliste. Eine Zeile, die sich anklicken
+ * lässt, aber keinen Knopf zeigt (oder umgekehrt), wäre genau die Art von
+ * Inkonsistenz, die man später an einer der beiden Stellen vergisst.
+ *
+ * Angenommene, abgelehnte und archivierte Offerten sind bewusst NICHT dabei: dort
+ * hat der Kunde die Zahl gesehen, und ein versehentlicher Klick in der Liste darf
+ * keine Maske öffnen, aus der heraus sich das Total noch ändern lässt. */
+export const QUOTE_EDITABLE_STATUSES = ['entwurf', 'gesendet']
+
 /** Was die beiden Feature-Flags am Zeilenbild ändern — in beiden Darstellungen gleich. */
 export interface QuoteListFlags {
   dankEnabled: boolean       // offerte_dank_mail
@@ -101,7 +114,7 @@ export function QuoteRowActions({ quote: q, flags, acting, on }: {
           XLSX
         </a>
       )}
-      {['entwurf', 'gesendet'].includes(q.status) && (
+      {QUOTE_EDITABLE_STATUSES.includes(q.status) && (
         <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => on.onEdit(q.id)} disabled={busy}>
           Bearbeiten
         </button>

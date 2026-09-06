@@ -25,6 +25,11 @@ interface Props {
   /** Aktueller Screen — wandert als `route` ins Ticket. */
   route: string
   appContext: 'pwa' | 'admin'
+  /** Vorbelegter Text — kommt aus «Rückmeldung geben» im Beta-Abschnitt
+   *  (docs/specs/beta-tester.md §6.3). Der Melder kann ihn überschreiben. */
+  prefill?: string
+  /** Feature-Key der Beta-Rückmeldung; wandert als `beta_feature` in den Snapshot. */
+  betaFeature?: string
 }
 
 const ERROR_TEXT: Record<string, string> = {
@@ -49,8 +54,12 @@ function formatSeconds(total: number) {
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`
 }
 
-export default function SupportForm({ route, appContext }: Props) {
-  const [message, setMessage] = useState('')
+export default function SupportForm({ route, appContext, prefill, betaFeature }: Props) {
+  // Startwert statt Effekt: die Blase hängt den Reiter beim Öffnen einer
+  // Beta-Rückmeldung ohnehin an einem neuen `key` auf, das Formular startet also
+  // frisch. Ein useEffect auf `prefill` würde dagegen einen bereits getippten
+  // Text überschreiben, sobald irgendetwas anderes ein Rendern auslöst.
+  const [message, setMessage] = useState(prefill ?? '')
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -141,7 +150,7 @@ export default function SupportForm({ route, appContext }: Props) {
     setBusy(true)
     setError('')
     try {
-      const created = await sendSupportTicket(text, files, { route, appContext })
+      const created = await sendSupportTicket(text, files, { route, appContext, betaFeature })
       setReference(created.reference)
       // Der Server zählt, was wirklich im Storage liegt. Weicht das ab, ist ein
       // Bild verloren — das gehört in die Quittung, statt dass der Nutzer glaubt,

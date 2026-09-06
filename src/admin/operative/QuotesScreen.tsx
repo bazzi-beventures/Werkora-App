@@ -13,7 +13,7 @@ import { getFeature, isFeatureEnabled } from '../../api/modules'
 import { quoteWaitHours } from './quoteFeedback'
 import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
-import { QuoteRowActions, QuoteStatusCell } from './quotes/QuoteListParts'
+import { QUOTE_EDITABLE_STATUSES, QuoteRowActions, QuoteStatusCell } from './quotes/QuoteListParts'
 import type { QuoteActionHandlers, QuoteListFlags } from './quotes/QuoteListParts'
 import { QuoteCreateForm } from './quotes/QuoteCreateForm'
 import { QuoteEditForm } from './quotes/QuoteEditForm'
@@ -224,6 +224,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
             items={filtered}
             keyFor={q => String(q.id)}
             empty="Keine Offerten gefunden."
+            onItemClick={q => { if (QUOTE_EDITABLE_STATUSES.includes(q.status)) handleEdit(q.id) }}
             renderCard={q => (
               <>
                 <div className="admin-card-head">
@@ -234,7 +235,9 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                 <div className="admin-card-meta">
                   {q.customer_name ? `${q.customer_name} · ` : ''}{fmtCHF(q.total_amount)} · erstellt {fmtDate(q.created_at)}
                 </div>
-                <div className="admin-card-actions">
+                {/* Die Knöpfe erledigen ihre eigene Aktion — sie dürfen nicht
+                    zusätzlich den Karten-Klick auslösen und die Maske öffnen. */}
+                <div className="admin-card-actions" onClick={e => e.stopPropagation()}>
                   <QuoteRowActions quote={q} flags={flags} acting={acting} on={actions} />
                 </div>
               </>
@@ -256,8 +259,20 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={7} className="admin-table-empty">Keine Offerten gefunden.</td></tr>
-              ) : filtered.map(q => (
-                <tr key={q.id}>
+              ) : filtered.map(q => {
+                // Ein Klick irgendwo auf die Zeile öffnet die Offerte — dieselbe
+                // Maske wie «Bearbeiten» und bei denselben Status. Klicks auf
+                // Knöpfe und Links (PDF, Senden, Akzeptieren …) dürfen dabei NICHT
+                // zusätzlich die Maske öffnen; dieselbe Prüfung wie in der
+                // Offerten-Liste des Projekts (projectDetail/QuotesTab.tsx).
+                const openable = QUOTE_EDITABLE_STATUSES.includes(q.status)
+                return (
+                <tr
+                  key={q.id}
+                  onClick={openable ? e => { if (!(e.target as HTMLElement).closest('button, a')) handleEdit(q.id) } : undefined}
+                  title={openable ? 'Offerte öffnen' : undefined}
+                  style={openable ? { cursor: 'pointer' } : undefined}
+                >
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{q.quote_number}</td>
                   <td><strong>{q.project_name}</strong></td>
                   <td style={{ color: 'var(--muted)' }}>{q.customer_name || '—'}</td>
@@ -270,7 +285,8 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                     </div>
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         )}

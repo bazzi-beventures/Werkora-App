@@ -20,11 +20,11 @@ import type { ConfirmedExtraProduct } from '../PdfExtractionReviewModal'
 import { DescPriceFieldset, DiscountsFieldset, SkontoFieldset, skontoValidationError } from '../QuoteFormParts'
 import { AutoGrowTextarea, RowReorder, useReorder } from '../QuoteRowControls'
 import {
-  CHECKBOX_LABEL_STYLE, ExtraProductsFieldset, FIELDSET_STYLE, InstallationFieldset, LaborFieldset,
-  LEGEND_STYLE, MaterialFilters, MaterialLegend, OPTIONAL_HINT, QuoteTextFields,
+  BonusBaseHint, CHECKBOX_LABEL_STYLE, ExtraProductsFieldset, FIELDSET_STYLE, InstallationFieldset,
+  LaborFieldset, LEGEND_STYLE, MaterialFilters, MaterialLegend, OPTIONAL_HINT, QuoteTextFields,
   SpecialPositionsFieldset,
 } from './QuoteFieldsets'
-import { buildEditQuotePayload } from './quotePayload'
+import { buildEditQuotePayload, specialModeFromUnit } from './quotePayload'
 import { applyEkMargin } from './quoteRows'
 import { useQuoteMasterData } from './useQuoteMasterData'
 import { useQuotePdfImport } from './useQuotePdfImport'
@@ -46,7 +46,12 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
   const labor = useRowList<EditLaborRow>(() =>
     quote.labor_items.map(i => ({ description: i.description, quantity: String(i.quantity), unit_price: String(i.unit_price), hidden: !!i.hidden })))
   const material = useRowList<EditFreeRow>(() =>
-    quote.material_items.map(i => ({ description: i.description, quantity: String(i.quantity), unit: i.unit, unit_price: String(i.unit_price), optional: !!i.optional })))
+    quote.material_items.map(i => ({
+      description: i.description, quantity: String(i.quantity), unit: i.unit,
+      unit_price: String(i.unit_price), optional: !!i.optional,
+      bonusBaseUnitPrice: i.werkora_bonus_base_unit_price,
+      bonusBaseTotalPrice: i.werkora_bonus_base_total_price,
+    })))
   const extraProducts = useRowList<EditExtraRow>(() =>
     quote.extra_product_items.map(i => ({
       description: i.description, quantity: String(i.quantity), unit: i.unit,
@@ -54,6 +59,8 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
       ek: i.ek_price != null ? String(i.ek_price) : undefined,
       margin_pct: i.margin_factor != null ? String(factorToPct(i.margin_factor)) : undefined,
       supplier_id: i.supplier_id, category: i.category, positions: i.positions,
+      bonusBaseUnitPrice: i.werkora_bonus_base_unit_price,
+      bonusBaseTotalPrice: i.werkora_bonus_base_total_price,
     })), applyEkMargin)
   const extraCharges = useRowList<EditChargeRow>(() =>
     quote.extra_charge_items.map(i => ({
@@ -64,13 +71,20 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
     quote.travel_items.map(i => ({ description: i.description, total_price: String(i.total_price) })))
   const installation = useRowList<InstallationRow>(() =>
     quote.installation_items.map(i => ({ description: i.description, unit_price: String(i.unit_price) })))
+  // Das Preismodell steht nicht in der gespeicherten Position — es steckt in ihrer
+  // Einheit: 'h' = Stundenansatz, 'Stk' = Stückpreis, alles andere ('Pau') = Pauschale.
+  // Deshalb ist SPECIAL_UNIT in quotePayload.ts die eine Stelle, die beide Richtungen
+  // festlegt; wer dort eine Einheit ändert, macht Altpositionen hier zu Pauschalen.
   const special = useRowList<SpecialRow>(() =>
-    (quote.special_items || []).map(i => ({
-      description: i.description,
-      mode: i.unit === 'h' ? 'stunden' : 'pauschal',
-      unit_price: String(i.unit_price),
-      hours: i.unit === 'h' ? String(i.quantity) : '',
-    })))
+    (quote.special_items || []).map(i => {
+      const mode = specialModeFromUnit(i.unit)
+      return {
+        description: i.description,
+        mode,
+        unit_price: String(i.unit_price),
+        hours: mode === 'pauschal' ? '' : String(i.quantity),
+      }
+    }))
 
   const [laborDiscount, setLaborDiscount] = useState(String(quote.labor_discount_pct || ''))
   const [materialDiscount, setMaterialDiscount] = useState(String(quote.material_discount_pct || ''))
@@ -239,6 +253,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
               onChange={e => material.update(i, { unit: e.target.value })} />
             <input className="admin-form-input" style={{ flex: 1, minWidth: 80 }} placeholder="CHF/Stk" value={row.unit_price}
               onChange={e => material.update(i, { unit_price: e.target.value })} />
+            <BonusBaseHint base={row.bonusBaseUnitPrice} />
             {master.optionalEnabled && (
               <label style={CHECKBOX_LABEL_STYLE} title={OPTIONAL_HINT}>
                 <input type="checkbox" checked={!!row.optional} onChange={e => material.update(i, { optional: e.target.checked })} />

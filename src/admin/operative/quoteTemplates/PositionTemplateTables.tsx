@@ -1,8 +1,29 @@
-import type { InstallationTpl, SpecialTpl } from '../../../api/admin/quoteTemplates'
+import type { InstallationTpl, SpecialMode, SpecialTpl } from '../../../api/admin/quoteTemplates'
 import type { Kind } from './types'
 
 // Die beiden Vorlagen-Tabellen des Offert-Panels (Montage- und Sonderpositionen).
 // Rein darstellend — Laden, Speichern und der Editor liegen im Panel.
+
+/** Spalte «Modus» der Sonderpositions-Tabelle. */
+const SPECIAL_MODE_LABEL: Record<SpecialMode, string> = {
+  pauschal: 'Pauschale',
+  stunden: 'Stundenansatz',
+  stueck: 'Stückpreis',
+}
+
+/**
+ * Spalte «Betrag»: Ansatz plus vorgeschlagene Menge. Ohne die Einheit dahinter
+ * stünde bei Stundenansatz und Stückpreis dieselbe Zahl wie bei einer Pauschale —
+ * «CHF 85.00» sagt nicht, ob das der Auftrag kostet oder eine einzelne Anlage.
+ */
+function specialFeeText(t: SpecialTpl): string {
+  const fee = `CHF ${t.default_fee.toFixed(2)}`
+  const menge = t.default_hours != null ? ` × ${t.default_hours}` : ''
+  if (t.pricing_mode === 'stunden') return `${fee}/h${menge}`
+  if (t.pricing_mode === 'stueck') return `${fee}/Stk${menge}`
+  return fee
+}
+
 interface Props {
   installation: InstallationTpl[]
   special: SpecialTpl[]
@@ -53,7 +74,7 @@ export function PositionTemplateTables({
       <div className="admin-page-header" style={{ marginTop: 24 }}>
         <div>
           <div className="admin-page-title" style={{ fontSize: 18 }}>Sonderpositionen (Demontage / Entsorgung)</div>
-          <div className="admin-page-subtitle">Pauschale oder Stundenansatz — getrennt von Montage/Material ausgewiesen</div>
+          <div className="admin-page-subtitle">Pauschale, Stundenansatz oder Stückpreis — getrennt von Montage/Material ausgewiesen</div>
         </div>
         <button className="admin-btn admin-btn-primary" onClick={() => onNew('special')}>+ Neue Sonderposition</button>
       </div>
@@ -75,12 +96,8 @@ export function PositionTemplateTables({
             ) : special.map(t => (
               <tr key={t.id} onClick={() => onEditSpecial(t)} style={{ cursor: 'pointer' }}>
                 <td><strong>{t.label}</strong></td>
-                <td style={{ color: 'var(--muted)' }}>{t.pricing_mode === 'stunden' ? 'Stundenansatz' : 'Pauschale'}</td>
-                <td style={{ fontWeight: 700 }}>
-                  {t.pricing_mode === 'stunden'
-                    ? `CHF ${t.default_fee.toFixed(2)}/h${t.default_hours != null ? ` × ${t.default_hours}` : ''}`
-                    : `CHF ${t.default_fee.toFixed(2)}`}
-                </td>
+                <td style={{ color: 'var(--muted)' }}>{SPECIAL_MODE_LABEL[t.pricing_mode] ?? SPECIAL_MODE_LABEL.pauschal}</td>
+                <td style={{ fontWeight: 700 }}>{specialFeeText(t)}</td>
                 <td style={{ color: 'var(--muted)' }}>{t.notes || '—'}</td>
                 <td>
                   <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={e => { e.stopPropagation(); onEditSpecial(t) }}>Bearbeiten</button>

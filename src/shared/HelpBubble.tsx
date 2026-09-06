@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import HelpBot from './HelpBot'
 import SupportForm from './SupportForm'
 import WikiBot from './WikiBot'
+import { SUPPORT_PREFILL_EVENT, SupportPrefill } from './supportPrefill'
 
 interface Props {
   /** Vorschlagsfragen, die im Chat als Quick-Action-Buttons erscheinen. */
@@ -181,6 +182,28 @@ export default function HelpBubble({
     ...(showSupport ? ['support' as const] : []),
   ]
   const [tab, setTab] = useState<TabId>(parts[0] ?? 'help')
+  // Vorbelegte Meldung aus dem Beta-Abschnitt (docs/specs/beta-tester.md §6.3).
+  // Der Zähler hängt am `key` des Formulars: jedes «Rückmeldung geben» soll ein
+  // frisches Formular öffnen, auch wenn die Blase schon offen war.
+  const [prefill, setPrefill] = useState<(SupportPrefill & { nonce: number }) | null>(null)
+  useEffect(() => {
+    if (!showSupport) return
+    function onPrefill(e: Event) {
+      const detail = (e as CustomEvent<SupportPrefill>).detail
+      if (!detail) return
+      setPrefill(p => ({ ...detail, nonce: (p?.nonce ?? 0) + 1 }))
+      setTab('support')
+      setOpen(true)
+    }
+    window.addEventListener(SUPPORT_PREFILL_EVENT, onPrefill)
+    return () => window.removeEventListener(SUPPORT_PREFILL_EVENT, onPrefill)
+  }, [showSupport])
+  // Schliesst die Blase, ist die Beta-Rückmeldung erledigt oder verworfen. Ohne
+  // dieses Aufräumen hinge der Feature-Key an der NÄCHSTEN, ganz normalen Meldung
+  // — und der Betreiber ordnete sie einer Beta zu, mit der sie nichts zu tun hat.
+  useEffect(() => {
+    if (!open) setPrefill(null)
+  }, [open])
   // Der aktive Reiter muss ein aktiver Teil sein: schaltet der Betreiber einen
   // Teil ab, während die Blase offen ist, stünde sonst ein leeres Panel da.
   const active: TabId = parts.includes(tab) ? tab : (parts[0] ?? 'help')
@@ -406,7 +429,15 @@ export default function HelpBubble({
 
           {/* Inhalt füllt den Rest */}
           <div style={{ flex: 1, minHeight: 0 }}>
-            {active === 'support' && <SupportForm route={route} appContext={appContext} />}
+            {active === 'support' && (
+              <SupportForm
+                key={prefill ? `beta-${prefill.nonce}` : 'support'}
+                route={route}
+                appContext={appContext}
+                prefill={prefill?.message}
+                betaFeature={prefill?.betaFeature}
+              />
+            )}
             {active === 'wiki' && <WikiBot tenantName={tenantName} />}
             {active === 'help' && <HelpBot suggestions={suggestions} />}
           </div>

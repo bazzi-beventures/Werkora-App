@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import HelpBubble from './HelpBubble'
+import { openSupportWithPrefill } from './supportPrefill'
 
 // HelpBot lädt beim Mount Daten — für den Blase-/Drag-Test irrelevant, also stubben.
 vi.mock('./HelpBot', () => ({ default: () => <div data-testid="helpbot" /> }))
@@ -236,5 +237,46 @@ describe('HelpBubble — folgt der Leiste über Screenwechsel hinweg', () => {
     rerender(<HelpBubble />)
     expect(getFab().style.bottom).toBe('106px')
     bar.remove()
+  })
+})
+
+describe('HelpBubble — Rückmeldung aus dem Beta-Abschnitt', () => {
+  // docs/specs/beta-tester.md §6.3: Beta bekommt keinen eigenen Feedback-Kanal,
+  // sondern öffnet das bestehende Support-Formular vorbelegt.
+  // Das Event kommt von aussen (window), nicht aus einem React-Handler — ohne
+  // act() bliebe die Zustandsänderung bis zum nächsten Rendern liegen.
+  const meldeBeta = (detail: Parameters<typeof openSupportWithPrefill>[0]) =>
+    act(() => { openSupportWithPrefill(detail) })
+
+  it('öffnet die Blase auf «Problem melden» mit vorbelegtem Text', () => {
+    render(<HelpBubble showHelp showSupport />)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    meldeBeta({ message: '[Beta: Sonderpositionen] ', betaFeature: 'probe_beta' })
+
+    expect(screen.queryByRole('dialog')).not.toBeNull()
+    const feld = screen.getByLabelText('Was ist passiert?') as HTMLTextAreaElement
+    expect(feld.value).toBe('[Beta: Sonderpositionen] ')
+  })
+
+  it('räumt die Vorbelegung beim Schliessen weg', () => {
+    // Sonst hinge der Feature-Key an der NÄCHSTEN, ganz normalen Meldung — und
+    // der Betreiber ordnete sie einer Beta zu, mit der sie nichts zu tun hat.
+    render(<HelpBubble showHelp showSupport />)
+    meldeBeta({ message: '[Beta: Sonderpositionen] ', betaFeature: 'probe_beta' })
+
+    // Der FAB ist der Button mit aria-expanded — offen true, geschlossen false.
+    fireEvent.click(screen.getByRole('button', { expanded: true }))
+    fireEvent.click(getFab())
+    fireEvent.click(screen.getByRole('button', { name: 'Problem melden' }))
+
+    const feld = screen.getByLabelText('Was ist passiert?') as HTMLTextAreaElement
+    expect(feld.value).toBe('')
+  })
+
+  it('ignoriert die Vorbelegung, wenn der Support-Teil aus ist', () => {
+    render(<HelpBubble showHelp showSupport={false} />)
+    meldeBeta({ message: '[Beta: X] ', betaFeature: 'x' })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

@@ -20,12 +20,15 @@ export type SupportTicketCreated = {
 }
 
 /** Technischer Kontext des Geräts — bewusst nur Rahmendaten, keine Inhalte. */
-function clientContext(route: string) {
+function clientContext(route: string, betaFeature?: string) {
   return {
     route,
     user_agent: navigator.userAgent,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
     online: navigator.onLine,
+    // Aus welchem Beta-Feature heraus gemeldet wurde (docs/specs/beta-tester.md §6.3).
+    // Leer bei jeder normalen Meldung.
+    beta_feature: betaFeature ?? '',
     breadcrumbs: getBreadcrumbs(),
   }
 }
@@ -33,13 +36,13 @@ function clientContext(route: string) {
 export async function sendSupportTicket(
   message: string,
   files: File[],
-  opts: { route: string; appContext: 'pwa' | 'admin' },
+  opts: { route: string; appContext: 'pwa' | 'admin'; betaFeature?: string },
 ): Promise<SupportTicketCreated> {
   const form = new FormData()
   form.append('message', message)
   form.append('route', opts.route)
   form.append('app_context', opts.appContext)
-  form.append('client_context', JSON.stringify(clientContext(opts.route)))
+  form.append('client_context', JSON.stringify(clientContext(opts.route, opts.betaFeature)))
   for (const file of files.slice(0, MAX_SUPPORT_FILES)) form.append('files', file)
   return apiFormFetch<SupportTicketCreated>('/pwa/support/tickets', form)
 }

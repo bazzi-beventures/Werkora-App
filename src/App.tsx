@@ -63,14 +63,37 @@ const BRANDING_STYLE_ID = 'werkora-tenant-branding'
  * hatte diese Token fest in `admin/tokens.css` stehen und ignorierte die
  * Mandantenfarbe komplett.
  */
-function applyTenantBranding(info: TenantInfo) {
-  const css = paletteCss(derivePalette(info.brand_color))
+export function applyTenantBranding(info: TenantInfo) {
+  const palette = derivePalette(info.brand_color)
   const el = document.getElementById(BRANDING_STYLE_ID) ?? document.createElement('style')
   el.id = BRANDING_STYLE_ID
-  el.textContent = css
+  el.textContent = paletteCss(palette)
   // Ans Ende von <head>: die gebündelten Stylesheets stehen davor, und bei
   // gleicher Spezifität gewinnt die spätere Regel.
   document.head.appendChild(el)
+  applyThemeColor(palette.nav.surface)
+}
+
+/**
+ * Der Balken über der App — die Titelleiste, die der Browser der installierten
+ * PWA zeichnet (und am Handy die Statusleiste). Ihre Farbe ist NICHT CSS,
+ * sondern `<meta name="theme-color">`; in index.html steht dort das Werkora-
+ * Schwarz `#12161D`, weil die Seite vor dem Login noch keinen Mandanten kennt.
+ *
+ * Genau das hat irritiert: Über der blauen Mandantenleiste lag ein fast
+ * schwarzer Streifen, der zu nichts auf dem Bildschirm gehörte und aussah, als
+ * fehlte dort etwas. Sobald der Mandant geladen ist, bekommt die Leiste deshalb
+ * seinen Ton — `nav.surface`, dieselbe dunkle Mandantenfläche, die auch das
+ * «Mehr»-Blatt der Admin-App trägt (brand/palette.ts). Sie ist bewusst dunkel
+ * und folgt dem Hell/Dunkel-Umschalter nicht: die Titelleiste ist Fensterrahmen,
+ * kein Inhalt.
+ *
+ * Zurückgesetzt wird nichts — beim Abmelden bleibt der Mandant im Slug stehen,
+ * und der nächste Login lädt dasselbe Branding.
+ */
+function applyThemeColor(color: string) {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+  if (meta) meta.content = color
 }
 
 // Tenant-aware logo: shows company logo if available, else the Werkora mark.
@@ -579,6 +602,11 @@ export default function App() {
         role={user.role}
         tenantName={tenantName || localStorage.getItem(SK.TENANT_SLUG) || ''}
         logoUrl={effectiveLogo}
+        betaFeatures={user.beta_features ?? []}
+        betaModules={user.beta_modules ?? []}
+        // Derselbe Schalter wie für den Support-Reiter der Hilfe-Blase — ohne ihn
+        // gibt es keinen Rückweg in der App (docs/specs/beta-tester.md §6.3).
+        canReportSupport={hasModule(user, 'support') && isFeatureEnabled(user, 'support_pwa')}
         onBack={() => go('home')}
         onLoggedOut={goToAuth}
       />

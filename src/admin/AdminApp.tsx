@@ -316,6 +316,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           badges={badges}
+          betaFeatures={user.beta_features ?? []}
+          betaModules={user.beta_modules ?? []}
+          canReportSupport={showSupport}
         />
       )}
       <main className={isMobile ? 'admin-content admin-content-mobile' : 'admin-content'}>
@@ -346,6 +349,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           badges={badges}
+          betaFeatures={user.beta_features ?? []}
+          betaModules={user.beta_modules ?? []}
+          canReportSupport={showSupport}
         />
       )}
       {showHelpBubble && (

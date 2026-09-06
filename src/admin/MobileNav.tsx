@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
+import type { BetaFeature } from '../api/auth'
 import { ModuleName } from '../api/modules'
+import { BetaSection } from '../shared/BetaSection'
 import {
   IconDashboard, IconFolder, IconClock, IconCash,
   IconUsers, IconAddressBook, IconReceipt, IconCalendar,
@@ -17,6 +19,12 @@ interface Props {
   displayName: string
   role: string
   enabledModules: string[]
+  /** Laufende Beta-Features dieses Kontos (docs/specs/beta-tester.md §6.2).
+   *  Derselbe Abschnitt wie in der Desktop-Sidebar — auf dem Handy im «Mehr»-Menü. */
+  betaFeatures?: BetaFeature[]
+  /** Modulnamen im Betatest. */
+  betaModules?: string[]
+  canReportSupport?: boolean
   showTaskBoard?: boolean
   badges?: {
     corrections?: number
@@ -45,7 +53,7 @@ function IconSwitchUser() {
   )
 }
 
-export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, badges }: Props) {
+export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, betaFeatures = [], betaModules = [], canReportSupport = false, showTaskBoard, badges }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -258,6 +266,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
             <div className="admin-mobile-drawer-divider" />
 
             <div className="admin-mobile-drawer-footer">
+              <BetaSection features={betaFeatures} modules={betaModules} canReport={canReportSupport} compact />
               <button className="admin-mobile-switch-btn" onClick={handleSwitchToUser}>
                 <IconSwitchUser />
                 <span>Zur Mitarbeiter-App</span>

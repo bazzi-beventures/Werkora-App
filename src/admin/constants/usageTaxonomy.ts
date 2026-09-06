@@ -59,7 +59,10 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
   { test: /material|stock|unit|pricing_rule|supplier|frequent/, module: 'inventory' },
-  { test: /project|customer|staff|user|pin/,     module: 'grundfunktion' },
+  // `beta_tester` steht ausdrücklich da: die Aktion heisst `admin_set_beta_tester`
+  // und trägt weder "user" noch "staff" im Namen, gehört aber zur Benutzerverwaltung
+  // wie `admin_update_user` (docs/specs/beta-tester.md §5.7).
+  { test: /project|customer|staff|user|pin|beta_tester/, module: 'grundfunktion' },
 ]
 
 /**
@@ -213,6 +216,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_create_user: 'Benutzer angelegt',
   admin_update_user: 'Benutzer geändert',
   admin_anonymize_user: 'Benutzer anonymisiert',
+  admin_set_beta_tester: 'Beta-Tester gesetzt',
   admin_set_user_password: 'Passwort gesetzt',
   admin_generate_pin: 'PIN erzeugt',
 

@@ -10,7 +10,13 @@
 import { apiFetch, apiFormFetch } from '../client'
 import type { TravelCostTable } from '../../admin/utils/quotePricing'
 
-export type SpecialMode = 'pauschal' | 'stunden'
+// Preismodell einer Sonderposition:
+//   pauschal → 1 × Fixbetrag
+//   stunden  → Stunden × CHF/h
+//   stueck   → Stückzahl × CHF/Stk («Demontage und Entsorgung, 6 Stk à 85»)
+// Der CHECK auf special_position_templates.pricing_mode ist die harte Grenze
+// (Migration 20260906_special_positions_stueck.sql).
+export type SpecialMode = 'pauschal' | 'stunden' | 'stueck'
 
 // Montage-Vorlage: Pauschalbetrag für eine Montageleistung.
 export interface InstallationTpl {
@@ -21,7 +27,9 @@ export interface InstallationTpl {
   notes: string | null
 }
 
-// Sonderposition (Demontage/Entsorgung): Pauschale oder Stundenansatz.
+// Sonderposition (Demontage/Entsorgung): Pauschale, Stundenansatz oder Stückpreis.
+// `default_hours` ist der Vorschlagswert der Mengenspalte — Stunden bei 'stunden',
+// Stückzahl bei 'stueck', ohne Bedeutung bei 'pauschal'.
 export interface SpecialTpl {
   id: string
   label: string

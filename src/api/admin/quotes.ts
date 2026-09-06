@@ -148,7 +148,16 @@ export interface QuoteDetail {
   customer_id: string | null
   customer_name: string | null
   labor_items: { description: string; quantity: number; unit: string; unit_price: number; total_price: number; hidden?: boolean }[]
-  material_items: { description: string; quantity: number; unit: string; unit_price: number; total_price: number; optional?: boolean }[]
+  // `werkora_bonus_base_*`: Preis der Zeile VOR der Endziffern-Aufrundung (Feature
+  // `werkora_bonus`). Beim Bearbeiten unverändert zurückschicken — sonst kann das
+  // Backend die bonusfreie Basis nicht mehr herstellen und rechnet den Aufschlag
+  // gar nicht erst neu (docs/specs/werkora-bonus-produktpositionen.md §4.3).
+  material_items: {
+    description: string; quantity: number; unit: string; unit_price: number; total_price: number
+    optional?: boolean
+    werkora_bonus_base_unit_price?: number
+    werkora_bonus_base_total_price?: number
+  }[]
   travel_items: { description: string; total_price: number }[]
   extra_product_items: {
     description: string; quantity: number; unit: string; unit_price: number; total_price: number
@@ -158,6 +167,8 @@ export interface QuoteDetail {
     supplier_id?: string | null
     category?: string | null
     positions?: ConfirmedPosition[]
+    werkora_bonus_base_unit_price?: number
+    werkora_bonus_base_total_price?: number
   }[]
   // `werkora_bonus`: automatisch ergänzte Endziffern-Aufrundung (Feature
   // `werkora_bonus`). Beim Bearbeiten unverändert zurückschicken — das Backend

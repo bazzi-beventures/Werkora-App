@@ -460,6 +460,12 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                   Einmal-PIN für die Passkey-Einrichtung auf dem Gerät. Wird nach dem
                   Anlegen einmalig angezeigt.
                 </div>
+
+                {/* Beta-Tester steht bewusst NICHT hier: Wer testet, pflegt der
+                    Betreiber im Tab Testing (Admin-Tools → Konfiguration) —
+                    docs/specs/beta-tester.md. Beim Anlegen einer Person ist das
+                    ohnehin die falsche Frage; sie kommt später, wenn etwas zu
+                    testen da ist. */}
               </>
             )}
           </div>

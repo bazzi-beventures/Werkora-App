@@ -4,6 +4,7 @@ import { WeeklyPlanTab } from './tabs/WeeklyPlanTab'
 import { YearEndTab } from './tabs/YearEndTab'
 import { ModulesTab } from './tabs/ModulesTab'
 import { WorkflowsTab } from './tabs/WorkflowsTab'
+import { TestingTab } from './tabs/TestingTab'
 import { TravelCostTab } from './tabs/TravelCostTab'
 import { SchedulingTab } from './tabs/SchedulingTab'
 import { HelpDocsTab } from './tabs/HelpDocsTab'
@@ -14,7 +15,7 @@ interface ConfigProps {
 
 export default function ConfigurationScreen({ userRole }: ConfigProps) {
   const isSuperadmin = userRole === 'superadmin'
-  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'modules' | 'notifications' | 'workflows' | 'travel-cost' | 'scheduling' | 'help-docs'>('weekly-plan')
+  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'modules' | 'notifications' | 'workflows' | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs'>('weekly-plan')
   const tabsRef = useTabStrip(tab)
 
   return (
@@ -63,6 +64,16 @@ export default function ConfigurationScreen({ userRole }: ConfigProps) {
             Workflows
           </button>
         )}
+        {/* Testing steht direkt hinter Workflows: dort setzt man das Beta-Häkchen
+            am Modul bzw. am Feature, hier die Menschen, für die es gilt. */}
+        {isSuperadmin && (
+          <button
+            className={`kpi-admin-tab${tab === 'testing' ? ' active' : ''}`}
+            onClick={() => setTab('testing')}
+          >
+            Testing
+          </button>
+        )}
         {isSuperadmin && (
           <button
             className={`kpi-admin-tab${tab === 'travel-cost' ? ' active' : ''}`}
@@ -94,6 +105,7 @@ export default function ConfigurationScreen({ userRole }: ConfigProps) {
       {tab === 'modules' && isSuperadmin && <ModulesTab view="modules" />}
       {tab === 'notifications' && isSuperadmin && <ModulesTab view="notifications" />}
       {tab === 'workflows' && isSuperadmin && <WorkflowsTab />}
+      {tab === 'testing' && isSuperadmin && <TestingTab />}
       {tab === 'travel-cost' && isSuperadmin && <TravelCostTab />}
       {tab === 'scheduling' && isSuperadmin && <SchedulingTab />}
       {tab === 'help-docs' && isSuperadmin && <HelpDocsTab />}

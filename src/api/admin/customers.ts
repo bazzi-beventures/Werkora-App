@@ -6,7 +6,9 @@
 // Screens von dort importiert (Screen → Screen, an der Schichtgrenze vorbei).
 // Der Typ gehört zur API-Antwort und steht deshalb hier.
 
+import { UserInfo } from '../auth'
 import { apiFetch } from '../client'
+import { isFeatureEnabled } from '../modules'
 
 // Weitere Empfänger neben der Haupt-E-Mail (Spec: kunden-mehrere-emails.md).
 export interface AdditionalEmail {
@@ -18,14 +20,47 @@ export interface AdditionalEmail {
 // angezeigt und gedruckt das Label. Die Liste muss zu db.customers.SALUTATION_LABELS
 // passen: die Spalte trägt einen CHECK, ein hier erfundener Wert kommt als 400
 // zurück. NULL/'' = keine Anrede — der Normalfall bei Firmen und Verwaltungen.
-export const SALUTATIONS = [
+export interface SalutationOption {
+  value: string
+  label: string
+  /**
+   * Feature-Flag, das diese Anrede freischaltet (Spiegel von
+   * db.customers.SALUTATION_FEATURE_FLAGS). Fehlt = für alle Mandanten.
+   */
+  feature?: string
+}
+
+export const SALUTATIONS: readonly SalutationOption[] = [
   { value: 'herr', label: 'Herr' },
   { value: 'frau', label: 'Frau' },
-] as const
+  { value: 'frau_und_herr', label: 'Frau und Herr', feature: 'anrede_frau_und_herr' },
+]
 
 /** Druckform einer gespeicherten Anrede; unbekannt/leer ergibt '' (Zeile fällt weg). */
 export function salutationLabel(value: string | null | undefined): string {
   return SALUTATIONS.find(s => s.value === value)?.label ?? ''
+}
+
+/**
+ * Auswahl fürs Anrede-Feld: die Basis-Anreden plus die per Feature-Flag
+ * freigeschalteten.
+ *
+ * `current` ist die *gespeicherte* Anrede des bearbeiteten Kunden und bleibt in
+ * der Liste, auch wenn ihr Flag inzwischen aus ist — sonst fiele sie beim
+ * nächsten Speichern still auf «—» zurück (das Formular schickt immer den vollen
+ * Stand). Dieselbe Regel hält das Backend in `_reject_locked_salutation`:
+ * gesperrt ist das Neu-Setzen, nicht das Behalten.
+ *
+ * `salutationLabel` filtert bewusst NICHT mit — eine gespeicherte Anrede wird
+ * überall gedruckt, unabhängig vom Flag.
+ */
+export function availableSalutations(
+  user: UserInfo | null,
+  current?: string | null,
+): SalutationOption[] {
+  return SALUTATIONS.filter(
+    s => !s.feature || s.value === current || isFeatureEnabled(user, s.feature)
+  )
 }
 
 // Die Antwort trägt mehr Spalten als hier stehen (z.B. invoice_delivery,
