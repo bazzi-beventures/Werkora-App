@@ -7,6 +7,7 @@ import {
   apiFetch,
   resetSessionExpiredFlag,
 } from './client'
+import { connectionSeemsDown, noteNetworkFailure, resetConnectionHealth } from './connectionHealth'
 
 // jsdom-Response-Stub: nur die von client.ts genutzten Felder.
 function makeRes(opts: {
@@ -193,6 +194,39 @@ describe('apiFetch — Fehlermeldung', () => {
     })
   })
 
+  // Der Realfall, der den Zweig erzwungen hat: Superadmin speichert ein
+  // Feature-Flag mit einem Wert unterhalb des Registry-Minimums (Eastereggs,
+  // projekt_schwelle=2 bei min=10). Der Server sagt genau, welches Feld klemmt —
+  // ohne den Zweig landete das als "Serverfehler (HTTP 400)" im Toast.
+  it('zeigt feldweise Registry-Fehler (detail = {errors: [...]}) im Klartext', async () => {
+    const detail = { errors: ['eastereggs.projekt_schwelle: < 10'] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      makeRes({ ok: false, status: 400, body: { detail } })))
+    await expect(apiFetch('/pwa/admin/tenant/features')).rejects.toMatchObject({
+      status: 400, message: 'eastereggs.projekt_schwelle: < 10',
+    })
+  })
+
+  it('verbindet mehrere Registry-Fehler zu EINER Zeile', async () => {
+    const detail = { errors: ['a.x: < 10', 'a.y: > 100'] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      makeRes({ ok: false, status: 400, body: { detail } })))
+    await expect(apiFetch('/pwa/x')).rejects.toMatchObject({
+      status: 400, message: 'a.x: < 10 · a.y: > 100',
+    })
+  })
+
+  // Abgrenzung: ein `errors`-Feld, das KEINE Liste von Strings ist, darf nicht
+  // als "[object Object]" durchrutschen — dann bleibt der Fallback richtig.
+  it('faellt zurueck, wenn `errors` keine Liste von Strings ist', async () => {
+    const detail = { errors: [{ loc: 'x', msg: 'y' }] }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      makeRes({ ok: false, status: 400, statusText: '', body: { detail } })))
+    await expect(apiFetch('/pwa/x')).rejects.toMatchObject({
+      status: 400, message: 'Serverfehler (HTTP 400)',
+    })
+  })
+
   it('rendert FastAPI-Validierungsfehler (detail = Array) nicht als "[object Object]"', async () => {
     const detail = [{ loc: ['body', 'menge'], msg: 'value is not a valid float', type: 'type_error.float' }]
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
@@ -235,5 +269,49 @@ describe('apiFetch — timeoutMs', () => {
   it('lässt erfolgreiche Antworten innerhalb des Timeouts normal durch', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeRes({ ok: true, status: 200, body: { ok: true } })))
     await expect(apiFetch('/pwa/projects', { timeoutMs: 5000 })).resolves.toEqual({ ok: true })
+  })
+})
+
+
+// ── Netz-Gesundheit: was zählt als Beweis? ──────────────────
+// docs/specs/offline-modus.md §4.5.2. Der Service Worker bedient `/pwa/`-GETs
+// per NetworkFirst aus dem Cache — ein Cache-Treffer sieht für die App aus wie
+// eine Netz-Antwort. Würde er als Beweis zählen, meldete die App die Leitung
+// ausgerechnet in der Tiefgarage als «trägt».
+describe('connectionHealth-Rückmeldung', () => {
+  beforeEach(() => {
+    resetConnectionHealth()
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
+  })
+
+  it('wertet einen erfolgreichen GET NICHT als Beweis', async () => {
+    noteNetworkFailure()
+    expect(connectionSeemsDown()).toBe(true)
+
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeRes({ ok: true, status: 200, body: {} }),
+    ) as unknown as typeof fetch
+    await apiFetch('/pwa/projects')
+
+    // Immer noch «weg»: der GET kann aus dem SW-Cache gekommen sein.
+    expect(connectionSeemsDown()).toBe(true)
+  })
+
+  it('wertet ein durchgekommenes POST als Beweis', async () => {
+    noteNetworkFailure()
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeRes({ ok: true, status: 200, body: {} }),
+    ) as unknown as typeof fetch
+
+    await apiFetch('/pwa/reports/offline', { method: 'POST', body: '{}' })
+
+    // Die Cache API speichert nur GETs — ein POST ist immer echt.
+    expect(connectionSeemsDown()).toBe(false)
+  })
+
+  it('meldet einen Netzfehler', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch')) as unknown as typeof fetch
+    await expect(apiFetch('/pwa/projects')).rejects.toThrow()
+    expect(connectionSeemsDown()).toBe(true)
   })
 })

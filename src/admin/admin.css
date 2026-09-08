@@ -2572,6 +2572,12 @@ button.admin-list-item {
 .project-schedule-picker-item {
   display: block;
   width: 100%;
+  /* Die Liste ist ein Flex-Container mit max-height. Ohne diese Zeile stauchen
+     mehr Treffer als hineinpassen jede Zeile auf ihre min-height zusammen — ein
+     zweizeiliger Projektname lief dann aus seiner Kachel heraus und ueberschrieb
+     den naechsten Treffer. Sichtbar wurde es, seit die Projektnummer vor dem
+     Namen steht und Titel oefter umbrechen. */
+  flex-shrink: 0;
   text-align: left;
   padding: 10px 14px;
   background: transparent;

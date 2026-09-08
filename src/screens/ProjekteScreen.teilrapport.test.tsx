@@ -373,7 +373,12 @@ describe('ProjekteScreen — Weiterer Einsatz', () => {
       '/pwa/projects/p1/reports/1/partial',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ is_partial: true }) }),
     ))
-    expect(onStartRapport).toHaveBeenCalledWith({ id: 'p1', name: 'MFH Sonnhalde' })
+    // Die Leistungsart des Projekts reist mit — der Chat kann später ins
+    // Offline-Formular wechseln und braucht sie dort als Vorbelegung
+    // (docs/specs/offline-modus.md §4.5.2).
+    expect(onStartRapport).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p1', name: 'MFH Sonnhalde' }),
+    )
     confirmSpy.mockRestore()
   })
 

@@ -25,6 +25,9 @@ import { advance, retreat } from './shared/navHistory'
 import { trackNav } from './shared/breadcrumbs'
 import { hasModule, isFeatureEnabled } from './api/modules'
 import { prefetchOfflinePackage } from './api/offlineStore'
+import { syncOfflineRapporte } from './api/rapportSync'
+import type { PendingRapport } from './api/rapportQueue'
+import OfflineRapportScreen from './screens/rapportOffline/OfflineRapportScreen'
 import { applyTheme, loadTheme, useTheme } from './theme'
 import { clearDraft, loadDraft } from './chat/rapportDraft'
 import { confirmLeaveRapport, discardPrompt, planRapportStart } from './chat/rapportStart'
@@ -39,7 +42,7 @@ declare global {
   }
 }
 
-type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen'
+type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen'
 
 // Die Wahl der Schrift auf der Akzentfläche wohnt jetzt in brand/palette.ts,
 // zusammen mit der übrigen Farbableitung. Der Re-Export hält die Funktion an
@@ -125,6 +128,15 @@ function nextScreenAfterLogin(u: UserInfo): Screen {
 export default function App() {
   const [screen, setScreen] = useState<Screen>('loading')
   const [user, setUser] = useState<UserInfo | null>(null)
+  // Projekt des Offline-Formulars (docs/specs/offline-modus.md §4.5). Getrennt
+  // von `rapportInitialProject`: das gehört dem Chat und trägt seinen eigenen
+  // Lebenszyklus (Startnachricht, Entwurf, Rückfrage beim Neustart).
+  const [offlineRapportProject, setOfflineRapportProject] = useState<{ id: string; name: string; workTypes?: string[] } | null>(null)
+  // Der wartende Rapport, der gerade bearbeitet wird (statt eines neuen) —
+  // docs/specs/offline-modus.md §4.5.5.
+  const [offlineRapportResume, setOfflineRapportResume] = useState<PendingRapport | null>(null)
+  // Projekt, das die Projektliste beim nächsten Öffnen gleich aufschlagen soll.
+  const [projekteOpenId, setProjekteOpenId] = useState<string | null>(null)
   const [logoUrl, setLogoUrl] = useState('')
   const [logoUrlDark, setLogoUrlDark] = useState('')
   const [tenantName, setTenantName] = useState('')
@@ -132,6 +144,11 @@ export default function App() {
   const [berichtType, setBerichtType] = useState<BerichtType>('monthly')
   const [rapportInitialMessage, setRapportInitialMessage] = useState<string | null>(null)
   const [rapportInitialProject, setRapportInitialProject] = useState<string | null>(null)
+  // Leistungsart des Projekts, mit dem der Chat gestartet wurde. Nur für den
+  // Ausweg ins Offline-Formular (Spec §4.5.2): ohne sie schickte das Formular
+  // `art_der_arbeit: []`, und der Server läse das als «der Monteur hat alles
+  // abgewählt» statt als «nichts gesagt» — die Vorbelegung des Projekts wäre weg.
+  const [rapportProjectWorkTypes, setRapportProjectWorkTypes] = useState<string[]>([])
   // Die id desselben Projekts. Sie ist die massgebliche Angabe an den Server: der
   // Name ist nicht eindeutig (zwei Liegenschaften desselben Kunden dürfen gleich
   // heissen), und mit ihm allein band der Rapport gar nicht.
@@ -143,6 +160,11 @@ export default function App() {
   // Besuchte Screens ohne den aktuellen — der Zurück-Knopf läuft ihn ab.
   const [navHistory, setNavHistory] = useState<Screen[]>([])
   const screenRef = useRef(screen)
+  // Der `online`-Handler ist einmalig registriert (leere Abhängigkeiten) und
+  // sähe sonst dauerhaft den User vom ersten Render — also `null`. Ein Ref statt
+  // einer Abhängigkeit: den Listener bei jedem User-Wechsel neu zu setzen wäre
+  // teurer als das Ref und würde ein Netz-Ereignis mitten im Austausch verlieren.
+  const userRef = useRef<UserInfo | null>(user)
   const navHistoryRef = useRef(navHistory)
   const theme = useTheme()
   // Im Dark-Theme die weiße Logo-Variante nutzen, falls vorhanden — sonst das
@@ -154,7 +176,18 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const goOnline = () => setIsOffline(false)
+    const goOnline = () => {
+      setIsOffline(false)
+      // Zweiter der drei Netz-Momente (docs/specs/offline-modus.md §4.5.5): was
+      // auf der Baustelle erfasst wurde, geht raus, sobald die Verbindung
+      // zurück ist — auch wenn der Monteur die App gar nicht bedient.
+      const u = userRef.current
+      if (u) {
+        void syncOfflineRapporte(u.authorized_user_id, {
+          enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
+        })
+      }
+    }
     const goOffline = () => setIsOffline(true)
     window.addEventListener('online', goOnline)
     window.addEventListener('offline', goOffline)
@@ -225,6 +258,7 @@ export default function App() {
 
   // Keep refs in sync so the popstate handler always sees the latest state
   useEffect(() => { screenRef.current = screen }, [screen])
+  useEffect(() => { userRef.current = user }, [user])
   useEffect(() => { navHistoryRef.current = navHistory }, [navHistory])
 
   // Navigieren MIT Verlauf: der verlassene Screen wird gemerkt, damit der
@@ -348,7 +382,8 @@ export default function App() {
   // (Client-State überschrieben, Server-Puffer beim nächsten log_report ersetzt).
   // Das trifft, wer zwischendurch aufs Projekt schaut: der Projekt-Detail hat keinen
   // eigenen Weg zurück in den laufenden Rapport, dieser Knopf sieht danach aus.
-  async function startRapport(project: { id: string; name: string }) {
+  async function startRapport(project: { id: string; name: string; workTypes?: string[] }) {
+    setRapportProjectWorkTypes(project.workTypes ?? [])
     const projectName = project.name
     const userId = user?.authorized_user_id ?? localStorage.getItem(SK.AUTHORIZED_USER_ID) ?? ''
     const plan = planRapportStart(userId ? loadDraft(userId, Date.now()) : null, projectName)
@@ -356,15 +391,27 @@ export default function App() {
     if (plan.kind === 'resume') { go('rapport'); return }
 
     if (plan.kind === 'confirm-discard') {
-      if (!window.confirm(discardPrompt(plan.pendingProject, projectName))) {
-        go('rapport')   // Abbrechen → zurück in den laufenden Rapport
+      if (!window.confirm(discardPrompt(plan.pendingProject, projectName, plan.saved))) {
+        go('rapport')   // Abbrechen → zurück in den laufenden/gespeicherten Rapport
         return
       }
       // Verwerfen heisst auch server-seitig aufräumen: sonst hängt der alte
       // Gesprächsverlauf im neuen Rapport und der Bot fragt Beantwortetes erneut.
-      try { await cancelReport() } catch { /* best-effort — der Neustart zählt */ }
-      if (userId) clearDraft(userId)
+      // Nur beim SCHWEBENDEN Rapport: ist er längst gespeichert, hat der Server dort
+      // nichts mehr liegen (confirm_report räumt beim Speichern selbst auf) — der
+      // Aufruf wäre ein Rundgang ins Leere.
+      if (!plan.saved) {
+        try { await cancelReport() } catch { /* best-effort — der Neustart zählt */ }
+      }
     }
+
+    // Entwurf in JEDEM Fall wegräumen, nicht nur beim ausdrücklichen Verwerfen.
+    // Ein Entwurf, den `planRapportStart` durchgewinkt hat, ist nicht leer: er trägt
+    // den Gesprächsverlauf des abgeschlossenen Rapports (und nach einem
+    // `no_pending_report` sogar den eines toten). Blieb er stehen, öffnete der neue
+    // Rapport mit dem alten Chat — genau der Fall «ich will einen neuen Rapport und
+    // es zieht einen anderen rein».
+    if (userId) clearDraft(userId)
 
     // Projekt zusätzlich als eigene Felder, nicht nur im Text: der Server bindet
     // den Rapport daran (Stammdaten-Abgleich statt Wort-Erkennung), damit spätere
@@ -415,6 +462,11 @@ export default function App() {
         // Netzwerk-Log ist Lärm.
         if (u.role !== 'user_light') {
           void prefetchOfflinePackage(u.authorized_user_id, { scheduling: hasModule(u, 'scheduling') })
+          // Erster der drei Netz-Momente: wartende Rapporte hochladen und den
+          // Materialkatalog spiegeln (§4.5.5).
+          void syncOfflineRapporte(u.authorized_user_id, {
+            enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
+          })
         }
       }
     })
@@ -628,6 +680,17 @@ export default function App() {
           setRapportInitialProject(null)
           setRapportInitialProjectId(null)
         }}
+        // Ausweg aus dem Chat, wenn nichts durchkommt (Spec §4.5.2). Ohne
+        // Feature kein Handler — dann erscheint der Hinweis gar nicht.
+        onSwitchToOfflineRapport={
+          isFeatureEnabled(user, 'rapport_offline_formular')
+            ? (project) => {
+                setOfflineRapportResume(null)
+                setOfflineRapportProject({ ...project, workTypes: rapportProjectWorkTypes })
+                go('rapportOffline')
+              }
+            : undefined
+        }
         // Jeder Ausgang läuft durch die Rückfrage (leaveRapport). onLoggedOut NICHT:
         // das ist kein Weggehen, sondern die abgelaufene Sitzung (401) — dort gibt es
         // nichts mehr zu entscheiden, und der Entwurf überlebt den Login ohnehin.
@@ -636,6 +699,33 @@ export default function App() {
         onNavProjekte={() => leaveRapport(() => go('projekte'))}
         onNavProfile={() => leaveRapport(() => go('profile'))}
         onLoggedOut={goToAuth}
+      />
+    )
+  } else if (screen === 'rapportOffline' && user && offlineRapportProject) {
+    // Dieselben Gates wie der Chat-Rapport, plus das Beta-Flag. Ohne eines davon
+    // zurück auf die Hauptmaske statt in ein Formular, dessen Upload der Server
+    // mit 403 abweist.
+    if (user.role === 'user_light') { resetTo('home'); return null }
+    if (!user.enabled_modules?.includes('ai')) { resetTo('home'); return null }
+    if (!isFeatureEnabled(user, 'rapport_offline_formular')) { resetTo('home'); return null }
+    inner = (
+      <OfflineRapportScreen
+        user={user}
+        project={offlineRapportProject}
+        tenantName={tenantName}
+        logoUrl={effectiveLogo}
+        resume={offlineRapportResume}
+        // Zurück ins PROJEKT, nicht in die Liste: dort steht die Karte mit dem
+        // wartenden Rapport, die der Abschluss gerade versprochen hat («wartet
+        // auf dem Gerät»). In der Liste sähe der Monteur davon nichts.
+        onBack={() => {
+          setProjekteOpenId(offlineRapportProject.id)
+          setOfflineRapportProject(null); setOfflineRapportResume(null); go('projekte')
+        }}
+        onQueued={() => {
+          setProjekteOpenId(offlineRapportProject.id)
+          setOfflineRapportProject(null); setOfflineRapportResume(null); go('projekte')
+        }}
       />
     )
   } else if (screen === 'arbeitszeit' && user) {
@@ -676,7 +766,19 @@ export default function App() {
         user={user}
         onNavHome={() => go('home')}
         onNavRapport={() => go('rapport')}
+        openProjectId={projekteOpenId}
+        onProjectOpened={() => setProjekteOpenId(null)}
         onStartRapport={(project) => void startRapport(project)}
+        onStartOfflineRapport={(project) => {
+          setOfflineRapportResume(null)
+          setOfflineRapportProject(project)
+          go('rapportOffline')
+        }}
+        onEditOfflineRapport={(project, entry) => {
+          setOfflineRapportResume(entry)
+          setOfflineRapportProject(project)
+          go('rapportOffline')
+        }}
         onNavArbeitszeit={() => go('arbeitszeit')}
         onNavProfile={() => go('profile')}
         onLoggedOut={goToAuth}

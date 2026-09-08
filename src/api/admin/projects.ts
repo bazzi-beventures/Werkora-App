@@ -11,6 +11,7 @@
 // (Die Monteur-PWA behält ihre eigene Fassung bis Charge H5.)
 
 import { apiFetch, apiBlobFetch, apiFormFetch } from '../client'
+import { requestEasterEggCheck } from './eastereggs'
 import type { AbsenceOverride } from './scheduling'
 import {
   deleteProjectFile as deleteFile, listProjectFiles as listFiles,
@@ -259,6 +260,11 @@ export async function setProjectStatus(id: string, status: string): Promise<void
     method: 'PATCH',
     body: JSON.stringify({ status }),
   })
+  // Ein abgeschlossenes Projekt kann die Projektschwelle gerissen haben.
+  // Bewusst bei JEDEM Status-Wechsel und nicht nur bei 'abgeschlossen': der
+  // Endpunkt zaehlt selbst nach, und ein Wiedereroeffnen aendert die Zahl
+  // ebenso — die Frage kostet einen Request und nur, wenn das Flag an ist.
+  requestEasterEggCheck()
 }
 
 /**

@@ -37,6 +37,7 @@ import DocumentBackupScreen from './system/DocumentBackupScreen'
 import AdminToolsScreen from './system/AdminToolsScreen'
 import KpiScreen from './kpis/KpiScreen'
 import HelpBubble from '../shared/HelpBubble'
+import EasterEggs from './eastereggs/EasterEggs'
 import { trackNav } from '../shared/breadcrumbs'
 import { takeDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
@@ -354,6 +355,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           canReportSupport={showSupport}
         />
       )}
+      {/* Meilenstein-Animationen (Feature `eastereggs`, Beta). Prueft Flag und
+          Rolle selbst und rendert sonst nichts — siehe eastereggs/EasterEggs.tsx. */}
+      <EasterEggs user={user} />
       {showHelpBubble && (
         <HelpBubble
           showHelp={showHelp}

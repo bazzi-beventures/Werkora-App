@@ -21,6 +21,7 @@ import { listAllCustomers } from '../../api/admin/customers'
 import { getAdminStaff } from '../../api/admin/staff'
 import { PROJECT_KIND_LABELS, projectCustomerName } from '../utils/project'
 import ProjectScheduleCalendar, { CalendarEntry } from './ProjectScheduleCalendar'
+import { filterPickerProjects, pickerLabel } from './projectPicker'
 import { setNewProjectPrefill } from './newProjectPrefill'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { shiftISO, hhmmToMin, minToHHMM, toDateStr } from '../utils/calendarHelpers'
@@ -179,10 +180,20 @@ function fmtApptRow(a: ProjectAppointment): string {
   return `${from}${to} · ${t}`
 }
 
-function emptyInternalForm(kind: ProjectKind): FormState {
+// Vorbelegter Titel eines neuen internen Einsatzes. Beim Blocker hängt er an
+// der Konfiguration: pflegt der Mandant Blocker-Kategorien, bleibt das Feld LEER
+// und die Auswahl entscheidet. Sonst stünden im Kalender wieder fünf Kacheln
+// namens «Blocker» nebeneinander, und niemand weiss mehr, wofür sie stehen.
+// Ohne gepflegte Kategorien bleibt es beim bisherigen Verhalten.
+function internalFormTitle(kind: ProjectKind, blockerCategories: string[] = []): string {
+  if (kind === 'blocker' && blockerCategories.length > 0) return ''
+  return PROJECT_KIND_LABELS[kind]
+}
+
+function emptyInternalForm(kind: ProjectKind, blockerCategories: string[] = []): FormState {
   return {
     id: '',
-    name: PROJECT_KIND_LABELS[kind],
+    name: internalFormTitle(kind, blockerCategories),
     kind,
     customerId: '',
     projektleiterId: '',
@@ -214,6 +225,13 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     readCachedSchedulingConfig,
   )
   const [configPending, setConfigPending] = useState(true)
+  // Titel-Vorschläge für provisorische Blocker (Konfiguration → Einsatzplanung).
+  // Getrimmt und ohne Leereinträge — eine ältere, von Hand geschriebene Config
+  // darf im Dropdown keine leere Zeile erzeugen.
+  const blockerCategories = useMemo(
+    () => (schedulingConfig?.blocker_categories ?? []).map(c => c.trim()).filter(Boolean),
+    [schedulingConfig],
+  )
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<FormState | null>(null)
   const [apptForm, setApptForm] = useState<ApptFormState | null>(null)
@@ -733,7 +751,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   }
 
   function handleNewInternal(kind: ProjectKind) {
-    setForm(emptyInternalForm(kind))
+    setForm(emptyInternalForm(kind, blockerCategories))
     // Aus einem aufgezogenen Termin: Zeiten + vorausgewählten Monteur übernehmen.
     setApptForm(pendingSlot ? slotToApptForm(pendingSlot, 'sonstiges') : emptyApptForm('sonstiges'))
     setPendingSlot(null)
@@ -844,17 +862,11 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     [appointments],
   )
 
-  // Picker-Suche: Filter über Name + Kundenname
-  const filteredProjects = useMemo(() => {
-    const q = pickerSearch.trim().toLowerCase()
-    const list = q
-      ? projects.filter(p =>
-          p.name.toLowerCase().includes(q) ||
-          projectCustomerName(p).toLowerCase().includes(q)
-        )
-      : projects
-    return list.slice().sort((a, b) => a.name.localeCompare(b.name))
-  }, [projects, pickerSearch])
+  // Picker-Suche: Projektnummer + Name + Kundenname (siehe projectPicker.ts).
+  const filteredProjects = useMemo(
+    () => filterPickerProjects(projects, pickerSearch),
+    [projects, pickerSearch],
+  )
 
   // Termine des im Panel geöffneten Projekts, chronologisch.
   const panelAppointments = useMemo(
@@ -1043,7 +1055,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                           onMouseDown={e => e.preventDefault()}
                           onClick={() => selectProject(p)}
                         >
-                          <div className="project-schedule-picker-name">{p.name}</div>
+                          <div className="project-schedule-picker-name">{pickerLabel(p)}</div>
                           <div className="project-schedule-picker-meta">
                             {cust || '—'}{scheduledProjectIds.has(p.id) ? ` · geplant` : ''}
                           </div>
@@ -1104,7 +1116,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                       // angepasst). Ein manuell getippter Titel bleibt erhalten.
                       const titleUntouched = !f.name.trim() || f.name === PROJECT_KIND_LABELS[f.kind]
                       const nextName = titleUntouched && nextKind !== 'project'
-                        ? PROJECT_KIND_LABELS[nextKind]
+                        ? internalFormTitle(nextKind, blockerCategories)
                         : f.name
                       return { ...f, kind: nextKind, name: nextName }
                     })}
@@ -1124,6 +1136,26 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                   </select>
                 </label>
 
+                {/* Blocker-Kategorien (Konfiguration → Einsatzplanung): setzen den
+                    Titel per Auswahl. Das Titelfeld bleibt darunter stehen — eine
+                    Kategorie kann man ergänzen («Wartet auf Material – Storen Muster»),
+                    und wer eine Bezeichnung ausserhalb der Liste braucht, tippt sie. */}
+                {form.kind === 'blocker' && blockerCategories.length > 0 && (
+                  <label className="project-schedule-field">
+                    <span>Kategorie</span>
+                    <select
+                      className="admin-input"
+                      value={blockerCategories.includes(form.name) ? form.name : ''}
+                      onChange={e => setForm(f => f && ({ ...f, name: e.target.value }))}
+                    >
+                      <option value="">— Kategorie wählen —</option>
+                      {blockerCategories.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+
                 {form.kind !== 'project' && (
                   <label className="project-schedule-field">
                     <span>Titel</span>
@@ -1131,7 +1163,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                       className="admin-input"
                       value={form.name}
                       onChange={e => setForm(f => f && ({ ...f, name: e.target.value }))}
-                      placeholder={PROJECT_KIND_LABELS[form.kind]}
+                      placeholder={form.kind === 'blocker' && blockerCategories.length > 0
+                        ? 'Kategorie wählen oder eigenen Titel eingeben'
+                        : PROJECT_KIND_LABELS[form.kind]}
                     />
                   </label>
                 )}

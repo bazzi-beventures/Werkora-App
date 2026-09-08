@@ -2392,3 +2392,215 @@ input, textarea { font-family: var(--font); color: var(--text); }
   color: var(--muted); font-size: 13px;
   text-decoration: underline; cursor: pointer;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Offline erfasster Rapport (docs/specs/offline-modus.md §4.5)
+   ───────────────────────────────────────────────────────────── */
+
+/* Formular */
+.offline-rapport-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.offline-rapport-stundenzeile {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+/* Der Name nimmt den Platz, die Stundenzahl braucht nur wenig — und muss auf
+   dem Handy trotzdem mit dem Daumen treffbar bleiben. */
+.offline-rapport-stundenzeile input[type='text'] { flex: 1 1 auto; min-width: 0; }
+.offline-rapport-stundenzeile input[type='number'] { flex: 0 0 84px; text-align: right; }
+.offline-rapport-stundenzeile button {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.offline-rapport-materialzeile {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.offline-rapport-materialzeile:last-child { border-bottom: none; }
+.offline-rapport-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 14px;
+  line-height: 1.4;
+}
+/* Warum «Weiter» noch nicht geht — steht direkt darüber, nicht als Toast nach
+   dem Antippen (dieselbe Idee wie .projekte-offline-hint). */
+.offline-rapport-hinweis {
+  margin: 4px 0 8px;
+  color: var(--accent-amber-ink);
+  font-size: 13px;
+  text-align: center;
+}
+.offline-rapport-weiter { width: 100%; margin-bottom: 16px; }
+.offline-rapport-fertig {
+  padding: 16px;
+  text-align: center;
+}
+
+/* Karte im Projekt-Detail: was noch auf Verbindung wartet. */
+.offline-rapport-karte { border-left: 3px solid var(--accent-amber); }
+.offline-rapport-karte-zeile {
+  padding: 6px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.offline-rapport-karte-zeile:last-child { border-bottom: none; }
+.offline-rapport-karte-status { color: var(--muted); font-size: 12px; }
+.offline-rapport-karte-fehler {
+  margin-top: 2px;
+  color: var(--accent-red-ink);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Kundenansicht: das Handy wird umgedreht. Grosse Schrift, wenig Text, volle
+   Höhe über --app-vh (nie 100% — siehe CLAUDE.md, iOS-Viewport). */
+.kundenansicht {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: var(--app-vh, 100dvh);
+  padding: 20px 18px 32px;
+  background: var(--bg);
+  overflow-y: auto;
+}
+.kundenansicht-kopf {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--border);
+}
+.kundenansicht-logo { height: 40px; width: auto; }
+.kundenansicht-firma { font-size: 15px; font-weight: 700; }
+.kundenansicht-projekt { font-size: 18px; font-weight: 600; }
+.kundenansicht-datum { font-size: 14px; color: var(--muted); }
+.kundenansicht-block { margin-top: 22px; }
+.kundenansicht-titel {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kundenansicht-zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  font-size: 19px;
+  border-bottom: 1px solid var(--border);
+}
+.kundenansicht-summe {
+  border-bottom: none;
+  border-top: 2px solid var(--border);
+  margin-top: 4px;
+  font-weight: 700;
+}
+/* Artikelnummer als Nebentext: sie hilft beim Nachfragen, soll die Zeile aber
+   nicht beherrschen. */
+.kundenansicht-artnr { color: var(--muted); font-size: 13px; }
+.kundenansicht-klein { font-size: 14px; color: var(--muted); }
+.kundenansicht-arbeit { font-weight: 600; }
+.kundenansicht-beschrieb { margin: 6px 0 0; line-height: 1.5; white-space: pre-wrap; }
+.kundenansicht-signiert {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-green);
+  margin-bottom: 8px;
+}
+.kundenansicht-signatur {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.kundenansicht-teilrapport {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber-ink);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.kundenansicht-zurueck {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Die drei Wege aus der Karte: senden, bearbeiten, verwerfen. Sie stehen an
+   JEDEM wartenden Rapport — ein Eintrag, den man weder anschieben noch
+   loswerden kann, ist eine Sackgasse. */
+.offline-rapport-karte-aktionen {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.offline-rapport-karte-aktionen button {
+  flex: 1 1 0;
+  padding: 8px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.offline-rapport-karte-aktionen button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Verwerfen ist die einzige Aktion hier, die Arbeit vernichtet. */
+.offline-rapport-karte-verwerfen { color: var(--accent-red-ink); }
+.offline-rapport-karte-meldung {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Ausweg aus dem Rapport-Chat, wenn nichts durchkommt: er braucht das LLM, das
+   Formular nicht (docs/specs/offline-modus.md §4.5.2). Sieht nach Angebot aus,
+   nicht nach Fehlermeldung — die steht schon darüber. */
+.chat-offline-ausweg {
+  display: block;
+  width: calc(100% - 24px);
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--accent-dim);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

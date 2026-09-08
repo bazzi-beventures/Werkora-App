@@ -22,6 +22,7 @@ vi.mock('../../api/admin/quotes', () => ({
   getQuoteDetail: (id: number) => getQuoteDetail(id),
   setQuoteStatus: (id: number, status: string) => setQuoteStatus(id, status),
   sendQuoteRejection: vi.fn(),
+  markQuoteSentByPost: vi.fn(),
 }))
 vi.mock('../../api/admin/staff', () => ({ getAdminStaff: () => Promise.resolve([]) }))
 vi.mock('../../api/auth', () => ({ getMe: () => Promise.resolve({}) }))

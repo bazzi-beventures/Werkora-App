@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { apiUrl } from '../../../api/client'
-import { fmtCHF, fmtDate } from '../../utils/format'
+import { fmtCHF, fmtDate, todayISO } from '../../utils/format'
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_BADGE } from '../../constants/statuses'
 import { ActionRow } from '../../components/ActionRow'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { FileSections, QUOTE_DOC_SECTIONS } from './FileSection'
 import { groupByParent } from './types'
 import type { ProjectFile, ProjectFileCategory, ProjectInvoice, ProjectQuote } from './types'
@@ -28,6 +30,9 @@ interface QuotesTabProps {
   onSendThankyou: (quote: ProjectQuote) => void
   onSendOrderConfirmation: (quote: ProjectQuote) => void
   onSendRejection: (quoteId: number) => void
+  // Postversand: Offerte ohne E-Mail als versendet erfassen. Liefert false, wenn
+  // das Backend ablehnt — der Dialog bleibt dann offen und zeigt die Meldung.
+  onMarkSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
   onEdit: (quoteId: number) => void
   // „Weitere Offerte" (mehrere Varianten pro Projekt) — Standard-Fähigkeit, kein Flag.
   addingVariantId?: number | null
@@ -47,9 +52,29 @@ export function QuotesTab({
   quotes, invoices, regeneratingQuoteId, hasLocalDraft, dankEnabled,
   absageEnabled, sendingRejectionId,
   onShowCreateForm, onResumeDraft, onUpdateStatus, onRegenerate, onSend, onSendThankyou, onSendOrderConfirmation,
-  onSendRejection, onEdit, addingVariantId, onAddVariant,
+  onSendRejection, onMarkSentByPost, onEdit, addingVariantId, onAddVariant,
   files, uploading, uploadingCategory, onUploadFile, onDeleteFile, onRenameFile,
 }: QuotesTabProps) {
+  // Postversand: dieselbe Bestätigung wie in der Offertenübersicht (Datum nachtragbar).
+  const [postalQuote, setPostalQuote] = useState<ProjectQuote | null>(null)
+  const [postalDate, setPostalDate] = useState('')
+  const [markingPostal, setMarkingPostal] = useState(false)
+
+  function openPostal(q: ProjectQuote) {
+    setPostalDate(todayISO())
+    setPostalQuote(q)
+  }
+
+  async function handlePostalConfirm() {
+    if (!postalQuote || !postalDate) return
+    setMarkingPostal(true)
+    const ok = await onMarkSentByPost(postalQuote.id, postalDate)
+    setMarkingPostal(false)
+    // Nur bei Erfolg schliessen — sonst wäre die Meldung des Backends (409 «kein
+    // Dokument», 400 «Datum») weg, bevor sie jemand liest.
+    if (ok) setPostalQuote(null)
+  }
+
   // Workaround-Hinweis: solange die Mitarbeiter-PWA noch nicht ausgerollt ist,
   // werden Rechnungen direkt aus der Offerte erstellt. Eine solche Rechnung
   // markiert die zugehörige Offertengruppe mit einem Badge.
@@ -199,6 +224,19 @@ export function QuotesTab({
                               {q.status === 'gesendet' ? 'Erneut senden' : 'Senden'}
                             </button>
                           )}
+                          {/* Postversand — wie bei der Rechnung: nur solange die Offerte
+                              den Betrieb noch nicht verlassen hat, und nur mit
+                              vorliegendem Dokument. Genau die zwei Guards des Endpunkts;
+                              ohne sie wäre der Knopf sichtbar, aber jeder Klick ein 409. */}
+                          {q.status === 'entwurf' && (q.storage_path || q.xlsx_storage_path) && (
+                            <button
+                              className="admin-btn admin-btn-secondary admin-btn-sm"
+                              onClick={() => openPostal(q)}
+                              title="Ohne E-Mail als versendet erfassen (Post, persönlich übergeben)"
+                            >
+                              Per Post versendet
+                            </button>
+                          )}
                           {/* Auch bei 'gesendet': nach dem Versand will man den Ausgang
                               festhalten — genau dann meldet sich der Kunde ja. Vorher war
                               nur 'entwurf' erlaubt, was den Normalfall aussperrte. */}
@@ -296,6 +334,39 @@ export function QuotesTab({
           Fremd-/Papier-Offerten und die versendeten Auftragsbestätigungen (das PDF
           legt der Versand-Knopf selbst ab). Bewusst hier statt im Dokumente-Tab —
           und bewusst als Datei-Kategorien statt als eigener Reiter. */}
+      {/* Dialog: Postversand — Wortlaut wie in der Offertenübersicht */}
+      {postalQuote && (
+        <ConfirmDialog
+          title="Als per Post versendet markieren?"
+          message={
+            <>
+              {postalQuote.quote_number} · {fmtCHF(postalQuote.total_amount)}<br />
+              Es wird keine E-Mail verschickt. Die Offerte gilt danach als gesendet —
+              Erinnerung und die Kennzeichnung «Kein Feedback» zählen ab dem Versanddatum.
+            </>
+          }
+          confirmLabel="Als versendet markieren"
+          busyLabel="Wird markiert…"
+          busy={markingPostal}
+          confirmDisabled={!postalDate}
+          maxWidth={440}
+          onCancel={() => { if (!markingPostal) setPostalQuote(null) }}
+          onConfirm={() => void handlePostalConfirm()}
+        >
+          <div style={{ margin: '12px 0' }}>
+            <label className="admin-form-label" htmlFor="proj-quote-postal-sent-date">Versanddatum</label>
+            <input
+              id="proj-quote-postal-sent-date"
+              className="admin-form-input"
+              type="date"
+              value={postalDate}
+              max={todayISO()}
+              onChange={e => setPostalDate(e.target.value)}
+            />
+          </div>
+        </ConfirmDialog>
+      )}
+
       {onUploadFile && onDeleteFile && onRenameFile && (
         <div style={{ marginTop: 24 }}>
           <FileSections

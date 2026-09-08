@@ -8,8 +8,8 @@ import {
   listProjectInvoices, listProjectQuotes, listProjectReports,
 } from '../../../api/admin/projects'
 import {
-  addQuoteVariant, getQuoteDetail, regenerateQuote, sendQuoteRejection, setQuoteStatus,
-  type QuoteDetail,
+  addQuoteVariant, getQuoteDetail, markQuoteSentByPost, regenerateQuote, sendQuoteRejection,
+  setQuoteStatus, type QuoteDetail,
 } from '../../../api/admin/quotes'
 import {
   acceptAggregateReport, aggregateProjectReports, deleteProjectReport,
@@ -53,6 +53,8 @@ export interface UseProjectBilling {
   addVariant: (quoteId: number, kind: 'variante' | 'mehrfach') => Promise<void>
   updateQuoteStatus: (quoteId: number, status: string) => Promise<void>
   sendRejection: (quoteId: number) => Promise<void>
+  /** Offerte ohne E-Mail als versendet erfassen (Postversand). false = Backend hat abgelehnt. */
+  markQuoteSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
   generate: (remark: string, useAcceptedQuote: boolean, quoteIds?: number[]) => Promise<boolean>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
   loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
@@ -373,6 +375,21 @@ export function useProjectBilling(
     }
   }
 
+  // Postversand einer Offerte: derselbe Endpunkt wie in der Offertenübersicht.
+  // `sentDate` ist das Versanddatum — daran hängen Erinnerungsfrist und die
+  // Kennzeichnung «Kein Feedback», deshalb nachtragbar statt «jetzt».
+  async function markQuoteSentByPostFor(quoteId: number, sentDate: string): Promise<boolean> {
+    try {
+      await markQuoteSentByPost(quoteId, sentDate)
+      cb.onToast('Offerte als per Post versendet markiert')
+      await reloadQuotes()
+      return true
+    } catch (err) {
+      cb.onToast(err instanceof Error ? err.message : 'Fehler')
+      return false
+    }
+  }
+
   return {
     quotes, invoices, reports,
     generatingInvoice, regeneratingQuoteId, addingVariantId, sendingRejectionId,
@@ -381,5 +398,6 @@ export function useProjectBilling(
     aggregateReports, dissolveAggregate, acceptAggregate, markPartial,
     regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage,
     markPaid, unmarkPaid, archive, send, markSentByPost,
+    markQuoteSentByPost: markQuoteSentByPostFor,
   }
 }

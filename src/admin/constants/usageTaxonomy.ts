@@ -123,6 +123,7 @@ export function moduleOfAction(action: string): UsageModule {
 const ACTION_LABELS: Record<string, string> = {
   // ── Offerten ──
   admin_send_quote: 'Offerte versendet',
+  admin_mark_quote_sent: 'Offerte als versendet markiert',
   admin_regenerate_quote: 'Offerte neu erzeugt',
   admin_update_quote: 'Offerte geändert',
   admin_quote_status: 'Offerten-Status gesetzt',

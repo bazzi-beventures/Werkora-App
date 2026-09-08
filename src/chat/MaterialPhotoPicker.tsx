@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
 import { backdropCloseProps } from '../shared/backdropClose'
 import { createPortal } from 'react-dom'
-import { fetchMaterialGallery, GalleryMaterialOption } from '../api/chat'
+import { GalleryMaterialOption } from '../api/chat'
+import { loadMaterialGallery } from '../api/materialCatalog'
+import { OfflineStandBadge } from '../shared/OfflineStandBadge'
 import { ErsatzteilSelection } from './ErsatzteilPrompt'
 import { useBackButton } from '../shared/backButton'
 
 interface Props {
   onCancel: () => void
   onApply: (items: ErsatzteilSelection[]) => void
+  /** Wessen Katalog-Spiegel gilt, wenn kein Netz da ist (Spec §4.5.3). Ohne id
+   *  bleibt es beim bisherigen Verhalten: Netz oder Fehlermeldung. */
+  userId?: string
 }
 
 // Reine, unit-testbare Filterfunktion: ein Artikel matcht, wenn JEDER Suchtoken in
@@ -32,7 +37,7 @@ export function filterGallery(items: GalleryMaterialOption[], query: string): Ga
 // Die Suche filtert weiterhin über ALLE Artikel — nur die Anzeige ist gedeckelt.
 export const MAX_TILES = 120
 
-export default function MaterialPhotoPicker({ onCancel, onApply }: Props) {
+export default function MaterialPhotoPicker({ onCancel, onApply, userId = '' }: Props) {
   const [items, setItems] = useState<GalleryMaterialOption[]>([])
   const [byArtNr, setByArtNr] = useState<Record<string, GalleryMaterialOption>>({})
   const [qty, setQty] = useState<Record<string, number>>({})  // art_nr -> Menge (0 = nicht gewählt)
@@ -40,19 +45,24 @@ export default function MaterialPhotoPicker({ onCancel, onApply }: Props) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [lightbox, setLightbox] = useState<string | null>(null)  // Bild-Vollansicht (Lightbox)
+  // Stand des Katalog-Spiegels, wenn offline daraus gerendert wird. Die Kacheln
+  // tragen dann keine Bilder (die signierten URLs sind nicht spiegelbar) —
+  // gesucht und gewählt wird unverändert.
+  const [offlineSavedAt, setOfflineSavedAt] = useState('')
 
   useEffect(() => {
     let cancelled = false
-    fetchMaterialGallery()
-      .then(list => {
+    loadMaterialGallery(userId)
+      .then(view => {
         if (cancelled) return
-        setItems(list)
-        setByArtNr(Object.fromEntries(list.map(m => [m.art_nr, m])))
+        setItems(view.items)
+        setByArtNr(Object.fromEntries(view.items.map(m => [m.art_nr, m])))
+        if (view.offline) setOfflineSavedAt(view.savedAt)
       })
       .catch(() => { if (!cancelled) setError(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [userId])
 
   const filtered = useMemo(() => filterGallery(items, query), [items, query])
 
@@ -95,6 +105,8 @@ export default function MaterialPhotoPicker({ onCancel, onApply }: Props) {
           <div className="photo-picker-title">Artikel aus dem Katalog</div>
           <button className="photo-picker-close" onClick={onCancel} aria-label="Schliessen">×</button>
         </div>
+
+        {offlineSavedAt && <OfflineStandBadge savedAt={offlineSavedAt} />}
 
         <input
           className="photo-picker-search"

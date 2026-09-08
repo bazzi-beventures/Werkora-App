@@ -12,7 +12,16 @@ import {
   loadOfflinePackage, rememberProjectComments, rememberProjectTasks, rememberProjects,
 } from '../api/offlineStore'
 import { OfflineStandBadge } from '../shared/OfflineStandBadge'
+import {
+  MAX_DRAIN_ATTEMPTS as RAPPORT_MAX_ATTEMPTS,
+  pendingForProject,
+  recordedAtLabel,
+  removeRapport,
+  retryRapport,
+  type PendingRapport,
+} from '../api/rapportQueue'
 import { useOnline } from '../shared/useOnline'
+import { useConnectionDown } from '../shared/useConnectionDown'
 import SignaturePad from '../chat/SignaturePad'
 import { useBackButton } from '../shared/backButton'
 import { SK } from '../api/storageKeys'
@@ -99,7 +108,22 @@ interface Props {
   // Projekt für «Rapport erstellen» — mit der id, nicht nur dem Namen: zwei
   // Liegenschaften desselben Kunden dürfen gleich heissen, und der Monteur hat hier
   // eine konkrete davon vor sich. Nur der Name liesse die Zuordnung wieder offen.
-  onStartRapport: (project: { id: string; name: string }) => void
+  onStartRapport: (project: { id: string; name: string; workTypes: string[] }) => void
+  /** Projekt, das beim Öffnen des Screens gleich aufgeschlagen wird. Der Rückweg
+   *  aus dem Offline-Formular: dort steht die Karte mit dem wartenden Rapport,
+   *  und die soll der Monteur sehen, statt in der Liste zu landen. */
+  openProjectId?: string | null
+  /** Aufgeschlagen — der Aufrufer räumt seinen Merker weg, damit ein späteres
+   *  Zurück nicht erneut aufschlägt. */
+  onProjectOpened?: () => void
+  /** Ohne Netz führt derselbe Knopf ins Offline-Formular statt in den Chat
+   *  (docs/specs/offline-modus.md §4.5.2). Fehlt der Handler oder ist das
+   *  Feature aus, bleibt der Knopf offline gesperrt wie bisher. */
+  onStartOfflineRapport?: (project: { id: string; name: string; workTypes: string[] }) => void
+  /** Einen wartenden Rapport zurück ins Formular holen — der Weg aus der Karte,
+   *  wenn der Server ihn abgelehnt hat (§4.5.5). Ohne ihn wäre ein einmal
+   *  abgelehnter Rapport dauerhaft unzustellbar. */
+  onEditOfflineRapport?: (project: { id: string; name: string }, entry: PendingRapport) => void
   onNavArbeitszeit: () => void
   onNavProfile: () => void
   onLoggedOut: () => void
@@ -194,7 +218,7 @@ export function reportStatusLabel(
 // des Monteurs auf der Baustelle gerade nicht.
 type ViewMode = 'grid' | 'wochenplan'
 
-export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport, onStartRapport, onNavArbeitszeit, onNavProfile, onLoggedOut }: Props) {
+export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport, onStartRapport, onStartOfflineRapport, onEditOfflineRapport, openProjectId, onProjectOpened, onNavArbeitszeit, onNavProfile, onLoggedOut }: Props) {
   // Teilrapport (docs/specs/teilrapport.md §6.2): das Flag schaltet den
   // Bündeln-Knopf. Die Badges hängen NICHT daran — sie beschreiben den Zustand der
   // Daten, und ein abgeschaltetes Flag darf einen gebündelten Rapport nicht
@@ -210,6 +234,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   // Netzstatus als State, damit die Sperren aus §4.1 der Spec beim Wechsel
   // umschalten statt bis zum nächsten Render stehen zu bleiben.
   const online = useOnline()
+  // «Kein Durchkommen» statt «Browser sagt offline»: in der Tiefgarage mit einem
+  // Balken Empfang meldet der Browser online, und kein Request geht raus — genau
+  // der Fall, für den der Offline-Rapport gebaut ist (Spec §4.5.2).
+  const verbindungWeg = useConnectionDown()
   // Der Snapshot ist pro Mitarbeiter geschlüsselt. Die id kommt aus dem
   // localStorage statt aus `user`: der erste Render hat noch keinen User, die
   // Projektliste lädt aber sofort.
@@ -233,8 +261,33 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   // rapport_offerten_annahme_pflicht, vom Server als `rapport_blocked` geliefert),
   // 'stempel' am Benutzer (Feature rapport_nur_eingestempelt). Das Projekt gewinnt,
   // wenn beides zutrifft — es ist der speziellere Grund.
-  const rapportBlockReason: 'offerte' | 'stempel' | null =
-    selected?.rapport_blocked ? 'offerte' : stempelBlocked ? 'stempel' : null
+  // Offline-Rapport (docs/specs/offline-modus.md §4.5): derselbe Knopf, anderer
+  // Weg. Ohne Feature (oder ohne Handler) bleibt es beim bisherigen Verhalten —
+  // der Chat braucht Netz, also ist der Knopf offline gesperrt.
+  const offlineRapportMoeglich =
+    !!onStartOfflineRapport && isFeatureEnabled(user, 'rapport_offline_formular')
+  // Führt der Knopf gerade ins Formular statt in den Chat? Das ist die eine
+  // Frage, an der Beschriftung, Sperre und Ziel hängen — deshalb einmal
+  // beantwortet und dreimal benutzt.
+  const offlineWeg = offlineRapportMoeglich && (!online || verbindungWeg)
+  const rapportBlockReason: 'offerte' | 'stempel' | 'offline' | null =
+    selected?.rapport_blocked ? 'offerte'
+      : stempelBlocked ? 'stempel'
+        // Der Chat braucht das LLM. Ist kein Netz da und trägt der Mandant das
+        // Offline-Formular nicht, ist der Knopf ehrlich gesperrt statt eine
+        // Fehlermeldung nach dem Antippen zu liefern (Grundregel §4.1). Hier
+        // genügt `online`: eine Sperre darf am Flag hängen, ein ANGEBOT nicht.
+        : (!online && !offlineWeg) ? 'offline'
+          : null
+  // Offline erfasste Rapporte dieses Projekts, die auf Netz warten (§4.5.5).
+  // Sie sind der einzige Ort, an dem der Monteur sieht, dass noch etwas aussteht —
+  // ein wartender Rapport darf nie stumm auf dem Gerät liegen.
+  const [wartendeRapporte, setWartendeRapporte] = useState<PendingRapport[]>([])
+  // Welcher Eintrag gerade von Hand hochgeladen wird — für den Knopf-Zustand.
+  const [sendeRapportId, setSendeRapportId] = useState<string | null>(null)
+  // Rückmeldung auf «Jetzt senden». Kurz und an Ort und Stelle: ein Toast wäre
+  // weg, bevor der Monteur hinschaut.
+  const [rapportMeldung, setRapportMeldung] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   // Suche über Name und Projektnummer — ohne Tenant-Feature, also bei jedem
   // Mandanten da (siehe projekte/searchProjects.ts). Nur die Kachel-Ansicht
@@ -408,6 +461,67 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       if (pkg?.savedAt) setDetailSnapshotAt(pkg.savedAt)
     }).finally(() => setLoadingDetail(false))
   }, [selected?.id, userId, detailReloadNonce])
+
+  /** «Jetzt senden» — der Monteur erzwingt den Upload, statt auf einen der drei
+   *  Netz-Momente zu warten (Spec §4.5.5). */
+  async function handleSendeRapportJetzt(r: PendingRapport) {
+    setSendeRapportId(r.clientId)
+    setRapportMeldung(null)
+    try {
+      const res = await retryRapport(r.clientId)
+      if (res.ok) {
+        setRapportMeldung(res.signatureLost
+          // Der Rapport ist da, die Abnahme nicht — das muss der Monteur wissen,
+          // solange er noch beim Kunden ist.
+          ? 'Rapport übertragen — die Unterschrift wurde nicht angenommen, bitte im Projekt nachtragen.'
+          : 'Rapport übertragen.')
+      } else {
+        setRapportMeldung(res.error ?? 'Es hat nicht geklappt.')
+      }
+    } finally {
+      setSendeRapportId(null)
+      setDetailReloadNonce(n => n + 1)
+    }
+  }
+
+  /** Verwerfen. Mit Rückfrage, und mit einer deutlicheren, wenn eine
+   *  Kundenunterschrift daran hängt — die ist nicht wiederbeschaffbar. */
+  async function handleVerwerfeRapport(r: PendingRapport) {
+    const frage = r.signature
+      ? `Rapport vom ${r.date} endgültig verwerfen?\n\n`
+        + 'Der Kunde hat ihn bereits unterschrieben. Stunden, Material UND die '
+        + 'Unterschrift sind danach weg und lassen sich nicht wiederherstellen.'
+      : `Rapport vom ${r.date} endgültig verwerfen?\n\n`
+        + 'Die erfassten Stunden und das Material sind danach weg.'
+    if (!window.confirm(frage)) return
+    await removeRapport(r.clientId)
+    setRapportMeldung(null)
+    setDetailReloadNonce(n => n + 1)
+  }
+
+  // Ein von aussen gewünschtes Projekt aufschlagen (Rückweg aus dem
+  // Offline-Formular). Läuft, sobald die Liste steht — offline kommt sie aus dem
+  // Lesepaket, der Rückweg funktioniert also auch ohne Netz.
+  useEffect(() => {
+    if (!openProjectId || selected) return
+    const treffer = projects.find(p => String(p.id) === String(openProjectId))
+    if (!treffer) return
+    setSelected(treffer)
+    onProjectOpened?.()
+  }, [openProjectId, projects, selected, onProjectOpened])
+
+  // Wartende Offline-Rapporte dieses Projekts nachladen. Läuft beim Öffnen des
+  // Detail-Screens, nach dem Erfassen und bei jedem Netz-Wechsel — nach einem
+  // gelungenen Drain ist die Liste leer, und das soll man sehen.
+  useEffect(() => {
+    const projectId = selected?.id
+    if (!projectId || !userId) { setWartendeRapporte([]); return }
+    let cancelled = false
+    void pendingForProject(userId, String(projectId)).then(rows => {
+      if (!cancelled) setWartendeRapporte(rows)
+    })
+    return () => { cancelled = true }
+  }, [selected?.id, userId, detailReloadNonce, online])
 
   // Re-Entrancy-Schutz: flatterndes Netz darf keine zwei Drains parallel
   // starten. Der Server-Call ist zwar idempotent (Doppel-Toggle schadet nicht),
@@ -627,7 +741,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     }
     // Erst jetzt in den Chat: die Liste hinter uns ist gleich weg, ein Reload wäre
     // verschenkt. Beim Zurückkommen lädt der Projekt-Detail sie ohnehin neu.
-    onStartRapport({ id: String(selected.id), name: selected.name })
+    onStartRapport({
+      id: String(selected.id), name: selected.name,
+      workTypes: selected.art_der_arbeit ?? [],
+    })
   }
 
   async function handleDissolve(report: ProjectReport) {
@@ -902,20 +1019,116 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             </div>
           )}
 
-          {/* Rapport erstellen — gesperrt aus zwei Gründen (siehe rapportBlockReason):
+          {/* Offline erfasste Rapporte, die auf Netz warten (§4.5.5). Sie stehen
+              ÜBER dem Rapport-Knopf: wer gerade einen erfasst hat, soll nicht
+              versehentlich einen zweiten anfangen — und ein abgelehnter Rapport
+              braucht die Aufmerksamkeit vor allem anderen. */}
+          {wartendeRapporte.length > 0 && (
+            <div className="projekte-detail-card offline-rapport-karte">
+              <div className="projekte-detail-title">
+                {wartendeRapporte.length === 1
+                  ? 'Ein Rapport wartet auf Verbindung'
+                  : `${wartendeRapporte.length} Rapporte warten auf Verbindung`}
+              </div>
+              {wartendeRapporte.map(r => (
+                <div key={r.clientId} className="offline-rapport-karte-zeile">
+                  <div>
+                    <strong>{r.date}</strong>
+                    {' · '}erfasst {recordedAtLabel(r.recordedAt)}
+                    {r.signature && ' · unterschrieben'}
+                  </div>
+                  {r.lastError ? (
+                    // Nie stumm: ein abgelehnter Rapport sagt, woran es liegt.
+                    // Der automatische Drain fasst ihn nicht mehr an — derselbe
+                    // Body ergäbe dieselbe Ablehnung —, die Knöpfe unten schon.
+                    <div className="offline-rapport-karte-fehler">
+                      {r.lastError}
+                      {r.signature && ' — beim Bearbeiten muss der Kunde neu unterschreiben.'}
+                    </div>
+                  ) : r.attempts >= RAPPORT_MAX_ATTEMPTS ? (
+                    <div className="offline-rapport-karte-fehler">
+                      Übertragung mehrfach fehlgeschlagen — bitte dem Büro melden.
+                    </div>
+                  ) : (
+                    <div className="offline-rapport-karte-status">
+                      Geht raus, sobald du wieder Verbindung hast.
+                    </div>
+                  )}
+
+                  {/* Dieselben drei Wege für JEDEN wartenden Rapport, nicht nur
+                      für den abgelehnten: wer sich vertippt hat, merkt es meist,
+                      bevor der Upload durch ist — und stand bis dahin vor einem
+                      Eintrag, den er weder korrigieren noch loswerden konnte. */}
+                  <div className="offline-rapport-karte-aktionen">
+                    <button
+                      type="button"
+                      disabled={sendeRapportId !== null}
+                      onClick={() => void handleSendeRapportJetzt(r)}
+                    >
+                      {sendeRapportId === r.clientId ? 'Sendet…' : 'Jetzt senden'}
+                    </button>
+                    {onEditOfflineRapport && (
+                      <button
+                        type="button"
+                        disabled={sendeRapportId !== null}
+                        onClick={() => onEditOfflineRapport(
+                          { id: String(selected.id), name: selected.name }, r,
+                        )}
+                      >
+                        Bearbeiten
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="offline-rapport-karte-verwerfen"
+                      disabled={sendeRapportId !== null}
+                      onClick={() => void handleVerwerfeRapport(r)}
+                    >
+                      Verwerfen
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* AUSSERHALB der Karte: nach einem erfolgreichen «Jetzt senden» ist
+              die Karte weg — und mit ihr wäre die Meldung weg, gerade die
+              wichtige («die Unterschrift wurde nicht angenommen»). */}
+          {rapportMeldung && (
+            <div className="offline-rapport-karte-meldung">{rapportMeldung}</div>
+          )}
+
+          {/* Rapport erstellen — gesperrt aus drei Gründen (siehe rapportBlockReason):
               keine angenommene Offerte des Projekts (Feature
-              rapport_offerten_annahme_pflicht) oder kein laufender Stempel (Feature
-              rapport_nur_eingestempelt). Die eigentliche Durchsetzung liegt in
-              beiden Fällen im Backend: der Rapport-Chat lehnt ebenso ab, auch wenn
-              das Projekt frei im Gespräch gewählt wird. */}
+              rapport_offerten_annahme_pflicht), kein laufender Stempel (Feature
+              rapport_nur_eingestempelt) oder kein Netz ohne Offline-Formular. Die
+              Durchsetzung der ersten beiden liegt im Backend: der Rapport-Chat
+              lehnt ebenso ab, auch wenn das Projekt frei im Gespräch gewählt wird.
+
+              Ohne Netz UND mit Feature `rapport_offline_formular` führt derselbe
+              Knopf ins Formular statt in den Chat (§4.5.2). Ein zweiter Knopf
+              «Rapport ohne Chat» ist bewusst nicht vorgesehen: der Grund fürs
+              Formular ist das fehlende Netz, nicht die Vorliebe. */}
           <button
             type="button"
-            onClick={() => onStartRapport({ id: String(selected.id), name: selected.name })}
+            onClick={() => {
+              // Leistungsart des Projekts als Vorbelegung — für beide Wege: der
+              // Chat kann später ins Formular wechseln und braucht sie dann.
+              const project = {
+                id: String(selected.id),
+                name: selected.name,
+                workTypes: selected.art_der_arbeit ?? [],
+              }
+              if (offlineWeg) onStartOfflineRapport!(project)
+              else onStartRapport(project)
+            }}
             disabled={rapportBlockReason !== null}
             title={
               rapportBlockReason === 'offerte' ? 'Offerte noch nicht angenommen'
                 : rapportBlockReason === 'stempel' ? RAPPORT_CLOCK_IN_TITLE
-                  : undefined
+                  : rapportBlockReason === 'offline' ? 'Keine Internetverbindung'
+                    : undefined
             }
             style={{
               width: '100%',
@@ -941,7 +1154,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
               <line x1="12" y1="11" x2="12" y2="17"/>
               <line x1="9" y1="14" x2="15" y2="14"/>
             </svg>
-            Rapport erstellen
+            {offlineWeg ? 'Rapport ohne Netz erfassen' : 'Rapport erstellen'}
           </button>
           {rapportBlockReason && (
             <div style={{ marginBottom: 12, fontSize: 13, color: 'var(--text-muted, #71717a)', textAlign: 'center' }}>
@@ -949,6 +1162,11 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 <>
                   Die Offerte für dieses Projekt ist noch nicht angenommen. Der Rapport ist
                   möglich, sobald der Kunde oder der Projektleiter sie angenommen hat.
+                </>
+              ) : rapportBlockReason === 'offline' ? (
+                <>
+                  Der Rapport-Chat braucht eine Internetverbindung. Sobald du wieder
+                  Empfang hast, geht es hier weiter.
                 </>
               ) : RAPPORT_CLOCK_IN_HINT}
             </div>

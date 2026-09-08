@@ -1,5 +1,6 @@
 import { apiFetch } from './client'
 import { clearOfflinePackages } from './offlineStore'
+import { resetConnectionHealth } from './connectionHealth'
 import { clearApiCache } from './swCache'
 
 export interface UserInfo {
@@ -59,6 +60,10 @@ export async function logout(): Promise<void> {
     // Dasselbe gilt für das Offline-Lesepaket — es hängt am Gerät, nicht an der
     // Session, und der Werkhof teilt sich ein Tablet.
     clearOfflinePackages()
+    // Der nächste Monteur am Werkhof-Tablet soll nicht die Netzgeschichte des
+    // vorherigen erben — sonst bekäme er das Offline-Formular angeboten, weil
+    // jemand anderes vor einer Minute im Funkloch stand.
+    resetConnectionHealth()
     await clearApiCache()
   }
 }

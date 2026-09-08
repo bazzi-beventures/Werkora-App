@@ -98,6 +98,13 @@ export const SCHEDULING_VIEWS = [
 
 export type SchedulingViewKey = (typeof SCHEDULING_VIEWS)[number]['key']
 
+// Grenzen der Blocker-Kategorien — gespiegelt aus db/tenants.py
+// (SCHEDULING_BLOCKER_CATEGORY_MAX / _MAXLEN). Der Server lehnt ein Speichern
+// ausserhalb mit 400 ab; hier stehen sie, damit der Konfig-Tab es gar nicht
+// erst anbietet.
+export const SCHEDULING_BLOCKER_CATEGORY_MAX = 20
+export const SCHEDULING_BLOCKER_CATEGORY_MAXLEN = 40
+
 export interface SchedulingConfig {
   fields: Record<string, boolean>
   colors: Record<string, string>
@@ -112,6 +119,8 @@ export interface SchedulingConfig {
   grey_until?: string
   // Arbeitsstunden je Werktag — Bezugsgrösse des Auslastungsgrads im Tagesplan.
   day_capacity_hours?: number
+  // Titel-Auswahl für provisorische Blocker. Leer = freies Titelfeld wie bisher.
+  blocker_categories?: string[]
 }
 
 export interface TenantSchedulingResponse {
@@ -150,6 +159,7 @@ function mergeSchedulingConfig(
     grey_after: cfg.grey_after ?? def.grey_after ?? '',
     grey_until: cfg.grey_until ?? def.grey_until ?? '',
     day_capacity_hours: cfg.day_capacity_hours ?? def.day_capacity_hours,
+    blocker_categories: cfg.blocker_categories ?? def.blocker_categories ?? [],
   }
 }
 

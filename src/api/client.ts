@@ -1,4 +1,5 @@
 import { trackApiError } from '../shared/breadcrumbs'
+import { noteNetworkFailure, noteRequestSuccess } from './connectionHealth'
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 // Absolute URL für direkte Browser-Navigation (z.B. <a href> in neuem Tab).
@@ -82,6 +83,20 @@ async function parseErrorDetail(res: Response): Promise<{ text: string; code?: s
     if (body.detail && typeof body.detail === 'object' && typeof body.detail.message === 'string') {
       detail = body.detail.message
       if (typeof body.detail.code === 'string') code = body.detail.code
+    } else if (
+      body.detail && typeof body.detail === 'object' &&
+      Array.isArray(body.detail.errors) &&
+      body.detail.errors.every((e: unknown) => typeof e === 'string')
+    ) {
+      // Feldweise Validierungsfehler der Registry ({errors: [...]}, gesetzt in
+      // agents/routers/admin_tenant_settings.py). Ohne diesen Zweig war `detail`
+      // ein Objekt ohne `.message` — der Fallback unten machte daraus
+      // "Serverfehler (HTTP 400)", und der Superadmin sah beim Speichern eines
+      // Feature-Flags nicht, WELCHES Feld ausserhalb seiner Grenzen lag.
+      // Mit ' · ' verbunden statt mit Zeilenumbruch: die Meldung landet mal im
+      // Toast, mal in einem schlichten `{error && …}`-Div — keine dieser Flaechen
+      // hat 'white-space: pre-line', ein '\n' waere dort still ein Leerzeichen.
+      detail = (body.detail.errors as string[]).join(' · ')
     } else {
       // `detail` ist die app-weite Fehlerform (FastAPI HTTPException). Manche
       // neueren Endpoints (z.B. manueller Rapport) antworten mit `{ error: … }` —
@@ -99,6 +114,7 @@ async function parseErrorDetail(res: Response): Promise<{ text: string; code?: s
   //      der statusText-Fallback, und der ist über HTTP/2 IMMER leer, weil HTTP/2
   //      keine Reason-Phrase mehr kennt.
   //   2. FastAPI-Validierungsfehler liefern `detail` als Array von Objekten.
+  //      (Das app-eigene `{errors: [...]}` fängt der Zweig oben ab.)
   const text = typeof detail === 'string' ? detail.trim() : ''
   return { text: text || `Serverfehler (HTTP ${res.status})`, code }
 }
@@ -130,6 +146,15 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
       },
     })
 
+    // Beweist diese Antwort, dass die Leitung trägt? Nur bei einem MUTIERENDEN
+    // Request. Der Service Worker bedient `/pwa/`-GETs per NetworkFirst aus dem
+    // `api-cache` (vite.config.ts), und ein Cache-Treffer ist von einer echten
+    // Netz-Antwort nicht zu unterscheiden — er würde die Leitung ausgerechnet
+    // in der Tiefgarage als «trägt» melden und den Einstieg ins Offline-Formular
+    // unterdrücken. Die Cache API speichert nur GETs, ein durchgekommenes POST
+    // ist also immer echt. Ein 500 zählt dabei mit: der Server war erreichbar.
+    if ((init.method ?? 'GET').toUpperCase() !== 'GET') noteRequestSuccess()
+
     if (!res.ok) {
       const { text, code } = await parseErrorDetail(res)
       if (handleExpiredSession(res.status, text, path)) {
@@ -141,6 +166,10 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     return res.json()
   } catch (e) {
     if (e instanceof ApiError) throw e
+    // Kein Durchkommen. Das merkt sich `connectionHealth`, damit die Oberfläche
+    // den Unterschied zwischen «Browser sagt offline» und «Balken da, aber
+    // nichts geht» kennt — in der Tiefgarage ist Letzteres der Normalfall.
+    noteNetworkFailure()
     throw new ApiError(0, 'Keine Internetverbindung')
   } finally {
     if (timer !== null) clearTimeout(timer)

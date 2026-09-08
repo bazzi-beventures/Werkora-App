@@ -100,6 +100,21 @@ export async function setQuoteStatus(quoteId: number, status: string): Promise<v
   })
 }
 
+/**
+ * Offerte als (per Post/von Hand) versendet markieren, ohne sie zu mailen —
+ * das Gegenstück zu `markInvoiceSentByPost`.
+ *
+ * `sentDate` ist das Versanddatum (ISO, JJJJ-MM-TT), nachtragbar: der Postversand
+ * wird oft erst Tage später erfasst, und an dem Datum hängen Erinnerungsfrist und
+ * die Kennzeichnung «Kein Feedback».
+ */
+export async function markQuoteSentByPost(quoteId: number, sentDate: string): Promise<void> {
+  await apiFetch(`/pwa/admin/quotes/${quoteId}/mark-sent`, {
+    method: 'POST',
+    body: JSON.stringify({ sent_date: sentDate }),
+  })
+}
+
 /** Absage-Mail an den Kunden; die Antwort trägt die Meldung für den Toast. */
 export async function sendQuoteRejection(quoteId: number): Promise<{ message?: string }> {
   return apiFetch<{ message?: string }>(`/pwa/admin/quotes/${quoteId}/send-rejection`, {

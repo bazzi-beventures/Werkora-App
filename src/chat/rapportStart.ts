@@ -14,7 +14,10 @@ export type RapportStartAction =
   // Derselbe Rapport läuft schon → nur hineinspringen, keine neue Startnachricht.
   | { kind: 'resume' }
   // Ein anderer Rapport ist unfertig → erst fragen, sonst geht er verloren.
-  | { kind: 'confirm-discard'; pendingProject: string | null }
+  // `saved`: der Rapport ist bereits in der DB und nur die Unterschrift steht aus —
+  // dann geht beim Weitermachen kein Einsatz verloren, und der Text darf das nicht
+  // behaupten.
+  | { kind: 'confirm-discard'; pendingProject: string | null; saved: boolean }
 
 /**
  * Hat der Entwurf einen Rapport, der bei einem Neustart verloren ginge?
@@ -36,15 +39,47 @@ export function hasUnfinishedRapport(draft: RapportDraftState): boolean {
   return !!draft.pendingProject && draft.messages.length > 1
 }
 
+/**
+ * Ist der Rapport des Entwurfs bereits GESPEICHERT — offen ist höchstens die
+ * Unterschrift bzw. der PDF-Schritt?
+ *
+ * Der Unterschied trägt `planRapportStart`: ein gespeicherter Rapport darf nie mehr
+ * «fortgesetzt» werden. Er ist in der DB, seine Stunden sind sicher, und der Monteur,
+ * der auf «Rapport erstellen» tippt, will einen NEUEN — nicht den alten samt
+ * Unterschriftspad zurück.
+ */
+export function isSavedRapport(draft: RapportDraftState): boolean {
+  // `pendingConfirm` gewinnt: solange der Bestätigungsschritt offen ist, ist der
+  // Rapport NICHT gespeichert — auch wenn ein inkonsistenter Entwurf daneben noch
+  // eine Rapport-id trüge. Im Zweifel gilt der teurere Fall (Stunden in der Schwebe).
+  if (draft.pendingConfirm) return false
+  return draft.pendingSignReportId !== null || draft.downloadReportId !== null
+}
+
 export function planRapportStart(
   draft: RapportDraftState | null,
   projectName: string,
 ): RapportStartAction {
   if (!draft || !hasUnfinishedRapport(draft)) return { kind: 'start' }
+  // Der Rapport ist schon gespeichert: NICHT hineinspringen. Genau das war der
+  // Fehler — Rapport gespeichert, Unterschrift/PDF-Schritt blieb im Entwurf stehen
+  // (Chat verlassen, App weggeräumt, Handy gesperrt), und der nächste Griff zu
+  // «Rapport erstellen» im selben Projekt zog den ALTEN Rapport wieder hervor,
+  // statt einen neuen zu beginnen.
+  if (isSavedRapport(draft)) {
+    // Unterschrift steht noch aus → einmal fragen. Nicht wegen der Stunden (die sind
+    // gespeichert), sondern weil der Rapport ohne Unterschrift liegen bleibt.
+    if (draft.pendingSignReportId !== null) {
+      return { kind: 'confirm-discard', pendingProject: draft.pendingProject ?? null, saved: true }
+    }
+    // Unterschrift erledigt oder übersprungen, es steht nur noch der PDF-Knopf da:
+    // nichts mehr offen, wortlos neu beginnen. Das PDF gibt es weiterhin im Projekt.
+    return { kind: 'start' }
+  }
   // Gleiches Projekt: der Monteur will offensichtlich zurück in seinen laufenden
   // Rapport, nicht einen zweiten anfangen. Ohne Rückfrage weiterlaufen lassen.
   if (draft.pendingProject && draft.pendingProject === projectName) return { kind: 'resume' }
-  return { kind: 'confirm-discard', pendingProject: draft.pendingProject ?? null }
+  return { kind: 'confirm-discard', pendingProject: draft.pendingProject ?? null, saved: false }
 }
 
 // ── Verlassen des Chats (Zurück, Nav-Kachel, Android-Zurück, Reload) ─────────
@@ -79,8 +114,9 @@ const BACK = '\n\nAbbrechen = zurück zum Rapport.'
  *
  * Der fertige Rapport (PDF-Schritt) warnt bewusst NICHT: dort ist «Schliessen» der
  * vorgesehene Weg, und `resetConversation` räumt selbst auf. Er zählt für
- * `hasUnfinishedRapport` trotzdem als unfertig, weil der Start-Knopf dort in den
- * laufenden Chat zurückspringen soll statt einen zweiten Rapport zu beginnen.
+ * `hasUnfinishedRapport` trotzdem als unfertig — dort geht es um den Entwurf, der
+ * noch etwas trägt. Für den Start-Knopf entscheidet `planRapportStart` gesondert:
+ * ein gespeicherter Rapport wird nie fortgesetzt.
  */
 export function rapportLeaveWarning(draft: RapportDraftState | null): LeaveWarning | null {
   if (!draft || !hasUnfinishedRapport(draft)) return null
@@ -122,9 +158,27 @@ export function confirmLeaveRapport(
   return !warning || confirm(warning.text)
 }
 
-/** Text der Rückfrage, bevor ein unfertiger Rapport verworfen wird. */
-export function discardPrompt(pendingProject: string | null, nextProject: string): string {
+/**
+ * Text der Rückfrage, bevor ein unfertiger Rapport weicht.
+ *
+ * `saved` unterscheidet die beiden Fälle, und der Unterschied ist kein Detail: beim
+ * gespeicherten Rapport wäre «der nicht gespeichert ist» schlicht falsch. Wer einmal
+ * eine Warnung liest, die übertreibt, klickt ab dann jede weg.
+ */
+export function discardPrompt(
+  pendingProject: string | null,
+  nextProject: string,
+  saved = false,
+): string {
   const which = pendingProject ? `für «${pendingProject}»` : 'in Arbeit'
+  if (saved) {
+    return (
+      `Der Rapport ${which} ist gespeichert, aber noch nicht unterschrieben.\n\n`
+      + `OK = neuen Rapport für «${nextProject}» beginnen; die Unterschrift holst du `
+      + 'später im Projekt über «Unterschrift nachtragen».\n'
+      + 'Abbrechen = zurück zum gespeicherten Rapport.'
+    )
+  }
   return (
     `Du hast noch einen Rapport ${which}, der nicht gespeichert ist.\n\n`
     + `OK = diesen Rapport verwerfen und für «${nextProject}» neu beginnen.\n`

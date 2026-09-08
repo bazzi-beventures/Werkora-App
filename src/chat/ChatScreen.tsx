@@ -17,6 +17,7 @@ import { loadDraft, saveDraft } from './rapportDraft'
 import { LeaveWarning, rapportLeaveWarning } from './rapportStart'
 import { RAPPORT_CLOCK_IN_HINT, useRapportClockInBlocked } from '../shared/rapportClockIn'
 import { useOnline } from '../shared/useOnline'
+import { useConnectionDown } from '../shared/useConnectionDown'
 
 // Offline gesperrt statt nach dem Tippen abgelehnt (docs/specs/offline-modus.md
 // §4.1): jede Chat-Antwort braucht das LLM, offline gibt es keine. Der Entwurf
@@ -67,6 +68,19 @@ interface Props {
   // Dasselbe Projekt als id — die verbindliche Angabe an den Server. Der Name
   // allein liesse die Zuordnung offen, sobald zwei Liegenschaften gleich heissen.
   initialProjectId?: string | null
+  /**
+   * Weg ins Offline-Formular, wenn der Chat nicht durchkommt
+   * (docs/specs/offline-modus.md §4.5.2).
+   *
+   * Der Einstieg im Projekt-Detail deckt den Fall ab, in dem die App schon
+   * weiss, dass nichts geht. Hier geht es um den anderen: der Monteur ist
+   * bereits im Chat, tippt, und die Nachricht kommt nicht durch — in der
+   * Tiefgarage mit einem Balken Empfang der Normalfall. Ohne diesen Ausgang
+   * bliebe ihm nur, es weiter zu versuchen.
+   *
+   * Fehlt der Handler (kein Feature, kein Projekt), erscheint der Hinweis nicht.
+   */
+  onSwitchToOfflineRapport?: (project: { id: string; name: string }) => void
   onInitialMessageConsumed?: () => void
   onNavHome: () => void
   onNavArbeitszeit: () => void
@@ -96,7 +110,7 @@ export function projectChoiceLabel(opt: ProjectChoiceOption): string {
   return detail ? `${number} — ${detail}` : number
 }
 
-export default function ChatScreen({ displayName, user, logoUrl, activeNav, initialMessage, initialProject, initialProjectId, onInitialMessageConsumed, onNavHome, onNavArbeitszeit, onNavProjekte, onNavProfile, onLoggedOut }: Props) {
+export default function ChatScreen({ displayName, user, logoUrl, activeNav, initialMessage, initialProject, initialProjectId, onInitialMessageConsumed, onSwitchToOfflineRapport, onNavHome, onNavArbeitszeit, onNavProjekte, onNavProfile, onLoggedOut }: Props) {
   const kleinmaterialCfg = getFeature<KleinmaterialPromptConfig>(user, 'kleinmaterial_prompt')
   const kleinmaterialEnabled = !!kleinmaterialCfg?.enabled
   const ersatzteilEnabled = isFeatureEnabled(user, 'ersatzteil_prompt')
@@ -112,6 +126,10 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   // (dieselbe Grenze zieht `confirm_report` serverseitig bewusst nicht nach).
   const stempelBlocked = useRapportClockInBlocked(user)
   const online = useOnline()
+  // Kommt gerade etwas durch? Anders als `online` fängt das auch die Tiefgarage
+  // mit einem Balken Empfang — dort meldet der Browser online und nichts geht
+  // raus (api/connectionHealth.ts).
+  const verbindungWeg = useConnectionDown()
 
   function greetingMessage(): Message {
     return {
@@ -178,6 +196,13 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   // Projekt des laufenden Rapports — damit «Rapport erstellen» im selben Projekt in
   // den laufenden Rapport zurückspringt, statt ihn stillschweigend zu verwerfen.
   const [pendingProject, setPendingProject] = useState<string | null>(() => draft?.pendingProject ?? null)
+  // Die id des Projekts, mit dem dieser Chat gestartet wurde. NUR für den Weg
+  // ins Offline-Formular: der Name allein genügt dort nicht, seit zwei Projekte
+  // gleich heissen dürfen (Migration 20260807b). Bewusst NICHT im Entwurf
+  // gespeichert — wer den Chat später fortsetzt, kam über den Projekt-Detail und
+  // bringt die id erneut mit; ein alter, im Draft konservierter Wert wäre die
+  // schlechtere Auskunft.
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(() => initialProjectId ?? null)
   // Offene PROJEKT-Rückfrage: zwei Liegenschaften heissen gleich. Solange sie
   // ansteht, ist die Eingabe gesperrt — genau wie bei der Material-Rückfrage. Der
   // Monteur soll das Projekt antippen, nicht beschreiben: eine beschriebene Adresse
@@ -250,6 +275,11 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     setDownloadReportId(null)
     setReportSigned(false)
     setPendingProject(null)
+    // Die beiden Teilrapport-Merker gehören zum abgeschlossenen Rapport, nicht zum
+    // nächsten: bleiben sie stehen, zeigt der frische Chat die Vorauswahl und den
+    // Hinweis des vorherigen.
+    setPartialChosen(false)
+    setSavedAsPartial(false)
   }
 
   // Selbstkorrektur: falscher Auftrag erwischt oder versehentlich doppelt erfasst.
@@ -548,6 +578,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     // Bindung SOFORT setzen, nicht erst wenn die Antwort da ist: verlässt der
     // Monteur den Chat währenddessen, muss der Draft das Projekt schon tragen.
     if (initialProject) setPendingProject(initialProject)
+    if (initialProjectId) setPendingProjectId(initialProjectId)
     handleResponseStream(initialMessage, initialProject, initialProjectId)
     onInitialMessageConsumed?.()
   }, [initialMessage])
@@ -1049,6 +1080,20 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
           Absagen übereinander erklären nichts, sie stapeln sich nur. */}
       {!online && !stempelBlocked && (
         <div className="chat-stempel-hint">{OFFLINE_CHAT_HINT}</div>
+      )}
+
+      {/* Der Ausweg, wenn der Chat nicht durchkommt: er braucht das LLM, das
+          Formular nicht. Erst ab dem ersten Fehlschlag — vorher wäre es ein
+          Angebot für ein Problem, das der Monteur nicht hat. Steht UNTER den
+          Absage-Hinweisen, weil es die Antwort auf sie ist. */}
+      {verbindungWeg && !stempelBlocked && onSwitchToOfflineRapport && pendingProject && pendingProjectId && (
+        <button
+          type="button"
+          className="chat-offline-ausweg"
+          onClick={() => onSwitchToOfflineRapport({ id: pendingProjectId, name: pendingProject })}
+        >
+          Kein Durchkommen? Rapport ohne Netz erfassen
+        </button>
       )}
 
       {/* Kein Absage-Hinweis, sondern ein Zustand: hier steht, dass etwas

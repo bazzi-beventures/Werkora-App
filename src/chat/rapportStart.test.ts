@@ -43,7 +43,7 @@ describe('planRapportStart', () => {
       draft({ pendingConfirm: true, pendingProject: 'MFH Sonnhalde' }),
       'Test 09.08.',
     )
-    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: 'MFH Sonnhalde' })
+    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: 'MFH Sonnhalde', saved: false })
   })
 
   it('springt ohne Rückfrage in den laufenden Rapport desselben Projekts', () => {
@@ -59,12 +59,51 @@ describe('planRapportStart', () => {
       draft({ pendingSignReportId: 42, pendingProject: 'MFH Sonnhalde' }),
       'Test 09.08.',
     )
-    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: 'MFH Sonnhalde' })
+    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: 'MFH Sonnhalde', saved: true })
+  })
+
+  // Regression (der gemeldete Fehler): Rapport gespeichert, dann ging etwas dazwischen
+  // — Handy gesperrt, Chat verlassen, App weggeräumt — und der Unterschriftsschritt
+  // blieb im Entwurf stehen. Der nächste Griff zu «Rapport erstellen» im SELBEN
+  // Projekt zog daraufhin den alten Rapport samt Unterschriftspad wieder hervor,
+  // statt einen neuen zu beginnen.
+  it('setzt einen bereits gespeicherten Rapport nie fort, auch nicht im selben Projekt', () => {
+    const plan = planRapportStart(
+      draft({ pendingSignReportId: 42, pendingProject: 'Test 09.08.' }),
+      'Test 09.08.',
+    )
+    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: 'Test 09.08.', saved: true })
+  })
+
+  // Unterschrift erledigt oder übersprungen: es steht nur noch der PDF-Knopf da.
+  // Offen ist nichts mehr, also auch keine Rückfrage — nur ein frischer Rapport.
+  it('beginnt wortlos neu, wenn nur noch der PDF-Schritt des alten Rapports dasteht', () => {
+    const fertig = draft({
+      downloadReportId: 42,
+      reportSigned: true,
+      pendingProject: 'Test 09.08.',
+      messages: [
+        { id: 1, role: 'bot', text: 'Hallo', timestamp: '08:00' },
+        { id: 2, role: 'user', text: '8 Stunden', timestamp: '08:01' },
+      ],
+    })
+    expect(planRapportStart(fertig, 'Test 09.08.')).toEqual({ kind: 'start' })
+    expect(planRapportStart(fertig, 'MFH Sonnhalde')).toEqual({ kind: 'start' })
+  })
+
+  // Inkonsistenter Entwurf: Bestätigungsschritt offen UND eine Rapport-id daneben.
+  // Dann gilt der teurere Fall — Stunden in der Schwebe, also der gewöhnliche Weg.
+  it('hält einen Entwurf mit offenem Bestätigungsschritt nie für gespeichert', () => {
+    const plan = planRapportStart(
+      draft({ pendingConfirm: true, downloadReportId: 42, pendingProject: 'Test 09.08.' }),
+      'Test 09.08.',
+    )
+    expect(plan).toEqual({ kind: 'resume' })
   })
 
   it('fragt bei einem Entwurf ohne Projektangabe (ältere App-Version)', () => {
     const plan = planRapportStart(draft({ pendingConfirm: true }), 'Test 09.08.')
-    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: null })
+    expect(plan).toEqual({ kind: 'confirm-discard', pendingProject: null, saved: false })
   })
 
   // Der Fall, der den Rapport mitten im Erfassen zerriss: der Monteur hat Stunden
@@ -86,7 +125,7 @@ describe('planRapportStart', () => {
 
   it('fragt nach, bevor ein angefangener Rapport für ein anderes Projekt weicht', () => {
     expect(planRapportStart(inArbeit('MFH Sonnhalde'), 'Test 09.08.')).toEqual({
-      kind: 'confirm-discard', pendingProject: 'MFH Sonnhalde',
+      kind: 'confirm-discard', pendingProject: 'MFH Sonnhalde', saved: false,
     })
   })
 
@@ -191,5 +230,15 @@ describe('discardPrompt', () => {
 
   it('kommt ohne bekanntes Projekt aus', () => {
     expect(discardPrompt(null, 'Test 09.08.')).toContain('in Arbeit')
+  })
+
+  // Beim gespeicherten Rapport wäre «der nicht gespeichert ist» schlicht falsch —
+  // und eine Warnung, die einmal übertreibt, wird ab dann weggeklickt.
+  it('behauptet beim gespeicherten Rapport nicht, er sei ungespeichert', () => {
+    const text = discardPrompt('MFH Sonnhalde', 'Test 09.08.', true)
+    expect(text).not.toContain('nicht gespeichert ist')
+    expect(text).toContain('ist gespeichert')
+    expect(text).toContain('Unterschrift nachtragen')
+    expect(text).toContain('Test 09.08.')
   })
 })

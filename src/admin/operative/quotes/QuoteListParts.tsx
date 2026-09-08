@@ -48,6 +48,14 @@ export function QuoteStatusCell({ quote: q, flags }: { quote: Quote; flags: Quot
           Kein Feedback
         </span>
       )}
+      {/* Versanddatum: seit dem Postversand-Knopf nicht mehr zwingend der Tag, an dem
+          jemand im Dashboard geklickt hat — und die Frist für Erinnerung und «Kein
+          Feedback» zählt ab hier. */}
+      {q.sent_at && (
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
+          Versendet {fmtDate(q.sent_at)}
+        </div>
+      )}
       {q.reminder_sent_at && (
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 3 }}>
           Erinnerung gesendet {fmtDate(q.reminder_sent_at)}
@@ -80,6 +88,8 @@ export interface QuoteActionHandlers {
   onOrderConfirmation: (quote: Quote) => void
   onSendRejection: (id: number) => void
   onStatus: (id: number, status: string) => void
+  /** Postversand: Offerte als versendet markieren, ohne sie zu mailen. */
+  onMarkSent: (quote: Quote) => void
 }
 
 export function QuoteRowActions({ quote: q, flags, acting, on }: {
@@ -122,6 +132,21 @@ export function QuoteRowActions({ quote: q, flags, acting, on }: {
       {['entwurf', 'akzeptiert'].includes(q.status) && (
         <button className="admin-btn admin-btn-primary admin-btn-sm" onClick={() => on.onSend(q)} disabled={busy}>
           Senden
+        </button>
+      )}
+      {/* Postversand — dasselbe Gegenstück wie bei der Rechnung ("Per Post versendet"):
+          eine ausgedruckt übergebene Offerte blieb bisher 'entwurf' und fiel damit aus
+          allem, was an sent_at hängt (Erinnerungs-Mail, «Kein Feedback», Pipeline).
+          Nur bei Entwürfen, und nur wenn ein Dokument vorliegt — was nie erzeugt wurde,
+          kann auch nicht in der Post gewesen sein (das Backend prüft dasselbe). */}
+      {q.status === 'entwurf' && (q.storage_path || q.xlsx_storage_path) && (
+        <button
+          className="admin-btn admin-btn-secondary admin-btn-sm"
+          onClick={() => on.onMarkSent(q)}
+          disabled={busy}
+          title="Ohne E-Mail als versendet erfassen (Post, persönlich übergeben)"
+        >
+          Per Post versendet
         </button>
       )}
       {flags.dankEnabled && q.status === 'akzeptiert' && !q.thankyou_sent_at && (

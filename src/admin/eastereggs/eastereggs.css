@@ -1,0 +1,181 @@
+/* Eastereggs — Konfetti und Geldregen über der Admin-App.
+   Farben aus den Admin-Tokens (tokens.css), damit beide Themes tragen; die
+   wenigen Literale sind Bildfarben und keine Oberflächenfarben: das Meme ist
+   ein Meme und wechselt nicht mit dem Theme. */
+
+.egg-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;              /* über Dialogen der Admin-App, unter nichts */
+  display: grid;
+  place-items: center;
+  background: rgba(9, 15, 20, 0.62);
+  backdrop-filter: blur(2px);
+}
+
+/* Das Canvas liegt ÜBER der Karte, nimmt aber keine Klicks — sonst fiele das
+   Konfetti hinter die Karte und man sähe die Hälfte nicht. */
+.egg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ── Konfetti-Karte ───────────────────────────────────────── */
+.egg-card {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 28px 34px;
+  border-radius: 10px;
+  max-width: 320px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.85);
+  transform-origin: 50% 60%;
+  animation: egg-pop 620ms cubic-bezier(0.16, 1.2, 0.3, 1) both;
+}
+
+@keyframes egg-pop {
+  0%   { transform: scale(0.7) translateY(14px); opacity: 0; }
+  62%  { transform: scale(1.045) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.egg-count {
+  display: block;
+  font-size: 62px;
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-strong);
+}
+
+.egg-label {
+  display: block;
+  margin-top: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.egg-text {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.egg-detail {
+  margin: 10px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.egg-close {
+  margin-top: 16px;
+  padding: 8px 20px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--on-accent);
+  background: var(--primary);
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.egg-close:hover { background: var(--primary-hover); }
+.egg-close:focus-visible { outline: 2px solid var(--text-strong); outline-offset: 2px; }
+
+/* ── Meme ─────────────────────────────────────────────────── */
+.egg-meme {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: min(560px, 92vw);
+  height: min(420px, 74vh);
+  padding: 22px 18px;
+  border-radius: 10px;
+  text-align: center;
+  background: radial-gradient(120% 90% at 50% 40%, rgba(28, 60, 44, 0.92), rgba(8, 14, 11, 0.97));
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.85);
+}
+
+.egg-meme-line {
+  margin: 0;
+  max-width: 92%;
+  font-size: clamp(20px, 4.2vw, 32px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: #fff;
+  /* Der Meme-Look: weisse Versalien mit hartem dunklem Rand. `paint-order`
+     legt den Rand HINTER die Füllung, sonst frisst er die Buchstaben. */
+  -webkit-text-stroke: 2.4px #08120c;
+  paint-order: stroke fill;
+  /* Zusätzlich ein dunkler Hof: die Noten fliegen ÜBER der Schrift, und gegen
+     eine helle Banknote reicht der Rand allein nicht. */
+  text-shadow: 0 2px 10px rgba(6, 12, 8, 0.95), 0 0 22px rgba(6, 12, 8, 0.8);
+  text-wrap: balance;
+}
+
+.egg-amount { color: #f5d547; }
+
+.egg-thrower {
+  padding: 0 10px;
+  font-size: clamp(60px, 12vw, 96px);
+  line-height: 1;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.55));
+  transform-origin: 50% 80%;
+  animation: egg-throw 900ms cubic-bezier(0.3, 0.9, 0.3, 1) 2;
+}
+
+.egg-thrower:hover { filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.55)) brightness(1.08); }
+.egg-thrower:active { animation: egg-throw 520ms cubic-bezier(0.3, 0.9, 0.3, 1) 1; }
+.egg-thrower:focus-visible { outline: 3px solid #f5d547; outline-offset: 6px; border-radius: 12px; }
+
+@keyframes egg-throw {
+  0%   { transform: rotate(0deg) translateY(0) scale(1); }
+  22%  { transform: rotate(-9deg) translateY(6px) scale(0.95); }
+  42%  { transform: rotate(11deg) translateY(-14px) scale(1.09); }
+  70%  { transform: rotate(-4deg) translateY(2px) scale(1); }
+  100% { transform: rotate(0deg) translateY(0) scale(1); }
+}
+
+.egg-meme-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Im Meme dunkel statt Admin-Blau: ein Knopf in Mandantenfarbe zerschlüge das Bild. */
+.egg-close-meme {
+  margin-top: 0;
+  color: #f4efd8;
+  background: rgba(10, 18, 13, 0.72);
+  border: 1px solid rgba(245, 213, 71, 0.5);
+}
+
+.egg-close-meme:hover { background: rgba(10, 18, 13, 0.94); border-color: #f5d547; }
+.egg-close-meme:focus-visible { outline: 2px solid #f5d547; }
+
+.egg-meme .egg-detail { color: rgba(255, 255, 255, 0.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .egg-card, .egg-thrower { animation: none; }
+}

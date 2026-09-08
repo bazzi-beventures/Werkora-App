@@ -3,18 +3,35 @@ import { signReport } from '../api/chat'
 import { ApiError } from '../api/client'
 
 interface Props {
-  reportId: number
+  /** Der Rapport, an den die Unterschrift geht. Nur im Server-Modus gebraucht —
+   *  mit `onCapture` gibt es noch keinen gespeicherten Rapport. */
+  reportId?: number
   // `signed` unterscheidet unterschrieben von übersprungen — nur ein unsignierter
   // Rapport darf danach noch vom Monteur selbst gelöscht werden.
   onDone: (signed: boolean) => void
-  onLoggedOut: () => void
+  onLoggedOut?: () => void
   // Beschriftung des Auswegs. Im Rapport-Abschluss überspringt man einen Schritt;
   // beim späteren Nachtragen im Projekt-Detail bricht man eine Aktion ab — dort
   // wäre «Überspringen» irreführend, es gibt nichts mehr zu überspringen.
   skipLabel?: string
+  /**
+   * Zweiter Modus: die Unterschrift NICHT selbst zum Server schicken, sondern als
+   * PNG-Data-URI nach oben geben.
+   *
+   * Dafür gibt es genau einen Aufrufer — die Kundenansicht des offline erfassten
+   * Rapports (docs/specs/offline-modus.md §4.5.4). Dort existiert der Rapport
+   * serverseitig noch gar nicht: er liegt in der Queue, und die Unterschrift legt
+   * sich daneben. Ein zweites Unterschriftsfeld dafür zu bauen wäre die
+   * teuerste Art, hier etwas zu ändern — zwei Pads, die auseinanderlaufen, und
+   * der Kunde unterschreibt am Ende auf zwei verschiedenen Flächen.
+   *
+   * Der Rückgabewert sagt, ob es geklappt hat: `false` lässt das Pad stehen und
+   * meldet den Fehler, statt eine Unterschrift zu quittieren, die nirgends liegt.
+   */
+  onCapture?: (dataUrl: string) => Promise<boolean> | boolean
 }
 
-export default function SignaturePad({ reportId, onDone, onLoggedOut, skipLabel = 'Überspringen' }: Props) {
+export default function SignaturePad({ reportId, onDone, onLoggedOut, skipLabel = 'Überspringen', onCapture }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawing = useRef(false)
   const [isEmpty, setIsEmpty] = useState(true)
@@ -89,11 +106,21 @@ export default function SignaturePad({ reportId, onDone, onLoggedOut, skipLabel 
     setStatus('saving')
     try {
       const dataUrl = canvasRef.current!.toDataURL('image/png')
-      await signReport(reportId, dataUrl)
+      if (onCapture) {
+        // Offline-Weg: die Unterschrift geht in die Queue, nicht an den Server.
+        const ok = await onCapture(dataUrl)
+        if (!ok) {
+          setErrorMsg('Die Unterschrift konnte nicht gespeichert werden.')
+          setStatus('error')
+          return
+        }
+      } else if (reportId != null) {
+        await signReport(reportId, dataUrl)
+      }
       setStatus('ok')
       setTimeout(() => onDone(true), 1500)
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
+      if (err instanceof ApiError && err.status === 401) { onLoggedOut?.(); return }
       setErrorMsg(err instanceof Error ? err.message : 'Unbekannter Fehler')
       setStatus('error')
     }

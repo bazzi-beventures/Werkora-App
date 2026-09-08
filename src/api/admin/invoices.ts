@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import { requestEasterEggCheck } from './eastereggs'
 
 // `id` ist eine Zahl (invoices.id ist bigint, siehe supabase_full_schema.sql).
 // Die frühere Fassung dieses Typs — nie von einem Screen benutzt — führte hier
@@ -60,10 +61,14 @@ export async function listInvoices(status?: string): Promise<Invoice[]> {
 }
 
 export async function generateInvoice(input: GenerateInvoiceInput): Promise<GenerateInvoiceResult> {
-  return apiFetch<GenerateInvoiceResult>('/pwa/admin/invoices/generate', {
+  const result = await apiFetch<GenerateInvoiceResult>('/pwa/admin/invoices/generate', {
     method: 'POST',
     body: JSON.stringify(input),
   })
+  // Eine neue Rechnung kann die Umsatzschwelle gerissen haben — nachfragen
+  // lassen, statt bis zum nächsten Neuladen zu warten (api/admin/eastereggs.ts).
+  requestEasterEggCheck()
+  return result
 }
 
 /**

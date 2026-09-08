@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
-import { getQuoteDetail, listQuotes, sendQuoteRejection, setQuoteStatus } from '../../api/admin/quotes'
+import {
+  getQuoteDetail, listQuotes, markQuoteSentByPost, sendQuoteRejection, setQuoteStatus,
+} from '../../api/admin/quotes'
 import { getAdminStaff } from '../../api/admin/staff'
 import { QUOTE_STATUS_LABELS } from '../constants/statuses'
-import { fmtCHF, fmtDate } from '../utils/format'
+import { fmtCHF, fmtDate, todayISO } from '../utils/format'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { SendQuoteDialog } from './SendQuoteDialog'
@@ -57,6 +60,11 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
   // Auftragsbestätigungs-Dialog: gleiche Empfänger-Abfrage, aber ohne Feature-Bedingung —
   // der Knopf steht bei jeder angenommenen Offerte bereit.
   const [orderConfirmationQuote, setOrderConfirmationQuote] = useState<Quote | null>(null)
+  // Postversand: Offerte als versendet markieren, ohne sie zu mailen (Gegenstück zum
+  // gleichnamigen Knopf bei der Rechnung). Das Datum ist vorbelegt mit heute und
+  // nachtragbar — erfasst wird der Versand oft erst Tage später.
+  const [postalQuote, setPostalQuote] = useState<Quote | null>(null)
+  const [postalDate, setPostalDate] = useState('')
   // Danke-Mail bei Offerten-Annahme (Feature offerte_dank_mail): steuert den
   // „Dankeschön senden"-Knopf bei angenommenen Offerten (Per-Knopfdruck-Modus bzw.
   // Fallback, falls der Auto-Versand ausblieb).
@@ -115,6 +123,25 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
       .catch(() => setProjektleiterOptions([]))
   }, [])
 
+  function openPostal(q: Quote) {
+    setPostalDate(todayISO())
+    setPostalQuote(q)
+  }
+
+  async function handleMarkSentByPost(id: number) {
+    setActing(id)
+    try {
+      await markQuoteSentByPost(id, postalDate)
+      showToast('Offerte als per Post versendet markiert', 'success')
+      setPostalQuote(null)
+      load()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Fehler', 'error')
+    } finally {
+      setActing(null)
+    }
+  }
+
   async function handleEdit(id: number) {
     try {
       setEditQuote(await getQuoteDetail(id))
@@ -147,6 +174,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
     onOrderConfirmation: setOrderConfirmationQuote,
     onSendRejection: handleSendRejection,
     onStatus: handleStatus,
+    onMarkSent: openPostal,
   }
 
   const filtered = quotes.filter(q => {
@@ -323,6 +351,39 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
           onClose={() => setOrderConfirmationQuote(null)}
           onSent={msg => { showToast(msg, 'success'); setOrderConfirmationQuote(null); load() }}
         />
+      )}
+
+      {/* Bestätigungsdialog Postversand — Zwilling des Rechnungs-Dialogs. */}
+      {postalQuote && (
+        <ConfirmDialog
+          title="Als per Post versendet markieren?"
+          message={
+            <>
+              {postalQuote.quote_number} · {fmtCHF(postalQuote.total_amount)}<br />
+              Projekt: {postalQuote.project_name}<br />
+              Es wird keine E-Mail verschickt. Die Offerte gilt danach als gesendet —
+              Erinnerung und die Kennzeichnung «Kein Feedback» zählen ab dem Versanddatum.
+            </>
+          }
+          confirmLabel="Als versendet markieren"
+          busyLabel="…"
+          busy={acting === postalQuote.id}
+          confirmDisabled={!postalDate}
+          onCancel={() => setPostalQuote(null)}
+          onConfirm={() => void handleMarkSentByPost(postalQuote.id)}
+        >
+          <div style={{ margin: '12px 0' }}>
+            <label className="admin-form-label" htmlFor="quote-postal-sent-date">Versanddatum</label>
+            <input
+              id="quote-postal-sent-date"
+              className="admin-form-input"
+              type="date"
+              value={postalDate}
+              max={todayISO()}
+              onChange={e => setPostalDate(e.target.value)}
+            />
+          </div>
+        </ConfirmDialog>
       )}
 
       <ToastHost toast={toast} />

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   getSchedulingConfig, updateSchedulingConfig, SchedulingConfig,
   SCHEDULING_VIEWS, SCHEDULING_KINDS, SCHEDULING_FIELDS,
+  SCHEDULING_BLOCKER_CATEGORY_MAX, SCHEDULING_BLOCKER_CATEGORY_MAXLEN,
 } from '../../../api/admin'
 import { useTenantSetting } from '../useTenantSetting'
 import { useToast, ToastHost } from '../../components/useToast'
@@ -18,7 +19,26 @@ function withDefaults(cfg: Partial<SchedulingConfig>, def: SchedulingConfig): Sc
     grey_after: cfg.grey_after ?? def.grey_after ?? '',
     grey_until: cfg.grey_until ?? def.grey_until ?? '',
     day_capacity_hours: cfg.day_capacity_hours ?? def.day_capacity_hours ?? 8,
+    blocker_categories: cfg.blocker_categories ?? def.blocker_categories ?? [],
   }
+}
+
+// Die Kategorien werden getrimmt gespeichert; geprüft wird deshalb der getrimmte
+// Stand — sonst blockierte ein versehentliches Leerzeichen das Speichern mit
+// einer Meldung, die man am Eingabefeld nicht sieht.
+function blockerCategoryError(list: string[]): string {
+  const trimmed = list.map(c => c.trim())
+  if (trimmed.some(c => !c)) return 'Leere Kategorien sind nicht möglich — Zeile ausfüllen oder entfernen.'
+  if (trimmed.some(c => c.length > SCHEDULING_BLOCKER_CATEGORY_MAXLEN)) {
+    return `Eine Kategorie darf höchstens ${SCHEDULING_BLOCKER_CATEGORY_MAXLEN} Zeichen haben.`
+  }
+  const seen = new Set<string>()
+  for (const c of trimmed) {
+    const key = c.toLowerCase()
+    if (seen.has(key)) return `Die Kategorie „${c}" steht doppelt in der Liste.`
+    seen.add(key)
+  }
+  return ''
 }
 
 export function SchedulingTab() {
@@ -34,7 +54,12 @@ export function SchedulingTab() {
       return withDefaults(res.config || {}, res.defaults)
     },
     save: async (cfg) => {
-      const res = await updateSchedulingConfig(cfg)
+      // Getrimmt speichern: was der Planer im Dropdown sieht, soll nicht an
+      // einem unsichtbaren Leerzeichen hängen.
+      const res = await updateSchedulingConfig({
+        ...cfg,
+        blocker_categories: (cfg.blocker_categories ?? []).map(c => c.trim()).filter(Boolean),
+      })
       return defaults ? withDefaults(res.config, defaults) : cfg
     },
     onToast: showToast,
@@ -53,6 +78,8 @@ export function SchedulingTab() {
   // würde ohnehin mit 400 zurückkommen.
   const capacity = config.day_capacity_hours ?? 8
   const capacityInvalid = !Number.isFinite(capacity) || capacity < 1 || capacity > 24
+  const blockerCategories = config.blocker_categories ?? []
+  const blockerError = blockerCategoryError(blockerCategories)
 
   function setField(key: string, value: boolean) {
     setConfig(prev => prev && { ...prev, fields: { ...prev.fields, [key]: value } })
@@ -64,6 +91,22 @@ export function SchedulingTab() {
 
   function setColor(key: string, value: string) {
     setConfig(prev => prev && { ...prev, colors: { ...prev.colors, [key]: value } })
+  }
+
+  function setBlockerCategories(next: string[]) {
+    setConfig(prev => prev && { ...prev, blocker_categories: next })
+  }
+
+  function setBlockerCategory(index: number, value: string) {
+    setBlockerCategories(blockerCategories.map((c, i) => i === index ? value : c))
+  }
+
+  function addBlockerCategory() {
+    setBlockerCategories([...blockerCategories, ''])
+  }
+
+  function removeBlockerCategory(index: number) {
+    setBlockerCategories(blockerCategories.filter((_, i) => i !== index))
   }
 
   function setGreyAfter(value: string) {
@@ -183,6 +226,58 @@ export function SchedulingTab() {
         ))}
       </div>
 
+      <div style={{ fontWeight: 600, marginBottom: 6 }}>Blocker-Kategorien</div>
+      <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 10 }}>
+        Ein Blocker hält Zeit frei, deren Projekt noch offen ist. Ohne Kategorien
+        heissen alle Blocker gleich – im Kalender steht dann fünfmal «Blocker», und
+        niemand weiss mehr, wofür. Was Sie hier eintragen, steht beim Anlegen eines
+        Blockers als Titel-Auswahl bereit (ergänzen lässt er sich weiterhin frei).
+        Leere Liste = freies Titelfeld wie bisher.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+        {blockerCategories.map((cat, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input
+              className="admin-input"
+              value={cat}
+              maxLength={SCHEDULING_BLOCKER_CATEGORY_MAXLEN}
+              onChange={e => setBlockerCategory(i, e.target.value)}
+              placeholder="z. B. Wartet auf Material"
+              aria-label={`Blocker-Kategorie ${i + 1}`}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            <button
+              type="button"
+              className="admin-btn admin-btn-secondary admin-btn-sm"
+              onClick={() => removeBlockerCategory(i)}
+              aria-label={`Blocker-Kategorie ${i + 1} entfernen`}
+            >
+              Entfernen
+            </button>
+          </div>
+        ))}
+      </div>
+      <div style={{ marginBottom: blockerError ? 6 : 24 }}>
+        <button
+          type="button"
+          className="admin-btn admin-btn-secondary admin-btn-sm"
+          onClick={addBlockerCategory}
+          disabled={blockerCategories.length >= SCHEDULING_BLOCKER_CATEGORY_MAX}
+        >
+          + Kategorie
+        </button>
+        {blockerCategories.length >= SCHEDULING_BLOCKER_CATEGORY_MAX && (
+          <span style={{ fontSize: 13, color: 'var(--muted)', marginLeft: 10 }}>
+            Mehr als {SCHEDULING_BLOCKER_CATEGORY_MAX} Kategorien sind nicht möglich.
+          </span>
+        )}
+      </div>
+      {blockerError && (
+        <div style={{ fontSize: 13, color: 'var(--danger, #c0392b)', marginBottom: 24 }}>
+          {blockerError}
+        </div>
+      )}
+
       <div style={{ fontWeight: 600, marginBottom: 6 }}>Nicht-Arbeitszeit ausgrauen</div>
       <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 10 }}>
         Blendet ein Zeitfenster an Werktagen (Mo–Fr) im Wochen-Kalender grau ein –
@@ -230,7 +325,7 @@ export function SchedulingTab() {
         <button
           className="admin-btn admin-btn-primary"
           onClick={persist}
-          disabled={!dirty || saving || rangeInvalid || allViewsOff || capacityInvalid}
+          disabled={!dirty || saving || rangeInvalid || allViewsOff || capacityInvalid || !!blockerError}
         >
           {saving ? 'Speichern…' : 'Speichern'}
         </button>

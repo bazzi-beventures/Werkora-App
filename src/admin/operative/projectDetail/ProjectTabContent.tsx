@@ -126,6 +126,7 @@ export function ProjectTabContent({
           onSendThankyou={onSendThankyou}
           onSendOrderConfirmation={onSendOrderConfirmation}
           onSendRejection={billing.sendRejection}
+          onMarkSentByPost={billing.markQuoteSentByPost}
           onEdit={onEditQuote}
           addingVariantId={billing.addingVariantId}
           onAddVariant={billing.addVariant}

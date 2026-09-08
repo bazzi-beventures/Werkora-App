@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
-import { fetchFrequentMaterials, fetchMaterialGalleryCount, FrequentMaterialOption } from '../api/chat'
+import { fetchMaterialGalleryCount, FrequentMaterialOption } from '../api/chat'
+import { galleryCountOffline, loadFrequentMaterials } from '../api/materialCatalog'
+import { isNetworkError } from '../api/client'
+import { OfflineStandBadge } from '../shared/OfflineStandBadge'
 import MaterialPhotoPicker from './MaterialPhotoPicker'
 
 export interface ErsatzteilSelection {
@@ -11,6 +14,15 @@ export interface ErsatzteilSelection {
 
 interface Props {
   onSubmit: (items: ErsatzteilSelection[]) => void
+  /** Bereits gewählte Teile, die wieder angezeigt werden sollen — gleiche
+   *  Begründung wie beim Kleinmaterial-Schritt nebenan: das Offline-Formular
+   *  durchläuft diesen Schritt mehrfach, und ohne Vorbelegung wäre der zweite
+   *  Durchgang ein stilles Löschen der ersten Wahl. */
+  initial?: ErsatzteilSelection[]
+  /** Wessen Katalog-Spiegel gilt, wenn kein Netz da ist. Ohne id (der Chat
+   *  übergibt sie nicht, er läuft ohnehin nur online) bleibt es beim
+   *  bisherigen Verhalten: Netz oder gar nichts. */
+  userId?: string
 }
 
 // Vor dem Speichern: Mitarbeiter wählt aus der kuratierten Ersatzteil-Liste
@@ -21,26 +33,52 @@ interface Props {
 //
 // Kein Einbauort-Feld mehr je Zeile (bis 20260815): der Ort ist eine Angabe zum
 // ganzen Rapport und wird im Chat einmal erfragt, bevor dieser Schritt erscheint.
-export default function ErsatzteilPrompt({ onSubmit }: Props) {
+export default function ErsatzteilPrompt({ onSubmit, userId = '', initial }: Props) {
   const [items, setItems] = useState<FrequentMaterialOption[]>([])
-  const [qty, setQty] = useState<Record<string, number>>({})  // art_nr -> Menge (0 = nicht gewählt)
+  const [qty, setQty] = useState<Record<string, number>>(
+    () => Object.fromEntries((initial ?? []).map(it => [it.art_nr, it.amount])),
+  )
   const [loading, setLoading] = useState(true)
   const [galleryCount, setGalleryCount] = useState(0)  // Anzahl aktiver Katalog-Artikel (>0 ⇒ Katalog-Button)
   const [showPicker, setShowPicker] = useState(false)
+  // Stand des Katalog-Spiegels, wenn offline daraus gerendert wird (Spec §4.5.3).
+  const [offlineSavedAt, setOfflineSavedAt] = useState('')
 
   useEffect(() => {
     let cancelled = false
     // Kuratierte Liste UND Katalog-Anzahl parallel laden. Der Schritt erscheint, sobald
     // eines von beidem etwas hat; nur wenn beide leer sind, wird er übersprungen.
     Promise.all([
-      fetchFrequentMaterials().catch(() => [] as FrequentMaterialOption[]),
-      fetchMaterialGalleryCount().catch(() => 0),
+      // Erst Netz, bei Netzfehler der Spiegel auf dem Gerät — dieselbe
+      // Reihenfolge wie beim Lesepaket. Ohne `userId` (Chat-Weg) ist der
+      // Spiegel leer und es bleibt beim bisherigen Verhalten.
+      loadFrequentMaterials(userId).catch(() => ({ items: [] as FrequentMaterialOption[], offline: false, savedAt: '' })),
+      fetchMaterialGalleryCount().catch(async err =>
+        // Der count-Endpoint ist der billige Weg zur Frage «gibt es einen
+        // Katalog?». Offline beantwortet sie der Spiegel selbst; ein Knopf, der
+        // dann ins Leere führte, wäre genau die Falle, die diese Spec für die
+        // Projektliste beschreibt.
+        isNetworkError(err) ? await galleryCountOffline(userId) : 0,
+      ),
     ])
-      .then(([list, count]) => {
+      .then(([frequent, count]) => {
         if (cancelled) return
-        if (!list.length && count === 0) { onSubmit([]); return }  // nichts verfügbar → überspringen
-        setItems(list)
+        // Nichts verfügbar → überspringen. ABER nicht, wenn schon etwas gewählt
+        // ist: ein leerer Katalog-Spiegel (Gerät frisch, noch nie online) würde
+        // sonst die bereits erfassten Ersatzteile stillschweigend löschen.
+        if (!frequent.items.length && count === 0 && !(initial ?? []).length) {
+          onSubmit([]); return
+        }
+        // Schon gewählte Artikel, die nicht (mehr) in der kuratierten Liste
+        // stehen, als Zeilen ergänzen — sonst verschwände die Wahl beim
+        // zweiten Durchgang aus der Anzeige, während die Menge noch gesetzt ist.
+        const bekannt = new Set(frequent.items.map(m => m.art_nr))
+        const ergaenzt: FrequentMaterialOption[] = (initial ?? [])
+          .filter(it => !bekannt.has(it.art_nr))
+          .map(it => ({ id: it.art_nr, art_nr: it.art_nr, name: it.name, unit: it.unit, calc_vk: 0 }))
+        setItems([...frequent.items, ...ergaenzt])
         setGalleryCount(count)
+        if (frequent.offline) setOfflineSavedAt(frequent.savedAt)
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -99,6 +137,8 @@ export default function ErsatzteilPrompt({ onSubmit }: Props) {
         Wähle die verbauten Ersatzteile und gib die Menge an.
       </div>
 
+      {offlineSavedAt && <OfflineStandBadge savedAt={offlineSavedAt} />}
+
       {galleryCount > 0 && (
         <button
           type="button"
@@ -110,7 +150,7 @@ export default function ErsatzteilPrompt({ onSubmit }: Props) {
       )}
 
       {showPicker && (
-        <MaterialPhotoPicker onCancel={() => setShowPicker(false)} onApply={applyPicked} />
+        <MaterialPhotoPicker userId={userId} onCancel={() => setShowPicker(false)} onApply={applyPicked} />
       )}
 
       <div className="ersatzteil-list">

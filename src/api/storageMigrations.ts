@@ -27,6 +27,12 @@ function isKnownKey(k: string): boolean {
   if (k.startsWith('quote-draft:')) return true  // lokaler Offert-Zwischenstand (pro Projekt)
   if (k.startsWith('rapport-draft:')) return true  // lokaler Rapport-Zwischenstand (pro Mitarbeiter)
   if (k.startsWith('offline-lesepaket:')) return true  // Offline-Snapshot der Lesedaten (pro Mitarbeiter)
+  // Zwischenstand des Offline-Rapport-Formulars, pro Mitarbeiter UND Projekt
+  // (docs/specs/offline-modus.md §4.5.3). Additiver Key — keine
+  // APP_DATA_VERSION-Erhoehung noetig; erst eine Shape-Aenderung loest die Regel
+  // aus CLAUDE.md aus. Der fertige Rapport selbst liegt NICHT hier, sondern in
+  // IndexedDB (api/rapportQueue.ts) — er traegt eine Unterschrift.
+  if (k.startsWith('offline-rapport-entwurf:')) return true
   if (k === 'admin-theme') return true
   if (k === 'helpbubble-pos') return true  // gemerkte Drag-Position der Hilfe-Blase
   if (k === 'schedule-week-zoom') return true  // Zoom-Stufe des Wochen-Zeitrasters

@@ -21,17 +21,17 @@
  * Browser ohne IndexedDB dürfen die App nie zum Absturz bringen — sie liefern
  * dann `null`/`[]`, und der Aufrufer sagt dem Monteur ehrlich, dass es nicht
  * ging (statt ein Foto zu versprechen, das nirgends liegt).
+ *
+ * Die IndexedDB-Mechanik selbst liegt seit der Rapport-Queue in
+ * [idb.ts](./idb.ts) — sie wird von zwei Puffern gebraucht und lief sonst
+ * Gefahr, in zwei Fassungen auseinanderzulaufen.
  */
 import { ApiError, isNetworkError } from './client'
 import { ChatResponse } from './chat'
+import { createIdbStore, ENV_SUFFIX } from './idb'
 
-// Env-getrennt wie die localStorage-Keys (storageKeys.ts): Prod und Staging
-// liegen auf derselben Origin und teilen sich sonst die Datenbank.
-const s = import.meta.env.VITE_ENV_SUFFIX ?? ''
-
-export const DB_NAME = `werkora-photos${s}`
+export const DB_NAME = `werkora-photos${ENV_SUFFIX}`
 export const STORE = 'pending'
-const DB_VERSION = 1
 
 /** Serverseitiges Limit pro Rapport (`_MAX_PHOTOS` in pwa_chat_service.py).
  *  Mehr zu puffern hiesse, dem Monteur Fotos zu versprechen, die der Server
@@ -69,55 +69,9 @@ export interface PendingPhoto {
 
 export type EnqueueResult = 'queued' | 'full' | 'too_large' | 'unavailable'
 
-function openDb(): Promise<IDBDatabase | null> {
-  return new Promise(resolve => {
-    try {
-      if (typeof indexedDB === 'undefined' || !indexedDB) { resolve(null); return }
-      const req = indexedDB.open(DB_NAME, DB_VERSION)
-      req.onupgradeneeded = () => {
-        const db = req.result
-        if (!db.objectStoreNames.contains(STORE)) {
-          db.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true })
-        }
-      }
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => resolve(null)
-      // Ein `blocked`-Event heisst: ein anderer Tab hält eine ältere Version
-      // offen. Nicht ewig hängen bleiben — lieber ohne Puffer weiterarbeiten.
-      req.onblocked = () => resolve(null)
-    } catch {
-      resolve(null)
-    }
-  })
-}
-
-/** Führt eine Transaktion aus und räumt die Verbindung wieder ab. Fehler werden
- *  zu `fallback` — der Aufrufer bekommt nie eine Exception. */
-async function withStore<T>(
-  mode: IDBTransactionMode,
-  fallback: T,
-  run: (store: IDBObjectStore, done: (value: T) => void) => void,
-): Promise<T> {
-  const db = await openDb()
-  if (!db) return fallback
-  return new Promise<T>(resolve => {
-    let settled = false
-    const finish = (value: T) => {
-      if (settled) return
-      settled = true
-      resolve(value)
-      try { db.close() } catch { /* schon zu */ }
-    }
-    try {
-      const tx = db.transaction(STORE, mode)
-      tx.onerror = () => finish(fallback)
-      tx.onabort = () => finish(fallback)
-      run(tx.objectStore(STORE), finish)
-    } catch {
-      finish(fallback)
-    }
-  })
-}
+// Auto-Increment: die id ist zugleich die Reihenfolge, in der fotografiert
+// wurde — der Rapport soll die Aufnahmen in dieser Folge tragen.
+const { withStore } = createIdbStore(DB_NAME, STORE, { keyPath: 'id', autoIncrement: true })
 
 /** Alle wartenden Fotos dieses Nutzers, älteste zuerst. */
 export async function pendingPhotos(userId: string): Promise<PendingPhoto[]> {

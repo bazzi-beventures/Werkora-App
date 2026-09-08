@@ -200,7 +200,7 @@ export function WorkflowsTab() {
                           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 12 }}>
                             {betaTesterCount > 0
                               ? `Sichtbar für ${betaTesterCount} ${betaTesterCount === 1 ? 'markierten Tester' : 'markierte Tester'} in diesem Mandanten — alle anderen merken nichts davon.`
-                              : 'Noch kein Tester markiert — das Flag hat aktuell keine Wirkung. Das Häkchen setzt die Geschäftsleitung in der Benutzerverwaltung.'}
+                              : 'Noch kein Tester markiert — das Flag hat aktuell keine Wirkung. Tester setzt du im Tab Testing nebenan.'}
                           </div>
                         )}
 

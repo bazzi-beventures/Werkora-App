@@ -10,14 +10,22 @@ export interface KleinmaterialSelection {
 interface Props {
   config: KleinmaterialPromptConfig
   onSubmit: (selection: KleinmaterialSelection) => void
+  /** Bereits getroffene Wahl, die wieder angezeigt werden soll.
+   *
+   *  Gebraucht vom Offline-Formular (docs/specs/offline-modus.md §4.5.3): dort
+   *  lässt sich zwischen Formular und Materialschritt hin und her gehen, und ein
+   *  Schritt, der die vorherige Wahl jedes Mal vergisst, löscht sie beim zweiten
+   *  Durchgang still weg. Der Chat übergibt sie nicht — er durchläuft den Schritt
+   *  genau einmal. */
+  initial?: KleinmaterialSelection | null
 }
 
 // Vor dem Speichern: Mitarbeiter wählt einen Pauschalbetrag für Klein-/Schmiermaterial.
 // Sammelt nur die Auswahl (kein Buchen) und reicht sie via onSubmit nach oben — die
 // Buchung passiert zusammen mit dem Rapport beim Bestätigen. Feature `kleinmaterial_prompt`.
-export default function KleinmaterialPrompt({ config, onSubmit }: Props) {
-  const [selected, setSelected] = useState<number | null>(null)
-  const [count, setCount] = useState(1)
+export default function KleinmaterialPrompt({ config, onSubmit, initial }: Props) {
+  const [selected, setSelected] = useState<number | null>(() => initial?.amount_chf ?? null)
+  const [count, setCount] = useState(() => Math.max(1, initial?.count ?? 1))
 
   function submit(amountChf: number | null) {
     onSubmit({

@@ -18,7 +18,11 @@ function makeQuote(over: Partial<ProjectQuote> = {}): ProjectQuote {
   }
 }
 
-function renderTab(quotes: ProjectQuote[], onUpdateStatus = vi.fn()) {
+function renderTab(
+  quotes: ProjectQuote[],
+  onUpdateStatus = vi.fn(),
+  onMarkSentByPost: (id: number, date: string) => Promise<boolean> = async () => true,
+) {
   render(
     <QuotesTab
       quotes={quotes}
@@ -35,6 +39,7 @@ function renderTab(quotes: ProjectQuote[], onUpdateStatus = vi.fn()) {
       onSend={() => {}}
       onSendThankyou={() => {}}
       onSendOrderConfirmation={() => {}}
+      onMarkSentByPost={onMarkSentByPost}
       onSendRejection={() => {}}
       onEdit={() => {}}
     />
@@ -93,7 +98,8 @@ describe('QuotesTab — Varianten', () => {
         absageEnabled={false} sendingRejectionId={null}
         onShowCreateForm={() => {}} onResumeDraft={() => {}} onUpdateStatus={() => {}}
         onRegenerate={() => {}} onSend={() => {}} onSendThankyou={() => {}} onSendOrderConfirmation={() => {}}
-        onSendRejection={() => {}} onEdit={() => {}}
+        onMarkSentByPost={async () => true}
+      onSendRejection={() => {}} onEdit={() => {}}
         addingVariantId={null} onAddVariant={onAddVariant}
       />
     )
@@ -170,7 +176,8 @@ describe('QuotesTab — hochgeladene Offerten', () => {
         absageEnabled={false} sendingRejectionId={null}
         onShowCreateForm={() => {}} onResumeDraft={() => {}} onUpdateStatus={() => {}}
         onRegenerate={() => {}} onSend={() => {}} onSendThankyou={() => {}} onSendOrderConfirmation={() => {}}
-        onSendRejection={() => {}} onEdit={() => {}}
+        onMarkSentByPost={async () => true}
+      onSendRejection={() => {}} onEdit={() => {}}
         {...props}
       />
     )
@@ -198,5 +205,51 @@ describe('QuotesTab — hochgeladene Offerten', () => {
   it('bleibt ohne Upload-Handler unsichtbar (Abwärtskompatibilität)', () => {
     renderWithFiles()
     expect(screen.queryByText(/Hochgeladene Offerten/)).not.toBeInTheDocument()
+  })
+})
+
+describe('QuotesTab — Per Post versendet', () => {
+  // Spiegelt den Knopf der Rechnung: ein ausgedruckt übergebenes Angebot blieb
+  // 'entwurf' und fiel damit aus Erinnerung und «Kein Feedback».
+  it('zeigt den Knopf am Entwurf mit Dokument', () => {
+    renderTab([makeQuote({ status: 'entwurf', storage_path: 'p/OFF.pdf' })])
+    expect(screen.getByRole('button', { name: 'Per Post versendet' })).toBeInTheDocument()
+  })
+
+  it('zeigt ihn nicht ohne Dokument und nicht nach dem Versand', () => {
+    renderTab([makeQuote({ status: 'entwurf' })])
+    expect(screen.queryByRole('button', { name: 'Per Post versendet' })).toBeNull()
+    screen.getByRole('button', { name: 'Senden' })  // die Zeile ist da, nur der Knopf nicht
+  })
+
+  it('zeigt ihn nicht bei einer bereits gesendeten Offerte', () => {
+    renderTab([makeQuote({ status: 'gesendet', storage_path: 'p/OFF.pdf' })])
+    expect(screen.queryByRole('button', { name: 'Per Post versendet' })).toBeNull()
+  })
+
+  it('meldet die Bestätigung mit dem vorbelegten Versanddatum', async () => {
+    const onMark = vi.fn().mockResolvedValue(true)
+    renderTab([makeQuote({ id: 7, status: 'entwurf', storage_path: 'p/OFF.pdf' })],
+              vi.fn(), onMark)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Per Post versendet' }))
+    const date = screen.getByLabelText('Versanddatum') as HTMLInputElement
+    expect(date.value).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Als versendet markieren' }))
+
+    expect(onMark).toHaveBeenCalledWith(7, date.value)
+  })
+
+  it('lässt den Dialog offen, wenn das Backend ablehnt', async () => {
+    // Sonst wäre die Meldung (409 «kein Dokument», 400 «Datum») weg, bevor sie
+    // jemand liest.
+    const onMark = vi.fn().mockResolvedValue(false)
+    renderTab([makeQuote({ id: 7, status: 'entwurf', storage_path: 'p/OFF.pdf' })],
+              vi.fn(), onMark)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Per Post versendet' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Als versendet markieren' }))
+
+    expect(screen.getByLabelText('Versanddatum')).toBeInTheDocument()
   })
 })

@@ -29,7 +29,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   aftersales:       { label: 'After Sales',       desc: 'Feedback- und saisonale Reparatur-/Service-Nachfassmails nach bezahlter Rechnung (benötigt Rechnungen)', category: 'operativ' },
   task_board:       { label: 'Aufgaben-Board',    desc: 'Kanban-Board «Aufgaben» im Admin: automatisch abgeleitete Aufgaben (z. B. «Offerte akzeptiert → Projekt aufgleisen») neben manuell erfassten, den Projektleitern zugeordnet. Die Schwellwerte der Auto-Aufgaben stehen im Tab Feature-Flags.', category: 'operativ' },
   hr:               { label: 'HR',                desc: 'Absenzen, Ferien, HR-Berichte', category: 'hr' },
-  arg_compliance:   { label: 'ArG-Compliance',    desc: 'Arbeitsgesetz-Verstoss-Erkennung (benötigt HR + Zeiterfassung)', category: 'hr' },
+  arg_compliance:   { label: 'ArG-Compliance',    desc: 'Arbeitsgesetz-Verstoss-Erkennung: Hinweis an den Mitarbeiter beim Ausstempeln und Sofort-Mail an die Admins. Aus = beides entfällt; erkannt und im Reiter «Verstösse» protokolliert wird weiter (benötigt HR + Zeiterfassung)', category: 'hr' },
   kpis:             { label: 'Kennzahlen',        desc: 'KPI-Dashboard', category: 'analyse' },
   ai:               { label: 'AI-Funktionen',     desc: 'Mistral-Chat, Voxtral-Voice, KPI-Insights', category: 'ki' },
   help_bot:         { label: 'Hilfe-Bot',         desc: 'In-App-Hilfe per Chat über die Bedien-Handbücher', category: 'ki' },
@@ -40,7 +40,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   hr_weekly_report: { label: 'Wochen-HR-Übersicht', desc: 'Wöchentliches HR-Journal per Mail am Montag (benötigt HR). Journal & Überstunden-Salden werden weiterhin erstellt — nur die Mail entfällt.', category: 'notifications', channel: 'mail' },
   violation_emails: { label: 'ArG-Verstoss-Mails', desc: 'Wöchentliche Verstoss-E-Mails an die Admins (benötigt ArG-Compliance)', category: 'notifications', channel: 'mail' },
   kpis_email:       { label: 'KPI-Analyse-Mail',  desc: 'Wöchentliche KI-Kennzahlen-Analyse per Mail am Montag (benötigt Kennzahlen)', category: 'notifications', channel: 'mail' },
-  rapport_check_mail:{ label: 'Rapport-Check-Mail', desc: 'Admin-Mail, wenn die gestempelte Zeit eines Mitarbeiters die auf Projekte verbuchten Stunden um mehr als 45 min übersteigt (Hinweis auf fehlende Rapporte). Standard aus — nur bei aktivem Modul (benötigt Zeiterfassung).', category: 'notifications', channel: 'mail' },
+  rapport_check_mail:{ label: 'Rapport-Abgleich', desc: 'Vergleicht gestempelte Zeit und auf Projekte verbuchte Stunden — in beide Richtungen: mehr gestempelt als verbucht (über 45 min, Hinweis auf fehlende Rapporte) gibt eine Admin-Mail, mehr verbucht als gestempelt (Überbuchung) eine Admin-Mail plus einen Hinweis an den Mitarbeiter beim Speichern des Rapports. Standard aus (benötigt Zeiterfassung).', category: 'notifications', channel: 'mail' },
   newsletter:       { label: 'Produkt-Newsletter', desc: 'Neuerungen an alle Nutzer des Mandanten: ausführlich per Mail, als Anreisser per Push. Ohne Zeitplan — eine fertige Ausgabe liegt im Code, bis ein Superadmin sie auslöst. Welches Item ein Empfänger sieht, entscheidet der Redaktionsplan über Rolle und Modul.', category: 'notifications', channel: 'mail' },
   // Benachrichtigungen — Push
   clock_in_reminder:{ label: 'Einstempel-Erinnerung', desc: 'Push werktags um 07:15 an eingeplante, noch nicht eingestempelte Mitarbeiter (benötigt Zeiterfassung)', category: 'notifications', channel: 'push' },

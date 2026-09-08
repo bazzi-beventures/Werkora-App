@@ -34,6 +34,7 @@ const DEFAULTS = {
   grey_after: '',
   grey_until: '',
   day_capacity_hours: 8,
+  blocker_categories: [],
 }
 
 beforeEach(() => {
@@ -155,6 +156,52 @@ describe('SchedulingTab', () => {
     }
     expect(screen.getByText('Mindestens eine Ansicht muss aktiviert sein.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Speichern' })).toBeDisabled()
+  })
+
+  it('Blocker-Kategorien: anlegen, getrimmt speichern', async () => {
+    mockGet.mockResolvedValue({ config: {}, defaults: DEFAULTS })
+    mockUpdate.mockResolvedValue({ config: { ...DEFAULTS, blocker_categories: ['Wartet auf Material'] } })
+    const user = await openTab()
+
+    await screen.findByLabelText('Adresse (Objekt)')
+    await user.click(screen.getByRole('button', { name: '+ Kategorie' }))
+    await user.type(screen.getByLabelText('Blocker-Kategorie 1'), '  Wartet auf Material  ')
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+    expect(mockUpdate.mock.calls[0][0].blocker_categories).toEqual(['Wartet auf Material'])
+  })
+
+  it('Blocker-Kategorien: bestehende werden geladen und lassen sich entfernen', async () => {
+    mockGet.mockResolvedValue({ config: { blocker_categories: ['Wetter', 'Reserve'] }, defaults: DEFAULTS })
+    mockUpdate.mockResolvedValue({ config: { ...DEFAULTS, blocker_categories: ['Wetter'] } })
+    const user = await openTab()
+
+    expect(await screen.findByLabelText('Blocker-Kategorie 1')).toHaveValue('Wetter')
+    expect(screen.getByLabelText('Blocker-Kategorie 2')).toHaveValue('Reserve')
+
+    await user.click(screen.getByRole('button', { name: 'Blocker-Kategorie 2 entfernen' }))
+    expect(screen.queryByLabelText('Blocker-Kategorie 2')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
+    expect(mockUpdate.mock.calls[0][0].blocker_categories).toEqual(['Wetter'])
+  })
+
+  it('Speichern ist gesperrt bei doppelter oder leerer Blocker-Kategorie', async () => {
+    mockGet.mockResolvedValue({ config: { blocker_categories: ['Wetter'] }, defaults: DEFAULTS })
+    const user = await openTab()
+
+    const saveBtn = screen.getByRole('button', { name: 'Speichern' })
+    await user.click(await screen.findByRole('button', { name: '+ Kategorie' }))
+    // Leere Zeile: noch kein Titel, also gesperrt.
+    expect(screen.getByText(/Leere Kategorien/)).toBeInTheDocument()
+    expect(saveBtn).toBeDisabled()
+
+    // Gross-/Kleinschreibung zählt nicht — im Dropdown wäre es dasselbe.
+    await user.type(screen.getByLabelText('Blocker-Kategorie 2'), 'wetter')
+    expect(screen.getByText(/steht doppelt/)).toBeInTheDocument()
+    expect(saveBtn).toBeDisabled()
   })
 
   it('Speichern ist gesperrt, wenn "bis" nicht nach "von" liegt', async () => {
