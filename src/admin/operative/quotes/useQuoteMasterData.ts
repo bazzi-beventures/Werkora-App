@@ -33,7 +33,7 @@ export interface QuoteMasterData {
   montageEnabled: boolean    // montage_in_produktpreis: Lohnzeile verstecken
   optionalEnabled: boolean   // optionale_positionen: Eventualpositionen
   specialEnabled: boolean    // sonderpositionen: eigene Sektion
-  richtoffAvailable: boolean // richtofferte: Typ-Umschalter (nur beim Erstellen)
+  richtoffAvailable: boolean // richtofferte: Typ-Umschalter (Erstellen; Bearbeiten nur im Entwurf)
   // Abgeleitet für die Material-Filter
   supplierMap: Record<string, string>
   supplierOptions: Supplier[]

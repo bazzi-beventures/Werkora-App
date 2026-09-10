@@ -11,7 +11,8 @@ import {
   listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
 } from '../../api/projectTasks'
 import {
-  apptToDraft, draftPayload, emptyDraft, newAppointmentDraft, teamsDiffer, validateDraft,
+  apptToDraft, draftPayload, emptyDraft, isOpenAppointment, newAppointmentDraft,
+  teamsDiffer, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -420,7 +421,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   }
 
   // Nächster (ab heute) Termin eines Projekts als Editor-State; ohne künftigen
-  // Termin der letzte vergangene, ohne Termine null.
+  // Termin der letzte vergangene, ohne Termine null. «Ab heute» ist
+  // isOpenAppointment (Ende, nicht Start) — sonst sprang der Editor mitten in
+  // einem laufenden mehrtägigen Einsatz auf den übernächsten Termin.
   function nextAppointment(projectId: string): ApptFormState | null {
     const own = appointments
       .filter(a => a.project_id === projectId)
@@ -429,7 +432,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
         .localeCompare(b.start_date + (b.start_time ?? '99')))
     if (own.length === 0) return null
     const todayIso = toDateStr(new Date())
-    return apptToForm(own.find(a => a.start_date.slice(0, 10) >= todayIso) ?? own[own.length - 1])
+    return apptToForm(
+      own.find(a => isOpenAppointment(a.start_date, a.end_date, todayIso)) ?? own[own.length - 1],
+    )
   }
 
   function selectProject(p: Project, appt?: ProjectAppointment) {

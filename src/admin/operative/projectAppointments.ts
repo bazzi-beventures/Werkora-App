@@ -281,11 +281,30 @@ export function draftTeamNames(
   }
 }
 
+// Läuft der Termin heute noch oder steht er bevor? Kante ist
+// `coalesce(end_date, start_date) >= heute` — das Ende, nicht der Start, sonst
+// fällt der laufende mehrtägige Einsatz durch (Montag begonnen, Freitag fertig,
+// gefragt am Mittwoch). Heute zählt als offen: der Tag läuft noch.
+//
+// Zwei Aufrufer mit zwei Zeilenformen: der Entwurf der Projektmaske
+// (AppointmentDraft, camelCase) und die geladene Termin-Zeile der Einsatzplanung
+// (ProjectAppointment, snake_case). Deshalb nimmt die Funktion die zwei Daten
+// einzeln statt eines Objekts — die Regel steht so nur einmal da. Pendant zu
+// db/project_appointments.py::is_open_appointment.
+export function isOpenAppointment(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+  todayISO: string,
+): boolean {
+  const end = ((endDate || startDate) ?? '').slice(0, 10)
+  return end !== '' && end >= todayISO
+}
+
 // Der nächste Termin ab heute (laufende mehrtägige Termine zählen als
 // «nächster»). Ohne künftigen Termin null — die Maske zeigt dann den Hinweis,
 // dass nichts geplant ist.
 export function nextAppointment(list: AppointmentDraft[], todayISO: string): AppointmentDraft | null {
-  const upcoming = sortDrafts(list.filter(d => d.startDate && (d.endDate || d.startDate) >= todayISO))
+  const upcoming = sortDrafts(list.filter(d => isOpenAppointment(d.startDate, d.endDate, todayISO)))
   return upcoming[0] ?? null
 }
 

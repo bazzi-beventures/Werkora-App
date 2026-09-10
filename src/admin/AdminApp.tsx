@@ -257,7 +257,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           onConsumedProjectId={() => { clearDetail(); setDeepLinkTab(null) }}
         />
       )
-      case 'project-drafts': return <ProjectDraftsScreen onBadgeChange={loadDashboard} />
+      case 'project-drafts': return <ProjectDraftsScreen user={user} onBadgeChange={loadDashboard} />
       case 'project-schedule': return guard('scheduling', <ProjectScheduleScreen canton={canton} onNav={guardedNav} />)
       case 'customers':    return <CustomersScreen />
       case 'quotes':       return guard('quotes', <QuotesScreen initialStatus={detailId} onConsumed={clearDetail} />)

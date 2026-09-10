@@ -1,12 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ProjectDraftsScreen from './ProjectDraftsScreen'
 import { apiFetch } from '../../api/client'
-import { convertProjectDraft, getAdminProjectDrafts } from '../../api/projectDrafts'
+import { convertProjectDraft, getAdminProjectDrafts, ProjectDraft } from '../../api/projectDrafts'
+import { SK } from '../../api/storageKeys'
 
 // Nur Netzwerk mocken — Kundenzuordnung und Formularlogik bleiben echt.
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
+  apiUrl: (path: string) => path,
   ApiError: class ApiError extends Error {},
 }))
 vi.mock('../../api/projectDrafts', async (importOriginal) => ({
@@ -44,6 +46,16 @@ const DRAFT = {
   art_der_arbeit: ['Neumontage' as const],
 }
 
+/** Minimal-Konto für den Screen: das Anfrageformular ist standardmässig aus. */
+const USER = {
+  authorized_user_id: 'u-1',
+  username: 'admin',
+  display_name: 'Admin',
+  role: 'admin',
+  enabled_modules: [],
+  feature_flags: {},
+} as unknown as Parameters<typeof ProjectDraftsScreen>[0]['user']
+
 // Der Stammkunde, der früher per Teilstring auf jeden Entwurf passte.
 const JUNK_CUSTOMER = {
   id: 'c-junk', name: 'A', email: null, phone: null,
@@ -53,7 +65,7 @@ const REAL_CUSTOMER = {
   id: 'c-real', name: 'Baumgartner', email: null, phone: null, address: 'Neftenbach',
 }
 
-function setup(customers: unknown[], draft = DRAFT) {
+function setup(customers: unknown[], draft: ProjectDraft = DRAFT) {
   mockList.mockResolvedValue([draft])
   mockConvert.mockResolvedValue({ status: 'success', project_id: 'p-1', project_name: draft.title })
   mockFetch.mockImplementation(async (path: string, init?: RequestInit) => {
@@ -65,7 +77,7 @@ function setup(customers: unknown[], draft = DRAFT) {
 }
 
 async function openDraft() {
-  render(<ProjectDraftsScreen />)
+  render(<ProjectDraftsScreen user={USER} />)
   fireEvent.click(await screen.findByText('Lamisol 90 Gekoppelt'))
   // Warten, bis der Kundenstamm da ist — erst dann steht die Vorauswahl fest.
   await waitFor(() => expect(mockFetch).toHaveBeenCalled())
@@ -154,5 +166,86 @@ describe('ProjectDraftsScreen — Art der Arbeit', () => {
     fireEvent.click(screen.getByText('Projekt erstellen'))
     await waitFor(() => expect(mockConvert).toHaveBeenCalled())
     expect(mockConvert.mock.calls[0][1].art_der_arbeit).toEqual([])
+  })
+})
+
+describe('ProjectDraftsScreen — Herkunft eines Entwurfs', () => {
+  // Der Slug landet im localStorage; ohne Aufräumen hinge das Ergebnis daran,
+  // dass dieser Block der letzte in der Datei ist.
+  beforeEach(() => { vi.clearAllMocks(); localStorage.removeItem(SK.TENANT_SLUG) })
+  afterEach(() => localStorage.removeItem(SK.TENANT_SLUG))
+
+  const OEFFENTLICH = {
+    ...DRAFT,
+    source: 'public' as const,
+    created_by_staff_id: null,
+    created_by_name: 'Öffentliche Anfrage',
+  }
+
+  it('markiert eine öffentliche Anfrage in der Liste', async () => {
+    setup([], OEFFENTLICH)
+    render(<ProjectDraftsScreen user={USER} />)
+
+    expect(await screen.findByText('Öffentliche Anfrage')).toBeInTheDocument()
+    // Kein «Erfasst von …» — es hat sie niemand aus dem Betrieb erfasst.
+    expect(screen.queryByText(/Erfasst von/)).not.toBeInTheDocument()
+  })
+
+  it('warnt im Detail vor ungeprüften Angaben', async () => {
+    setup([], OEFFENTLICH)
+    render(<ProjectDraftsScreen user={USER} />)
+    fireEvent.click(await screen.findByText('Lamisol 90 Gekoppelt'))
+
+    expect(screen.getByText(/Ungeprüfte Angaben von aussen/)).toBeInTheDocument()
+    expect(screen.getByText('Kunde (Angaben des Absenders)')).toBeInTheDocument()
+  })
+
+  it('lässt den Mitarbeiter-Entwurf unverändert', async () => {
+    setup([], DRAFT)
+    render(<ProjectDraftsScreen user={USER} />)
+    fireEvent.click(await screen.findByText('Lamisol 90 Gekoppelt'))
+
+    expect(screen.queryByText(/Ungeprüfte Angaben von aussen/)).not.toBeInTheDocument()
+    expect(screen.getByText('Kunde (vom Mitarbeiter erfasst)')).toBeInTheDocument()
+  })
+
+  it('zeigt die Formular-Adresse erst, wenn der Mandant das Feature einschaltet', async () => {
+    setup([], DRAFT)
+    localStorage.setItem(SK.TENANT_SLUG, 'musterbau')
+
+    const { unmount } = render(<ProjectDraftsScreen user={USER} />)
+    expect(await screen.findByText('Lamisol 90 Gekoppelt')).toBeInTheDocument()
+    expect(screen.queryByText('Öffentliches Anfrageformular')).not.toBeInTheDocument()
+    unmount()
+
+    const mitFeature = {
+      ...USER,
+      feature_flags: { oeffentliche_projektanfrage: { enabled: true } },
+    } as typeof USER
+    render(<ProjectDraftsScreen user={mitFeature} />)
+    expect(await screen.findByText('Öffentliches Anfrageformular')).toBeInTheDocument()
+    expect(screen.getByText(/\/anfrage\/musterbau$/)).toBeInTheDocument()
+    // Ohne freigegebene Adresse kein Einbett-Code — er wäre eine Anleitung zu
+    // einem Rahmen, den das Backend mit X-Frame-Options: DENY leer lässt.
+    expect(screen.queryByText('Einbett-Code kopieren')).not.toBeInTheDocument()
+  })
+
+  it('zeigt den Einbett-Code erst mit freigegebener Adresse', async () => {
+    setup([], DRAFT)
+    localStorage.setItem(SK.TENANT_SLUG, 'musterbau')
+
+    const mitEinbetten = {
+      ...USER,
+      feature_flags: {
+        oeffentliche_projektanfrage: {
+          enabled: true,
+          einbetten_erlaubt_auf: 'https://muster-storen.ch',
+        },
+      },
+    } as typeof USER
+    render(<ProjectDraftsScreen user={mitEinbetten} />)
+
+    expect(await screen.findByText('Einbett-Code kopieren')).toBeInTheDocument()
+    expect(screen.getByText(/^<iframe src="http.*\/anfrage\/musterbau"/)).toBeInTheDocument()
   })
 })

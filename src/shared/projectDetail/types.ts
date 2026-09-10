@@ -142,6 +142,13 @@ export interface MonteurProject {
   customer: EmbeddedCustomer | null
   object_name: string | null
   object_address: string | null
+  // Der **nächste** Termin des Projekts, nicht der Spiegel der Projektzeile:
+  // `GET /pwa/projects` löst die vier Felder server-seitig auf den frühesten noch
+  // offenen Termin auf (agents/routers/admin_projects.py::_apply_next_appointments).
+  // Die Spalten auf `projects` tragen den ERSTtermin — für den Monteur das falsche
+  // Datum, sobald ein Projekt mehrere Termine hat. Ist kein Termin mehr offen,
+  // steht hier weiterhin der Ersttermin: das Projekt soll nicht unter «Ohne Termin»
+  // rutschen, bloss weil der Einsatz vorbei ist.
   start_date: string | null
   end_date: string | null
   start_time: string | null

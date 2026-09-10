@@ -27,6 +27,15 @@ export interface ProjectDraft extends ProjectDraftPayload {
   tenant_id: string
   created_by_staff_id: string | null
   created_by_name: string | null
+  /**
+   * Auf welchem Weg der Entwurf entstanden ist. `staff` = ein angemeldeter
+   * Mitarbeiter hat ihn beim Kunden erfasst, `public` = er kam über das
+   * öffentliche Anfrageformular herein und ist damit **ungeprüfte
+   * Fremdeingabe** — Name, Telefon und Adresse hat niemand bestätigt.
+   * Optional, weil Entwürfe aus der Zeit vor Migration 20260909 die Spalte
+   * nicht kennen; fehlt sie, ist es ein Mitarbeiter-Entwurf.
+   */
+  source?: 'staff' | 'public' | null
   status: 'open' | 'converted' | 'rejected'
   converted_to_project_id: string | null
   decision_note: string | null

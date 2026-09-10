@@ -199,6 +199,13 @@ export interface QuoteDetail {
   fixed_price: number | null
   notes: string | null
   product_description: string | null
+  // Zeitpunkt des Versands (Mail oder "Per Post versendet"); null = nie versendet.
+  // Die Bearbeiten-Maske entscheidet daran, ob der Typ noch umstellbar ist — der
+  // Status taugt dafür nicht, den setzt jedes Speichern auf 'entwurf' zurück.
+  sent_at?: string | null
+  // 'offerte' | 'richtofferte' (Feature richtofferte). Fehlt bei älteren
+  // Server-Ständen; dann gilt 'offerte'.
+  quote_type?: string | null
 }
 
 export async function listQuotes(): Promise<Quote[]> {

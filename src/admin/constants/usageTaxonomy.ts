@@ -241,6 +241,11 @@ const ACTION_LABELS: Record<string, string> = {
 
   // ── Projektentwürfe & Aufgaben ──
   user_create_project_draft: 'Projektentwurf erfasst',
+  // Kein Konto dahinter: die Anfrage kam über das öffentliche Formular
+  // (docs/specs/oeffentliche-projektanfrage.md). Im Dashboard trotzdem unter
+  // 'grundfunktion' wie die Mitarbeiter-Erfassung — es ist dieselbe Zeile in
+  // derselben Liste, nur auf einem anderen Weg entstanden.
+  public_create_project_draft: 'Projektentwurf über Anfrageformular',
   admin_convert_project_draft: 'Projektentwurf übernommen',
   admin_reject_project_draft: 'Projektentwurf abgelehnt',
   admin_set_project_beschaffung: 'Beschaffungsstatus gesetzt',

@@ -5,6 +5,10 @@ import {
   ProjectDraft, getAdminProjectDrafts,
   convertProjectDraft, rejectProjectDraft,
 } from '../../api/projectDrafts'
+import { apiUrl } from '../../api/client'
+import { getFeature, isFeatureEnabled } from '../../api/modules'
+import { UserInfo } from '../../api/auth'
+import { SK } from '../../api/storageKeys'
 import { fmtDate } from '../utils/format'
 import { findCustomerMatch, normalize } from './customerMatch'
 import { WORK_TYPES, workTypeLabel } from '../../api/workTypes'
@@ -20,6 +24,16 @@ interface CustomerLite {
 
 type StatusFilter = 'open' | 'converted' | 'rejected' | 'all'
 
+/**
+ * Kam der Entwurf über das öffentliche Anfrageformular?
+ *
+ * Fehlendes `source` heisst «Mitarbeiter»: Entwürfe von vor Migration 20260909
+ * kennen die Spalte nicht. Die Richtung ist Absicht — ein alter Entwurf soll
+ * nicht fälschlich als ungeprüfte Fremdeingabe erscheinen, und ein öffentlicher
+ * trägt den Wert immer, weil ihn der Server setzt.
+ */
+const istOeffentlich = (d: ProjectDraft) => d.source === 'public'
+
 const STATUS_LABEL: Record<ProjectDraft['status'], string> = {
   open: 'Offen',
   converted: 'In Projekt umgewandelt',
@@ -33,10 +47,11 @@ const STATUS_BADGE_CLASS: Record<ProjectDraft['status'], string> = {
 }
 
 interface Props {
+  user: UserInfo
   onBadgeChange?: () => void
 }
 
-export default function ProjectDraftsScreen({ onBadgeChange }: Props) {
+export default function ProjectDraftsScreen({ user, onBadgeChange }: Props) {
   const [drafts, setDrafts] = useState<ProjectDraft[] | null>(null)
   const [filter, setFilter] = useState<StatusFilter>('open')
   const [selected, setSelected] = useState<ProjectDraft | null>(null)
@@ -91,6 +106,8 @@ export default function ProjectDraftsScreen({ onBadgeChange }: Props) {
 
       <ToastHost toast={toast} />
 
+      <PublicFormLink user={user} onCopied={() => showToast('Adresse kopiert.', 'success')} />
+
       {drafts === null && (
         <div className="admin-loading"><div className="admin-spinner" />Lade…</div>
       )}
@@ -124,12 +141,19 @@ export default function ProjectDraftsScreen({ onBadgeChange }: Props) {
                     </div>
                   )}
                 </div>
-                <span className={`admin-badge ${STATUS_BADGE_CLASS[d.status]}`}>
-                  {STATUS_LABEL[d.status]}
-                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <span className={`admin-badge ${STATUS_BADGE_CLASS[d.status]}`}>
+                    {STATUS_LABEL[d.status]}
+                  </span>
+                  {istOeffentlich(d) && (
+                    <span className="admin-badge admin-badge-pending">Öffentliche Anfrage</span>
+                  )}
+                </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                Erfasst von <strong style={{ color: 'var(--text)' }}>{d.created_by_name ?? '—'}</strong> · {fmtDate(d.created_at)}
+                {istOeffentlich(d)
+                  ? <>Über das Anfrageformular eingegangen · {fmtDate(d.created_at)}</>
+                  : <>Erfasst von <strong style={{ color: 'var(--text)' }}>{d.created_by_name ?? '—'}</strong> · {fmtDate(d.created_at)}</>}
               </div>
             </div>
           ))}
@@ -148,6 +172,90 @@ export default function ProjectDraftsScreen({ onBadgeChange }: Props) {
   )
 }
 
+// ─── Öffentliches Anfrageformular: Adresse zum Weitergeben ─────────────
+
+/**
+ * Zeigt die Adresse des öffentlichen Anfrageformulars, solange der Mandant es
+ * eingeschaltet hat (Feature `oeffentliche_projektanfrage`).
+ *
+ * Die Adresse zeigt auf das **Backend**, nicht auf diese PWA: die Seite wird
+ * serverseitig gerendert, damit sie ohne Login, ohne JavaScript-Bundle und ohne
+ * Service-Worker funktioniert — jemand, der aus einer Google-Suche kommt, soll
+ * ein Formular sehen und keine ladende App.
+ */
+function PublicFormLink({ user, onCopied }: { user: UserInfo; onCopied: () => void }) {
+  const slug = localStorage.getItem(SK.TENANT_SLUG) ?? ''
+  const cfg = getFeature<{ enabled?: boolean; einbetten_erlaubt_auf?: string }>(
+    user, 'oeffentliche_projektanfrage',
+  )
+  if (!isFeatureEnabled(user, 'oeffentliche_projektanfrage') || !slug) return null
+
+  // apiUrl liefert bei leerer VITE_API_URL einen relativen Pfad; zum Weitergeben
+  // braucht es eine vollständige Adresse.
+  const url = new URL(apiUrl(`/anfrage/${encodeURIComponent(slug)}`), window.location.origin).href
+
+  // Der Schnipsel erscheint nur, wenn der Superadmin das Einbetten für mindestens
+  // eine Adresse freigegeben hat. Ohne Freigabe wäre er eine Anleitung zu einem
+  // leeren Rahmen: das Backend antwortet dann mit X-Frame-Options: DENY, und der
+  // Rahmen bliebe auf der Website des Mandanten schlicht weiss.
+  const darfEingebettetWerden = !!cfg?.einbetten_erlaubt_auf?.trim()
+  const snippet =
+    `<iframe src="${url}" title="Anfrage" width="100%" height="900" ` +
+    'style="border:0" loading="lazy"></iframe>'
+
+  return (
+    <div
+      className="admin-card"
+      style={{
+        display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
+        padding: '12px 14px', marginBottom: 14,
+      }}
+    >
+      <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>Öffentliches Anfrageformular</div>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            fontSize: 12, color: 'var(--text-muted)',
+            wordBreak: 'break-all', textDecoration: 'underline',
+          }}
+        >
+          {url}
+        </a>
+      </div>
+      <button
+        className="admin-btn admin-btn-secondary"
+        style={{ fontSize: 13 }}
+        onClick={() => { navigator.clipboard?.writeText(url).then(onCopied, () => {}) }}
+      >
+        Adresse kopieren
+      </button>
+      {darfEingebettetWerden && (
+        <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+          <code
+            style={{
+              flex: '1 1 260px', minWidth: 0, fontSize: 11, color: 'var(--text-muted)',
+              background: 'var(--surface-2)', borderRadius: 6, padding: '6px 8px',
+              overflowX: 'auto', whiteSpace: 'nowrap',
+            }}
+          >
+            {snippet}
+          </code>
+          <button
+            className="admin-btn admin-btn-secondary"
+            style={{ fontSize: 13 }}
+            onClick={() => { navigator.clipboard?.writeText(snippet).then(onCopied, () => {}) }}
+          >
+            Einbett-Code kopieren
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Detail-Modal mit Konvertieren / Verwerfen ─────────────
 
 interface DetailProps {
@@ -159,6 +267,7 @@ interface DetailProps {
 
 function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailProps) {
   const isOpen = draft.status === 'open'
+  const vonAussen = istOeffentlich(draft)
   const [projectName, setProjectName] = useState(draft.title)
   const [objectName, setObjectName] = useState(draft.object_name ?? '')
   const [objectAddress, setObjectAddress] = useState(draft.object_address ?? draft.customer_address ?? '')
@@ -287,15 +396,34 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-              Erfasst von <strong>{draft.created_by_name ?? '—'}</strong> · {fmtDate(draft.created_at)}
+              {vonAussen
+                ? <>Über das öffentliche Anfrageformular eingegangen · {fmtDate(draft.created_at)}</>
+                : <>Erfasst von <strong>{draft.created_by_name ?? '—'}</strong> · {fmtDate(draft.created_at)}</>}
             </div>
             <span className={`admin-badge ${STATUS_BADGE_CLASS[draft.status]}`}>
               {STATUS_LABEL[draft.status]}
             </span>
           </div>
 
-          {/* Original-Daten des Mitarbeiters */}
-          <DraftInfoBlock label="Kunde (vom Mitarbeiter erfasst)">
+          {/* Der Hinweis steht bewusst über den Daten und nicht als Fussnote:
+              gleich darunter beginnt die Maske, die daraus einen Kunden im Stamm
+              und ein Projekt macht. Wer das tut, soll vorher gelesen haben, dass
+              diese Angaben niemand geprüft hat. */}
+          {vonAussen && (
+            <div
+              style={{
+                background: 'var(--warning-soft)', color: 'var(--warning)',
+                borderRadius: 8, padding: '10px 12px', fontSize: 13, lineHeight: 1.5,
+              }}
+            >
+              <strong>Ungeprüfte Angaben von aussen.</strong> Diese Anfrage hat jemand
+              ohne Anmeldung abgeschickt — Name, Telefon und Adresse hat niemand
+              bestätigt. Bitte vor dem Umwandeln Rücksprache nehmen.
+            </div>
+          )}
+
+          {/* Original-Daten aus der Erfassung */}
+          <DraftInfoBlock label={vonAussen ? 'Kunde (Angaben des Absenders)' : 'Kunde (vom Mitarbeiter erfasst)'}>
             <div><strong>{draft.customer_name}</strong></div>
             {draft.customer_phone && <div>Tel: {draft.customer_phone}</div>}
             {draft.customer_email && <div>E-Mail: {draft.customer_email}</div>}

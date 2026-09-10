@@ -290,3 +290,19 @@ describe('Sonderpositionen: Preismodell hin und zurück', () => {
     expect(specialModeFromUnit('Stück')).toBe('pauschal')
   })
 })
+
+describe('Offerten-Typ im Bearbeiten-Payload', () => {
+  // Drei Zustände: kein Feld (Typ unverändert), 'offerte', 'richtofferte'. Das
+  // fehlende Feld ist der wichtige Fall — Feature aus oder Offerte nicht mehr im
+  // Entwurf, dann darf der Payload den gespeicherten Typ nicht anfassen.
+  it('lässt quote_type weg, wenn die Maske keinen Umschalter zeigt', () => {
+    expect(buildEditQuotePayload({ ...EMPTY_EDIT })).not.toHaveProperty('quote_type')
+  })
+
+  it('schickt den gewählten Typ mit', () => {
+    expect(buildEditQuotePayload({ ...EMPTY_EDIT, quoteType: 'richtofferte' }).quote_type)
+      .toBe('richtofferte')
+    expect(buildEditQuotePayload({ ...EMPTY_EDIT, quoteType: 'offerte' }).quote_type)
+      .toBe('offerte')
+  })
+})

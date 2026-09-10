@@ -290,6 +290,9 @@ export interface EditQuoteInput {
   notes: string
   productDescription: string
   customerId: string
+  /** 'offerte' | 'richtofferte'. undefined => Typ nicht anfassen (Feature aus oder
+   *  Offerte nicht mehr im Entwurf — dann zeigt die Maske keinen Umschalter). */
+  quoteType?: 'offerte' | 'richtofferte'
 }
 
 export function buildEditQuotePayload(f: EditQuoteInput): Record<string, unknown> {
@@ -315,5 +318,8 @@ export function buildEditQuotePayload(f: EditQuoteInput): Record<string, unknown
     // Immer mitschicken: das Backend vergleicht gegen die gespeicherte ID und
     // fasst Kunde und PDF nur bei echter Änderung an. '' = Zuordnung aufheben.
     customer_id: f.customerId,
+    // Nur mitschicken, wenn die Maske den Umschalter überhaupt anbietet: ein
+    // fehlendes Feld heisst dem Backend "Typ unverändert lassen".
+    ...(f.quoteType ? { quote_type: f.quoteType } : {}),
   }
 }

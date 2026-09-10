@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, applyStartDate, apptToDraft,
   diffAppointments, draftPayload, draftTeamNames, draftTitle, emptyDraft, fmtDraftWhen,
-  newAppointmentDraft, nextAppointment, normalizeDrafts, pinProjectTeam, sortDrafts,
-  teamsDiffer, todayISO, validateDrafts,
+  isOpenAppointment, newAppointmentDraft, nextAppointment, normalizeDrafts,
+  pinProjectTeam, sortDrafts, teamsDiffer, todayISO, validateDrafts,
 } from './projectAppointments'
 import type { ProjectAppointment } from '../../api/admin'
 
@@ -196,6 +196,39 @@ describe('nextAppointment', () => {
 
   it('ignoriert Termine ohne Datum', () => {
     expect(nextAppointment([draft({ startDate: '' })], '2026-08-14')).toBeNull()
+  })
+})
+
+// Die Regel «läuft noch oder steht bevor» steht seit dem Aufräumen der
+// Ersttermin-Fehlergruppe nur noch einmal da: nextAppointment (Projektmaske) und
+// der Termin-Editor der Einsatzplanung (ProjectScheduleScreen, snake_case-Zeilen)
+// rufen dieselbe Funktion. Der Editor mass vorher am Startdatum und sprang mitten
+// in einem laufenden mehrtägigen Einsatz auf den übernächsten Termin.
+// Pendant zu db/project_appointments.py::is_open_appointment.
+describe('isOpenAppointment', () => {
+  it('zählt heute noch als offen — der Tag läuft', () => {
+    expect(isOpenAppointment('2026-08-14', null, '2026-08-14')).toBe(true)
+  })
+
+  it('misst am Ende, nicht am Start', () => {
+    expect(isOpenAppointment('2026-08-10', '2026-08-20', '2026-08-14')).toBe(true)
+  })
+
+  it('ohne Enddatum gilt das Startdatum (eintägig)', () => {
+    expect(isOpenAppointment('2026-08-13', null, '2026-08-14')).toBe(false)
+  })
+
+  it('vorbei ist vorbei', () => {
+    expect(isOpenAppointment('2026-08-01', '2026-08-02', '2026-08-14')).toBe(false)
+  })
+
+  it('ohne Datum nie offen', () => {
+    expect(isOpenAppointment('', null, '2026-08-14')).toBe(false)
+    expect(isOpenAppointment(null, null, '2026-08-14')).toBe(false)
+  })
+
+  it('verträgt einen Zeitstempel statt eines Datums', () => {
+    expect(isOpenAppointment('2026-08-20T00:00:00', null, '2026-08-14')).toBe(true)
   })
 })
 

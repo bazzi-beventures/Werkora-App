@@ -102,6 +102,16 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
   // änderbar. Ein Wechsel hängt nur diese Offerte um — Projekt, Rapporte und
   // Rechnungen bleiben, wo sie sind.
   const [customerId, setCustomerId] = useState(quote.customer_id ?? '')
+  // Offerten-Typ (Feature richtofferte). Nachträglich umstellbar, solange die Offerte
+  // nie versendet wurde: welcher Typ es wird, entscheidet sich oft erst beim
+  // Ausfüllen. Ist sie einmal draussen, hat der Kunde ein PDF mit dem alten Titel —
+  // dann bleibt der Typ stehen (das Backend prüft dasselbe noch einmal).
+  // Massgeblich ist `sent_at`, NICHT der Status: den setzt jedes Speichern auf
+  // 'entwurf' zurück, eine Statusprüfung wäre in zwei Schritten zu umgehen.
+  const [quoteType, setQuoteType] = useState<'offerte' | 'richtofferte'>(
+    quote.quote_type === 'richtofferte' ? 'richtofferte' : 'offerte')
+  const typeSwitchable = master.richtoffAvailable && !quote.sent_at
+
   const [customers, setCustomers] = useState<Customer[]>([])
   const [materialSupplierFilter, setMaterialSupplierFilter] = useState('')
   const [materialCategoryFilter, setMaterialCategoryFilter] = useState('')
@@ -138,7 +148,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
     laborRows: labor.rows, materialRows: material.rows, extraProducts: extraProducts.rows,
     extraCharges: extraCharges.rows, travelRows: travel.rows, installationRows: installation.rows,
     specialRows: special.rows, laborDiscount, materialDiscount, fixedPrice, skontoActive, skontoPct,
-    skontoDays, notes, productDescription, customerId,
+    skontoDays, notes, productDescription, customerId, quoteType,
   })
   // useState statt useRef: der Startwert wird nur beim ersten Render berechnet
   // und darf im Render gelesen werden.
@@ -179,6 +189,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
         specialRows: special.rows,
         laborDiscount, materialDiscount, fixedPrice,
         skontoActive, skontoPct, skontoDays, notes, productDescription, customerId,
+        quoteType: typeSwitchable ? quoteType : undefined,
       }))
       // Per OCR eingelesene Lieferanten-PDFs als Projekt-Datei ablegen (Kategorie
       // 'bestellungen'). Best-effort — die Offerte ist zu diesem Zeitpunkt gespeichert.
@@ -194,7 +205,30 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
   return (
     <div className="admin-table-wrap" style={{ padding: 24 }}>
       <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={onCancel} disabled={saving} style={{ marginBottom: 12 }}>← Zurück</button>
-      <h3 style={{ margin: '0 0 4px' }}>Offerte bearbeiten</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 4px' }}>
+        <h3 style={{ margin: 0 }}>{quoteType === 'richtofferte' ? 'Richtofferte bearbeiten' : 'Offerte bearbeiten'}</h3>
+        {/* Derselbe Umschalter wie im Erstell-Formular — hier zusätzlich an den
+            Entwurfs-Status gebunden. Ein Wechsel wirkt erst mit dem Speichern; dann
+            entsteht das PDF ohnehin neu, mit Titel und Schlusstext des neuen Typs. */}
+        {typeSwitchable && (
+          <div role="group" aria-label="Offerten-Typ" style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
+            {(['offerte', 'richtofferte'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setQuoteType(t)}
+                className={`admin-btn admin-btn-sm ${quoteType === t ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+                style={{ borderRadius: 0, border: 'none' }}
+              >
+                {t === 'offerte' ? 'Offerte' : 'Richtofferte'}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {/* Die Überschrift trägt den Typ in jedem Fall — auch wenn der Umschalter
+          fehlt (Feature aus, Offerte versendet): sonst wäre in der Maske nicht zu
+          sehen, was auf dem PDF des Kunden steht. */}
       <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>{quote.quote_number} · {quote.project_name}</div>
 
       {error && <div className="admin-alert admin-alert-error" style={{ marginBottom: 16 }}>{error}</div>}
