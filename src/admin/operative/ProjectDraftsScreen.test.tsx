@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ProjectDraftsScreen from './ProjectDraftsScreen'
 import { apiFetch } from '../../api/client'
-import { convertProjectDraft, getAdminProjectDrafts, ProjectDraft } from '../../api/projectDrafts'
+import {
+  convertProjectDraft, getAdminProjectDrafts, getProjectDraftPhotoUrls, ProjectDraft,
+} from '../../api/projectDrafts'
 import { SK } from '../../api/storageKeys'
 
 // Nur Netzwerk mocken — Kundenzuordnung und Formularlogik bleiben echt.
@@ -16,11 +18,13 @@ vi.mock('../../api/projectDrafts', async (importOriginal) => ({
   getAdminProjectDrafts: vi.fn(),
   convertProjectDraft: vi.fn(),
   rejectProjectDraft: vi.fn(),
+  getProjectDraftPhotoUrls: vi.fn(),
 }))
 
 const mockFetch = vi.mocked(apiFetch)
 const mockList = vi.mocked(getAdminProjectDrafts)
 const mockConvert = vi.mocked(convertProjectDraft)
+const mockPhotoUrls = vi.mocked(getProjectDraftPhotoUrls)
 
 const DRAFT = {
   id: 'd-1',
@@ -225,27 +229,53 @@ describe('ProjectDraftsScreen — Herkunft eines Entwurfs', () => {
     render(<ProjectDraftsScreen user={mitFeature} />)
     expect(await screen.findByText('Öffentliches Anfrageformular')).toBeInTheDocument()
     expect(screen.getByText(/\/anfrage\/musterbau$/)).toBeInTheDocument()
-    // Ohne freigegebene Adresse kein Einbett-Code — er wäre eine Anleitung zu
-    // einem Rahmen, den das Backend mit X-Frame-Options: DENY leer lässt.
-    expect(screen.queryByText('Einbett-Code kopieren')).not.toBeInTheDocument()
+  })
+})
+
+describe('ProjectDraftsScreen — Fotos einer Anfrage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const MIT_FOTOS = {
+    ...DRAFT,
+    source: 'public' as const,
+    photos: [
+      { storage_path: 't/project-drafts/abc/1.jpg' },
+      { storage_path: 't/project-drafts/abc/2.jpg' },
+    ],
+  }
+
+  it('holt die Links erst beim Öffnen und zeigt die Bilder', async () => {
+    setup([], MIT_FOTOS)
+    mockPhotoUrls.mockResolvedValue(['https://storage/1.jpg', 'https://storage/2.jpg'])
+    render(<ProjectDraftsScreen user={USER} />)
+
+    // In der Liste steht nur die Anzahl — signierte Links altern, die holt
+    // niemand auf Vorrat für jede Zeile.
+    expect(await screen.findByText(/2 Fotos/)).toBeInTheDocument()
+    expect(mockPhotoUrls).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Lamisol 90 Gekoppelt'))
+    await waitFor(() => expect(mockPhotoUrls).toHaveBeenCalledWith('d-1'))
+    const bilder = await screen.findAllByAltText('Foto zur Anfrage')
+    expect(bilder).toHaveLength(2)
   })
 
-  it('zeigt den Einbett-Code erst mit freigegebener Adresse', async () => {
+  it('fragt ohne Fotos gar nicht erst nach Links', async () => {
     setup([], DRAFT)
-    localStorage.setItem(SK.TENANT_SLUG, 'musterbau')
+    render(<ProjectDraftsScreen user={USER} />)
+    fireEvent.click(await screen.findByText('Lamisol 90 Gekoppelt'))
 
-    const mitEinbetten = {
-      ...USER,
-      feature_flags: {
-        oeffentliche_projektanfrage: {
-          enabled: true,
-          einbetten_erlaubt_auf: 'https://muster-storen.ch',
-        },
-      },
-    } as typeof USER
-    render(<ProjectDraftsScreen user={mitEinbetten} />)
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    expect(mockPhotoUrls).not.toHaveBeenCalled()
+    expect(screen.queryByText(/^Fotos/)).not.toBeInTheDocument()
+  })
 
-    expect(await screen.findByText('Einbett-Code kopieren')).toBeInTheDocument()
-    expect(screen.getByText(/^<iframe src="http.*\/anfrage\/musterbau"/)).toBeInTheDocument()
+  it('sagt es, wenn die Bilder nicht mehr abrufbar sind', async () => {
+    setup([], MIT_FOTOS)
+    mockPhotoUrls.mockResolvedValue([])
+    render(<ProjectDraftsScreen user={USER} />)
+    fireEvent.click(await screen.findByText('Lamisol 90 Gekoppelt'))
+
+    expect(await screen.findByText('Die Bilder sind nicht mehr abrufbar.')).toBeInTheDocument()
   })
 })

@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { listAllCustomers, saveCustomer } from '../../api/admin/customers'
 import {
-  ProjectDraft, getAdminProjectDrafts,
+  ProjectDraft, getAdminProjectDrafts, getProjectDraftPhotoUrls,
   convertProjectDraft, rejectProjectDraft,
 } from '../../api/projectDrafts'
 import { apiUrl } from '../../api/client'
-import { getFeature, isFeatureEnabled } from '../../api/modules'
+import { isFeatureEnabled } from '../../api/modules'
 import { UserInfo } from '../../api/auth'
 import { SK } from '../../api/storageKeys'
 import { fmtDate } from '../utils/format'
@@ -154,6 +154,7 @@ export default function ProjectDraftsScreen({ user, onBadgeChange }: Props) {
                 {istOeffentlich(d)
                   ? <>Über das Anfrageformular eingegangen · {fmtDate(d.created_at)}</>
                   : <>Erfasst von <strong style={{ color: 'var(--text)' }}>{d.created_by_name ?? '—'}</strong> · {fmtDate(d.created_at)}</>}
+                {(d.photos?.length ?? 0) > 0 && ` · ${d.photos!.length} Foto${d.photos!.length > 1 ? 's' : ''}`}
               </div>
             </div>
           ))}
@@ -185,23 +186,11 @@ export default function ProjectDraftsScreen({ user, onBadgeChange }: Props) {
  */
 function PublicFormLink({ user, onCopied }: { user: UserInfo; onCopied: () => void }) {
   const slug = localStorage.getItem(SK.TENANT_SLUG) ?? ''
-  const cfg = getFeature<{ enabled?: boolean; einbetten_erlaubt_auf?: string }>(
-    user, 'oeffentliche_projektanfrage',
-  )
   if (!isFeatureEnabled(user, 'oeffentliche_projektanfrage') || !slug) return null
 
   // apiUrl liefert bei leerer VITE_API_URL einen relativen Pfad; zum Weitergeben
   // braucht es eine vollständige Adresse.
   const url = new URL(apiUrl(`/anfrage/${encodeURIComponent(slug)}`), window.location.origin).href
-
-  // Der Schnipsel erscheint nur, wenn der Superadmin das Einbetten für mindestens
-  // eine Adresse freigegeben hat. Ohne Freigabe wäre er eine Anleitung zu einem
-  // leeren Rahmen: das Backend antwortet dann mit X-Frame-Options: DENY, und der
-  // Rahmen bliebe auf der Website des Mandanten schlicht weiss.
-  const darfEingebettetWerden = !!cfg?.einbetten_erlaubt_auf?.trim()
-  const snippet =
-    `<iframe src="${url}" title="Anfrage" width="100%" height="900" ` +
-    'style="border:0" loading="lazy"></iframe>'
 
   return (
     <div
@@ -232,27 +221,60 @@ function PublicFormLink({ user, onCopied }: { user: UserInfo; onCopied: () => vo
       >
         Adresse kopieren
       </button>
-      {darfEingebettetWerden && (
-        <div style={{ flexBasis: '100%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-          <code
-            style={{
-              flex: '1 1 260px', minWidth: 0, fontSize: 11, color: 'var(--text-muted)',
-              background: 'var(--surface-2)', borderRadius: 6, padding: '6px 8px',
-              overflowX: 'auto', whiteSpace: 'nowrap',
-            }}
-          >
-            {snippet}
-          </code>
-          <button
-            className="admin-btn admin-btn-secondary"
-            style={{ fontSize: 13 }}
-            onClick={() => { navigator.clipboard?.writeText(snippet).then(onCopied, () => {}) }}
-          >
-            Einbett-Code kopieren
-          </button>
-        </div>
-      )}
     </div>
+  )
+}
+
+// ─── Fotos einer öffentlichen Anfrage ─────────────
+
+/**
+ * Zeigt die Fotos zu einem Entwurf. Die Links werden erst beim Öffnen geholt
+ * (sie sind serverseitig 15 Minuten gültig) und nur, wenn es überhaupt welche
+ * gibt — sonst kostete jeder geöffnete Entwurf einen Aufruf ins Leere.
+ *
+ * Ein Bild, dessen Link nicht mehr gilt oder dessen Objekt fehlt, wird
+ * ausgeblendet statt als kaputtes Symbol stehen zu lassen (`onError`): ein
+ * halbes Bild sagt weniger als keins und lädt zum Rätseln ein.
+ */
+function DraftPhotos({ draft }: { draft: ProjectDraft }) {
+  const anzahl = draft.photos?.length ?? 0
+  const [urls, setUrls] = useState<string[] | null>(null)
+  const [kaputt, setKaputt] = useState<Set<string>>(() => new Set())
+
+  useEffect(() => {
+    if (anzahl === 0) return
+    let aktuell = true
+    getProjectDraftPhotoUrls(draft.id)
+      .then(u => { if (aktuell) setUrls(u) })
+      .catch(() => { if (aktuell) setUrls([]) })
+    return () => { aktuell = false }
+  }, [draft.id, anzahl])
+
+  if (anzahl === 0) return null
+
+  const sichtbar = (urls ?? []).filter(u => !kaputt.has(u))
+  return (
+    <DraftInfoBlock label={`Fotos (${anzahl})`}>
+      {urls === null && <span style={{ color: 'var(--text-muted)' }}>Lade…</span>}
+      {urls !== null && sichtbar.length === 0 && (
+        <span style={{ color: 'var(--text-muted)' }}>Die Bilder sind nicht mehr abrufbar.</span>
+      )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {sichtbar.map(url => (
+          <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+            <img
+              src={url}
+              alt="Foto zur Anfrage"
+              onError={() => setKaputt(prev => new Set(prev).add(url))}
+              style={{
+                width: 110, height: 110, objectFit: 'cover',
+                borderRadius: 8, border: '1px solid var(--border)', display: 'block',
+              }}
+            />
+          </a>
+        ))}
+      </div>
+    </DraftInfoBlock>
   )
 }
 
@@ -433,6 +455,8 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
           {draft.description && (
             <DraftInfoBlock label="Beschreibung">{draft.description}</DraftInfoBlock>
           )}
+
+          <DraftPhotos draft={draft} />
 
           {(draft.art_der_arbeit?.length ?? 0) > 0 && (
             <DraftInfoBlock label="Art der Arbeit (vom Mitarbeiter erfasst)">

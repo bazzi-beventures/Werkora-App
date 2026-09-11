@@ -36,6 +36,12 @@ export interface ProjectDraft extends ProjectDraftPayload {
    * nicht kennen; fehlt sie, ist es ein Mitarbeiter-Entwurf.
    */
   source?: 'staff' | 'public' | null
+  /**
+   * Fotos zur Anfrage — nur Verweise, die Bilder liegen im privaten Bucket.
+   * Zum Anzeigen braucht es `getProjectDraftPhotoUrls`; die rohen Pfade sind
+   * ohne signierte URL nicht abrufbar. Fehlt bei alten Entwürfen.
+   */
+  photos?: { storage_path: string; content_type?: string; bytes?: number }[] | null
   status: 'open' | 'converted' | 'rejected'
   converted_to_project_id: string | null
   decision_note: string | null
@@ -52,6 +58,21 @@ export async function createProjectDraft(payload: ProjectDraftPayload): Promise<
     // und queuen, als minutenlang im Spinner zu hängen.
     timeoutMs: 15_000,
   })
+}
+
+/**
+ * Signierte Links auf die Fotos eines Entwurfs (serverseitig 15 Minuten gültig).
+ *
+ * Bewusst ein eigener Aufruf statt einer Spalte in der Liste: signierte Links
+ * altern, und sie für jeden Entwurf einer Liste zu erzeugen kostet einen
+ * Storage-Roundtrip pro Seite — gebraucht werden sie erst, wenn jemand einen
+ * Entwurf tatsächlich öffnet.
+ */
+export async function getProjectDraftPhotoUrls(draftId: string): Promise<string[]> {
+  const res = await apiFetch<{ urls: string[] }>(
+    `/pwa/admin/project-drafts/${encodeURIComponent(draftId)}/photos`,
+  )
+  return res.urls ?? []
 }
 
 export async function getAdminProjectDrafts(
