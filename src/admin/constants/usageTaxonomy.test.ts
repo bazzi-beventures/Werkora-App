@@ -16,7 +16,8 @@ const KNOWN_MODULES = [
   'inventory', 'hr', 'arg_compliance', 'violation_emails', 'kpis', 'kpis_email',
   'ai', 'help_bot', 'clock_in_reminder', 'hr_weekly_report', 'clock_out_reminder',
   'auto_clockout_correction_reminder', 'approval_push', 'morning_briefing',
-  'project_change_push', 'admin_clock_in_push', 'aftersales', 'document_backup',
+  'project_change_push', 'admin_clock_in_push', 'correction_request_push',
+  'aftersales', 'document_backup',
   'rapport_check_mail', 'task_board', 'newsletter', 'support', 'supplier_wiki',
 ]
 
@@ -82,7 +83,7 @@ describe('moduleCoverage', () => {
   // behauptet einen Befund, den die Daten nicht hergeben.
   it.each([
     'admin_clock_in_push', 'ai', 'approval_push', 'auto_clockout_correction_reminder',
-    'clock_in_reminder', 'clock_out_reminder', 'help_bot', 'kpis',
+    'clock_in_reminder', 'clock_out_reminder', 'correction_request_push', 'help_bot', 'kpis',
     'morning_briefing', 'project_change_push',
   ])('%s ist nicht protokolliert', mod => {
     expect(moduleCoverage(mod)).toBe('keine')

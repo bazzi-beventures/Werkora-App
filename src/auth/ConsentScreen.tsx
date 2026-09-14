@@ -64,7 +64,7 @@ export default function ConsentScreen({ logoUrl, displayName, user = null, onAcc
             dafür verantwortlich. An ihn richtest du alle Fragen zu deinen Daten.
           </li>
           <li>
-            <strong>Werkora</strong> (Bazzi &amp; Eckert Ventures GmbH) betreibt die App in seinem
+            <strong>Werkora</strong> (Bazzi Ventures GmbH) betreibt die App in seinem
             Auftrag. Wir verarbeiten deine Daten nur so, wie er es vorgibt — wir verkaufen sie
             nicht, nutzen sie nicht für Werbung und geben sie an niemanden weiter, den dieser Text
             nicht nennt.
