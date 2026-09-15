@@ -3,7 +3,8 @@ import type { Customer } from '../../../api/admin/customers'
 import type { Kontakt } from '../../../api/admin/projects'
 import {
   applyKontaktCandidate, candidatesOf, customerInputFromKontakt, customerToLink,
-  kontakteOhneKundenstamm, linkKontakteToCustomers, searchKontaktCandidates,
+  kontaktFromCustomer, kontakteOhneKundenstamm, linkKontakteToCustomers,
+  searchKontaktCandidates, seedKontaktFromCustomer,
 } from './kontaktKundenstamm'
 
 function customer(over: Partial<Customer> & { id: string; name: string }): Customer {
@@ -168,5 +169,83 @@ describe('linkKontakteToCustomers / customerToLink', () => {
   it('lässt einen vorhandenen Projektkunden in Ruhe', () => {
     expect(customerToLink('c-mueller', rows, created)).toBeNull()
     expect(customerToLink(null, rows, [])).toBeNull()
+  })
+})
+
+describe('kontaktFromCustomer', () => {
+  it('nimmt Telefon UND E-Mail des Kunden, wenn er keinen Baustellenkontakt hat', () => {
+    expect(kontaktFromCustomer(customer({
+      id: 'c-1', name: 'R. Schürmann', phone: '079 626 19 90', email: 're58@bluewin.ch',
+    }))).toEqual({
+      name: 'R. Schürmann',
+      kommentar: 'Kunde',
+      telefon: '079 626 19 90',
+      email: 're58@bluewin.ch',
+      // Ohne Stern: eine blosse Vorbelegung soll nicht plötzlich einen «Kontakt
+      // vor Ort» auf Offerte/Rechnung drucken.
+      is_site_contact: false,
+      customer_id: 'c-1',
+    })
+  })
+
+  it('bevorzugt den Baustellenkontakt des Kunden — mit Stern', () => {
+    expect(kontaktFromCustomer(MUELLER)).toEqual({
+      name: 'Peter Abwart',
+      kommentar: 'Baustellenkontakt',
+      telefon: '044 555 66 77',
+      // Die einzige E-Mail, die der Stamm kennt, ist die des Kunden.
+      email: 'hans@example.ch',
+      is_site_contact: true,
+      customer_id: 'c-mueller',
+    })
+  })
+
+  it('fällt beim Telefon auf Mobile vor Festnetz zurück', () => {
+    expect(kontaktFromCustomer(ZIMMERLI)?.telefon).toBe('052 222 33 44')
+    const beides = customer({ id: 'c-b', name: 'B', phone: '079', phone_landline: '052' })
+    expect(kontaktFromCustomer(beides)?.telefon).toBe('079')
+    // Baustellenkontakt ohne eigene Nummer: die des Kunden ist besser als keine
+    // (gleiche Kette wie db.project_contacts_with_customer_fallback).
+    const abwart = customer({ id: 'c-a', name: 'A', phone: '079', local_contact_name: 'Abwart' })
+    expect(kontaktFromCustomer(abwart)?.telefon).toBe('079')
+  })
+
+  it('liefert null, wenn der Kunde weder Name noch Telefon noch E-Mail hergibt', () => {
+    expect(kontaktFromCustomer(customer({ id: 'c-0', name: '   ' }))).toBeNull()
+  })
+})
+
+describe('seedKontaktFromCustomer', () => {
+  const seed = kontaktFromCustomer(MUELLER)!
+  const anderer = kontaktFromCustomer(customer({ id: 'c-x', name: 'Frau X', phone: '076' }))!
+
+  it('belegt die leere Liste vor', () => {
+    expect(seedKontaktFromCustomer([], seed, null)).toEqual([seed])
+  })
+
+  it('lässt eine selbst erfasste Person in Ruhe', () => {
+    const eigen = [kontakt({ name: 'Anna Neu', telefon: '079' })]
+    expect(seedKontaktFromCustomer(eigen, seed, null)).toEqual(eigen)
+  })
+
+  it('füllt leere Platzhalter-Zeilen auf und nimmt ihnen den Stern ab', () => {
+    const leer = [kontakt({ is_site_contact: true }), kontakt({ kommentar: 'Hausabwart' })]
+    const out = seedKontaktFromCustomer(leer, seed, null)
+    expect(out[0]).toEqual(seed)
+    expect(out.filter(k => k.is_site_contact)).toEqual([seed])
+    expect(out).toHaveLength(3)
+  })
+
+  it('ersetzt die unveränderte Vorbelegung beim Kundenwechsel', () => {
+    expect(seedKontaktFromCustomer([seed], anderer, seed)).toEqual([anderer])
+  })
+
+  it('lässt eine von Hand bearbeitete Vorbelegung stehen', () => {
+    const bearbeitet = { ...seed, telefon: '079 000 00 00' }
+    expect(seedKontaktFromCustomer([bearbeitet], anderer, seed)).toEqual([bearbeitet])
+  })
+
+  it('räumt die Vorbelegung weg, wenn der Kunde entfernt wird', () => {
+    expect(seedKontaktFromCustomer([seed], null, seed)).toEqual([])
   })
 })

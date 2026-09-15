@@ -11,7 +11,10 @@ import {
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
 import { projectBillingAddress, projectCustomerName } from '../../utils/project'
-import { KontaktCandidate, applyKontaktCandidate, kontakteOhneKundenstamm } from './kontaktKundenstamm'
+import {
+  KontaktCandidate, applyKontaktCandidate, kontakteOhneKundenstamm, kontaktFromCustomer,
+  seedKontaktFromCustomer,
+} from './kontaktKundenstamm'
 import {
   ProjectFormValues, disposalEmpty, hasEntsorgungsart, initialProjectForm, isProjectFormDirty,
 } from './projectForm'
@@ -40,7 +43,10 @@ export interface UseProjectForm {
   name: string
   setName: (v: string) => void
   customerId: string
-  /** Kunde waehlen — seedet Objektadresse und Baustellenkontakt aus dem Stamm. */
+  /**
+   * Kunde waehlen — seedet Objektadresse UND Ansprechperson (Name, Telefon,
+   * E-Mail) aus dem Stamm, solange die Maske dazu nichts Eigenes hat.
+   */
   selectCustomer: (id: string) => void
   selectedCustomer: Customer | null
   /** Empfaenger/Adresse nach derselben Vorrang-Kette wie das Backend. */
@@ -184,6 +190,10 @@ export function useProjectForm(opts: {
   // Nachladen vom Server die Eingaben nicht mehr überschreiben.
   const appointmentsTouched = useRef(false)
   const [kontakte, setKontakte] = useState<Kontakt[]>(baseline.kontakte)
+  // Die zuletzt beim Kundenwechsel vorbelegte Ansprechperson. Kein State: sie
+  // rendert nichts, sie sagt `seedKontaktFromCustomer` nur, welche Zeile beim
+  // naechsten Kunden weichen darf (und welche der Anwender selbst getippt hat).
+  const seededKontakt = useRef<Kontakt | null>(null)
   // Eigentümer des Objekts — eigene Rolle, kein Kontakt. Kann pro Projekt ein Dritter sein.
   const [eigentuemer, setEigentuemer] = useState<Eigentuemer>(baseline.eigentuemer)
   const [disposal, setDisposal] = useState<DisposalDetails>(baseline.disposal)
@@ -241,22 +251,20 @@ export function useProjectForm(opts: {
 
   function selectCustomer(id: string) {
     setCustomerId(id)
-    if (!id) return
-    const c = customers.find(x => x.id === id)
-    if (!c) return
-    if (!objectAddressTouched) setObjectAddress(c.object_address || c.billing_address || c.address || '')
-    // Baustellenkontakt aus Kundenstamm seeden, falls noch keiner markiert ist
-    // und der Kunde einen Standardkontakt hat.
-    if ((c.local_contact_name || c.local_contact_phone) && !kontakte.some(k => k.is_site_contact)) {
-      setKontakte(prev => [...prev, {
-        name: c.local_contact_name ?? '',
-        kommentar: 'Baustellenkontakt',
-        telefon: c.local_contact_phone ?? '',
-        email: '',
-        is_site_contact: true,
-        customer_id: c.id,
-      }])
+    const c = id ? customers.find(x => x.id === id) ?? null : null
+    if (id && !c) return   // Liste noch nicht geladen: lieber nichts seeden als das Falsche
+    if (c && !objectAddressTouched) {
+      setObjectAddress(c.object_address || c.billing_address || c.address || '')
     }
+    // Ansprechperson aus dem Kundenstamm vorbelegen (kontaktKundenstamm.ts).
+    // `seededKontakt` merkt sich die gesetzte Zeile, damit ein Kundenwechsel sie
+    // ersetzt statt zu stapeln — und ein Entfernen des Kunden sie mitnimmt.
+    const seed = c ? kontaktFromCustomer(c) : null
+    // Aus dem aktuellen Stand gerechnet statt im Updater: der Updater darf
+    // `seededKontakt` nicht lesen, das gleich danach umgesetzt wird (React ruft
+    // ihn im StrictMode zweimal auf — beim zweiten Mal saehe er den neuen Seed).
+    setKontakte(seedKontaktFromCustomer(kontakte, seed, seededKontakt.current))
+    seededKontakt.current = seed
   }
 
   const selectedCustomer = customers.find(c => c.id === customerId) ?? null

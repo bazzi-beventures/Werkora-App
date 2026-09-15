@@ -162,12 +162,28 @@ export function verdictFor(err: unknown): DrainVerdict {
   return 'retry'
 }
 
+/**
+ * Der Klartext des Servers — aber nur, wenn er einen GEMEINT hat.
+ *
+ * `ApiError.code` gibt es nur bei einem strukturierten Fehler-Body
+ * (`{detail: {code, message}}`), also dort, wo jemand einen Satz für den
+ * Monteur formuliert hat. Ohne Code steht in `message` im schlechtesten Fall
+ * das generische «Serverfehler (HTTP 400)» aus `parseErrorDetail` — das als
+ * Begründung anzuzeigen wäre schlechter als der eigene Standardsatz.
+ */
+export function serverGrund(err: unknown): string | undefined {
+  return err instanceof ApiError && err.code ? err.message : undefined
+}
+
+/** Ein aufgegebenes Foto, mit dem Grund, falls der Server einen genannt hat. */
+export type DroppedPhoto = PendingPhoto & { grund?: string }
+
 export interface DrainResult {
   /** Erfolgreich hochgeladen. */
   uploaded: PendingPhoto[]
   /** Dauerhaft nicht zustellbar und deshalb entfernt — davon MUSS der Monteur
    *  erfahren, sonst wartet er auf ein Foto, das nie ankommt. */
-  dropped: PendingPhoto[]
+  dropped: DroppedPhoto[]
   /** Was noch wartet. */
   remaining: number
 }
@@ -185,7 +201,7 @@ export async function drainPhotoQueue(
 ): Promise<DrainResult> {
   const queue = await pendingPhotos(userId)
   const uploaded: PendingPhoto[] = []
-  const dropped: PendingPhoto[] = []
+  const dropped: DroppedPhoto[] = []
 
   for (const photo of queue) {
     if (photo.attempts >= MAX_DRAIN_ATTEMPTS) {
@@ -202,7 +218,10 @@ export async function drainPhotoQueue(
       const verdict = verdictFor(err)
       if (verdict === 'drop') {
         await removePhoto(photo.id)
-        dropped.push(photo)
+        // Den Grund mitnehmen: «Bitte neu aufnehmen» ist bei einem vollen
+        // Rapport ein falscher Rat — das elfte Foto passt auch als zwölftes
+        // nicht hinein, und der Monteur probierte es sonst ein zweites Mal.
+        dropped.push({ ...photo, grund: serverGrund(err) })
         continue
       }
       // Nur ein echter Fehlversuch zählt gegen den Deckel. Bei 'abort'

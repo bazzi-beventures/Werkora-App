@@ -208,4 +208,38 @@ describe('Rapport-Foto offline', () => {
     expect(await screen.findByText(/liess sich nicht hochladen/)).toBeInTheDocument()
     await waitFor(async () => expect(await countPending('user-1')).toBe(0))
   })
+
+  it('meldet ein wartendes Foto nicht als hochgeladen, wenn der Rapport voll ist', async () => {
+    // Der gemeldete Fehler: der Server wies das elfte Foto mit einer 200 ab,
+    // die Warteschlange las das als «zugestellt» und meldete «ist jetzt
+    // hochgeladen». Der Monteur glaubte, sein Bild sei am Rapport.
+    await enqueuePhoto('user-1', jpeg('elftes.jpg'))
+    vi.mocked(uploadPhoto).mockRejectedValue(new ApiError(
+      409, 'Der Rapport hat schon 10 Fotos — mehr passen nicht dazu.', 'photo_limit_reached'))
+
+    renderChat()
+
+    expect(await screen.findByText(/Der Rapport hat schon 10 Fotos/)).toBeInTheDocument()
+    expect(screen.queryByText(/ist jetzt hochgeladen/)).not.toBeInTheDocument()
+    // «Bitte neu aufnehmen» wäre hier ein falscher Rat.
+    expect(screen.queryByText(/Bitte neu aufnehmen/)).not.toBeInTheDocument()
+    // Aus der Warteschlange raus: Wiederholen weicht keine Obergrenze auf.
+    await waitFor(async () => expect(await countPending('user-1')).toBe(0))
+  })
+
+  it('nennt online den Grund des Servers statt «Fehler beim Senden»', async () => {
+    // Derselbe Fall ohne Puffer: der Monteur fotografiert bei Empfang das elfte
+    // Bild. «Bitte erneut versuchen» führt bei einer Obergrenze nirgendwohin.
+    vi.mocked(uploadPhoto).mockRejectedValue(new ApiError(
+      409, 'Der Rapport hat schon 10 Fotos — mehr passen nicht dazu.', 'photo_limit_reached'))
+    renderChat()
+    await screen.findByText(/Sage z\.B\./)
+
+    await fotoAufnehmen(jpeg())
+
+    expect(await screen.findByText(/Der Rapport hat schon 10 Fotos/)).toBeInTheDocument()
+    expect(screen.queryByText(/Bitte erneut versuchen/)).not.toBeInTheDocument()
+    // Nicht gepuffert: ein voller Rapport wird auch beim nächsten Versuch nicht leerer.
+    expect(await countPending('user-1')).toBe(0)
+  })
 })

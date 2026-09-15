@@ -211,6 +211,7 @@ export function DetailsForm({
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
                 Stern markiert den <strong>Baustellenkontakt</strong> — diese Person sieht der Monteur ganz oben und sie wird auf Offerte/Rechnung gedruckt.
                 {' '}Beim Tippen des Namens werden Treffer aus dem Kundenstamm vorgeschlagen; ohne Treffer bleibt die Person frei erfasst.
+                {' '}Solange keine Person erfasst ist, übernimmt die Auswahl des Kunden dessen Angaben (Name, Telefon, E-Mail) als Vorschlag.
               </div>
             )}
             {kontakte.map((k, i) => (

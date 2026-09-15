@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { ApiError } from './client'
 import {
   DB_NAME, MAX_DRAIN_ATTEMPTS, MAX_PENDING_PHOTOS, MAX_PHOTO_BYTES,
-  countPending, drainPhotoQueue, enqueuePhoto, pendingPhotos, recordedAtLabel, verdictFor,
+  countPending, drainPhotoQueue, enqueuePhoto, pendingPhotos, recordedAtLabel,
+  serverGrund, verdictFor,
 } from './photoQueue'
 import type { ChatResponse } from './chat'
 
@@ -178,11 +179,54 @@ describe('Nachliefern', () => {
     expect(await countPending('u1')).toBe(0)
   })
 
+  it('nimmt den Grund des Servers mit, wenn er einen genannt hat', async () => {
+    // Der volle Rapport ist der Fall, für den es diesen Weg gibt: «Bitte neu
+    // aufnehmen» wäre hier ein falscher Rat — das elfte Foto passt auch als
+    // zwölftes nicht hinein.
+    await enqueuePhoto('u1', jpeg('elftes.jpg'))
+    const voll = new ApiError(
+      409, 'Der Rapport hat schon 10 Fotos — mehr passen nicht dazu.', 'photo_limit_reached')
+
+    const res = await drainPhotoQueue('u1', vi.fn().mockRejectedValue(voll))
+
+    expect(res.dropped.map(p => p.filename)).toEqual(['elftes.jpg'])
+    expect(res.dropped[0].grund).toBe('Der Rapport hat schon 10 Fotos — mehr passen nicht dazu.')
+    expect(await countPending('u1')).toBe(0)
+  })
+
+  it('erfindet keinen Grund, wo der Server keinen genannt hat', async () => {
+    // Ohne strukturierten Body steht in `message` im schlechtesten Fall
+    // «Serverfehler (HTTP 400)». Das als Begründung anzuzeigen wäre schlechter
+    // als der eigene Standardsatz — also lieber gar keiner.
+    await enqueuePhoto('u1', jpeg('kaputt.jpg'))
+
+    const res = await drainPhotoQueue(
+      'u1', vi.fn().mockRejectedValue(new ApiError(400, 'Serverfehler (HTTP 400)')))
+
+    expect(res.dropped).toHaveLength(1)
+    expect(res.dropped[0].grund).toBeUndefined()
+  })
+
   it('kommt mit leerem Puffer klar', async () => {
     const upload = vi.fn()
     const res = await drainPhotoQueue('u1', upload)
     expect(res).toEqual({ uploaded: [], dropped: [], remaining: 0 })
     expect(upload).not.toHaveBeenCalled()
+  })
+})
+
+describe('serverGrund', () => {
+  it('nimmt den Klartext nur bei einem strukturierten Fehler', () => {
+    // `code` gibt es nur, wenn der Server `{detail: {code, message}}` schickt —
+    // also dort, wo jemand einen Satz FÜR den Monteur formuliert hat.
+    expect(serverGrund(new ApiError(409, 'Rapport ist voll.', 'photo_limit_reached')))
+      .toBe('Rapport ist voll.')
+  })
+
+  it('schweigt ohne Code', () => {
+    expect(serverGrund(new ApiError(400, 'Serverfehler (HTTP 400)'))).toBeUndefined()
+    expect(serverGrund(new Error('irgendwas'))).toBeUndefined()
+    expect(serverGrund(undefined)).toBeUndefined()
   })
 })
 

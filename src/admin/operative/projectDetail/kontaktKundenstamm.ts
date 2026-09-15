@@ -206,3 +206,93 @@ export function customerToLink(
   const site = kontakte.find(k => k.is_site_contact && byName.has(normalize(k.name ?? '')))
   return site ? byName.get(normalize(site.name))! : created[0].id
 }
+
+// ─── Vorbelegung beim Kundenwechsel ─────────────────────────
+//
+// Beim Auswählen des Kunden holt die Maske dessen Kontaktangaben (Name,
+// Telefon, E-Mail) als Ansprechperson herunter — so, wie sie auch die
+// Objektadresse als Vorschlag übernimmt. Bis dahin stand die Nummer im
+// Kundenstamm und die Person in der Projektmaske; wer beides wollte, tippte es
+// ab.
+//
+// Bewusst eine *sichtbare* Vorbelegung im Formular und kein stiller
+// Server-Write: die Zeile steht vor dem Speichern in der Maske, lässt sich
+// ändern und löschen. Die persistierte Kopie kann danach vom Kundenstamm
+// abweichen (dieselbe Falle, die `db.project_contacts_with_customer_fallback`
+// für den Lesepfad meidet) — das ist hier der Preis dafür, dass am Projekt
+// steht, wer zum Zeitpunkt des Auftrags der Ansprechpartner war. `customer_id`
+// hält fest, woher die Zeile stammt; die Maske zeigt sie als «· Kundenstamm».
+
+/** Trägt die Zeile überhaupt eine Angabe? Gleiche Schwelle wie im Backend
+ *  (`project_contacts_with_customer_fallback`): ein blosser Kommentar zählt
+ *  nicht, leere Zeilen aus «+ Kontakt hinzufügen» erst recht nicht. */
+function hasContent(k: Kontakt): boolean {
+  return !!(k.name?.trim() || k.telefon?.trim() || k.email?.trim())
+}
+
+/**
+ * Die Ansprechperson, die ein Kunde beisteuert — zusammengesetzt wie der
+ * Lese-Fallback des Backends (`db.project_contacts_with_customer_fallback`),
+ * damit in der Maske genau das steht, was die Monteur-App ohne eigene
+ * Ansprechperson ohnehin eingeblendet hätte:
+ *
+ * - Name: der Baustellenkontakt des Kunden, sonst der Kunde selbst.
+ * - Telefon: dessen Nummer, sonst Mobile vor Festnetz des Kunden.
+ * - E-Mail: die des Kunden — eine zweite kennt der Stamm nicht.
+ *
+ * Der Stern (`is_site_contact`) geht nur an einen echten Baustellenkontakt:
+ * ihn hat der Kunde für genau diesen Zweck hinterlegt, und er landet als
+ * «Kontakt vor Ort» auf Offerte und Rechnung (`db.find_site_contact`). Der
+ * Kunde selbst kommt ohne Stern herunter — sonst druckte eine blosse
+ * Vorbelegung plötzlich eine Zeile aufs PDF, die vorher leer blieb.
+ *
+ * `null`, wenn der Kunde weder Name noch Telefon noch E-Mail hergibt.
+ */
+export function kontaktFromCustomer(c: Customer): Kontakt | null {
+  const site = c.local_contact_name?.trim() ?? ''
+  const name = site || c.name?.trim() || c.billing_name?.trim() || ''
+  const telefon = c.local_contact_phone?.trim()
+    || c.phone?.trim() || c.phone_landline?.trim() || ''
+  const email = c.email?.trim() ?? ''
+  if (!name && !telefon && !email) return null
+  return {
+    name,
+    kommentar: site ? ROLE_LABELS.baustellenkontakt : ROLE_LABELS.kunde,
+    telefon,
+    email,
+    is_site_contact: !!site,
+    customer_id: c.id,
+  }
+}
+
+/** Ist `k` die unveränderte Vorbelegung `seed`? Der Stern zählt nicht mit — wer
+ *  ihn weggeklickt hat, hat die Angaben trotzdem nicht angefasst. */
+function isUntouchedSeed(k: Kontakt, seed: Kontakt): boolean {
+  return k.name === seed.name && k.telefon === seed.telefon && k.email === seed.email
+    && k.kommentar === seed.kommentar && (k.customer_id ?? null) === (seed.customer_id ?? null)
+}
+
+/**
+ * Kontaktliste nach dem Wählen eines Kunden.
+ *
+ * - `previous` — die zuletzt von hier gesetzte Zeile — fällt weg, sofern sie
+ *   noch unverändert dasteht: nach einem Kundenwechsel hinge sonst der Kontakt
+ *   des vorher gewählten Kunden am Projekt. Von Hand bearbeitet, bleibt sie.
+ * - Geseedet wird nur in eine Liste ohne eigene Angaben. Wer schon eine Person
+ *   erfasst hat, hat seine Ansprechperson — eine zweite, automatische Zeile
+ *   wäre dort Störung statt Hilfe.
+ * - `seed = null` (Kunde entfernt oder ohne Angaben) räumt nur auf.
+ */
+export function seedKontaktFromCustomer(
+  kontakte: readonly Kontakt[],
+  seed: Kontakt | null,
+  previous: Kontakt | null,
+): Kontakt[] {
+  const rest = previous
+    ? kontakte.filter(k => !isUntouchedSeed(k, previous))
+    : [...kontakte]
+  if (!seed || rest.some(hasContent)) return rest
+  // Der Stern ist exklusiv (useProjectForm.toggleSiteContact); die verbleibenden
+  // — allesamt leeren — Zeilen geben ihn ab.
+  return [seed, ...rest.map(k => k.is_site_contact ? { ...k, is_site_contact: false } : k)]
+}

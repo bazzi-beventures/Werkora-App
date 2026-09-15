@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { sendMessageStream, sendVoice, confirmReport, cancelReport, disambiguateMaterial, chooseProject, uploadPhoto, downloadRapportPdf, deleteOwnRapport, ChatResponse, DisambiguationOption, ProjectChoiceOption, SummaryItem } from '../api/chat'
 import { ApiError, isNetworkError, isOfflineError } from '../api/client'
 import {
-  countPending, drainPhotoQueue, enqueuePhoto, recordedAtLabel,
+  countPending, drainPhotoQueue, enqueuePhoto, recordedAtLabel, serverGrund,
   EnqueueResult, MAX_PENDING_PHOTOS,
 } from '../api/photoQueue'
 import { UserInfo } from '../api/auth'
@@ -366,9 +366,12 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       appendBot([
         ...res.uploaded.map(p => `📸 Das Foto von ${recordedAtLabel(p.recordedAt)} ist jetzt hochgeladen.`),
         // Ein aufgegebenes Foto darf nicht still verschwinden — sonst wartet der
-        // Monteur auf einen Upload, den es nicht mehr gibt.
-        ...res.dropped.map(p =>
-          `📸 Das Foto von ${recordedAtLabel(p.recordedAt)} liess sich nicht hochladen. Bitte neu aufnehmen.`),
+        // Monteur auf einen Upload, den es nicht mehr gibt. Hat der Server einen
+        // Grund genannt, steht er hier statt der Aufforderung, es neu
+        // aufzunehmen: bei einem vollen Rapport wäre die schlicht falsch.
+        ...res.dropped.map(p => p.grund
+          ? `📸 Das Foto von ${recordedAtLabel(p.recordedAt)} wurde nicht übernommen: ${p.grund}`
+          : `📸 Das Foto von ${recordedAtLabel(p.recordedAt)} liess sich nicht hochladen. Bitte neu aufnehmen.`),
       ])
     })()
 
@@ -737,7 +740,15 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       // tatsächlichen Fehlschlag, nicht nur am Flag — sonst ginge genau das Foto
       // verloren, das der Monteur am Rand des Empfangs aufnimmt.
       if (isNetworkError(err)) { await queuePhoto(file); return }
-      addMessage({ role: 'bot', text: 'Fehler beim Senden. Bitte erneut versuchen.', timestamp: now() })
+      // Hat der Server einen Satz für den Monteur formuliert (etwa «der Rapport
+      // hat schon 10 Fotos»), zeigt ihn das hier. Ohne den wäre die Auskunft
+      // «Fehler beim Senden. Bitte erneut versuchen.» — ein Rat, der bei einer
+      // Obergrenze nirgendwohin führt.
+      addMessage({
+        role: 'bot',
+        text: serverGrund(err) ?? 'Fehler beim Senden. Bitte erneut versuchen.',
+        timestamp: now(),
+      })
     } finally {
       setLoading(false)
     }
