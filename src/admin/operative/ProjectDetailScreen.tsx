@@ -521,6 +521,24 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
         />
       )}
 
+      {/* Kein Projektleiter: Warnung, keine Sperre — der Zustaendige steht beim
+          Anlegen nicht immer schon fest. Abbrechen (auch Esc/Backdrop) ist der
+          sichere Weg zurueck in die Maske, «Trotzdem speichern» der bewusste. */}
+      {form.projektleiterQuestion && (
+        <ConfirmDialog
+          title="Kein Projektleiter zugewiesen"
+          message={<>
+            Diesem Projekt ist kein Projektleiter zugewiesen. Rückfragen aus der
+            Mitarbeiter-App finden dann niemanden, und das Projekt fehlt in den
+            Auswertungen je Projektleiter.
+          </>}
+          confirmLabel="Trotzdem speichern"
+          cancelLabel="Projektleiter wählen"
+          onConfirm={() => form.answerProjektleiterQuestion('save')}
+          onCancel={() => form.answerProjektleiterQuestion('cancel')}
+        />
+      )}
+
       {comments.confirmDeleteId && (
         <ConfirmDialog
           title="Kommentar löschen?"

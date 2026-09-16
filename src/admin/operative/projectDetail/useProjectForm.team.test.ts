@@ -41,6 +41,9 @@ vi.mock('../../../api/admin/projects', async (importOriginal) => {
 const PROJECT = {
   id: 'p-1',
   name: 'Gottardi Gutenswil',
+  // Gesetzt, damit die Rueckfrage «kein Projektleiter» hier nicht dazwischenfunkt —
+  // geprueft wird sie in useProjectForm.projektleiter.test.ts.
+  projektleiter_id: 's-pl',
   monteur_ids: ['s-marvin', 's-franco'],
   kontakte: [],
   art_der_arbeit: [],

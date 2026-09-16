@@ -49,6 +49,16 @@ const EXISTING: Project = {
 
 const CREATED: Project = { ...EXISTING, id: 'p-2', project_id_text: '2600002', name: 'Neubau West' }
 
+/**
+ * Speichern ohne Projektleiter fragt seit 2026-09 einmal nach — die Maske startet
+ * leer, statt still den Erfasser einzutragen. Wo der Projektleiter nicht das Thema
+ * des Tests ist, wird die Warnung hier weggeklickt.
+ */
+async function bestaetigeOhneProjektleiter(user: ReturnType<typeof userEvent.setup>) {
+  const dialog = await screen.findByRole('dialog', { name: 'Kein Projektleiter zugewiesen' })
+  await user.click(within(dialog).getByRole('button', { name: 'Trotzdem speichern' }))
+}
+
 /** Antwortet auf alle Endpunkte, die Liste und Detailmaske beim Öffnen abfragen. */
 function routeApi(rows: Project[], onPost?: (body: unknown) => unknown) {
   mockFetch.mockImplementation(async (path, options) => {
@@ -80,6 +90,7 @@ describe('ProjectsScreen — neues Projekt', () => {
     await user.click(await screen.findByRole('button', { name: /Neues Projekt/ }))
     await user.type(screen.getByLabelText('Projektname *'), 'Neubau West')
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await bestaetigeOhneProjektleiter(user)
 
     // Die Tab-Leiste gibt es nur im gespeicherten Projekt (in der Neu-Maske nicht).
     expect(await screen.findByRole('button', { name: 'Projekt Details' })).toBeInTheDocument()
@@ -96,8 +107,26 @@ describe('ProjectsScreen — neues Projekt', () => {
     await user.click(await screen.findByRole('button', { name: /Neues Projekt/ }))
     await user.type(screen.getByLabelText('Projektname *'), 'Neubau West')
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await bestaetigeOhneProjektleiter(user)
 
     expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
+  })
+
+  it('warnt vor dem Speichern ohne Projektleiter und bleibt bei «Projektleiter wählen» in der Maske', async () => {
+    const user = userEvent.setup()
+    routeApi([EXISTING])
+    render(<ProjectsScreen />)
+
+    await user.click(await screen.findByRole('button', { name: /Neues Projekt/ }))
+    await user.type(screen.getByLabelText('Projektname *'), 'Neubau West')
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Kein Projektleiter zugewiesen' })
+    await user.click(within(dialog).getByRole('button', { name: 'Projektleiter wählen' }))
+
+    // Nichts geschrieben, Eingaben stehen noch da.
+    expect(mockFetch.mock.calls.some(([, opt]) => opt?.method === 'POST')).toBe(false)
+    expect(screen.getByDisplayValue('Neubau West')).toBeInTheDocument()
   })
 })
 
@@ -150,6 +179,7 @@ describe('ProjectsScreen — ungespeicherte Änderungen', () => {
     const user = await openDetailAndEdit()
     await user.click(screen.getByRole('button', { name: '← Zurück' }))
     await user.click((await leaveDialog()).getByRole('button', { name: 'Speichern' }))
+    await bestaetigeOhneProjektleiter(user)
 
     expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
     const patch = mockFetch.mock.calls.find(([, opt]) => opt?.method === 'PATCH')

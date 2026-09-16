@@ -39,6 +39,12 @@ import {
  */
 export type TeamAnswer = 'keep' | 'apply' | 'cancel'
 
+/**
+ * Antwort auf die Rückfrage «kein Projektleiter»: 'save' speichert trotzdem,
+ * 'cancel' bricht das Speichern ab und lässt die Maske offen.
+ */
+export type ProjektleiterAnswer = 'save' | 'cancel'
+
 export interface UseProjectForm {
   name: string
   setName: (v: string) => void
@@ -89,6 +95,13 @@ export interface UseProjectForm {
    */
   teamQuestion: { count: number } | null
   answerTeamQuestion: (answer: TeamAnswer) => void
+  /**
+   * Offene Rückfrage «Kein Projektleiter zugewiesen — trotzdem speichern?».
+   * Gesetzt = der Screen zeigt den Dialog, `persist` wartet auf
+   * `answerProjektleiterQuestion`.
+   */
+  projektleiterQuestion: boolean
+  answerProjektleiterQuestion: (answer: ProjektleiterAnswer) => void
   kontakte: Kontakt[]
   addKontakt: () => void
   updateKontakt: (i: number, field: keyof Kontakt, value: string) => void
@@ -217,6 +230,18 @@ export function useProjectForm(opts: {
     setTeamQuestion(null)
     teamAnswer.current?.(answer)
     teamAnswer.current = null
+  }
+
+  // Rückfrage «kein Projektleiter» — dasselbe Promise-Tor wie oben, damit alle
+  // Aufrufer von `persist` (Speichern, Speichern-und-schliessen,
+  // Navigations-Guard) sie ohne eigenes Zutun bekommen.
+  const [projektleiterQuestion, setProjektleiterQuestion] = useState(false)
+  const projektleiterAnswer = useRef<((answer: ProjektleiterAnswer) => void) | null>(null)
+
+  function answerProjektleiterQuestion(answer: ProjektleiterAnswer) {
+    setProjektleiterQuestion(false)
+    projektleiterAnswer.current?.(answer)
+    projektleiterAnswer.current = null
   }
 
   const currentForm: ProjectFormValues = {
@@ -355,6 +380,21 @@ export function useProjectForm(opts: {
     if (!name.trim()) return fail('Projektname ist erforderlich.')
     const apptError = validateDrafts(appointments)
     if (apptError) return fail(apptError)
+
+    // Ohne Projektleiter gibt es niemanden, der Rückfragen aus der Monteur-App
+    // beantwortet, und das Projekt fehlt in jeder Auswertung je Projektleiter.
+    // Trotzdem keine Sperre: manchmal steht der Zuständige beim Anlegen noch
+    // nicht fest. Also fragen statt ablehnen — seit der Erfasser nicht mehr
+    // automatisch eingetragen wird (agents/routers/admin_projects.py), bliebe
+    // das Feld sonst still leer.
+    if (!projektleiterId) {
+      const answer = await new Promise<ProjektleiterAnswer>(resolve => {
+        projektleiterAnswer.current = resolve
+        setProjektleiterQuestion(true)
+      })
+      if (answer === 'cancel') { focusDetails(); return false }
+    }
+
     setError('')
     setSaving(true)
     try {
@@ -491,6 +531,7 @@ export function useProjectForm(opts: {
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments, loadAppointments,
     teamQuestion, answerTeamQuestion,
+    projektleiterQuestion, answerProjektleiterQuestion,
     kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
     kontakteOhneKundenstamm: kontakteOhneKundenstammNow,
     eigentuemer, updateEigentuemer, disposal, updateDisposal,
