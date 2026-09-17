@@ -21,12 +21,14 @@ import { useIsMobile } from '../admin/useIsMobile'
 import {
   IconBuilding, IconPulse, IconAlert, IconLifebuoy, IconBell, IconMail,
   IconSettings, IconCash, IconChart, IconBox, IconPercent,
+  IconReceipt, IconUpload, IconAddressBook,
 } from '../admin/AdminIcons'
 import { loadTheme, applyTheme, toggleTheme as flipTheme, type Theme } from '../theme'
 import type { TenantScope } from './useTenantScope'
 import {
   MANDANT_SCREENS,
   PLATTFORM_SCREENS,
+  RECHNUNG_SCREENS,
   type AdminSiteScreen,
 } from './useAdminSiteNav'
 
@@ -42,6 +44,12 @@ export const SCREEN_TITEL: Record<AdminSiteScreen, string> = {
   nutzung: 'Nutzung',
   material: 'Materialdatenbereinigung',
   bonus: 'Werkora Bonus',
+  rechnungen: 'Rechnungen',
+  // Die Mandanten-App nennt denselben Screen «Zahlungsabgleich»
+  // (AdminSidebar.tsx). §8.3 der Spec schrieb «Zahlungseingang»; hier gilt der
+  // Name aus dem Produkt, damit ein Screen nicht zwei Namen trägt.
+  zahlungsabgleich: 'Zahlungsabgleich',
+  kunden: 'Kundenstamm',
 }
 
 /**
@@ -68,6 +76,14 @@ const SCREEN_ICON: Record<AdminSiteScreen, () => React.ReactElement> = {
   nutzung: IconChart,
   material: IconBox,
   bonus: IconPercent,
+  // Bewusst NICHT `IconCash` wie in der Mandanten-App: dort trägt es
+  // Rechnungen und Zahlungsabgleich, hier hängt es schon an «LLM-Kosten».
+  // Dreimal dasselbe Symbol in einer Leiste hebt genau den Nutzen wieder auf,
+  // für den die Symbole überhaupt dazukamen.
+  rechnungen: IconReceipt,
+  // Der Zahlungsabgleich ist ein camt-Upload — das Symbol sagt, was man tut.
+  zahlungsabgleich: IconUpload,
+  kunden: IconAddressBook,
 }
 
 /** Steht der Build auf Staging? Derselbe Suffix, der die localStorage-Keys
@@ -83,11 +99,15 @@ interface Props {
   scope: TenantScope
   displayName: string
   onLogout: () => void
+  /** Module des ANGEMELDETEN Kontos aus `/pwa/me` — nicht die des gewählten
+   *  Mandanten. Trägt es `invoicing` + `payment_matching`, sitzt es im
+   *  Betreiber-Mandanten und der Bereich «Rechnungen» erscheint (§8.3). */
+  zeigeRechnungen: boolean
   children: ReactNode
 }
 
 export default function AdminSiteShell({
-  screen, onNav, scope, displayName, onLogout, children,
+  screen, onNav, scope, displayName, onLogout, zeigeRechnungen, children,
 }: Props) {
   const isMobile = useIsMobile()
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
@@ -142,6 +162,26 @@ export default function AdminSiteShell({
           <div className="adminsite-nav-hint">Oben einen Mandanten wählen.</div>
         )}
       </div>
+
+      {zeigeRechnungen && (
+        <div className="adminsite-nav-group">
+          <div className="adminsite-nav-heading">Rechnungen</div>
+          {RECHNUNG_SCREENS.map((s) => {
+            const Icon = SCREEN_ICON[s]
+            return (
+              <button
+                key={s}
+                type="button"
+                className={`adminsite-nav-item${screen === s ? ' is-active' : ''}`}
+                onClick={() => onNav(s)}
+              >
+                <Icon />
+                <span>{SCREEN_TITEL[s]}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       <div className="adminsite-nav-foot">
         <div className="adminsite-nav-user">{displayName}</div>

@@ -24,6 +24,11 @@ import { useIsMobile } from '../useIsMobile'
 import { isInvoiceOpen, openInvoicesHint } from '../utils/openInvoices'
 import type { AdminScreen } from '../useAdminNav'
 import { useToast, ToastHost } from '../components/useToast'
+import { isFeatureEnabled } from '../../api/modules'
+import { getMe, type UserInfo } from '../../api/auth'
+import { getAllCustomers } from '../../api/admin/customers'
+import type { Customer } from '../../api/admin/customers'
+import FreeInvoiceDialog from './FreeInvoiceDialog'
 
 interface ProjektleiterOption {
   id: string
@@ -62,6 +67,20 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [confirmPostal, setConfirmPostal] = useState<Invoice | null>(null)
   const [postalDate, setPostalDate] = useState('')
   const { toast, showToast } = useToast()
+
+  // «Rechnung ohne Projekt» (§8.2 a) — Stufe beta, Default aus. Der Knopf
+  // erscheint nur, wenn dieses Konto das Flag traegt; der Server prueft es
+  // ohnehin ein zweites Mal (403).
+  const [me, setMe] = useState<UserInfo | null>(null)
+  const [freieKunden, setFreieKunden] = useState<Customer[]>([])
+  const [freierDialog, setFreierDialog] = useState(false)
+  const freieRechnung = isFeatureEnabled(me, 'freie_rechnung')
+
+  useEffect(() => {
+    let weg = false
+    getMe().then((u) => { if (!weg) setMe(u) }).catch(() => { /* Knopf bleibt aus */ })
+    return () => { weg = true }
+  }, [])
   // Generate invoice
   const [showGenerate, setShowGenerate] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
@@ -343,9 +362,26 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           <div className="admin-page-title">Rechnungen</div>
           <div className="admin-page-subtitle">{filtered.length} Einträge · Offen: {fmtCHF(totalOpen)}</div>
         </div>
-        <button className="admin-btn admin-btn-primary" onClick={openGenerate}>
-          + Rechnung erstellen
-        </button>
+        <div className="admin-page-actions">
+          {freieRechnung && (
+            <button
+              className="admin-btn admin-btn-secondary"
+              onClick={async () => {
+                // Kunden erst beim Oeffnen holen: die Projektrechnung braucht
+                // sie nicht, und die Liste kann lang sein.
+                if (!freieKunden.length) {
+                  try { setFreieKunden(await getAllCustomers()) } catch { /* Combobox bleibt leer */ }
+                }
+                setFreierDialog(true)
+              }}
+            >
+              + Rechnung ohne Projekt
+            </button>
+          )}
+          <button className="admin-btn admin-btn-primary" onClick={openGenerate}>
+            + Rechnung erstellen
+          </button>
+        </div>
       </div>
 
       <div className="admin-table-wrap">
@@ -787,6 +823,18 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
             />
           </div>
         </ConfirmDialog>
+      )}
+
+      {freierDialog && (
+        <FreeInvoiceDialog
+          customers={freieKunden}
+          onClose={() => setFreierDialog(false)}
+          onCreated={(nr) => {
+            setFreierDialog(false)
+            showToast(`Rechnung ${nr} erstellt.`)
+            void load()
+          }}
+        />
       )}
 
       <ToastHost toast={toast} />

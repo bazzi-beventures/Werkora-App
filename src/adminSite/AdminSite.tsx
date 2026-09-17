@@ -14,7 +14,7 @@ import LoginScreen from './LoginScreen'
 import AdminSiteShell, { SCREEN_TITEL } from './AdminSiteShell'
 import ScreenBoundary from './ScreenBoundary'
 import { useTenantScope } from './useTenantScope'
-import { useAdminSiteNav, istMandantScreen } from './useAdminSiteNav'
+import { useAdminSiteNav, istMandantScreen, hatRechnungsbereich } from './useAdminSiteNav'
 
 import ServiceStatusScreen from './screens/ServiceStatusScreen'
 import PushTestScreen from './screens/PushTestScreen'
@@ -27,6 +27,14 @@ import MaterialCleanupScreen from './screens/MaterialCleanupScreen'
 import WerkoraBonusScreen from './screens/WerkoraBonusScreen'
 import TenantsOverviewScreen from './screens/TenantsOverviewScreen'
 import NewsletterScreen from './screens/NewsletterScreen'
+
+// Die drei Rechnungs-Screens werden NICHT nach adminSite/ verschoben (§8.3):
+// sie bleiben Mandanten-Screens und werden von beiden Einstiegen importiert.
+// Sie arbeiten ueber die normalen Mandanten-Routen mit der eigenen Sitzung —
+// der Betreiber-Mandant IST hier der Mandant, es gibt nichts zu skopieren.
+import InvoicesScreen from '../admin/operative/InvoicesScreen'
+import PaymentReconciliationScreen from '../admin/operative/PaymentReconciliationScreen'
+import CustomersScreen from '../admin/operative/CustomersScreen'
 
 // Die Grundmuster — Tabellen, Karten, Knoepfe, Formularfelder, Modale — stehen
 // in admin.css und werden hier gebraucht, weil die Screens von dort umgezogen
@@ -123,6 +131,13 @@ export default function AdminSite() {
       case 'nutzung':        return <UsageScreen tenantId={tenantId} enabledModules={scope.tenant?.enabled_modules ?? []} />
       case 'material':       return <MaterialCleanupScreen tenantId={tenantId} />
       case 'bonus':          return <WerkoraBonusScreen tenantId={tenantId} />
+
+      // ── Rechnungen: der EIGENE Mandant des Kontos (§8.3) ──
+      // Kein `tenantId`: diese Screens lesen den Mandanten aus der Sitzung.
+      case 'rechnungen':      return <InvoicesScreen />
+      case 'zahlungsabgleich': return <PaymentReconciliationScreen />
+      case 'kunden':          return <CustomersScreen />
+
       default:               return null
     }
   }
@@ -134,6 +149,7 @@ export default function AdminSite() {
       scope={scope}
       displayName={user.display_name}
       onLogout={abmelden}
+      zeigeRechnungen={hatRechnungsbereich(user.enabled_modules)}
     >
       {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
           Navigation und Mandanten-Wähler stehen, statt dass die ganze Seite

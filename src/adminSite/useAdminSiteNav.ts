@@ -32,14 +32,53 @@ export const MANDANT_SCREENS = [
   'bonus',
 ] as const
 
+/**
+ * Der dritte Bereich (§8.3) — und er gehorcht weder dem Wähler noch der
+ * Plattform.
+ *
+ * Diese drei Screens arbeiten auf dem **eigenen** Mandanten des angemeldeten
+ * Kontos, dem Betreiber-Mandanten `werkora` (E9): dort liegen die Rechnungen
+ * an die Mandanten, deren Zahlungseingänge und die Kunden. Sie laufen deshalb
+ * über die **normalen** Mandanten-Routen mit der eigenen Sitzung, nicht über
+ * `/pwa/superadmin/tenants/{id}/…` — es gibt hier nichts zu skopieren.
+ *
+ * Wer oben einen anderen Mandanten wählt, ändert daran nichts. Das ist kein
+ * Versehen: «Rechnungen» heisst hier *unsere* Rechnungen, nicht «die
+ * Rechnungen von Gehlhaar». Die sieht man im Admin von Gehlhaar.
+ */
+export const RECHNUNG_SCREENS = [
+  'rechnungen',
+  'zahlungsabgleich',
+  'kunden',
+] as const
+
 export type PlattformScreen = (typeof PLATTFORM_SCREENS)[number]
 export type MandantScreen = (typeof MANDANT_SCREENS)[number]
-export type AdminSiteScreen = PlattformScreen | MandantScreen
+export type RechnungScreen = (typeof RECHNUNG_SCREENS)[number]
+export type AdminSiteScreen = PlattformScreen | MandantScreen | RechnungScreen
 
-const ALLE: readonly string[] = [...PLATTFORM_SCREENS, ...MANDANT_SCREENS]
+const ALLE: readonly string[] = [
+  ...PLATTFORM_SCREENS, ...MANDANT_SCREENS, ...RECHNUNG_SCREENS,
+]
 
 export const istMandantScreen = (s: string): s is MandantScreen =>
   (MANDANT_SCREENS as readonly string[]).includes(s)
+
+export const istRechnungScreen = (s: string): s is RechnungScreen =>
+  (RECHNUNG_SCREENS as readonly string[]).includes(s)
+
+/**
+ * Die Module, die den Bereich «Rechnungen» tragen (§8.3).
+ *
+ * Gelesen wird `/pwa/me` des angemeldeten Kontos — nicht der Mandant im
+ * Wähler. Ein Superadmin, der (Übergangszeit, §8.6) noch in einem
+ * Kundenmandanten sitzt, sieht den Bereich also nicht, und das ist richtig:
+ * er hätte dort die Rechnungen dieses Kunden vor sich.
+ */
+export const RECHNUNG_MODULE = ['invoicing', 'payment_matching'] as const
+
+export const hatRechnungsbereich = (enabledModules: readonly string[]): boolean =>
+  RECHNUNG_MODULE.every((m) => enabledModules.includes(m))
 
 export interface AdminSiteNav {
   route: AdminRoute

@@ -76,6 +76,45 @@ export async function generateInvoice(input: GenerateInvoiceInput): Promise<Gene
  * zusammengesetzt). Nicht blockierend gedacht: schlägt der Aufruf fehl, entsteht
  * die Rechnung ohne den Block.
  */
+/** Eine Position der freien Rechnung. Spiegelt `FreePosition` aus
+ *  services/free_invoice.py — dieselben vier Felder, dieselben Namen. */
+export interface FreePosition {
+  text: string
+  menge: number
+  einheit: string
+  einzelpreis: number
+}
+
+export interface GenerateFreeInvoiceInput {
+  customer_id: string
+  positions: FreePosition[]
+  payment_terms_days: number
+  remark?: string
+}
+
+/**
+ * Rechnung ohne Projekt und ohne Rapport (§8.2 a).
+ *
+ * Läuft im Backend durch **dieselbe Kette** wie jede andere Rechnung — Nummer
+ * aus dem RPC, SCOR-Referenz, PDF, Bucket, `save_invoice_record`; nur die
+ * Datengrundlage sind Positionen statt Rapporten. Deshalb liefert sie auch
+ * dasselbe Ergebnis zurück.
+ *
+ * Hinter `require_feature("freie_rechnung")`: ohne Flag antwortet der Server
+ * 403, und das ist gewollt — der Rapport-Zwang der Projektrechnung soll nicht
+ * als Nebenwirkung wegfallen.
+ */
+export async function generateFreeInvoice(
+  input: GenerateFreeInvoiceInput,
+): Promise<GenerateInvoiceResult> {
+  const result = await apiFetch<GenerateInvoiceResult>('/pwa/admin/invoices/generate-free', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+  requestEasterEggCheck()
+  return result
+}
+
 export async function getInvoiceWorkDescription(projectName: string, projectId: string): Promise<string> {
   const res = await apiFetch<{ work_description: string }>(
     `/pwa/admin/invoices/work-description?project_name=${encodeURIComponent(projectName)}`

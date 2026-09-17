@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# Zweites Build-Ziel (VITE_APP_TARGET=admin, npm run build:admin).
+# `dist/` deckt es NICHT ab — der Name ist ein anderer, und die Ausgabe
+# ist schon einmal versehentlich im Repo gelandet.
+dist-admin/
 # Vitest-Coverage: Standardlauf schreibt nach coverage/, Läufe mit abweichendem
 # reportsDirectory (z. B. coverage-all/) sollen genauso wenig im Repo landen.
 coverage*

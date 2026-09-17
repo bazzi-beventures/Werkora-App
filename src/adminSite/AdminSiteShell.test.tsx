@@ -32,7 +32,11 @@ function scopeMit(tenantId: string | null): TenantScope {
   }
 }
 
-function zeige(tenantId: string | null, scope = scopeMit(tenantId)) {
+function zeige(
+  tenantId: string | null,
+  scope = scopeMit(tenantId),
+  zeigeRechnungen = false,
+) {
   return render(
     <AdminSiteShell
       screen="uebersicht"
@@ -40,6 +44,7 @@ function zeige(tenantId: string | null, scope = scopeMit(tenantId)) {
       scope={scope}
       displayName="Luca"
       onLogout={vi.fn()}
+      zeigeRechnungen={zeigeRechnungen}
     >
       <div>inhalt</div>
     </AdminSiteShell>,
@@ -87,6 +92,23 @@ describe('AdminSiteShell', () => {
   it('meldet einen Fehler der Mandantenliste, statt ihn zu verschlucken', () => {
     zeige(null, { ...scopeMit(null), error: 'Netzwerkfehler' })
     expect(screen.getByText(/Netzwerkfehler/)).toBeTruthy()
+  })
+
+  it('zeigt den Rechnungs-Bereich NICHT, solange das Konto die Module nicht hat', () => {
+    // Ein Superadmin in einem Kundenmandanten (Übergangszeit, §8.6) haette
+    // dort die Rechnungen dieses Kunden vor sich — der Bereich bleibt weg.
+    zeige('t-1')
+    expect(screen.queryByRole('button', { name: 'Rechnungen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Kundenstamm' })).toBeNull()
+  })
+
+  it('zeigt ihn im Betreiber-Mandanten, unabhängig vom gewählten Mandanten', () => {
+    // Ohne Mandant im Wähler: der Bereich haengt am eigenen Konto, nicht an
+    // der Auswahl oben (§8.3).
+    zeige(null, scopeMit(null), true)
+    for (const titel of ['Rechnungen', 'Zahlungsabgleich', 'Kundenstamm']) {
+      expect(screen.getByRole('button', { name: titel })).toBeTruthy()
+    }
   })
 
   it('reicht den Inhalt durch', () => {
