@@ -361,10 +361,15 @@
   background: var(--border);
 }
 
+/* Schrift auf der Akzentflaeche: --on-accent, nicht fest #fff. Die Akzentfarbe
+   kommt je Mandant (und auf der Betreiber-Seite von der Marke) aus
+   brand/palette.ts und ist im dunklen Theme der HELLE Ton — weisse Schrift
+   darauf faellt unter 3:1. `--on-accent` wird dort zusammen mit `--primary`
+   gesetzt und traegt Weiss oder Tinte, je nachdem was auf der Flaeche besteht. */
 .kpi-date-btn.active {
   background: var(--primary);
   border-color: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-weight: 600;
 }
 
@@ -469,7 +474,7 @@
 
 .kpi-dropdown-badge {
   background: var(--primary);
-  color: #fff;
+  color: var(--on-accent, #fff);
   font-size: 10px;
   font-weight: 700;
   padding: 1px 5px;

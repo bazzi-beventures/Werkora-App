@@ -29,6 +29,7 @@ export function ProjectTabContent({
   beschaffungSteps, beschaffung, beschaffungAt, beschaffungSource,
   savingBeschaffung, onBeschaffungChange,
   quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
+  verlaufEnabled,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
   currentUserId,
   onShowQuoteForm, onShowReportForm, onAddNextEinsatz, onEditReport, onEditQuote,
@@ -56,6 +57,8 @@ export function ProjectTabContent({
   teilrapportEnabled: boolean
   /** Modul «kpis» + Management-Rolle — siehe useProjectFeatures.nachkalkulation. */
   nachkalkulationEnabled: boolean
+  /** Feature «projekt_verlauf» (Beta): Abschnitt «Verlauf» im Reiter «Status». */
+  verlaufEnabled?: boolean
   useAcceptedQuote: boolean
   onUseAcceptedQuoteChange: (v: boolean) => void
   defaultInvoiceEmail: string
@@ -211,6 +214,8 @@ export function ProjectTabContent({
           tab-unabhaengig in der rechten Seitenleiste. */}
       {tab === 'status' && (
         <StatusTab
+          projectId={project.id}
+          verlaufEnabled={verlaufEnabled}
           status={status}
           settingStatus={settingStatus}
           reopening={reopening}

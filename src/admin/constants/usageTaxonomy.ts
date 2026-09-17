@@ -145,6 +145,10 @@ const ACTION_LABELS: Record<string, string> = {
 
   // ── Rechnungen ──
   admin_generate_invoice: 'Rechnung erzeugt',
+  // Rechnung ohne Projekt und ohne Rapport (docs/specs/admin-werkora-ch.md §8.2 a).
+  // Eigener Eintrag statt derselbe Text: im Nutzungs-Dashboard soll sichtbar
+  // bleiben, wie oft der Rapport-Zwang umgangen wurde.
+  admin_generate_free_invoice: 'Rechnung ohne Projekt erzeugt',
   admin_send_invoice: 'Rechnung versendet',
   admin_mark_invoice_sent: 'Rechnung als versendet markiert',
   admin_mark_invoice_paid: 'Rechnung als bezahlt markiert',
@@ -197,6 +201,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_set_project_status: 'Projekt-Status gesetzt',
   admin_close_project: 'Projekt geschlossen',
   admin_reopen_project: 'Projekt wiedereröffnet',
+  admin_delete_project_file: 'Projektdatei entfernt',
   admin_create_project_approval: 'Visierung angefordert',
   admin_approve_project_approval: 'Visierung erteilt',
   admin_reject_project_approval: 'Visierung abgelehnt',

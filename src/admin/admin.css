@@ -42,7 +42,10 @@
   flex-direction: column;
   background: var(--surface);
   border-right: 1px solid var(--border);
-  overflow-y: auto;
+  /* Scrollen tut die Navigation, nicht die ganze Spalte: sonst schiebt eine
+     wachsende Fusszeile (Beta-Abschnitt, Konto, powered-by) die Eintraege aus
+     dem Bild, und man muss erst scrollen, um ueberhaupt zu navigieren. */
+  overflow: hidden;
   height: 100vh;
 }
 
@@ -138,6 +141,8 @@
 
 .admin-nav {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: var(--s-3) var(--s-2);
   display: flex;
   flex-direction: column;
@@ -213,6 +218,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Deckel gegen den Fall, den der Beta-Abschnitt vorgefuehrt hat: waechst die
+     Fusszeile ueber die halbe Spalte, scrollt sie in sich, statt die
+     Navigation zu verdraengen. */
+  flex-shrink: 0;
+  max-height: 45vh;
+  overflow-y: auto;
 }
 
 .admin-powered-by {
@@ -1067,6 +1078,22 @@ button.admin-list-item {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25), var(--shadow-hover);
 }
 
+/* Fehlermeldung an der Stelle, an der sonst der Inhalt staende (KPI-Reiter,
+   Projekt-Entwuerfe, Nachkalkulation, die Screens der Betreiber-Seite). Sie war
+   bis 2026-09-16 UNDEFINIERT — 20 Fundstellen im Code, keine Regel im CSS, also
+   erschien jede Fehlermeldung als nackter Flowtext in Vordergrundfarbe. Aufbau
+   wie .admin-empty, nur in --danger: beides steht anstelle des Inhalts, und wer
+   den einen Zustand kennt, erkennt den anderen wieder. */
+.admin-error {
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+  color: var(--danger);
+  font-size: var(--font-sm);
+  background: var(--surface);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-lg);
+}
+
 .admin-empty {
   padding: var(--s-6) var(--s-4);
   text-align: center;
@@ -1172,6 +1199,20 @@ button.admin-list-item {
   .admin-user-info,
   .admin-powered-by {
     display: none;
+  }
+
+  /* 56 px sind keine Lesespalte: der Beta-Abschnitt schrumpft auf das Badge —
+     «du testest» bleibt sichtbar (Pflicht-Sichtbarkeit, beta-tester.md §6.2),
+     das «was» steht eine Breite weiter oder im Profil. */
+  .admin-sidebar-footer .beta-section {
+    padding: 8px 4px;
+  }
+  .admin-sidebar-footer .beta-section-entries,
+  .admin-sidebar-footer .beta-section-head span {
+    display: none;
+  }
+  .admin-sidebar-footer .beta-section-head {
+    justify-content: center;
   }
 
   .admin-nav-item {
@@ -1681,14 +1722,24 @@ button.admin-list-item {
   margin-bottom: 16px;
   border: 1px solid;
 }
-.svc-banner-ok    { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
-.svc-banner-warn  { background: #fffbeb; border-color: #fde68a; color: #92400e; }
-.svc-banner-bad   { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+/* Statusfarben aus den Tokens statt als feste Hexwerte: die alten Werte waren
+   drei helle Pastellflaechen, die im dunklen Theme als weisse Bloecke auf dem
+   dunklen Grund standen. --*-soft/--*-ink gibt es je Theme und sie sind gegen
+   die eigene Flaeche kontrastgeprueft (tokens.css). */
+.svc-banner-ok    { background: var(--success-soft); border-color: transparent; color: var(--success-ink); }
+.svc-banner-warn  { background: var(--warning-soft); border-color: transparent; color: var(--warning-ink); }
+.svc-banner-bad   { background: var(--danger-soft);  border-color: transparent; color: var(--danger-ink); }
+/* Der Kreis traegt die Statusfarbe als FLAECHE und das Zeichen darauf in der
+   Grundflaeche. `background: currentColor` konnte das nie leisten: `color` ist
+   auf demselben Element gesetzt, `currentColor` loest daher gegen genau diesen
+   Wert auf — Kreis und Zeichen bekamen dieselbe Farbe und der Haken war
+   unsichtbar (hell: weiss auf weiss, dunkel: dunkel auf dunkel). Die Flaeche
+   kommt deshalb je Variante von aussen. */
 .svc-banner-icon {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: currentColor;
+  background: var(--text-muted);
   color: var(--surface);
   display: flex;
   align-items: center;
@@ -1697,6 +1748,9 @@ button.admin-list-item {
   font-weight: 700;
   flex-shrink: 0;
 }
+.svc-banner-ok   .svc-banner-icon { background: var(--success); }
+.svc-banner-warn .svc-banner-icon { background: var(--warning); }
+.svc-banner-bad  .svc-banner-icon { background: var(--danger); }
 .svc-banner-title {
   font-weight: 600;
   font-size: 14px;
@@ -1708,26 +1762,20 @@ button.admin-list-item {
   margin-top: 1px;
 }
 
-/* Refresh button with icon */
-.svc-refresh {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  color: var(--text);
-  transition: background 0.15s, border-color 0.15s;
-}
-.svc-refresh:hover:not(:disabled) { background: var(--surface-2); border-color: var(--text-muted); }
-.svc-refresh:disabled { opacity: 0.6; cursor: not-allowed; }
-.svc-refresh-icon { font-size: 14px; line-height: 1; }
-.svc-refresh[data-loading="true"] .svc-refresh-icon { animation: svc-spin 0.9s linear infinite; }
-@keyframes svc-spin { to { transform: rotate(360deg); } }
+/* Das Drehsymbol im Aktualisieren-Knopf.
+
+   Frueher stand hier `.svc-refresh` — ein eigener Knopf mit eigenem Rahmen,
+   eigener Groesse und eigenem Gewicht, nur fuer Service-Status und Push-Test.
+   Neben den `.admin-btn`-Knoepfen der uebrigen Werkzeuge ergab das in
+   derselben Kopfzeile zwei Knopfformen. Geblieben ist allein das Symbol; den
+   Knopf macht `.admin-btn admin-btn-secondary` wie ueberall sonst.
+
+   Die Drehung haengt an `data-loading` des Knopfes und nicht an einer eigenen
+   Klasse des Symbols — so bleibt im TSX ein Attribut, das auch `disabled`
+   schon steuert. */
+.admin-btn-spin-icon { font-size: 14px; line-height: 1; }
+.admin-btn[data-loading="true"] .admin-btn-spin-icon { animation: admin-spin 0.9s linear infinite; }
+@keyframes admin-spin { to { transform: rotate(360deg); } }
 
 /* ─── Absence Calendar ─────────────────────────────────────── */
 .absence-cal-toolbar {
@@ -4334,16 +4382,67 @@ button.admin-list-item {
   background: var(--success-soft);
 }
 
-/* ─── Wochenplan-Tabelle (Admin-Tools → Konfiguration) ────── */
+/* ─── Wochenplan-Tabelle (Konfiguration) ──────────────────────────────────
+   52 Zeilen mit je einem Zahlenfeld, einem Notizfeld und einem Knopf: der
+   Bildschirm entscheidet sich hier an der Zeilenhoehe. Vorher trug jede Zeile
+   zusaetzlich eine zweite Textzeile («= 40h») und ein Notizfeld ueber die volle
+   Restbreite — ein Jahr war damit gut sechs Bildschirme lang, und die drei
+   Wochen, um die es ging, lagen irgendwo darin. */
 
-.weekly-plan-hours {
-  width: 130px;
+.weekly-plan-toolbar {
+  padding: var(--s-4);
+  margin-bottom: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
 }
 
-.weekly-plan-effective {
-  margin-left: 8px;
-  font-size: 11px;
-  color: var(--muted, var(--text-muted));
+.weekly-plan-toolbar-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+/* Die Knoepfe nach rechts, aber als Paar beieinander. */
+.weekly-plan-toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.weekly-plan-year { width: 110px; }
+
+.weekly-plan-table td {
+  padding-top: var(--s-2);
+  padding-bottom: var(--s-2);
+}
+
+.weekly-plan-col-kw    { width: 90px; }
+.weekly-plan-col-hours { width: 140px; }
+/* Die Notizspalte bekommt eine feste Breite und die letzte den Rest — sonst
+   dehnt sich die Notizspalte ueber alles Freie, und «Zuruecksetzen» stand einen
+   halben Bildschirm neben dem Feld, zu dem es gehoert. */
+.weekly-plan-col-note  { width: 440px; }
+.weekly-plan-col-reset { text-align: left; }
+
+.weekly-plan-kw {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.weekly-plan-hours { width: 110px; }
+
+/* Eine Notiz ist «Betriebsferien», nicht ein Absatz: ueber vier Zentimeter
+   hinaus gewinnt das Feld nichts und nimmt der Zeile die Ruhe. */
+.weekly-plan-note { max-width: 420px; }
+
+/* Die Kante steht auf dem ERSTEN Feld statt auf der Zeile: `border-collapse`
+   verschluckt einen Rahmen auf <tr>. */
+.weekly-plan-row--abweichend .weekly-plan-kw {
+  box-shadow: inset 3px 0 0 var(--primary);
+  color: var(--text-strong);
 }
 
 /* ── Auftragskarte der Einsatzplanung ───────────────────────────────────────

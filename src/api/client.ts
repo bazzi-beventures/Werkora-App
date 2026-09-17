@@ -220,6 +220,34 @@ export async function apiBlobFetch(
 }
 
 /**
+ * Wie `apiFetch`, nur dass die Antwort **Text** ist und kein JSON.
+ *
+ * Gibt es für genau einen Fall: HTML, das anschliessend in einem `<iframe
+ * srcdoc>` landet (Newsletter-Vorschau). Warum nicht einfach die URL in
+ * `<iframe src>`? Weil das Backend auf jeder Antwort `X-Frame-Options: DENY`
+ * setzt — der Browser weigert sich dann, das Dokument im Rahmen anzuzeigen,
+ * und übrig bleibt eine graue Fläche. Die Kopfzeile lockern hiesse, den
+ * Clickjacking-Schutz der ganzen API für eine Vorschau aufzuweichen; sie über
+ * den Client zu holen kostet nichts und lässt ihn, wo er ist.
+ */
+export async function apiTextFetch(path: string): Promise<string> {
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include' })
+    if (!res.ok) {
+      const { text, code } = await parseErrorDetail(res)
+      if (handleExpiredSession(res.status, text, path)) {
+        throw new ApiError(res.status, 'Sitzung abgelaufen')
+      }
+      throw new ApiError(res.status, text, code)
+    }
+    return await res.text()
+  } catch (e) {
+    if (e instanceof ApiError) throw e
+    throw new ApiError(0, 'Keine Internetverbindung')
+  }
+}
+
+/**
  * SSE-Streaming-Fetch. Öffnet einen POST-Request gegen `path`, parst SSE-Events
  * (`data: <json>\n\n`) und yieldet das geparste Objekt pro Event.
  *

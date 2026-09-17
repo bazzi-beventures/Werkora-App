@@ -64,40 +64,52 @@ export function WeeklyPlanTab() {
   }
 
   const weeksInYear = isoWeeksInYear(year)
+  // Ein Eintrag IST die Abweichung — fehlt er, gilt die Mandanten-Vorgabe.
+  const abweichend = entries?.size ?? 0
 
   return (
     <>
-      <div className="admin-table-wrap" style={{ padding: 16, marginBottom: 16 }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      {/* Der erklärende Satz stand früher zwischen Jahr-Feld und Knöpfen und
+          drückte beide an den Rand, während er selbst zweizeilig umbrach. Er
+          gehört unter die Bedienzeile: dort hat er die ganze Breite, und die
+          Bedienelemente stehen beieinander. */}
+      <div className="admin-table-wrap weekly-plan-toolbar">
+        <div className="weekly-plan-toolbar-row">
           <div className="admin-form-group">
             <label className="admin-form-label">Jahr</label>
             <input
               type="number"
-              className="admin-form-input"
+              className="admin-form-input weekly-plan-year"
               value={year}
               min={2020}
               max={2100}
               onChange={e => setYear(parseInt(e.target.value) || currentYear)}
-              style={{ width: 120 }}
             />
           </div>
-          <div style={{ flex: 1, minWidth: 200, fontSize: 13, color: 'var(--muted)' }}>
-            Standard (Tenant): <strong>{defaultHours} h/Woche</strong>. Einträge überschreiben den Standard für einzelne Kalenderwochen (z. B. Ferienwochen, Feiertagswochen).
+          <div className="weekly-plan-toolbar-actions">
+            <button
+              className="admin-btn admin-btn-secondary"
+              onClick={() => fillAll(defaultHours)}
+              disabled={loading || saving}
+            >
+              Alle KW mit {defaultHours}h füllen
+            </button>
+            <button
+              className="admin-btn admin-btn-primary"
+              onClick={persist}
+              disabled={!dirty || saving || loading}
+            >
+              {saving ? 'Speichern…' : 'Speichern'}
+            </button>
           </div>
-          <button
-            className="admin-btn admin-btn-secondary"
-            onClick={() => fillAll(defaultHours)}
-            disabled={loading || saving}
-          >
-            Alle KW mit {defaultHours}h füllen
-          </button>
-          <button
-            className="admin-btn admin-btn-primary"
-            onClick={persist}
-            disabled={!dirty || saving || loading}
-          >
-            {saving ? 'Speichern…' : 'Speichern'}
-          </button>
+        </div>
+        <div className="admin-form-hint">
+          Standard (Mandant): <strong>{defaultHours} h/Woche</strong>. Ein leeres Feld
+          folgt dem Standard, ein eingetragenes überschreibt ihn — für Ferien- und
+          Feiertagswochen.
+          {!loading && entries && (
+            <> Aktuell weichen <strong>{abweichend}</strong> von {weeksInYear} Wochen ab.</>
+          )}
         </div>
       </div>
 
@@ -108,10 +120,10 @@ export function WeeklyPlanTab() {
           <table className="admin-table weekly-plan-table">
             <thead>
               <tr>
-                <th style={{ width: 80 }}>KW</th>
-                <th style={{ width: 160 }}>Soll-Stunden</th>
-                <th>Notiz (optional)</th>
-                <th style={{ width: 80 }}></th>
+                <th className="weekly-plan-col-kw">KW</th>
+                <th className="weekly-plan-col-hours">Soll-Stunden</th>
+                <th className="weekly-plan-col-note">Notiz (optional)</th>
+                <th className="weekly-plan-col-reset"></th>
               </tr>
             </thead>
             <tbody>
@@ -119,8 +131,11 @@ export function WeeklyPlanTab() {
                 const entry = entries.get(w)
                 const effective = entry?.target_hours ?? defaultHours
                 return (
-                  <tr key={w}>
-                    <td style={{ fontWeight: 600 }}>KW {w.toString().padStart(2, '0')}</td>
+                  // Die abweichenden Wochen sind die interessanten — sie tragen
+                  // die Akzentkante. Ohne sie sehen 52 Zeilen gleich aus, und man
+                  // sucht die drei Ferienwochen mit dem Finger am Bildschirm.
+                  <tr key={w} className={entry ? 'weekly-plan-row--abweichend' : undefined}>
+                    <td className="weekly-plan-kw">KW {w.toString().padStart(2, '0')}</td>
                     <td>
                       <input
                         type="number"
@@ -129,22 +144,28 @@ export function WeeklyPlanTab() {
                         max="80"
                         className="admin-form-input weekly-plan-hours"
                         value={entry?.target_hours ?? ''}
-                        placeholder={`${defaultHours} (Standard)`}
+                        // Nur die Zahl als Platzhalter: «40 (Standard)» wurde von
+                        // der Spinner-Taste des Zahlenfelds abgeschnitten, und was
+                        // sie bedeutet, sagt der Hinweis über der Tabelle.
+                        placeholder={String(defaultHours)}
+                        title={`Leer = Standard (${effective}h)`}
                         onChange={e => {
                           const v = e.target.value
                           if (v === '') { clearWeek(w); return }
                           setWeek(w, parseFloat(v), entry?.note ?? '')
                         }}
-                        style={{ color: entry ? undefined : 'var(--muted)' }}
                       />
-                      <span className="weekly-plan-effective">= {effective}h</span>
                     </td>
                     <td>
                       <input
                         type="text"
-                        className="admin-form-input"
+                        className="admin-form-input weekly-plan-note"
                         value={entry?.note ?? ''}
-                        placeholder="z. B. Betriebsferien"
+                        // Der Beispieltext nur dort, wo eine Notiz etwas zu
+                        // erklaeren hat: auf 53 Standardwochen wiederholt, las
+                        // sich «z. B. Betriebsferien» wie Inhalt und uebertoente
+                        // die drei Wochen, die wirklich eine Notiz tragen.
+                        placeholder={entry ? 'z. B. Betriebsferien' : ''}
                         maxLength={100}
                         onChange={e => {
                           const v = e.target.value
@@ -153,11 +174,10 @@ export function WeeklyPlanTab() {
                         }}
                       />
                     </td>
-                    <td>
+                    <td className="weekly-plan-col-reset">
                       {entry && (
                         <button
-                          className="admin-btn admin-btn-secondary"
-                          style={{ fontSize: 11, padding: '3px 8px' }}
+                          className="admin-btn admin-btn-secondary admin-btn-sm"
                           onClick={() => clearWeek(w)}
                         >
                           Zurücksetzen

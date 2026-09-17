@@ -6,16 +6,16 @@ import AdminToolsScreen from './AdminToolsScreen'
 // Die zehn Werkzeuge sind hier nur Platzhalter: geprüft wird die Navigation,
 // nicht was die einzelnen Screens laden (die ziehen sonst je eigene API-Aufrufe
 // in den Test).
-vi.mock('../configuration/ConfigurationScreen', () => ({ default: () => <div>konfiguration-inhalt</div> }))
-vi.mock('./ServiceStatusScreen', () => ({ default: () => <div>service-inhalt</div> }))
-vi.mock('./PushTestScreen', () => ({ default: () => <div>push-inhalt</div> }))
-vi.mock('../llm/LlmCostsScreen', () => ({ default: () => <div>llm-inhalt</div> }))
-vi.mock('../usage/UsageScreen', () => ({ default: () => <div>nutzung-inhalt</div> }))
-vi.mock('./MaterialCleanupScreen', () => ({ default: () => <div>material-inhalt</div> }))
+vi.mock('../../adminSite/screens/ConfigurationScreen', () => ({ default: () => <div>konfiguration-inhalt</div> }))
+vi.mock('../../adminSite/screens/ServiceStatusScreen', () => ({ default: () => <div>service-inhalt</div> }))
+vi.mock('../../adminSite/screens/PushTestScreen', () => ({ default: () => <div>push-inhalt</div> }))
+vi.mock('../../adminSite/screens/LlmCostsScreen', () => ({ default: () => <div>llm-inhalt</div> }))
+vi.mock('../../adminSite/screens/UsageScreen', () => ({ default: () => <div>nutzung-inhalt</div> }))
+vi.mock('../../adminSite/screens/MaterialCleanupScreen', () => ({ default: () => <div>material-inhalt</div> }))
 vi.mock('./UnitsPanel', () => ({ default: () => <div>einheiten-inhalt</div> }))
-vi.mock('./ErrorLogsScreen', () => ({ default: () => <div>errorlogs-inhalt</div> }))
-vi.mock('./SupportTicketsScreen', () => ({ default: () => <div>support-inhalt</div> }))
-vi.mock('./WerkoraBonusScreen', () => ({ default: () => <div>bonus-inhalt</div> }))
+vi.mock('../../adminSite/screens/ErrorLogsScreen', () => ({ default: () => <div>errorlogs-inhalt</div> }))
+vi.mock('../../adminSite/screens/SupportTicketsScreen', () => ({ default: () => <div>support-inhalt</div> }))
+vi.mock('../../adminSite/screens/WerkoraBonusScreen', () => ({ default: () => <div>bonus-inhalt</div> }))
 
 const TOOL_COUNT = 10
 

@@ -264,6 +264,10 @@
 .admin-mobile-drawer-scroll {
   overflow-y: auto;
   flex: 1;
+  /* Die Liste behaelt Platz, egal wie lang die Fusszeile wird. Ohne das
+     Minimum schrumpfte sie bei zwei Beta-Features auf null, und das Sheet
+     zeigte nur noch den Beta-Abschnitt — Admin-Tools waren unerreichbar. */
+  min-height: 25dvh;
 }
 
 .admin-mobile-drawer-group {
@@ -334,7 +338,10 @@
 
 .admin-mobile-drawer-footer {
   padding: 4px 12px 8px;
-  flex-shrink: 0;
+  /* Gegenstueck zum Minimum oben: die Fusszeile scrollt in sich, statt das
+     Sheet zu fuellen. */
+  max-height: 40dvh;
+  overflow-y: auto;
 }
 
 .admin-mobile-switch-btn {
@@ -701,9 +708,10 @@
     flex: 1 1 auto;
     min-width: 0;
   }
-  .weekly-plan-effective {
-    margin-left: 0;
-    flex-shrink: 0;
+  /* Am Handy nimmt die Notiz die ganze Zeile — der Deckel von 420px gilt nur
+     dort, wo daneben noch etwas steht. */
+  .weekly-plan-note {
+    max-width: none;
   }
 
   /* ─── Touch-Targets ──────────────────────────────────── */

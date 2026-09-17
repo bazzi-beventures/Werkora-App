@@ -1,15 +1,22 @@
 import { useState } from 'react'
 import { useIsMobile } from '../useIsMobile'
-import ConfigurationScreen from '../configuration/ConfigurationScreen'
-import ServiceStatusScreen from './ServiceStatusScreen'
-import PushTestScreen from './PushTestScreen'
-import LlmCostsScreen from '../llm/LlmCostsScreen'
-import UsageScreen from '../usage/UsageScreen'
-import MaterialCleanupScreen from './MaterialCleanupScreen'
+// Die Werkzeuge liegen seit P2 in `src/adminSite/screens/` — sie gehören zur
+// Betreiber-Seite admin.werkora.ch (docs/specs/admin-werkora-ch.md §6.4).
+// Bis zum Rückbau (P4) hängen sie zusätzlich hier: die Mandanten-App muss
+// unverändert funktionieren, solange es die Admin-Seite noch nicht gibt.
+// Ohne `tenantId`-Prop arbeiten sie auf dem eigenen Mandanten und auf den
+// alten Routen — genau wie bisher (siehe adminSite/tenantScopedApi.ts).
+// **P4 löscht diese Datei samt Test**; damit verschwinden auch diese Importe.
+import ConfigurationScreen from '../../adminSite/screens/ConfigurationScreen'
+import ServiceStatusScreen from '../../adminSite/screens/ServiceStatusScreen'
+import PushTestScreen from '../../adminSite/screens/PushTestScreen'
+import LlmCostsScreen from '../../adminSite/screens/LlmCostsScreen'
+import UsageScreen from '../../adminSite/screens/UsageScreen'
+import MaterialCleanupScreen from '../../adminSite/screens/MaterialCleanupScreen'
 import UnitsPanel from './UnitsPanel'
-import ErrorLogsScreen from './ErrorLogsScreen'
-import SupportTicketsScreen from './SupportTicketsScreen'
-import WerkoraBonusScreen from './WerkoraBonusScreen'
+import ErrorLogsScreen from '../../adminSite/screens/ErrorLogsScreen'
+import SupportTicketsScreen from '../../adminSite/screens/SupportTicketsScreen'
+import WerkoraBonusScreen from '../../adminSite/screens/WerkoraBonusScreen'
 
 // Admin-Tools bündelt den ganzen Werkzeugkasten unter einem Sidebar-Eintrag.
 // Alle Tools sind superadmin-only — der Zugriff wird vom Sidebar-Eintrag bzw.

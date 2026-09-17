@@ -2604,3 +2604,12 @@ input, textarea { font-family: var(--font); color: var(--text); }
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ─── Beta-Abschnitt (shared/BetaSection.tsx) ─────────────── */
+
+/* Die Eintraege sollen in der Spalte der Section liegen, nicht in einer eigenen:
+   der Wrapper existiert nur, damit die schmale Symbol-Sidebar sie in einem Zug
+   ausblenden kann (admin.css, <=1024px). */
+.beta-section-entries {
+  display: contents;
+}

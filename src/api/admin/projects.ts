@@ -436,3 +436,33 @@ export async function listProjectInvoices<T>(projectId: string): Promise<T[]> {
 export async function listProjectReports<T>(projectId: string): Promise<T[]> {
   return apiFetch<T[]>(`/pwa/admin/projects/${projectId}/reports`)
 }
+
+// ─── Verlauf (Reiter «Status», Feature `projekt_verlauf`) ───────────────
+// Die Chronik des Projekts. Der Server liefert fertige Sätze in Deutsch —
+// das Frontend gruppiert und filtert sie nur, es formuliert nichts nach.
+// Spec: docs/specs/projekt-verlauf.md
+
+/** Gruppe eines Ereignisses — zugleich die Filter-Chips über der Liste. */
+export type ProjectHistoryGroup =
+  'projekt' | 'termin' | 'offerte' | 'rapport' | 'rechnung' | 'dokument' | 'aufgabe'
+
+export interface ProjectHistoryEvent {
+  /** ISO-Zeitstempel (UTC) — formatiert wird erst beim Rendern. */
+  at: string
+  gruppe: ProjectHistoryGroup
+  text: string
+  /** `null`, wo die Quelle keine Person kennt (Altbestand, Spalte ohne Audit). */
+  akteur: string | null
+  /** `system` heisst: eine Automatik hat gehandelt, keine Person. */
+  quelle: 'tabelle' | 'audit' | 'system'
+}
+
+export interface ProjectHistory {
+  events: ProjectHistoryEvent[]
+  /** Ältere Ereignisse wurden abgeschnitten — die Liste sagt es an. */
+  truncated: boolean
+}
+
+export async function listProjectHistory(projectId: string): Promise<ProjectHistory> {
+  return apiFetch<ProjectHistory>(`/pwa/admin/projects/${projectId}/history`)
+}

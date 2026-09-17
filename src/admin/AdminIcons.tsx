@@ -60,3 +60,48 @@ export function IconAftersales() {
 export function IconTasks() {
   return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 3a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3zm9 0a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1h-3z"/><path d="M3 17a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1z" opacity=".45"/></svg>
 }
+
+// ── Betreiber-Seite (adminSite/) ───────────────────────────────────────────
+// Dieselbe Familie wie oben: 20er-Raster, `fill="currentColor"`, keine Striche
+// — die Seitenleiste faerbt sie ueber `color`, im Aktivzustand also in der
+// Markenfarbe. Sie stehen hier und nicht in adminSite/, damit es EIN Symbolsatz
+// bleibt; wer eines aendert, aendert es fuer beide Oberflaechen.
+
+export function IconBuilding() {
+  // Mandanten-Uebersicht: ein Haus mit Fenstern, nicht das Kachelraster von
+  // IconDashboard — die Uebersicht zaehlt Firmen, sie ist kein Dashboard.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4zm3 1h2v2H6V5zm4 0h2v2h-2V5zM6 9h2v2H6V9zm4 0h2v2h-2V9zm-4 4h2v2H6v-2zm4 0h2v2h-2v-2zm5-4h-2v6h2V9z" clipRule="evenodd"/></svg>
+}
+
+export function IconPulse() {
+  // Dienst-Status: die Zackenlinie eines Monitors. Ein gruener Punkt waere das
+  // naheliegende Symbol und zugleich das falsche — er behauptet einen Zustand,
+  // den erst der Screen kennt.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M2 10a1 1 0 0 1 1-1h2.28l1.79-4.32a1 1 0 0 1 1.87.06l2.3 6.9 1.02-2.05A1 1 0 0 1 13.15 9H17a1 1 0 1 1 0 2h-3.23l-1.88 3.76a1 1 0 0 1-1.84-.13L7.78 7.9 6.93 9.95A1 1 0 0 1 6 10.5H3a1 1 0 0 1-1-.5z"/></svg>
+}
+
+export function IconAlert() {
+  // Fehlerbestand: Warndreieck mit Ausrufezeichen.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.26 3.1a2 2 0 0 1 3.48 0l6 10.5A2 2 0 0 1 16 16.6H4a2 2 0 0 1-1.74-3L8.26 3.1zM10 7a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V8a1 1 0 0 1 1-1zm0 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" clipRule="evenodd"/></svg>
+}
+
+export function IconLifebuoy() {
+  // Support-Eingang: Rettungsring. Bewusst nicht dieselbe Sprechblase wie
+  // IconAftersales — das eine ist der Kanal zu uns, das andere einer zum Kunden.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 2.5c.83 0 1.62.18 2.33.5l-1.2 1.77a3.5 3.5 0 0 0-2.26 0L7.67 5A5.47 5.47 0 0 1 10 4.5zM4.5 10c0-.83.18-1.62.5-2.33l1.77 1.2a3.5 3.5 0 0 0 0 2.26L5 12.33A5.47 5.47 0 0 1 4.5 10zm5.5 5.5c-.83 0-1.62-.18-2.33-.5l1.2-1.77a3.5 3.5 0 0 0 2.26 0l1.2 1.77c-.71.32-1.5.5-2.33.5zm4.5-3.17-1.77-1.2a3.5 3.5 0 0 0 0-2.26L15 7.67a5.5 5.5 0 0 1 0 4.66zM10 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" clipRule="evenodd"/></svg>
+}
+
+export function IconBell() {
+  // Push-Test: Glocke.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 0 0-5 5v2.6l-1.3 2.6A1 1 0 0 0 4.6 14h10.8a1 1 0 0 0 .9-1.8L15 9.6V7a5 5 0 0 0-5-5zM8 15.5a2 2 0 0 0 4 0H8z"/></svg>
+}
+
+export function IconMail() {
+  // Newsletter: Umschlag.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2l-7 4.2L3 5z"/><path d="M17 7.3V15a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7.3l6.49 3.9a1 1 0 0 0 1.02 0L17 7.3z"/></svg>
+}
+
+export function IconPercent() {
+  // Werkora Bonus: die Zusatzmarge aus der Endziffern-Aufrundung.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M15.7 4.3a1 1 0 0 1 0 1.4l-10 10a1 1 0 1 1-1.4-1.4l10-10a1 1 0 0 1 1.4 0zM6.5 3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm0 1.8a.7.7 0 1 1 0 1.4.7.7 0 0 1 0-1.4zM13.5 12a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zm0 1.8a.7.7 0 1 1 0 1.4.7.7 0 0 1 0-1.4z" clipRule="evenodd"/></svg>
+}

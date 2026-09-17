@@ -30,6 +30,12 @@ export interface ProjectFeatures {
    * Auswertung, nur an dem Ort, an dem man sie braucht.
    */
   nachkalkulation: boolean
+  /**
+   * Feature «projekt_verlauf» (Beta): der Abschnitt «Verlauf» im Reiter
+   * «Status». Ohne das Flag wird er nicht gerendert und nichts geladen —
+   * hinter ihm stehen rund zehn Abfragen (docs/specs/projekt-verlauf.md §6.4).
+   */
+  verlauf: boolean
   /** Der angemeldete Benutzer — entscheidet, wer eine Freigabe visieren darf. */
   currentUserId: string | null
 }
@@ -42,6 +48,7 @@ const NONE: ProjectFeatures = {
   teilrapport: false,
   beschaffungSteps: [],
   nachkalkulation: false,
+  verlauf: false,
   currentUserId: null,
 }
 
@@ -62,6 +69,7 @@ export function useProjectFeatures(): ProjectFeatures {
         nachkalkulation:
           hasModule(me, 'kpis')
           && (me.role === 'management' || me.role === 'superadmin'),
+        verlauf: isFeatureEnabled(me, 'projekt_verlauf'),
         currentUserId: me.authorized_user_id,
       })
     }).catch(() => {})

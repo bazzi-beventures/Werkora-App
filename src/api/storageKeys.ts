@@ -16,4 +16,10 @@ export const SK = {
   // Zwischenspeicher der Einsatzplanung-Anzeige (Ansichten/Farben/Felder) —
   // reiner Cache, siehe api/admin/tenant.ts. Darf jederzeit fehlen.
   SCHEDULING_CONFIG: `schedulingConfig${s}`,
+  // Zuletzt gewählter Mandant der Betreiber-Seite (docs/specs/admin-werkora-ch.md §4.2).
+  // Nur dort gesetzt: admin.werkora.ch ist eine eigene Origin und teilt seinen
+  // localStorage nicht mit der Mandanten-App. Reine Bequemlichkeit — fehlt er,
+  // steht der Wähler auf «kein Mandant» und der Mandanten-Bereich ist leer.
+  // Der Server kennt ihn nie; massgeblich ist immer der Mandant im PFAD.
+  ADMIN_TENANT_ID: `adminTenantId${s}`,
 }

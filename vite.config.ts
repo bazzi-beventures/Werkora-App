@@ -3,6 +3,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { createHash } from 'node:crypto'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 // Custom-Domain-Setup → App auf Root. Drei Ziele, jedes mit eigener Domain und
 // eigenem VITE_API_URL, gebaut im jeweiligen Pages-Repo:
@@ -12,6 +15,23 @@ import { createHash } from 'node:crypto'
 //   app-staging.beventures.ch (Repo Bau-App-Staging)
 // Falls je wieder ein Build ohne Custom Domain gefahren wird, --base im CI-Workflow setzen.
 const BASE_PATH = '/'
+
+// Eigene Wurzel-Konstante: die CommonJS-Variable dafuer gibt es in einem
+// ESM-Modul nicht, und package.json steht auf type=module.
+const PAKET_WURZEL = path.dirname(fileURLToPath(import.meta.url))
+
+// Ein Repo, ein Paket, ZWEI Builds (docs/specs/admin-werkora-ch.md §6.1):
+//   VITE_APP_TARGET unset  → Mandanten-App   (index.html → dist/)
+//   VITE_APP_TARGET=admin  → Betreiber-Seite (admin.html → dist-admin/)
+//
+// Warum nicht ein Bundle mit Laufzeit-Weiche (`if (host === 'admin.…')`): das
+// Admin-Bundle trüge Maplibre, Rapport-Erfassung, Offline-Store und Chat mit,
+// das Mandanten-Bundle die Plattform-Screens — und der Service Worker zöge auf
+// admin.werkora.ch die Monteur-Precache-Liste. Zwei Einträge kosten diese
+// Bedingung und sparen das alles.
+const IS_ADMIN = process.env.VITE_APP_TARGET === 'admin'
+const ENTRY_HTML = IS_ADMIN ? 'admin.html' : 'index.html'
+const OUT_DIR = IS_ADMIN ? 'dist-admin' : 'dist'
 
 // Build-ID wird beim Build injiziert (index.html Platzhalter __BUILD_ID__).
 // Dient als Nuclear-Kill-Switch: Wenn localStorage eine andere ID hält als
@@ -54,9 +74,29 @@ const BOOT_SCRIPT_HASH = createHash('sha256').update(BOOT_SCRIPT_BODY).digest('b
 // wird die Direktive vom Browser ignoriert.
 const CSP_META = `<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-${BOOT_SCRIPT_HASH}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https:; base-uri 'self'; form-action 'self'; object-src 'none'" />`
 
+// GitHub Pages liefert am Wurzelpfad `index.html` aus. Rollup benennt seinen
+// Einstieg aber nach der Quelldatei, also `admin.html` — die Seite wäre nur
+// unter admin.werkora.ch/admin.html erreichbar und der Wurzelpfad ein 404.
+// Deshalb nach dem Bundle umbenennen statt die Quelldatei index.html zu nennen:
+// zwei Dateien gleichen Namens in einem Paket verwechselt man genau einmal.
+const renameAdminEntry = {
+  name: 'rename-admin-entry',
+  closeBundle() {
+    if (!IS_ADMIN) return
+    const von = path.resolve(PAKET_WURZEL, OUT_DIR, 'admin.html')
+    const nach = path.resolve(PAKET_WURZEL, OUT_DIR, 'index.html')
+    if (fs.existsSync(von)) fs.renameSync(von, nach)
+  },
+}
+
 export default defineConfig(({ command }) => ({
   base: BASE_PATH,
+  build: {
+    outDir: OUT_DIR,
+    rollupOptions: { input: path.resolve(PAKET_WURZEL, ENTRY_HTML) },
+  },
   plugins: [
+    renameAdminEntry,
     {
       name: 'inject-build-meta',
       transformIndexHtml(html) {
@@ -83,9 +123,22 @@ export default defineConfig(({ command }) => ({
         cleanupOutdatedCaches: true,
         // Eigener Push-Handler (public/push-sw.js) — wird in den generierten
         // Workbox-SW eingebunden, ohne die Caching-Strategie unten zu ersetzen.
-        importScripts: ['push-sw.js'],
+        // Die Admin-Seite empfängt bewusst KEINE Pushes (Spec §11); ohne den
+        // Import registriert sie auch keinen Handler, der nie etwas bekommt.
+        importScripts: IS_ADMIN ? [] : ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
+        // `public/` wird in BEIDE Builds kopiert, also läge der Push-Handler
+        // auch im Admin-Precache — eine Datei, die dort nie ausgeführt wird
+        // (kein importScripts, siehe oben). Ebenso das Manifest der jeweils
+        // anderen App. Nicht falsch, aber toter Ballast und beim Nachlesen
+        // irreführend.
+        globIgnores: IS_ADMIN ? ['push-sw.js', 'manifest.json'] : ['admin-manifest.json'],
+        // Kein API-Cache auf der Admin-Seite: sie zeigt Fehlerbestand,
+        // Dienst-Status und die Konfiguration eines Mandanten — Antworten, bei
+        // denen «vorhin» und «jetzt» nicht dasselbe sind. Die Mandanten-App
+        // braucht den Cache als zweites Netz für den Monteur im Funkloch, der
+        // Betreiber sitzt am Schreibtisch.
+        runtimeCaching: IS_ADMIN ? [] : [
           {
             // Cache API responses with network-first strategy
             urlPattern: ({ url }) => url.pathname.startsWith('/pwa/'),

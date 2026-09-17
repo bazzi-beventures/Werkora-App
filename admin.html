@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- CSP wird im Production-Build via Vite-Plugin injiziert (siehe vite.config.ts) —
+         derselbe Hash-Mechanismus wie in index.html. -->
+    __CSP_META__
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Anders als die Mandanten-App bleibt die Farbe hier konstant: die
+         Admin-Seite trägt kein Mandanten-Branding (docs/specs/admin-werkora-ch.md
+         §6.2). Man arbeitet AM Mandanten, nicht ALS Mandant — ein Logo- oder
+         Farbwechsel beim Umschalten wäre hübsch und irreführend zugleich. -->
+    <meta name="theme-color" content="#12161D" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Werkora Admin" />
+    <!-- Im Browser-Tab dieselbe Uhr wie überall (Betreiberentscheid 2026-09-17):
+         die dunkle Variante ist dort ein dunkles Quadrat neben lauter hellen
+         Favicons und liest sich als Fremdkörper, nicht als Werkora.
+         Die INSTALLIERTE Kachel bleibt dunkel — sie steht neben der Kachel der
+         Mandanten-App auf demselben Bildschirm, und dort ist der Unterschied
+         der Zweck (§6.1 «Tinte statt Weiss»); im Tab steht sie allein. -->
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/admin/apple-touch-icon.png" />
+    <link rel="manifest" href="/admin-manifest.json" />
+    <title>Werkora Admin</title>
+    <meta name="app-build-id" content="__BUILD_ID__" />
+    __BOOT_SCRIPT__
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/adminSite/main.tsx"></script>
+  </body>
+</html>

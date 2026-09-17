@@ -1,0 +1,31 @@
+{
+  "name": "Werkora Admin",
+  "short_name": "Werkora Admin",
+  "description": "Plattform-Werkzeuge und Mandanten-Kalibrierung für den Betreiber",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#12161D",
+  "theme_color": "#12161D",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "/icons/admin/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/admin/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

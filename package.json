@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:admin": "VITE_APP_TARGET=admin vite",
     "build": "tsc && vite build",
+    "build:admin": "tsc && VITE_APP_TARGET=admin vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

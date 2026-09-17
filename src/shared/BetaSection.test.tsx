@@ -42,6 +42,28 @@ describe('BetaSection', () => {
     ])
   })
 
+  // Der Regressionsfall: zwei Beta-Features mit je drei Saetzen fuellten die
+  // Fusszeile von Sidebar und «Mehr»-Sheet, bis die Navigation darueber aus dem
+  // Bild wich — Einstellungen/Admin-Tools waren fuer einen Tester nicht mehr
+  // erreichbar. Kompakt steht deshalb nur noch der Name da.
+  it('zeigt kompakt nur den Namen, bis man aufklappt', () => {
+    render(<BetaSection features={FEATURES} canReport compact />)
+    expect(screen.getByText('Sonderpositionen')).toBeTruthy()
+    expect(screen.queryByText('Positionen ohne Katalog.')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Rückmeldung geben' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+
+    expect(screen.getByText('Positionen ohne Katalog.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Rückmeldung geben' })).toBeTruthy()
+  })
+
+  it('bleibt ohne compact ausgeschrieben — dort ist Platz', () => {
+    render(<BetaSection features={FEATURES} canReport />)
+    expect(screen.getByText('Positionen ohne Katalog.')).toBeTruthy()
+    expect(screen.queryByRole('button', { expanded: false })).toBeNull()
+  })
+
   it('verweist ohne Support-Modul auf den Weg ausserhalb der App', () => {
     render(<BetaSection features={FEATURES} canReport={false} />)
     expect(screen.queryByRole('button', { name: 'Rückmeldung geben' })).toBeNull()

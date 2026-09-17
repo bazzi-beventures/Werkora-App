@@ -436,6 +436,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
           absageEnabled={features.absageMail}
           teilrapportEnabled={features.teilrapport}
           nachkalkulationEnabled={features.nachkalkulation}
+          verlaufEnabled={features.verlauf}
           useAcceptedQuote={useAcceptedQuote}
           onUseAcceptedQuoteChange={setUseAcceptedQuote}
           defaultInvoiceEmail={form.selectedCustomer?.email ?? project.customer?.email ?? ''}

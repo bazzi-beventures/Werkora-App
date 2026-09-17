@@ -1,0 +1,288 @@
+/* Rahmen der Betreiber-Seite. Bewusst schlank: Tabellen, Karten, Knöpfe,
+   Formularfelder und Diagramme kommen aus admin.css — die Screens ziehen ja
+   von dort um und sollen gleich aussehen. Hier steht nur, was die Mandanten-App
+   nicht hat: Seitenleiste mit zwei Bereichen, Mandanten-Wähler, Umgebungs-Badge
+   und der Anmeldeschirm. */
+
+/* Volle Fensterhöhe über --app-vh statt height:100% — auf iOS Safari misst 100%
+   gegen den grossen Viewport hinter den Browserleisten, und die Seite liesse
+   sich anschieben (CLAUDE.md, «Volle Fensterhöhe»). */
+.adminsite-shell {
+  display: grid;
+  grid-template-columns: 248px 1fr;
+  height: 100dvh;
+  height: var(--app-vh, 100dvh);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.adminsite-shell--mobile { grid-template-columns: 1fr; }
+
+.adminsite-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 18px 14px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.adminsite-brand { display: flex; align-items: center; gap: 10px; }
+.adminsite-brand-mark { width: 26px; height: 26px; display: block; }
+.adminsite-brand-mark svg { width: 100%; height: 100%; }
+.adminsite-brand-name { font-weight: 650; letter-spacing: -0.01em; }
+
+.adminsite-nav { display: flex; flex-direction: column; gap: 18px; flex: 1; }
+.adminsite-nav-group { display: flex; flex-direction: column; gap: 2px; }
+
+.adminsite-nav-heading {
+  display: flex; flex-direction: column;
+  font-size: 11px; font-weight: 650; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 6px 10px 4px;
+}
+
+/* Der gewählte Mandant steht unter der Überschrift, nicht im Logo: man arbeitet
+   AM Mandanten, nicht ALS Mandant (Spec §6.2). */
+.adminsite-nav-tenant {
+  text-transform: none; letter-spacing: 0; font-size: 12px;
+  font-weight: 500; color: var(--text); margin-top: 2px;
+}
+
+/* Symbol und Beschriftung in einer Zeile. Dieselben Masse wie `.admin-nav-item`
+   der Mandanten-App (18px, Abstand --s-3): die beiden Seitenleisten stehen
+   nebeneinander auf demselben Bildschirm, sobald der Betreiber zwischen ihnen
+   wechselt. */
+.adminsite-nav-item {
+  display: flex; align-items: center; gap: var(--s-3);
+  text-align: left; padding: 8px 10px; border-radius: 8px;
+  border: none; background: none; color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.adminsite-nav-item svg {
+  width: 18px; height: 18px; flex-shrink: 0; opacity: 0.9;
+}
+.adminsite-nav-item:hover { background: var(--surface-2); }
+.adminsite-nav-item.is-active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+
+.adminsite-nav-hint { padding: 6px 10px; font-size: 12px; color: var(--text-muted); }
+
+.adminsite-nav-foot {
+  margin-top: auto; display: flex; flex-direction: column; gap: 8px;
+  padding-top: 12px; border-top: 1px solid var(--border);
+}
+.adminsite-nav-user { font-size: 12px; color: var(--text-muted); padding: 0 10px; }
+
+.adminsite-content { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+.adminsite-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 18px; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.adminsite-topbar-title { font-weight: 600; margin-right: auto; }
+
+.adminsite-tenant-picker { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
+.adminsite-tenant-picker-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.adminsite-tenant-picker .admin-form-select { min-width: 180px; max-width: 260px; }
+
+.adminsite-env {
+  font-size: 11px; font-weight: 650; letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-muted);
+  border: 1px solid var(--border); white-space: nowrap;
+}
+/* Staging soll sich auf den ersten Blick unterscheiden — die Seite sieht sonst
+   identisch aus, und eine Schaltaktion im falschen System ist teuer. */
+.adminsite-env.is-staging {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+  border-color: transparent;
+}
+
+/* Eine begrenzte, mittige Inhaltsspalte statt der ganzen Fensterbreite.
+
+   Auf einem breiten Schirm stand jeder Screen linksbündig in einer grauen
+   Fläche: die Konfigurations-Karten sind aus gutem Grund 640–880px breit (eine
+   Ankreuzliste über 1600px liest niemand), daneben lag dann ein Drittel des
+   Fensters leer, und die Seite sah aus, als fehle dort etwas. Gedeckelt und
+   mittig wirkt derselbe Inhalt gesetzt statt angeschnitten. 1440px, weil die
+   breiteste Tabelle (Error-Logs mit Zeit, Stufe, Quelle, Meldung, Mandant)
+   genau dort noch ohne Querlauf auskommt. */
+.adminsite-screen {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  min-height: 0;
+}
+.adminsite-screen > * {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+.adminsite-tenant-error { margin: 12px 18px 0; }
+
+/* Ankreuzfelder, Schalter und Schieber in der Marke statt im Browser-Blau.
+   Die Seite führt Amber; ein knallblaues Häkchen daneben ist das einzige
+   Element, das nicht dazugehört. `accent-color` färbt genau die nativen
+   Steuerelemente, ohne sie nachzubauen. */
+.adminsite-shell input[type="checkbox"],
+.adminsite-shell input[type="radio"],
+.adminsite-shell input[type="range"],
+.adminsite-login input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+
+/* Am Handy hat die Kopfzeile nicht genug Breite für alles nebeneinander:
+   Schaltfläche, Titel, Beschriftung «Mandant», Auswahlfeld (min. 180px),
+   Umgebungs-Pille und Themeschalter kamen zusammen auf mehr als 390px. Flex
+   schrumpft dann zwar das Auswahlfeld, aber nicht die Pille darin — sie stand
+   quer über dem Feld, der Titel brach zweizeilig um und der Themeschalter
+   rutschte aus dem Bild.
+
+   Deshalb zwei Zeilen: oben Schaltfläche, Titel, Umgebung und Schalter, unten
+   der Mandanten-Wähler über die ganze Breite. Der Wähler ist am Handy das
+   breiteste Element und der einzige, der eine eigene Zeile verträgt — die
+   Beschriftung davor entfällt, weil das Feld selbst «— keiner gewählt —»
+   sagt. */
+.adminsite-shell--mobile .adminsite-topbar {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.adminsite-shell--mobile .adminsite-topbar-title {
+  flex: 1;
+  min-width: 0;
+  margin-right: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adminsite-shell--mobile .adminsite-tenant-picker {
+  order: 1;              /* hinter Umgebung und Themeschalter */
+  flex-basis: 100%;
+  margin-left: 0;
+}
+
+.adminsite-shell--mobile .adminsite-tenant-picker-label { display: none; }
+
+.adminsite-shell--mobile .adminsite-tenant-picker .admin-form-select {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+/* Mobil: die Seitenleiste wird zum Drawer über dem Inhalt. */
+.adminsite-drawer-backdrop {
+  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 40;
+}
+.adminsite-drawer {
+  position: fixed; inset: 0 auto 0 0; width: min(280px, 82vw); z-index: 41;
+  background: var(--surface); border-right: 1px solid var(--border);
+  padding: 18px 14px; overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+/* ── Anmeldung ──────────────────────────────────────────────────────────── */
+
+.adminsite-login {
+  display: flex; align-items: center; justify-content: center;
+  height: 100dvh; height: var(--app-vh, 100dvh);
+  padding: 16px; background: var(--bg); color: var(--text);
+}
+.adminsite-login-card {
+  width: min(360px, 100%);
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 24px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.adminsite-login-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.adminsite-login-mark { width: 40px; height: 40px; display: block; }
+.adminsite-login-mark svg { width: 100%; height: 100%; }
+.adminsite-login-title { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.adminsite-login-subtitle { font-size: 12px; color: var(--text-muted); }
+
+/* ── Abgestürzter Screen ────────────────────────────────────────────────── */
+
+/* Auffällig genug, um nicht als leere Fläche durchzugehen, und ruhig genug, um
+   nicht nach Datenverlust auszusehen: der Fehler betrifft eine Ansicht, nicht
+   den Bestand. */
+.adminsite-screen-error {
+  max-width: 640px;
+  /* Linksbuendig wie jeder andere Inhalt: die Regel `.adminsite-screen > *`
+     zentriert den direkten Nachkommen, und eine mittige Fehlermeldung neben
+     lauter linksbuendigen Screens sieht nach einem zweiten Layout aus. */
+  margin-inline: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.adminsite-screen-error-title {
+  font-size: var(--font-lg);
+  font-weight: 650;
+  color: var(--text-strong);
+}
+
+.adminsite-screen-error-text {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* Die Meldung im Klartext — sie ist das, was der Betreiber weitergibt. */
+.adminsite-screen-error-detail {
+  width: 100%;
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--danger-ink);
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Newsletter ─────────────────────────────────────────────────────────── */
+
+/* Der Vorschau-Rahmen hatte keine einzige Regel und stand deshalb in der
+   Voreinstellung des Browsers da: 300×150 px mit Standardrahmen, eine
+   briefmarkengrosse graue Fläche mitten auf der Seite. Der Ratchet in
+   stylesheets.test.mjs sah das nicht — er prüft `admin-*`-Klassen, diese heisst
+   `adminsite-*`. Mail-HTML ist schmal gesetzt; 720px reicht dafür und lässt die
+   Vorschau aussehen wie in einem Mailprogramm. */
+.adminsite-newsletter-preview {
+  width: 100%;
+  max-width: 720px;
+  height: 520px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;   /* Mail-HTML rechnet mit weissem Grund, auch im Dark-Theme */
+  margin: var(--s-3) 0 var(--s-4);
+}
+
+/* Die Beiträge einer Ausgabe: eine Liste ohne Aufzählungspunkte — der Titel
+   jedes Beitrags trägt sie schon, und die Punkte sassen am linken Rand der
+   Karte statt an ihrem Text. */
+.adminsite-newsletter-items {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+}
+
+/* Mandantenzeile der Uebersicht: die ganze Zeile fuehrt in den Mandanten, nicht
+   bloss ein Link darin. Nur der Zeiger — die Hervorhebung beim Ueberfahren
+   bringt `.admin-table tbody tr:hover` aus admin.css schon mit. */
+.admin-row-clickable {
+  cursor: pointer;
+}
