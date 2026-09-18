@@ -585,10 +585,6 @@
     min-height: 44px;
   }
 
-  /* Die Admin-Tools haben auf dem Handy keine Reiterleiste mehr, sondern ein
-     Auswahlfeld (.admin-tools-picker, siehe admin.css) — für zehn Werkzeuge mit
-     langen Namen ist eine Scrollleiste auf Handybreite unbrauchbar. */
-
   /* ─── Confirm dialog → bottom sheet ──────────────────── */
 
   .admin-confirm-overlay {

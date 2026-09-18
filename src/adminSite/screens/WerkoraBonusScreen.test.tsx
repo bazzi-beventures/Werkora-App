@@ -5,12 +5,18 @@ import type { WerkoraBonusResponse } from '../../api/admin/werkoraBonus'
 // Recharts in jsdom vermeiden (misst 0-Grösse, verrauscht die Tests).
 vi.mock('../../admin/kpis/components/BiBarChart', () => ({ default: () => null }))
 
+// Seit dem Rückbau (P4) liest der Screen über die PLATTFORM-Route mit dem
+// Mandanten aus dem Pfad — gemockt wird `tenantScopedApi`, nicht die
+// Mandanten-Funktion.
 const getWerkoraBonus = vi.fn()
-vi.mock('../../api/admin/werkoraBonus', () => ({
-  getWerkoraBonus: (von: string, bis: string) => getWerkoraBonus(von, bis),
+vi.mock('../tenantScopedApi', () => ({
+  getWerkoraBonus: (_tenantId: string, von: string, bis: string) =>
+    getWerkoraBonus(von, bis),
 }))
 
 import WerkoraBonusScreen from './WerkoraBonusScreen'
+
+const MANDANT = '11111111-1111-1111-1111-111111111111'
 
 const LEER: WerkoraBonusResponse = {
   von: '2026-06-01', bis: '2026-08-23', aktiv: true,
@@ -46,7 +52,7 @@ const GEFUELLT: WerkoraBonusResponse = {
 
 function setup(data: WerkoraBonusResponse = GEFUELLT) {
   getWerkoraBonus.mockResolvedValue(data)
-  return render(<WerkoraBonusScreen />)
+  return render(<WerkoraBonusScreen tenantId={MANDANT} />)
 }
 
 beforeEach(() => {
@@ -91,7 +97,7 @@ describe('WerkoraBonusScreen', () => {
 
   it('meldet einen Ladefehler statt einer leeren Seite', async () => {
     getWerkoraBonus.mockRejectedValue(new Error('Netzwerkfehler'))
-    render(<WerkoraBonusScreen />)
+    render(<WerkoraBonusScreen tenantId={MANDANT} />)
     await waitFor(() => expect(screen.getByText('Netzwerkfehler')).toBeInTheDocument())
   })
 })

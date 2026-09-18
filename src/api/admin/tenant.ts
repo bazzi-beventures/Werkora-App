@@ -20,24 +20,17 @@ export interface TenantModulesResponse {
   beta_tester_count?: number
 }
 
-export async function getTenantModules(): Promise<TenantModulesResponse> {
-  return apiFetch<TenantModulesResponse>('/pwa/admin/tenant/modules')
-}
-
 export interface TenantModulesSaved {
   enabled_modules: string[]
   beta_modules: string[]
 }
 
-export async function updateTenantModules(
-  modules: string[],
-  betaModules: string[],
-): Promise<TenantModulesSaved> {
-  return apiFetch<TenantModulesSaved>('/pwa/admin/tenant/modules', {
-    method: 'PATCH',
-    body: JSON.stringify({ enabled_modules: modules, beta_modules: betaModules }),
-  })
-}
+// Die Schreib- und Lese-Wrapper für Module, Feature-Flags und Fahrtkosten sowie
+// `updateSchedulingConfig` standen hier bis zum Rückbau (P4). Ihre Routen gibt
+// es nicht mehr: kalibriert wird auf `admin.werkora.ch` über `api/platform.ts`
+// (docs/specs/admin-werkora-ch.md §5.1/§6.5). Die Typen bleiben — sie
+// beschreiben die Antwort, nicht den Weg. Geblieben ist `getSchedulingConfig`:
+// den liest der Kalender der Mandanten-App selbst.
 
 // ─── Tenant Fahrtkosten-Tabelle ─────────────────────────────
 
@@ -48,19 +41,6 @@ export type TravelCostRow = [number | null, number]
 export interface TenantTravelCostResponse {
   travel_cost_table: TravelCostRow[] | null  // null = Mandant nutzt System-Default
   default_table: TravelCostRow[]
-}
-
-export async function getTenantTravelCost(): Promise<TenantTravelCostResponse> {
-  return apiFetch<TenantTravelCostResponse>('/pwa/admin/tenant/travel-cost')
-}
-
-export async function updateTenantTravelCost(
-  table: TravelCostRow[] | null,
-): Promise<{ travel_cost_table: TravelCostRow[] | null }> {
-  return apiFetch<{ travel_cost_table: TravelCostRow[] | null }>('/pwa/admin/tenant/travel-cost', {
-    method: 'PATCH',
-    body: JSON.stringify({ travel_cost_table: table }),
-  })
 }
 
 // ─── Tenant Einsatzplanung-Anzeige ──────────────────────────
@@ -130,19 +110,6 @@ export interface TenantSchedulingResponse {
 
 export async function getSchedulingConfig(): Promise<TenantSchedulingResponse> {
   return apiFetch<TenantSchedulingResponse>('/pwa/admin/tenant/scheduling')
-}
-
-export async function updateSchedulingConfig(
-  config: SchedulingConfig,
-): Promise<{ config: SchedulingConfig }> {
-  const res = await apiFetch<{ config: SchedulingConfig }>('/pwa/admin/tenant/scheduling', {
-    method: 'PATCH',
-    body: JSON.stringify({ config }),
-  })
-  // Der Cache trägt die alte Ansichtsliste — nach dem Speichern wäre er falsch.
-  // Verwerfen statt überschreiben: die neuen Defaults kennt nur die GET-Antwort.
-  clearCachedSchedulingConfig()
-  return res
 }
 
 // Mandanten-Override über die System-Defaults legen. Fehlende Keys erben den
@@ -280,16 +247,3 @@ export interface TenantFeaturesResponse {
   beta_tester_count?: number
 }
 
-export async function getTenantFeatures(): Promise<TenantFeaturesResponse> {
-  return apiFetch<TenantFeaturesResponse>('/pwa/admin/tenant/features')
-}
-
-export async function updateTenantFeature(
-  featureKey: string,
-  value: Record<string, unknown>,
-): Promise<{ feature_key: string; effective: Record<string, unknown> }> {
-  return apiFetch<{ feature_key: string; effective: Record<string, unknown> }>('/pwa/admin/tenant/features', {
-    method: 'PATCH',
-    body: JSON.stringify({ feature_key: featureKey, value }),
-  })
-}

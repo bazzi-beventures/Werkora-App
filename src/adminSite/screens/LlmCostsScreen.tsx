@@ -78,7 +78,7 @@ const BREAKDOWN_COLUMNS: ColumnDef<BreakdownRow>[] = [
 
 /** Mandant der Betreiber-Seite; `null` = eigener Mandant (Mandanten-App,
  *  bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export default function LlmCostsScreen({ tenantId = null }: { tenantId?: string | null } = {}) {
+export default function LlmCostsScreen({ tenantId }: { tenantId: string }) {
   // Zeitraum-Filter (Default: letzte 30 Tage). Treibt ALLES — server-seitig
   // gefiltert, damit nur der gewählte Bereich geladen wird (Cap-sicher).
   const range = useDateRange('30t')

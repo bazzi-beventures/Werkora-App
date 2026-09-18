@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import * as scoped from '../../tenantScopedApi'
 import type { AuthUser } from '../../../api/admin/users'
-import { getTenantFeatures, getTenantModules } from '../../../api/admin'
 import { useToast, ToastHost } from '../../../admin/components/useToast'
 import { BetaBadge } from '../../../shared/BetaBadge'
 
@@ -19,9 +18,8 @@ import { BetaBadge } from '../../../shared/BetaBadge'
  * (Betreiberentscheid 2026-09-06, dreht die Arbeitsteilung aus Spec §3.6 um).
  * Das Backend lässt das Feld deshalb nur vom Superadmin setzen.
  */
-/** Mandant aus dem Wähler der Betreiber-Seite, oder `null` für den eigenen
- *  (Mandanten-App, bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export function TestingTab({ tenantId = null }: { tenantId?: string | null } = {}) {
+/** Mandant aus dem Wähler der Betreiber-Seite. */
+export function TestingTab({ tenantId }: { tenantId: string }) {
   const { toast, showToast } = useToast()
   const [users, setUsers] = useState<AuthUser[] | null>(null)
   const [betaFeatures, setBetaFeatures] = useState<{ key: string; label: string }[]>([])
@@ -36,8 +34,14 @@ export function TestingTab({ tenantId = null }: { tenantId?: string | null } = {
           scoped.listUsers(tenantId),
           // Was gerade in der Beta ist, ist Zusatzinformation: Ein Fehler dort
           // darf die Tester-Liste nicht mitreissen — sie ist der Zweck des Tabs.
-          getTenantFeatures().catch(() => null),
-          getTenantModules().catch(() => null),
+          //
+          // Über die Plattform-Route, nicht über `api/admin`: die Mandanten-
+          // Route nimmt den Mandanten aus der SITZUNG. Bis zum Rückbau (P4)
+          // stand hier der Mandanten-Aufruf und zeigte damit die Beta-Lage des
+          // BETREIBERS neben den Testern des gewählten Mandanten — zwei
+          // Mandanten in einer Ansicht, ohne dass es auffiel.
+          scoped.getFeatures(tenantId).catch(() => null),
+          scoped.getModules(tenantId).catch(() => null),
         ])
         if (abgebrochen) return
         setUsers(liste)

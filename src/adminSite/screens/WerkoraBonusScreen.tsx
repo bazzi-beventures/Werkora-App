@@ -88,7 +88,7 @@ function toCsv(rows: WerkoraBonusBeleg[]): string {
 
 /** Mandant der Betreiber-Seite; `null` = eigener Mandant (Mandanten-App,
  *  bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export default function WerkoraBonusScreen({ tenantId = null }: { tenantId?: string | null } = {}) {
+export default function WerkoraBonusScreen({ tenantId }: { tenantId: string }) {
   const range = useDateRange('90t')
   const { von, bis } = range
   const [data, setData] = useState<WerkoraBonusResponse | null>(null)

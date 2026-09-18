@@ -46,8 +46,11 @@ describe('mayAnonymize', () => {
 })
 
 describe('maySetBetaTester', () => {
-  it('bleibt dem Superadmin vorbehalten — gepflegt wird es im Testing-Tab', () => {
-    expect(maySetBetaTester('superadmin')).toBe(true)
+  it('sagt für JEDE Rolle nein — auch für den Superadmin', () => {
+    // Seit dem Rückbau (P4) wird das Häkchen nur noch auf admin.werkora.ch
+    // gesetzt (Tab Testing). In der Mandanten-App gibt es keinen Weg mehr
+    // dorthin; die Spalte «Beta» bleibt reine Anzeige.
+    expect(maySetBetaTester('superadmin')).toBe(false)
     expect(maySetBetaTester('management')).toBe(false)
     expect(maySetBetaTester('admin')).toBe(false)
     expect(maySetBetaTester('user')).toBe(false)

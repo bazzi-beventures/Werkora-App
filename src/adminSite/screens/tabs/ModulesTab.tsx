@@ -72,7 +72,7 @@ const CHANNEL_LABELS: Record<NotifChannel, string> = { mail: 'Mail', push: 'Push
 
 /** Mandant aus dem Wähler der Betreiber-Seite, oder `null` für den eigenen
  *  (Mandanten-App, bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export function ModulesTab({ view, tenantId = null }: { view: 'modules' | 'notifications'; tenantId?: string | null }) {
+export function ModulesTab({ view, tenantId }: { view: 'modules' | 'notifications'; tenantId: string }) {
   const { toast, showToast } = useToast()
   // Registry-Teil der Antwort (bekannte Module + Dependencies) — ändert sich nur
   // durch Neuladen, deshalb neben dem editierbaren Wert (enabled-Liste) gehalten.

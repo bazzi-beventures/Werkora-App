@@ -1,4 +1,4 @@
-import { apiFetch, apiFormFetch, apiStreamFetch } from './client'
+import { apiStreamFetch } from './client'
 
 export type HelpSource = {
   section: string
@@ -42,25 +42,11 @@ export type ReindexStatus = {
   last_error?: string | null
 }
 
-export async function listHelpDocs(): Promise<HelpDoc[]> {
-  const res = (await apiFetch('/pwa/help/docs')) as { docs: HelpDoc[] }
-  return res.docs ?? []
-}
-
-export async function uploadHelpDoc(file: File): Promise<HelpDoc> {
-  const form = new FormData()
-  form.append('file', file)
-  return (await apiFormFetch('/pwa/help/docs', form)) as HelpDoc
-}
-
-export async function deleteHelpDoc(name: string): Promise<void> {
-  await apiFetch(`/pwa/help/docs/${encodeURIComponent(name)}`, { method: 'DELETE' })
-}
-
-export async function triggerHelpReindex(): Promise<void> {
-  await apiFetch('/pwa/help/reindex', { method: 'POST' })
-}
-
-export async function getHelpReindexStatus(): Promise<ReindexStatus> {
-  return (await apiFetch('/pwa/help/reindex/status')) as ReindexStatus
-}
+// Die fuenf Funktionen zur Handbuch-Verwaltung standen hier bis zum Rueckbau
+// (P4). Sie riefen `/pwa/help/docs` und `/pwa/help/reindex` — Routen, die es
+// nicht mehr gibt: Handbuecher pflegt der Betreiber auf `admin.werkora.ch`
+// ueber `/pwa/superadmin/tenants/{id}/help/…` (api/platform.ts, Spec
+// docs/specs/admin-werkora-ch.md §5.1/§6.5).
+//
+// Die Typen `HelpDoc` und `ReindexStatus` bleiben hier: Sie beschreiben die
+// Antwort, nicht den Weg, und `adminSite/` importiert sie.

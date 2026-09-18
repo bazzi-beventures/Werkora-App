@@ -31,7 +31,7 @@ const SZ_LABEL: Record<string, string> = Object.fromEntries(SZENARIOS.map(s => [
 
 /** Mandant der Betreiber-Seite; `null` = eigener Mandant (Mandanten-App,
  *  bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: string | null } = {}) {
+export default function MaterialCleanupScreen({ tenantId }: { tenantId: string }) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [category, setCategory] = useState('')

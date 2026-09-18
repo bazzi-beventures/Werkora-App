@@ -28,7 +28,7 @@ export type AdminScreen =
   | 'users'
   | 'kpis'
   | 'document-backup'
-  | 'admin-tools'
+  | 'settings'
 
 // Eine besuchte Station im Admin-Bereich. `detailId` gehört dazu: derselbe
 // Screen mit anderer Detail-ID ist für den Zurück-Knopf eine eigene Station.

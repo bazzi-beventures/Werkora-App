@@ -1,8 +1,6 @@
 import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
-import type { BetaFeature } from '../api/auth'
 import { ModuleName } from '../api/modules'
-import { BetaSection } from '../shared/BetaSection'
 import {
   IconDashboard, IconUsers, IconCalendar, IconClock, IconDocument, IconBox,
   IconFolder, IconReceipt, IconCash, IconTag, IconKey, IconChart,
@@ -18,12 +16,6 @@ interface Props {
   role: string
   tenantName: string
   enabledModules: string[]
-  /** Laufende Beta-Features dieses Kontos (docs/specs/beta-tester.md §6.2). */
-  betaFeatures?: BetaFeature[]
-  /** Modulnamen im Betatest. */
-  betaModules?: string[]
-  /** Modul `support` aktiv — sonst gibt es keinen Rückweg in der App. */
-  canReportSupport?: boolean
   showTaskBoard?: boolean
   badges?: {
     corrections?: number
@@ -59,10 +51,9 @@ function NavItem({ label, target, current, onNav, badge, icon }: NavItemProps) {
   )
 }
 
-export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, betaFeatures = [], betaModules = [], canReportSupport = false, showTaskBoard, badges }: Props) {
+export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, badges }: Props) {
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isManagement = role === 'management' || role === 'superadmin'
-  const isSuperadmin = role === 'superadmin'
   const has = (m: ModuleName) => enabledModules.includes(m)
 
   async function handleLogout() {
@@ -103,6 +94,14 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
             <NavItem label="HR-Berichte" target="hr-reports" current={screen} onNav={onNav} icon={<IconDocument />} />
             <NavItem label="Ferien" target="vacation" current={screen} onNav={onNav} icon={<IconCalendar />} />
           </>
+        )}
+        {/* Wochenplan und Jahresabschluss — bis zum Rückbau (P4) sassen sie in
+            «Admin-Tools» und waren damit superadmin-only. Das war ein
+            Nebeneffekt des Containers: Wochen-Soll und Überstunden-Reset sind
+            Einstellungen des Mandanten, und das Backend stand ohnehin auf
+            `require_admin` (Spec §6.5, E7). */}
+        {isManagement && (
+          <NavItem label="Einstellungen" target="settings" current={screen} onNav={onNav} icon={<IconSettings />} />
         )}
 
         <div className="admin-nav-group-label">Operativ</div>
@@ -148,22 +147,18 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
           </>
         )}
 
-        {/* Benutzerverwaltung auch für Admins — sie legen Mitarbeiter an. Datensicherung
-            und Admin-Tools bleiben Management bzw. Superadmin vorbehalten. */}
+        {/* Benutzerverwaltung auch für Admins — sie legen Mitarbeiter an;
+            Datensicherung bleibt Management vorbehalten. Der Eintrag
+            «Admin-Tools» ist mit P4 entfallen — die Werkzeuge des Betreibers
+            stehen auf admin.werkora.ch (Spec §6.5). */}
         <div className="admin-nav-group-label">System</div>
         <NavItem label="Benutzerverwaltung" target="users" current={screen} onNav={onNav} icon={<IconKey />} />
         {isManagement && has('document_backup') && (
           <NavItem label="Datensicherung" target="document-backup" current={screen} onNav={onNav} icon={<IconDocument />} />
         )}
-        {isSuperadmin && (
-          <NavItem label="Admin-Tools" target="admin-tools" current={screen} onNav={onNav} icon={<IconSettings />} />
-        )}
       </nav>
 
       <div className="admin-sidebar-footer">
-        {/* Was dieses Konto vor allen anderen sieht — derselbe Abschnitt wie im
-            Profil der Mitarbeiter-App (docs/specs/beta-tester.md §6.2). */}
-        <BetaSection features={betaFeatures} modules={betaModules} canReport={canReportSupport} compact />
         <button className="admin-switch-btn" onClick={onSwitchToUser} title="Zur Mitarbeiter-App wechseln">
           <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
             <path d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-7 9a7 7 0 1 1 14 0H3z" />

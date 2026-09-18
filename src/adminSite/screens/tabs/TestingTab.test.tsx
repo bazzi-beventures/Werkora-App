@@ -5,18 +5,21 @@ import { TestingTab } from './TestingTab'
 // docs/specs/beta-tester.md — der Tab ist die Voraussetzung für alles andere.
 
 const listUsers = vi.fn()
-const saveUser = vi.fn()
+const setBetaTester = vi.fn()
 const getTenantFeatures = vi.fn()
 const getTenantModules = vi.fn()
 
-vi.mock('../../../api/admin/users', () => ({
-  listUsers: () => listUsers(),
-  saveUser: (...a: unknown[]) => saveUser(...a),
+// Seit dem Rückbau (P4) nimmt der Reiter den Mandanten aus dem Pfad und liest
+// über die Plattform-Routen. Gemockt wird deshalb die Naht `tenantScopedApi`;
+// das Beta-Häkchen heisst dort `setBetaTester` und bekommt den ganzen `AuthUser`.
+vi.mock('../../tenantScopedApi', () => ({
+  listUsers: (_tenantId: string) => listUsers(),
+  setBetaTester: (...a: unknown[]) => setBetaTester(...a),
+  getFeatures: () => getTenantFeatures(),
+  getModules: () => getTenantModules(),
 }))
-vi.mock('../../../api/admin', () => ({
-  getTenantFeatures: () => getTenantFeatures(),
-  getTenantModules: () => getTenantModules(),
-}))
+
+const MANDANT = '11111111-1111-1111-1111-111111111111'
 
 const konto = (over: Record<string, unknown> = {}) => ({
   id: 'u1', email: 'a@b.ch', display_name: 'Anna Muster', role: 'user',
@@ -26,14 +29,14 @@ const konto = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   listUsers.mockReset().mockResolvedValue([konto()])
-  saveUser.mockReset().mockResolvedValue(undefined)
+  setBetaTester.mockReset().mockResolvedValue(undefined)
   getTenantFeatures.mockReset().mockResolvedValue({ registry: [], effective: {} })
   getTenantModules.mockReset().mockResolvedValue({ beta_modules: [] })
 })
 
 describe('TestingTab', () => {
   it('sagt, dass das Häkchen wirkungslos ist, solange nichts in der Beta ist', async () => {
-    render(<TestingTab />)
+    render(<TestingTab tenantId={MANDANT} />)
     expect(await screen.findByText(/Zurzeit nichts/)).toBeTruthy()
   })
 
@@ -43,7 +46,7 @@ describe('TestingTab', () => {
       registry: [{ key: 'probe', label: 'Sonderpositionen', stage: 'beta' }],
       effective: { probe: { enabled: true } },
     })
-    render(<TestingTab />)
+    render(<TestingTab tenantId={MANDANT} />)
     expect(await screen.findByText('quotes')).toBeTruthy()
     expect(screen.getByText('Sonderpositionen')).toBeTruthy()
   })
@@ -54,17 +57,21 @@ describe('TestingTab', () => {
       registry: [{ key: 'probe', label: 'Sonderpositionen', stage: 'beta' }],
       effective: { probe: { enabled: false } },
     })
-    render(<TestingTab />)
+    render(<TestingTab tenantId={MANDANT} />)
     expect(await screen.findByText(/Zurzeit nichts/)).toBeTruthy()
   })
 
   it('setzt das Häkchen sofort und meldet den Stand zurück', async () => {
-    render(<TestingTab />)
+    render(<TestingTab tenantId={MANDANT} />)
     const box = await screen.findByRole('checkbox')
     fireEvent.click(box)
-    await waitFor(() => expect(saveUser).toHaveBeenCalledTimes(1))
-    expect(saveUser.mock.calls[0][0]).toMatchObject({ beta_tester: true })
-    expect(saveUser.mock.calls[0][1]).toBe('u1')
+    await waitFor(() => expect(setBetaTester).toHaveBeenCalledTimes(1))
+    // Mandant aus dem Pfad, Konto, neuer Wert — in dieser Reihenfolge. Vor dem
+    // Rückbau (P4) lief das über den allgemeinen Konto-PATCH der
+    // Mandanten-Route, der den Mandanten aus der Sitzung nahm.
+    expect(setBetaTester.mock.calls[0][0]).toBe(MANDANT)
+    expect(setBetaTester.mock.calls[0][1]).toMatchObject({ id: 'u1' })
+    expect(setBetaTester.mock.calls[0][2]).toBe(true)
     expect(await screen.findByText(/1 von 1 Konten testen mit/)).toBeTruthy()
   })
 
@@ -72,7 +79,7 @@ describe('TestingTab', () => {
     // Die Tester-Liste ist der Zweck des Tabs; der Überblick ist Beiwerk.
     getTenantModules.mockRejectedValue(new Error('kaputt'))
     getTenantFeatures.mockRejectedValue(new Error('kaputt'))
-    render(<TestingTab />)
+    render(<TestingTab tenantId={MANDANT} />)
     expect(await screen.findByText('Anna Muster')).toBeTruthy()
   })
 })

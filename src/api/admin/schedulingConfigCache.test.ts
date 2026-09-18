@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   loadSchedulingConfig, readCachedSchedulingConfig, clearCachedSchedulingConfig,
-  updateSchedulingConfig, type SchedulingConfig,
+  type SchedulingConfig,
 } from './tenant'
 import { apiFetch } from '../client'
 import { SK } from '../storageKeys'
@@ -64,15 +64,10 @@ describe('Cache der Einsatzplanung-Anzeige', () => {
     expect(readCachedSchedulingConfig()).toBeUndefined()
   })
 
-  it('Speichern in der Konfiguration verwirft den Eintrag', async () => {
-    await loadSchedulingConfig()
-    expect(readCachedSchedulingConfig()).toBeDefined()
-
-    fetchMock.mockResolvedValueOnce({ config: { views: { plantafel: false } } } as never)
-    await updateSchedulingConfig({ fields: {}, colors: {}, views: { plantafel: false } })
-    // Kein Überschreiben: die neuen Defaults kennt nur die GET-Antwort.
-    expect(readCachedSchedulingConfig()).toBeUndefined()
-  })
+  // Der Fall «nach dem Speichern ist der Cache weg» ist mit dem Rückbau (P4)
+  // gegenstandslos: Geschrieben wird die Einsatzplanung nur noch auf
+  // admin.werkora.ch — eine andere Origin, die diesen localStorage nicht
+  // erreicht. Frisch wird der Cache beim nächsten Laden (Write-through oben).
 
   it('clear ist auch ohne Eintrag folgenlos', () => {
     expect(() => clearCachedSchedulingConfig()).not.toThrow()

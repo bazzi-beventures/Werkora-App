@@ -13,7 +13,7 @@ import { BetaBadge } from '../../../shared/BetaBadge'
 
 /** Mandant aus dem Wähler der Betreiber-Seite, oder `null` für den eigenen
  *  (Mandanten-App, bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export function WorkflowsTab({ tenantId = null }: { tenantId?: string | null } = {}) {
+export function WorkflowsTab({ tenantId }: { tenantId: string }) {
   const { toast, showToast } = useToast()
   const [data, setData] = useState<TenantFeaturesResponse | null>(null)
   const [loading, setLoading] = useState(false)

@@ -654,11 +654,6 @@ export default function App() {
         role={user.role}
         tenantName={tenantName || localStorage.getItem(SK.TENANT_SLUG) || ''}
         logoUrl={effectiveLogo}
-        betaFeatures={user.beta_features ?? []}
-        betaModules={user.beta_modules ?? []}
-        // Derselbe Schalter wie für den Support-Reiter der Hilfe-Blase — ohne ihn
-        // gibt es keinen Rückweg in der App (docs/specs/beta-tester.md §6.3).
-        canReportSupport={hasModule(user, 'support') && isFeatureEnabled(user, 'support_pwa')}
         onBack={() => go('home')}
         onLoggedOut={goToAuth}
       />

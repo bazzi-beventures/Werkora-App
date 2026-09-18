@@ -46,7 +46,7 @@ interface TravelCostState {
 
 /** Mandant aus dem Wähler der Betreiber-Seite, oder `null` für den eigenen
  *  (Mandanten-App, bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export function TravelCostTab({ tenantId = null }: { tenantId?: string | null } = {}) {
+export function TravelCostTab({ tenantId }: { tenantId: string }) {
   const { toast, showToast } = useToast()
   const [defaultTable, setDefaultTable] = useState<TravelCostRow[]>([])
 

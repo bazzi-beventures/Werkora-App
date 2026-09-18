@@ -462,7 +462,7 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                 </div>
 
                 {/* Beta-Tester steht bewusst NICHT hier: Wer testet, pflegt der
-                    Betreiber im Tab Testing (Admin-Tools → Konfiguration) —
+                    Betreiber auf admin.werkora.ch (Tab Testing) —
                     docs/specs/beta-tester.md. Beim Anlegen einer Person ist das
                     ohnehin die falsche Frage; sie kommt später, wenn etwas zu
                     testen da ist. */}

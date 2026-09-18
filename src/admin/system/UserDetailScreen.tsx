@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { anonymizeUser, saveUser, setUserPassword } from '../../api/admin/users'
 import type { AuthUser } from '../../api/admin/users'
-import { assignableRoles, mayAnonymize, maySetBetaTester } from './userRoles'
+import { assignableRoles, mayAnonymize } from './userRoles'
 import { BetaBadge } from '../../shared/BetaBadge'
 import { useToast, ToastHost } from '../components/useToast'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -40,7 +40,6 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
   const [displayName, setDisplayName] = useState(user.display_name ?? '')
   const [role, setRole] = useState(user.role)
   const [isActive, setIsActive] = useState(user.is_active)
-  const mayBeta = maySetBetaTester(actingRole)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -178,8 +177,8 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                 />
                 <label htmlFor="is_active" style={{ fontSize: 13.5, cursor: 'pointer' }}>Benutzer aktiv</label>
               </div>
-              {/* Beta-Tester: nur Anzeige. Gesetzt wird der Status im Tab
-                  Testing (Admin-Tools → Konfiguration) — Beta gehört ganz zum
+              {/* Beta-Tester: nur Anzeige. Gesetzt wird der Status vom Betreiber
+                  auf admin.werkora.ch (Tab Testing) — Beta gehört ganz zum
                   Betreiber, docs/specs/beta-tester.md. Der Status steht
                   trotzdem hier, weil hier die Frage aufkommt: «warum sieht
                   Meier etwas, das ich nicht habe?» */}
@@ -188,11 +187,7 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                   <BetaBadge />
                   <div style={{ fontSize: 13.5 }}>
                     Beta-Tester — sieht neue Funktionen vor allen anderen
-                    <div className="admin-form-hint">
-                      {mayBeta
-                        ? 'Geändert wird das im Tab Testing unter Admin-Tools → Konfiguration.'
-                        : 'Wer testet, entscheidet der Betreiber.'}
-                    </div>
+                    <div className="admin-form-hint">Wer testet, entscheidet der Betreiber.</div>
                   </div>
                 </div>
               )}

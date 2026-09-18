@@ -3,7 +3,6 @@
 // Der Name "Werkora Bonus" ist rein intern und erscheint nie auf einem
 // Kundendokument; auf dem Beleg steht die konfigurierte `position_label`.
 
-import { apiFetch } from '../client'
 
 export interface WerkoraBonusKennzahlen {
   /** Σ Aufschlag über die im Zeitraum versendeten Rechnungen (netto, CHF). */
@@ -57,7 +56,6 @@ export interface WerkoraBonusResponse {
   belege: WerkoraBonusBeleg[]
 }
 
-export async function getWerkoraBonus(von: string, bis: string): Promise<WerkoraBonusResponse> {
-  const q = new URLSearchParams({ von, bis })
-  return apiFetch<WerkoraBonusResponse>(`/pwa/admin/werkora-bonus?${q}`)
-}
+// `getWerkoraBonus` stand hier bis zum Rückbau (P4); `/pwa/admin/werkora-bonus`
+// ist entfallen. Das Dashboard liest über `api/platform.ts`
+// (docs/specs/admin-werkora-ch.md §5.1/§6.5); die Typen bleiben.

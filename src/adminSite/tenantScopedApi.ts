@@ -1,200 +1,168 @@
 /**
- * Eine Naht, zwei Aufrufer — dieselben Screens für beide Wege.
+ * Die Plattform-API in der Form, die die Screens brauchen.
  *
- * Spec: docs/specs/admin-werkora-ch.md §5.1/§6.4, dazu diese Umsetzungsnotiz.
+ * Spec: docs/specs/admin-werkora-ch.md §5.1/§6.4, Rückbau §6.5.
  *
- * Der Spec-Text sagt «verschieben» für Konfiguration, LLM-Kosten, Nutzung,
- * Materialdatenbereinigung und Werkora Bonus. Verschieben allein reicht aber
- * nicht: die Screens müssten ihre Aufrufe auf `/pwa/superadmin/tenants/{id}/…`
- * umstellen — und bis zum Rückbau (P4) hängt in der Mandanten-App weiterhin
- * «Admin-Tools» an genau denselben Screens, dort auf den **alten** Pfaden.
- * Würde man sie nur umhängen, wäre Admin-Tools zwischen P2 und P4 kaputt; das
- * widerspricht §10 («die Mandanten-App funktioniert bis P4 unverändert»).
+ * **Bis P4 war das eine Naht.** Die Screens liefen an zwei Orten — hier auf der
+ * Betreiber-Seite und, über den Container «Admin-Tools», auch in der
+ * Mandanten-App. Sie nahmen deshalb `tenantId: string | null` entgegen: `null`
+ * hiess «eigener Mandant, alte Route». Der Container ist mit P4 weg, die
+ * Mandanten-App ruft nichts davon mehr auf, und mit ihr sind die `null`-Zweige
+ * verschwunden. `tenantId` ist jetzt Pflicht.
  *
- * Deshalb die Naht: die Screens nehmen einen `tenantId` entgegen.
+ * **Warum die Datei trotzdem bleibt**, obwohl §10.3/1 ihr Ende vorhersagte: Sie
+ * war nie nur eine Weiche. Die Materialdatenbereinigung und das Beta-Häkchen
+ * brauchen eine andere Aufrufform, als `api/platform` sie anbietet — ein
+ * Parameter-Objekt statt einer Liste, ein `AuthUser` statt einer ID, ein
+ * gebauter Body. Diese Anpassungen standen vorher neben der Weiche und wären
+ * beim Löschen in die Screens gewandert, also in fünf Dateien statt in eine.
  *
- *     null       → eigener Mandant, alte Route  (Mandanten-App, bis P4)
- *     '<uuid>'   → Mandant aus dem Pfad         (Betreiber-Seite)
- *
- * Nicht dasselbe wie «zwei Implementierungen»: die Screens kennen nur diese
- * Funktionen, und der Unterschied steht an genau einer Stelle je Werkzeug.
- * **P4 löscht die `null`-Zweige** — dann bleibt der Plattform-Aufruf übrig und
- * diese Datei kann ganz verschwinden.
+ * Die durchgereichten Funktionen bleiben aus einem zweiten Grund: Ein Screen
+ * importiert **ein** Modul, nicht je nach Werkzeug `api/platform` oder diese
+ * Datei. Wer eine Plattform-Route ergänzt, hat genau einen Ort dafür.
  */
-// Über den Index, nicht über api/admin/tenant.ts: die bestehenden
-// Tab-Tests mocken `api/admin` als Ganzes.
-import * as adminTenant from '../api/admin'
 import * as platform from '../api/platform'
 import type { AuthUser } from '../api/admin/users'
 import type { HelpDoc } from '../api/help'
 import type { WerkoraBonusResponse } from '../api/admin/werkoraBonus'
-import * as materials from '../api/admin/materials'
-import * as suppliers from '../api/admin/suppliers'
-import * as users from '../api/admin/users'
-import * as werkoraBonus from '../api/admin/werkoraBonus'
-import * as help from '../api/help'
-import { fetchKpiView } from '../api/kpiViews'
+import type * as adminTenant from '../api/admin'
+import type * as materials from '../api/admin/materials'
 
 // ─── Module ────────────────────────────────────────────────────────────────
 
-export function getModules(tenantId: string | null) {
-  return tenantId ? platform.getModules(tenantId) : adminTenant.getTenantModules()
+export function getModules(tenantId: string) {
+  return platform.getModules(tenantId)
 }
 
-export function setModules(tenantId: string | null, enabled: string[], beta: string[]) {
-  return tenantId
-    ? platform.setModules(tenantId, enabled, beta)
-    : adminTenant.updateTenantModules(enabled, beta)
+export function setModules(tenantId: string, enabled: string[], beta: string[]) {
+  return platform.setModules(tenantId, enabled, beta)
 }
 
 // ─── Feature-Flags ─────────────────────────────────────────────────────────
 
-export function getFeatures(tenantId: string | null) {
-  return tenantId ? platform.getFeatures(tenantId) : adminTenant.getTenantFeatures()
+export function getFeatures(tenantId: string) {
+  return platform.getFeatures(tenantId)
 }
 
 export function setFeature(
-  tenantId: string | null, key: string, value: Record<string, unknown>,
+  tenantId: string, key: string, value: Record<string, unknown>,
 ) {
-  return tenantId
-    ? platform.setFeature(tenantId, key, value)
-    : adminTenant.updateTenantFeature(key, value)
+  return platform.setFeature(tenantId, key, value)
 }
 
 // ─── Fahrtkosten ───────────────────────────────────────────────────────────
 
-export function getTravelCost(tenantId: string | null) {
-  return tenantId ? platform.getTravelCost(tenantId) : adminTenant.getTenantTravelCost()
+export function getTravelCost(tenantId: string) {
+  return platform.getTravelCost(tenantId)
 }
 
-export function setTravelCost(tenantId: string | null, table: adminTenant.TravelCostRow[] | null) {
-  return tenantId
-    ? platform.setTravelCost(tenantId, table)
-    : adminTenant.updateTenantTravelCost(table)
+export function setTravelCost(tenantId: string, table: adminTenant.TravelCostRow[] | null) {
+  return platform.setTravelCost(tenantId, table)
 }
 
 // ─── Einsatzplanung ────────────────────────────────────────────────────────
 
-export function getScheduling(tenantId: string | null) {
-  return tenantId ? platform.getScheduling(tenantId) : adminTenant.getSchedulingConfig()
+export function getScheduling(tenantId: string) {
+  return platform.getScheduling(tenantId)
 }
 
-export function setScheduling(tenantId: string | null, config: adminTenant.SchedulingConfig) {
-  return tenantId
-    ? platform.setScheduling(tenantId, config)
-    : adminTenant.updateSchedulingConfig(config)
+export function setScheduling(tenantId: string, config: adminTenant.SchedulingConfig) {
+  return platform.setScheduling(tenantId, config)
 }
 
 // ─── Konten / Beta-Häkchen ────────────────────────────────────────────────
 
-export function listUsers(tenantId: string | null): Promise<AuthUser[]> {
-  return tenantId ? platform.listUsers(tenantId) : users.listUsers()
+export function listUsers(tenantId: string): Promise<AuthUser[]> {
+  return platform.listUsers(tenantId)
 }
 
+/** Nimmt den ganzen `AuthUser`, weil die Konten-Tabelle ihn ohnehin in der Hand
+ *  hat — der Aufrufer soll nicht an jeder Stelle `.id` herausklauben. */
 export async function setBetaTester(
-  tenantId: string | null, nutzer: AuthUser, wert: boolean,
+  tenantId: string, nutzer: AuthUser, wert: boolean,
 ): Promise<void> {
-  if (tenantId) {
-    await platform.setBetaTester(tenantId, nutzer.id, wert)
-    return
-  }
-  // Mandanten-Weg: das Häkchen hängt am allgemeinen Konto-PATCH, der die
-  // übrigen Felder mitschickt. Ab P4 lehnt `_assert_may_set_beta` dort jede
-  // Rolle ab — dann bleibt nur der Zweig oben, und dieser hier fällt weg.
-  await users.saveUser({
-    email: nutzer.email, display_name: nutzer.display_name, role: nutzer.role,
-    is_active: nutzer.is_active, beta_tester: wert,
-  }, nutzer.id)
+  await platform.setBetaTester(tenantId, nutzer.id, wert)
 }
 
-/** Passwort eines Kontos zurücksetzen. Beide Wege enden im selben Rumpf
- *  (`admin_users.set_user_password`), nur der Mandant kommt anders zustande. */
+/** Passwort eines Kontos zurücksetzen — derselbe Rumpf wie auf der
+ *  Mandanten-Route (`admin_users.set_user_password`), nur kommt der Mandant
+ *  aus dem Pfad statt aus der Sitzung. */
 export async function setUserPassword(
-  tenantId: string | null, userId: string, neuesPasswort: string,
+  tenantId: string, userId: string, neuesPasswort: string,
 ): Promise<void> {
-  if (tenantId) {
-    await platform.setUserPassword(tenantId, userId, neuesPasswort)
-    return
-  }
-  await users.setUserPassword(userId, neuesPasswort)
+  await platform.setUserPassword(tenantId, userId, neuesPasswort)
 }
 
 // ─── Hilfe-Dokumente ──────────────────────────────────────────────────────
 
-export function listHelpDocs(tenantId: string | null): Promise<HelpDoc[]> {
-  return tenantId ? platform.listHelpDocs(tenantId) : help.listHelpDocs()
+export function listHelpDocs(tenantId: string): Promise<HelpDoc[]> {
+  return platform.listHelpDocs(tenantId)
 }
 
-export async function uploadHelpDoc(tenantId: string | null, file: File): Promise<void> {
-  if (tenantId) await platform.uploadHelpDoc(tenantId, file)
-  else await help.uploadHelpDoc(file)
+export async function uploadHelpDoc(tenantId: string, file: File): Promise<void> {
+  await platform.uploadHelpDoc(tenantId, file)
 }
 
-export async function deleteHelpDoc(tenantId: string | null, name: string): Promise<void> {
-  if (tenantId) await platform.deleteHelpDoc(tenantId, name)
-  else await help.deleteHelpDoc(name)
+export async function deleteHelpDoc(tenantId: string, name: string): Promise<void> {
+  await platform.deleteHelpDoc(tenantId, name)
 }
 
-export async function reindexHelp(tenantId: string | null): Promise<void> {
-  if (tenantId) await platform.reindexHelp(tenantId)
-  else await help.triggerHelpReindex()
+export async function reindexHelp(tenantId: string): Promise<void> {
+  await platform.reindexHelp(tenantId)
 }
 
-export function getReindexStatus(tenantId: string | null): Promise<help.ReindexStatus> {
-  return tenantId ? platform.getReindexStatus(tenantId) : help.getHelpReindexStatus()
+export function getReindexStatus(tenantId: string) {
+  return platform.getReindexStatus(tenantId)
 }
 
 // ─── Materialdatenbereinigung ─────────────────────────────────────────────
 
 /** Kategorien/Einheiten für die Filter — aus dem GEWÄHLTEN Mandanten.
  *  `includeInactive`, weil das Werkzeug auf archivierten Artikeln arbeitet. */
-export function getMaterialsMeta(tenantId: string | null) {
-  return tenantId
-    ? platform.materialsMeta(tenantId)
-    : materials.getMaterialsMeta({ includeInactive: true })
+export function getMaterialsMeta(tenantId: string) {
+  return platform.materialsMeta(tenantId)
 }
 
 /** Lieferanten für Filter und Lieferanten-Spalte — aus dem GEWÄHLTEN Mandanten.
  *  Über den Mandanten-Weg geladen, zeigte die Betreiber-Seite die Lieferanten
  *  des Betreiber-Kontos: leeres Dropdown, leere Spalte. */
-export function listSuppliers(tenantId: string | null) {
-  return tenantId ? platform.listSuppliers(tenantId) : suppliers.listSuppliers()
+export function listSuppliers(tenantId: string) {
+  return platform.listSuppliers(tenantId)
 }
 
-/** Dieselbe Signatur wie `api/admin/materials.scanMaterialCleanup`, nur mit
- *  Mandant davor — der Screen soll beim Umzug nichts umbauen müssen. */
+/** Nimmt die Filter als benanntes Objekt statt als Positionsliste — so steht
+ *  im Screen `{ status, szenario, search }` und nicht `(…, '', '', s, …)`. */
 export function scanMaterialCleanup(
-  tenantId: string | null,
+  tenantId: string,
   p: {
     category?: string; supplier_id?: string; status?: string; szenario?: string
     search?: string
     page?: number; page_size?: number
   } = {},
 ): Promise<materials.MaterialCleanupScan> {
-  if (!tenantId) return materials.scanMaterialCleanup(p)
   return platform.materialCleanupScan(
     tenantId, p as Record<string, string | number>,
   )
 }
 
 export function bulkSetMaterialStatus(
-  tenantId: string | null, artNrs: string[], isActive: boolean,
+  tenantId: string, artNrs: string[], isActive: boolean,
 ): Promise<materials.BulkMaterialStatusResult> {
-  if (!tenantId) return materials.bulkSetMaterialStatus(artNrs, isActive)
   return platform.materialCleanupBulkStatus(tenantId, {
     art_nrs: artNrs, is_active: isActive,
   })
 }
 
+/** Wirkt auf ALLE Artikel des Filters, über alle Seiten hinweg — die Ziel-Liste
+ *  entsteht server-seitig. Deshalb `all_filtered` statt einer Artikelliste. */
 export function bulkSetMaterialStatusAll(
-  tenantId: string | null,
+  tenantId: string,
   filter: {
     category?: string; supplier_id?: string; status?: string; szenario?: string
     search?: string
   },
   isActive: boolean,
 ): Promise<materials.BulkMaterialStatusResult> {
-  if (!tenantId) return materials.bulkSetMaterialStatusAll(filter, isActive)
   return platform.materialCleanupBulkStatus(tenantId, {
     all_filtered: true, is_active: isActive, ...filter,
   })
@@ -203,20 +171,15 @@ export function bulkSetMaterialStatusAll(
 // ─── Werkora Bonus ────────────────────────────────────────────────────────
 
 export function getWerkoraBonus(
-  tenantId: string | null, von: string, bis: string,
+  tenantId: string, von: string, bis: string,
 ): Promise<WerkoraBonusResponse> {
-  return tenantId
-    ? platform.getWerkoraBonus(tenantId, von, bis)
-    : werkoraBonus.getWerkoraBonus(von, bis)
+  return platform.getWerkoraBonus(tenantId, von, bis)
 }
 
 // ─── KPI-Views (LLM-Kosten, Nutzung) ──────────────────────────────────────
 
 export function getKpiView<T = Record<string, unknown>>(
-  tenantId: string | null, viewName: string, filters: Record<string, string> = {},
+  tenantId: string, viewName: string, filters: Record<string, string> = {},
 ) {
-  if (tenantId) return platform.getKpiView<T>(tenantId, viewName, filters)
-  return fetchKpiView<T>(viewName, filters).then((rows) => ({
-    view: viewName, rows, count: rows.length,
-  }))
+  return platform.getKpiView<T>(tenantId, viewName, filters)
 }

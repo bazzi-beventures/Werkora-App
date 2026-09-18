@@ -173,10 +173,10 @@ interface Props {
    *  (docs/specs/admin-werkora-ch.md §6.4). */
   enabledModules: string[]
   /** Mandant der Betreiber-Seite; `null` = eigener (Mandanten-App, bis P4). */
-  tenantId?: string | null
+  tenantId: string
 }
 
-export default function UsageScreen({ enabledModules, tenantId = null }: Props) {
+export default function UsageScreen({ enabledModules, tenantId }: Props) {
   const range = useDateRange('30t')
   const { filters } = range
 

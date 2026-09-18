@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
-import type { BetaFeature } from '../api/auth'
 import { ModuleName } from '../api/modules'
-import { BetaSection } from '../shared/BetaSection'
 import {
   IconDashboard, IconFolder, IconClock, IconCash,
   IconUsers, IconAddressBook, IconReceipt, IconCalendar,
@@ -19,12 +17,6 @@ interface Props {
   displayName: string
   role: string
   enabledModules: string[]
-  /** Laufende Beta-Features dieses Kontos (docs/specs/beta-tester.md §6.2).
-   *  Derselbe Abschnitt wie in der Desktop-Sidebar — auf dem Handy im «Mehr»-Menü. */
-  betaFeatures?: BetaFeature[]
-  /** Modulnamen im Betatest. */
-  betaModules?: string[]
-  canReportSupport?: boolean
   showTaskBoard?: boolean
   badges?: {
     corrections?: number
@@ -53,12 +45,11 @@ function IconSwitchUser() {
   )
 }
 
-export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, betaFeatures = [], betaModules = [], canReportSupport = false, showTaskBoard, badges }: Props) {
+export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, badges }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isManagement = role === 'management' || role === 'superadmin'
-  const isSuperadmin = role === 'superadmin'
   const has = (m: ModuleName) => enabledModules.includes(m)
   const isMoreActive = !PRIMARY_TABS.includes(screen)
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
@@ -255,9 +246,12 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     <IconDocument /><span>Datensicherung</span>
                   </button>
                 )}
-                {isSuperadmin && (
-                  <button className={`admin-mobile-drawer-item${screen === 'admin-tools' ? ' active' : ''}`} onClick={() => navigate('admin-tools')}>
-                    <IconSettings /><span>Admin-Tools</span>
+                {/* Wochenplan und Jahresabschluss — sassen bis zum Rückbau (P4)
+                    in «Admin-Tools» und waren damit superadmin-only, als
+                    Nebeneffekt des Containers (Spec §6.5, E7). */}
+                {isManagement && (
+                  <button className={`admin-mobile-drawer-item${screen === 'settings' ? ' active' : ''}`} onClick={() => navigate('settings')}>
+                    <IconSettings /><span>Einstellungen</span>
                   </button>
                 )}
               </div>
@@ -266,7 +260,6 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
             <div className="admin-mobile-drawer-divider" />
 
             <div className="admin-mobile-drawer-footer">
-              <BetaSection features={betaFeatures} modules={betaModules} canReport={canReportSupport} compact />
               <button className="admin-mobile-switch-btn" onClick={handleSwitchToUser}>
                 <IconSwitchUser />
                 <span>Zur Mitarbeiter-App</span>

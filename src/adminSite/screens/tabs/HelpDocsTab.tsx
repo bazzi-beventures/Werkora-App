@@ -7,7 +7,7 @@ import { useToast, ToastHost } from '../../../admin/components/useToast'
 // ─── Hilfe-Bot-Tab: Handbücher hochladen/löschen + Reindex ───────────────────
 //
 // Die Handbücher liegen im privaten Bucket `help-docs` (Prefix {tenant_id}/) und
-// werden über die /pwa/help/docs-Endpoints verwaltet. Nach einer Änderung muss der
+// werden über `/pwa/superadmin/tenants/{id}/help/…` verwaltet. Nach einer Änderung muss der
 // Reindex laufen, damit der Bot die neue Wissensbasis kennt.
 
 const ACCEPT_HELP = '.md,.markdown,.txt,.pdf'
@@ -21,7 +21,7 @@ function formatBytes(n?: number | null): string {
 
 /** Mandant aus dem Wähler der Betreiber-Seite, oder `null` für den eigenen
  *  (Mandanten-App, bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export function HelpDocsTab({ tenantId = null }: { tenantId?: string | null } = {}) {
+export function HelpDocsTab({ tenantId }: { tenantId: string }) {
   const { toast, showToast } = useToast()
   const [docs, setDocs] = useState<HelpDoc[]>([])
   const [loading, setLoading] = useState(false)

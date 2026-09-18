@@ -44,7 +44,7 @@ function blockerCategoryError(list: string[]): string {
 
 /** Mandant aus dem Wähler der Betreiber-Seite, oder `null` für den eigenen
  *  (Mandanten-App, bis zum Rückbau P4). Siehe adminSite/tenantScopedApi.ts. */
-export function SchedulingTab({ tenantId = null }: { tenantId?: string | null } = {}) {
+export function SchedulingTab({ tenantId }: { tenantId: string }) {
   const { toast, showToast } = useToast()
   const [defaults, setDefaults] = useState<SchedulingConfig | null>(null)
 

@@ -16,21 +16,10 @@ export interface UserInfo {
   consent_required: boolean
   enabled_modules: string[]
   feature_flags?: Record<string, Record<string, unknown>>
-  /** Sieht dieses Konto Features der Stufe «Beta»? (docs/specs/beta-tester.md) */
+  /** Sieht dieses Konto Features der Stufe «Beta»? (docs/specs/beta-tester.md)
+   *  WAS es sieht, zählt die App nicht auf — das sagt der Betreiber seinen
+   *  Testern direkt (Spec-Header, Entscheid 3). */
   beta_tester?: boolean
-  /** Was es WEGEN des Häkchens sieht — für den Beta-Abschnitt in den Einstellungen.
-   *  Leer für alle anderen, und leer, solange nichts in der Beta ist. */
-  beta_features?: BetaFeature[]
-  /** Modulnamen, die dieses Konto wegen des Häkchens sieht (Beta-Module).
-   *  Nur Namen — Label und Beschreibung leben im Modul-Tab des Admin. */
-  beta_modules?: string[]
-}
-
-/** Ein laufendes Beta-Feature, wie `/pwa/me` es ausliefert (Text aus der Registry). */
-export interface BetaFeature {
-  key: string
-  label: string
-  description: string
 }
 
 export async function lookupUser(tenantSlug: string, displayName: string): Promise<{ authorized_user_id: string; display_name: string }> {

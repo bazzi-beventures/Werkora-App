@@ -14,6 +14,7 @@ import { createUnit } from '../../api/admin/units'
 import FrequentMaterialsPanel from './FrequentMaterialsPanel'
 import MaterialVkBulkPanel from './MaterialVkBulkPanel'
 import ImportScreen from '../system/ImportScreen'
+import UnitsPanel from './UnitsPanel'
 import { UserInfo } from '../../api/auth'
 import { isFeatureEnabled } from '../../api/modules'
 import { AdminCardList } from '../components/AdminCardList'
@@ -748,9 +749,14 @@ function MaterialInventoryPanel() {
   )
 }
 
-// Der frühere Reiter "Einheiten" sitzt jetzt in den Admin-Tools (admin/system/UnitsPanel):
-// ein Rename kaskadiert über den ganzen Materialstamm, das ist Wartung, kein Tagesgeschäft.
-type MaterialTab = 'inventory' | 'frequent' | 'vkbulk' | 'import'
+// "Einheiten" ist seit P4 wieder hier (Spec docs/specs/admin-werkora-ch.md §6.5,
+// Entscheid E7). Der Reiter war in die Admin-Tools gewandert, weil ein Rename über
+// den ganzen Materialstamm kaskadiert — Wartung, kein Tagesgeschäft. Superadmin-only
+// war er damit nur als Nebeneffekt des Containers; Masseinheiten sind eine
+// Einstellung des Mandanten. Mit dem Container ist der Nebeneffekt weg.
+//
+// Ganz rechts, neben "Import": beides sind Werkzeuge am Stamm, nicht am Tagesbestand.
+type MaterialTab = 'inventory' | 'frequent' | 'vkbulk' | 'import' | 'units'
 
 export default function MaterialsScreen({ user }: { user: UserInfo }) {
   const [tab, setTab] = useState<MaterialTab>('inventory')
@@ -791,12 +797,19 @@ export default function MaterialsScreen({ user }: { user: UserInfo }) {
         >
           Import
         </button>
+        <button
+          className={`kpi-admin-tab${tab === 'units' ? ' active' : ''}`}
+          onClick={() => setTab('units')}
+        >
+          Einheiten
+        </button>
       </div>
 
       {tab === 'inventory' && <MaterialInventoryPanel />}
       {tab === 'frequent' && ersatzteilEnabled && <FrequentMaterialsPanel />}
       {tab === 'vkbulk' && ownArticleEnabled && <MaterialVkBulkPanel />}
       {tab === 'import' && <ImportScreen ownArticleEnabled={ownArticleEnabled} />}
+      {tab === 'units' && <UnitsPanel />}
     </div>
   )
 }

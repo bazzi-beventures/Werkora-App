@@ -207,48 +207,10 @@ export interface BulkMaterialStatusResult {
   skipped_blocked: number
 }
 
-export async function scanMaterialCleanup(
-  p: {
-    category?: string; supplier_id?: string; status?: string; szenario?: string
-    search?: string
-    page?: number; page_size?: number
-  } = {},
-): Promise<MaterialCleanupScan> {
-  const params = new URLSearchParams()
-  if (p.category) params.set('category', p.category)
-  if (p.supplier_id) params.set('supplier_id', p.supplier_id)
-  if (p.status) params.set('status', p.status)
-  if (p.szenario) params.set('szenario', p.szenario)
-  if (p.search) params.set('search', p.search)
-  if (p.page) params.set('page', String(p.page))
-  if (p.page_size) params.set('page_size', String(p.page_size))
-  const qs = params.toString()
-  return apiFetch<MaterialCleanupScan>(`/pwa/admin/material-cleanup/scan${qs ? `?${qs}` : ''}`)
-}
-
-export async function bulkSetMaterialStatus(
-  artNrs: string[], isActive: boolean,
-): Promise<BulkMaterialStatusResult> {
-  return apiFetch<BulkMaterialStatusResult>('/pwa/admin/material-cleanup/bulk-status', {
-    method: 'POST',
-    body: JSON.stringify({ art_nrs: artNrs, is_active: isActive }),
-  })
-}
-
-// Filter-Modus: wirkt auf ALLE Artikel des Filters (alle Seiten) — die
-// Ziel-Liste entsteht server-seitig aus denselben Filtern wie die Ansicht.
-export async function bulkSetMaterialStatusAll(
-  filter: {
-    category?: string; supplier_id?: string; status?: string; szenario?: string
-    search?: string
-  },
-  isActive: boolean,
-): Promise<BulkMaterialStatusResult> {
-  return apiFetch<BulkMaterialStatusResult>('/pwa/admin/material-cleanup/bulk-status', {
-    method: 'POST',
-    body: JSON.stringify({ all_filtered: true, is_active: isActive, ...filter }),
-  })
-}
+// `scanMaterialCleanup`/`bulkSetMaterialStatus`/`bulkSetMaterialStatusAll`
+// standen hier bis zum Rückbau (P4); ihre Mandanten-Routen sind entfallen. Die
+// Bereinigung läuft auf `admin.werkora.ch` über `api/platform.ts`, die Typen
+// oben bleiben dafür (docs/specs/admin-werkora-ch.md §5.1/§6.5).
 
 // ─── Massen-VK-Erhöhung (eigene Materialien ohne Lieferant) ──────
 export type VkBulkMode = 'markup' | 'fixed' | 'skip'

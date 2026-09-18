@@ -33,7 +33,7 @@ const ROLLE_LABEL: Record<string, string> = {
   user_light: 'Mitarbeiter (eingeschränkt)',
 }
 
-export default function AccountsScreen({ tenantId }: { tenantId: string | null }) {
+export default function AccountsScreen({ tenantId }: { tenantId: string }) {
   const { toast, showToast } = useToast()
   const [users, setUsers] = useState<AuthUser[] | null>(null)
   const [fehler, setFehler] = useState('')

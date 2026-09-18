@@ -277,7 +277,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_document_backup_start: 'Datensicherung gestartet',
   admin_document_backup_cancel: 'Datensicherung abgebrochen',
 
-  // ── Konfiguration & Admin-Tools ──
+  // ── Kalibrierung durch den Betreiber (admin.werkora.ch) ──
   admin_update_tenant_modules: 'Module geändert',
   admin_update_tenant_feature: 'Feature-Flag geändert',
   admin_update_tenant_scheduling: 'Einsatzplan-Konfiguration geändert',

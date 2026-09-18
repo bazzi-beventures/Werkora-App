@@ -5,12 +5,22 @@ import type { KpiNutzungAdoptionRow, KpiNutzungAktionRow } from '../../admin/kpi
 // Recharts in jsdom vermeiden (misst 0-Grösse, verrauscht die Tests).
 vi.mock('../../admin/kpis/components/BiBarChart', () => ({ default: () => null }))
 
+// Seit dem Rückbau (P4) liest der Screen über die PLATTFORM-Route
+// (`/pwa/superadmin/tenants/{id}/kpi-views/…`), nicht mehr über die
+// Mandanten-Route: er läuft nur noch auf der Betreiber-Seite und immer mit
+// einem gewählten Mandanten. Gemockt wird deshalb `tenantScopedApi`, nicht
+// `api/kpiViews`.
 const fetchKpiView = vi.fn()
-vi.mock('../../api/kpiViews', () => ({
-  fetchKpiView: (view: string, filters?: Record<string, string>) => fetchKpiView(view, filters),
+vi.mock('../tenantScopedApi', () => ({
+  getKpiView: (_tenantId: string, view: string, filters?: Record<string, string>) =>
+    fetchKpiView(view, filters).then((rows: unknown[]) => ({
+      view, rows, count: rows.length,
+    })),
 }))
 
 import UsageScreen from './UsageScreen'
+
+const MANDANT = '11111111-1111-1111-1111-111111111111'
 
 const heute = new Date().toISOString().slice(0, 10)
 
@@ -41,7 +51,7 @@ function setup(aktionen = AKTIONEN, konten = [konto()], module = MODULE) {
   fetchKpiView.mockImplementation((view: string) =>
     Promise.resolve(view === 'vw_kpi_nutzung_aktion' ? aktionen : konten),
   )
-  return render(<UsageScreen enabledModules={module} />)
+  return render(<UsageScreen enabledModules={module} tenantId={MANDANT} />)
 }
 
 /** Die Tabelle, die auf eine Überschrift FOLGT — nicht die erste im Container:

@@ -5,17 +5,22 @@ import type { Unit } from '../../api/admin/units'
 import { useToast, ToastHost } from '../components/useToast'
 
 /**
- * Einheiten-Vokabular pflegen (Tab in den Admin-Tools).
+ * Einheiten-Vokabular pflegen — Reiter im Materialstamm.
  *
  * Umbenennen wirkt auf alle Materialien mit dem alten Code; ein bereits
  * existierender Ziel-Code fuehrt die beiden Einheiten zusammen (Merge). Loeschen
  * ist gesperrt, solange die Einheit noch verwendet wird (Backend gibt 400).
  *
- * Wartungswerkzeug, kein Tagesgeschaeft: ein Rename kaskadiert ueber den ganzen
- * Materialstamm. Steht deshalb neben der Materialdatenbereinigung in den Admin-Tools
- * (superadmin-only) statt als Reiter im Material-Bereich.
+ * **Zurueck im Materialstamm seit P4** (Spec docs/specs/admin-werkora-ch.md §6.5,
+ * Entscheid E7). Die Einheiten lagen in den Admin-Tools, weil ein Rename ueber
+ * den ganzen Materialstamm kaskadiert — Wartung, kein Tagesgeschaeft. Dass sie
+ * damit superadmin-only waren, war ein Nebeneffekt des Containers, kein
+ * Entscheid: Masseinheiten sind eine Einstellung des Mandanten, keine
+ * Kalibrierung durch den Betreiber. Mit dem Container faellt der Nebeneffekt
+ * weg; das Backend stand ohnehin auf `require_admin`.
  *
- * Bringt wie die uebrigen Tool-Screens seinen eigenen `admin-page`-Rahmen mit.
+ * Rendert KEIN eigenes `admin-page` — eingebettet als Reiter in MaterialsScreen,
+ * der den Seitenrahmen und die Reiterleiste liefert (wie ImportScreen).
  */
 export default function UnitsPanel() {
   const [units, setUnits] = useState<Unit[]>([])
@@ -102,7 +107,7 @@ export default function UnitsPanel() {
     : undefined
 
   return (
-    <div className="admin-page">
+    <>
       <div className="admin-page-header">
         <div>
           <div className="admin-page-title">Einheiten</div>
@@ -196,6 +201,6 @@ export default function UnitsPanel() {
       )}
 
       <ToastHost toast={toast} />
-    </div>
+    </>
   )
 }

@@ -2,23 +2,25 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ConfigurationScreen from './ConfigurationScreen'
-import { getSchedulingConfig, updateSchedulingConfig } from '../../api/admin'
 import { SCHEDULING_VIEWS } from '../../api/admin/tenant'
 
-// Client-apiFetch neutralisieren: der Default-Tab (Wochenplan) lädt beim Mount.
+const MANDANT = '11111111-1111-1111-1111-111111111111'
+
+// Client-apiFetch neutralisieren: die übrigen Reiter laden beim Mount.
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn().mockResolvedValue({}),
   ApiError: class ApiError extends Error {},
 }))
 
-// Echte Konstanten (SCHEDULING_KINDS/FIELDS) behalten, nur die zwei Calls mocken.
-vi.mock('../../api/admin', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../api/admin')>()
-  return { ...actual, getSchedulingConfig: vi.fn(), updateSchedulingConfig: vi.fn() }
-})
-
-const mockGet = vi.mocked(getSchedulingConfig)
-const mockUpdate = vi.mocked(updateSchedulingConfig)
+// Seit dem Rückbau (P4) geht der Reiter über die PLATTFORM-Route mit dem
+// Mandanten aus dem Pfad — gemockt wird deshalb `tenantScopedApi`, nicht
+// `api/admin`. Die echten Konstanten (SCHEDULING_KINDS/FIELDS/VIEWS) bleiben.
+const mockGet = vi.fn()
+const mockUpdate = vi.fn()
+vi.mock('../tenantScopedApi', () => ({
+  getScheduling: (tenantId: string) => mockGet(tenantId),
+  setScheduling: (tenantId: string, config: unknown) => mockUpdate(tenantId, config),
+}))
 
 const DEFAULTS = {
   fields: { address: true, projektleiter: false, customer: false, bemerkung: false },
@@ -43,7 +45,7 @@ beforeEach(() => {
 
 async function openTab() {
   const user = userEvent.setup()
-  render(<ConfigurationScreen userRole="superadmin" />)
+  render(<ConfigurationScreen tenantId={MANDANT} />)
   await user.click(screen.getByRole('button', { name: 'Einsatzplanung' }))
   return user
 }
@@ -72,7 +74,10 @@ describe('SchedulingTab', () => {
 
     await user.click(saveBtn)
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    const sent = mockUpdate.mock.calls[0][0]
+    // Der Mandant aus dem Pfad geht mit — die Route nimmt ihn nicht aus der
+    // Sitzung, sonst schriebe der Betreiber seine eigene Einsatzplanung um.
+    expect(mockUpdate.mock.calls[0][0]).toBe(MANDANT)
+    const sent = mockUpdate.mock.calls[0][1]
     expect(sent.fields.projektleiter).toBe(true)
     expect(sent.fields.address).toBe(true)
     expect(sent.colors.project).toBe('#3081ab')
@@ -105,7 +110,7 @@ describe('SchedulingTab', () => {
 
     await user.click(saveBtn)
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    expect(mockUpdate.mock.calls[0][0].grey_after).toBe('13:30')
+    expect(mockUpdate.mock.calls[0][1].grey_after).toBe('13:30')
   })
 
   it('Fenster-Ende (bis) wird gespeichert; "bis" ist ohne "von" deaktiviert', async () => {
@@ -126,8 +131,8 @@ describe('SchedulingTab', () => {
 
     await user.click(saveBtn)
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    expect(mockUpdate.mock.calls[0][0].grey_after).toBe('12:00')
-    expect(mockUpdate.mock.calls[0][0].grey_until).toBe('13:00')
+    expect(mockUpdate.mock.calls[0][1].grey_after).toBe('12:00')
+    expect(mockUpdate.mock.calls[0][1].grey_until).toBe('13:00')
   })
 
   it('Ansicht abschalten wird mitgespeichert', async () => {
@@ -141,7 +146,7 @@ describe('SchedulingTab', () => {
     await user.click(plantafel)
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    const sent = mockUpdate.mock.calls[0][0]
+    const sent = mockUpdate.mock.calls[0][1]
     expect(sent.views?.plantafel).toBe(false)
     expect(sent.views?.month).toBe(true)
   })
@@ -169,7 +174,7 @@ describe('SchedulingTab', () => {
 
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    expect(mockUpdate.mock.calls[0][0].blocker_categories).toEqual(['Wartet auf Material'])
+    expect(mockUpdate.mock.calls[0][1].blocker_categories).toEqual(['Wartet auf Material'])
   })
 
   it('Blocker-Kategorien: bestehende werden geladen und lassen sich entfernen', async () => {
@@ -185,7 +190,7 @@ describe('SchedulingTab', () => {
 
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
     await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1))
-    expect(mockUpdate.mock.calls[0][0].blocker_categories).toEqual(['Wetter'])
+    expect(mockUpdate.mock.calls[0][1].blocker_categories).toEqual(['Wetter'])
   })
 
   it('Speichern ist gesperrt bei doppelter oder leerer Blocker-Kategorie', async () => {

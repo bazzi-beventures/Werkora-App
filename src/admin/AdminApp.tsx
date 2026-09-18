@@ -34,7 +34,7 @@ import SupplierWikiScreen from './wiki/SupplierWikiScreen'
 import StaffRolesScreen from './masterdata/StaffRolesScreen'
 import UsersScreen from './system/UsersScreen'
 import DocumentBackupScreen from './system/DocumentBackupScreen'
-import AdminToolsScreen from './system/AdminToolsScreen'
+import SettingsScreen from './configuration/SettingsScreen'
 import KpiScreen from './kpis/KpiScreen'
 import HelpBubble from '../shared/HelpBubble'
 import EasterEggs from './eastereggs/EasterEggs'
@@ -102,7 +102,7 @@ const SCREEN_TITLES: Record<AdminScreen, string> = {
   'users': 'Benutzerverwaltung',
   'kpis': 'Kennzahlen',
   'document-backup': 'Datensicherung',
-  'admin-tools': 'Admin-Tools',
+  'settings': 'Einstellungen',
 }
 
 export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOut, onSwitchToUser }: Props) {
@@ -210,7 +210,6 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     <RequireModule module={mod} enabledModules={enabledModules}>{el}</RequireModule>
   )
 
-  const isSuperadmin = user.role === 'superadmin'
   // Diagnose-Breadcrumb je Screenwechsel (Spec docs/specs/support-ticket.md §5.3).
   useEffect(() => { trackNav(screen) }, [screen])
 
@@ -228,10 +227,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     // 'users' fehlt hier bewusst: die Benutzerverwaltung steht auch dem Admin offen
     // (Mitarbeiter anlegen, Passwort/PIN setzen). Was er dort darf, regelt die
     // Rollen-Matrix im Backend (agents/routers/admin_users.py) und UsersScreen.
-    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'kpis' || screen === 'bulk-clockin' || screen === 'document-backup') && !isManagement) {
-      return <ComingSoon title="Kein Zugriff" />
-    }
-    if (screen === 'admin-tools' && !isSuperadmin) {
+    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'kpis' || screen === 'bulk-clockin' || screen === 'document-backup' || screen === 'settings') && !isManagement) {
       return <ComingSoon title="Kein Zugriff" />
     }
     switch (screen) {
@@ -273,7 +269,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'users':        return <UsersScreen actingRole={user.role} />
       case 'kpis':         return guard('kpis', <KpiScreen />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
-      case 'admin-tools':  return <AdminToolsScreen userRole={user.role} enabledModules={enabledModules} />
+      case 'settings':     return <SettingsScreen />
       default:             return <ComingSoon title={SCREEN_TITLES[screen]} />
     }
   }
@@ -317,9 +313,6 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           badges={badges}
-          betaFeatures={user.beta_features ?? []}
-          betaModules={user.beta_modules ?? []}
-          canReportSupport={showSupport}
         />
       )}
       <main className={isMobile ? 'admin-content admin-content-mobile' : 'admin-content'}>
@@ -350,9 +343,6 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           badges={badges}
-          betaFeatures={user.beta_features ?? []}
-          betaModules={user.beta_modules ?? []}
-          canReportSupport={showSupport}
         />
       )}
       {/* Meilenstein-Animationen (Feature `eastereggs`, Beta). Prueft Flag und

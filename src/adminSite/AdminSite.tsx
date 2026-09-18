@@ -17,7 +17,7 @@ import LoginScreen from './LoginScreen'
 import AdminSiteShell, { SCREEN_TITEL } from './AdminSiteShell'
 import ScreenBoundary from './ScreenBoundary'
 import { useTenantScope } from './useTenantScope'
-import { useAdminSiteNav, istMandantScreen, hatRechnungsbereich } from './useAdminSiteNav'
+import { useAdminSiteNav, istMandantScreen, hatRechnungsbereich, type MandantScreen } from './useAdminSiteNav'
 
 import ServiceStatusScreen from './screens/ServiceStatusScreen'
 import PushTestScreen from './screens/PushTestScreen'
@@ -99,20 +99,43 @@ export default function AdminSite() {
     return <LoginScreen onLoggedIn={setUser} />
   }
 
+  // Die Screens des Mandanten-Bereichs nehmen `tenantId: string`, nicht
+  // `string | null` — seit dem Rückbau (P4) gibt es den Aufruf ohne Mandanten
+  // nicht mehr. Damit das eine Typaussage ist und kein Kommentar, stehen sie in
+  // einer eigenen Funktion, die den Mandanten als Parameter bekommt: Der
+  // Compiler hält jetzt fest, was vorher nur die Reihenfolge im Kopf sicherte.
+  function mandantInhalt(tenantId: string, s: MandantScreen) {
+    switch (s) {
+      case 'konfiguration':  return <ConfigurationScreen tenantId={tenantId} />
+      case 'konten':         return <AccountsScreen tenantId={tenantId} />
+      case 'llm-kosten':     return <LlmCostsScreen tenantId={tenantId} />
+      case 'nutzung':        return <UsageScreen tenantId={tenantId} enabledModules={scope.tenant?.enabled_modules ?? []} />
+      case 'material':       return <MaterialCleanupScreen tenantId={tenantId} />
+      case 'bonus':          return <WerkoraBonusScreen tenantId={tenantId} />
+      default: {
+        // Ein neuer Eintrag in MANDANT_SCREENS ohne Fall hier ist ein
+        // Compile-Fehler, kein leerer Bildschirm.
+        const fehlt: never = s
+        return fehlt
+      }
+    }
+  }
+
   function inhalt() {
     // Der Mandanten-Bereich ist ohne Auswahl leer — mit Hinweis, nicht mit
     // Fehler (§4.1). Ein Screen, der gegen `tenantId === null` losfährt, würfe
     // in `requireTenantId`; das wäre ein Absturz für einen normalen Zustand.
-    if (istMandantScreen(screen) && !scope.tenantId) {
-      return (
-        <div className="admin-empty">
-          Kein Mandant gewählt. Oben im Kopf einen auswählen — oder in der
-          Übersicht auf eine Zeile klicken.
-        </div>
-      )
+    if (istMandantScreen(screen)) {
+      if (!scope.tenantId) {
+        return (
+          <div className="admin-empty">
+            Kein Mandant gewählt. Oben im Kopf einen auswählen — oder in der
+            Übersicht auf eine Zeile klicken.
+          </div>
+        )
+      }
+      return mandantInhalt(scope.tenantId, screen)
     }
-
-    const tenantId = scope.tenantId
 
     switch (screen) {
       // ── Plattform: ignoriert den Wähler (Datenraum = alle Mandanten) ──
@@ -128,16 +151,8 @@ export default function AdminSite() {
       case 'newsletter':     return <NewsletterScreen tenants={scope.tenants} />
       // Error-Logs und Support übernehmen den Wähler als VORAUSWAHL ihres
       // bestehenden «Alle Mandanten»-Filters — nicht als Skopierung (§4.1).
-      case 'fehler':         return <ErrorLogsScreen initialTenantId={tenantId ?? undefined} />
+      case 'fehler':         return <ErrorLogsScreen initialTenantId={scope.tenantId ?? undefined} />
       case 'support':        return <SupportTicketsScreen initialTicketId={detail ?? undefined} />
-
-      // ── Mandant: arbeitet auf dem gewählten ──
-      case 'konfiguration':  return <ConfigurationScreen tenantId={tenantId} userRole={user!.role} />
-      case 'konten':         return <AccountsScreen tenantId={tenantId} />
-      case 'llm-kosten':     return <LlmCostsScreen tenantId={tenantId} />
-      case 'nutzung':        return <UsageScreen tenantId={tenantId} enabledModules={scope.tenant?.enabled_modules ?? []} />
-      case 'material':       return <MaterialCleanupScreen tenantId={tenantId} />
-      case 'bonus':          return <WerkoraBonusScreen tenantId={tenantId} />
 
       // ── Rechnungen: der EIGENE Mandant des Kontos (§8.3) ──
       // Kein `tenantId`: diese Screens lesen den Mandanten aus der Sitzung.

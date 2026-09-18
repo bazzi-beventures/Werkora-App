@@ -41,17 +41,22 @@ export function mayAnonymize(actingRole: string | null | undefined): boolean {
 }
 
 /**
- * Darf diese Rolle das Beta-Häkchen setzen? (docs/specs/beta-tester.md §3.6)
+ * Darf diese Rolle das Beta-Häkchen in der Mandanten-App setzen?
+ * (docs/specs/beta-tester.md §3.6, admin-werkora-ch.md §6.5)
  *
- * **Nur der Superadmin**, und gepflegt wird es im Tab Testing unter
- * Admin-Tools → Konfiguration — nicht mehr in der Benutzerverwaltung
- * (Betreiberentscheid 2026-09-06). Beta gehört ganz zum Betreiber: Er
- * entscheidet, WAS in die Beta geht, und auch WER testet.
+ * **Niemand mehr.** Beta gehört ganz zum Betreiber: Er entscheidet, WAS in die
+ * Beta geht, und auch WER testet (Betreiberentscheid 2026-09-06). Gesetzt wird
+ * das Häkchen seit dem Rückbau (P4) ausschliesslich auf `admin.werkora.ch`, im
+ * Tab Testing — in der Mandanten-App gibt es dafür keinen Weg mehr.
+ *
+ * Die Funktion bleibt trotzdem stehen, statt die Aufrufe zu löschen: Sie ist
+ * der Ort, an dem diese Regel steht, und `UserDetailScreen` zeigt die Spalte
+ * «Beta» weiterhin an — nur eben ohne Schalter. Ein `false` hier ist die
+ * Regel; ein entfernter Aufruf wäre ihr Verschwinden.
  *
  * Spiegel von `_assert_may_set_beta` in agents/routers/admin_users.py —
- * verbindlich ist das Backend. Die Benutzerverwaltung ZEIGT den Status
- * weiterhin (Spalte «Beta»); wer ihn ändern will, geht in den Testing-Tab.
+ * verbindlich ist das Backend, das dort seit P4 jede Rolle abweist.
  */
-export function maySetBetaTester(actingRole: string | null | undefined): boolean {
-  return actingRole === 'superadmin'
+export function maySetBetaTester(_actingRole: string | null | undefined): boolean {
+  return false
 }
