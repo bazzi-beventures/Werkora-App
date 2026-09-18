@@ -41,6 +41,10 @@ export interface MaterialsMeta {
 
 export type MaterialSortKey = 'art_nr' | 'name' | 'category' | 'unit' | 'cost_price'
 
+/** Archivierte Artikel (`is_active=false`) sind standardmaessig ausgeblendet —
+ *  `archived` zeigt nur sie (zum Zurueckholen), `all` beides. */
+export type MaterialStatusFilter = 'active' | 'archived' | 'all'
+
 export interface MaterialsListQuery {
   sort: MaterialSortKey
   dir: 'asc' | 'desc'
@@ -49,6 +53,7 @@ export interface MaterialsListQuery {
   search?: string
   category?: string
   supplierId?: string
+  status?: MaterialStatusFilter
 }
 
 // Was POST/PATCH schickt. `unit_price` und `markup_pct` hängen zusammen: mit EK
@@ -76,6 +81,7 @@ export async function listMaterials(q: MaterialsListQuery): Promise<MaterialsLis
   if (q.search) params.set('search', q.search)
   if (q.category) params.set('category', q.category)
   if (q.supplierId) params.set('supplier_id', q.supplierId)
+  if (q.status && q.status !== 'active') params.set('status', q.status)
   return apiFetch<MaterialsListResponse>(`/pwa/admin/materials/list?${params.toString()}`)
 }
 
@@ -101,6 +107,20 @@ export async function saveMaterial(input: MaterialInput, artNr?: string): Promis
     method: artNr ? 'PATCH' : 'POST',
     body: JSON.stringify(input),
   })
+}
+
+/**
+ * Artikel archivieren bzw. zurueckholen (`materials.is_active`).
+ *
+ * Archivieren blendet ihn aus Materialliste, Katalog und den Auswahlfeldern
+ * von Offerte und Rechnung aus; geloescht wird nie, Bestand und Historie
+ * bleiben. Der Weg fuer den falsch oder doppelt angelegten Artikel — die
+ * Materialdatenbereinigung sperrt genau die Szenarien, in denen so einer
+ * landet (er wurde ja bereits verbaut).
+ */
+export async function setMaterialArchived(artNr: string, archived: boolean): Promise<void> {
+  const aktion = archived ? 'deactivate' : 'reactivate'
+  await apiFetch(`/pwa/admin/materials/${encodeURIComponent(artNr)}/${aktion}`, { method: 'POST' })
 }
 
 export async function uploadMaterialImage(artNr: string, file: File): Promise<void> {
@@ -190,6 +210,7 @@ export interface BulkMaterialStatusResult {
 export async function scanMaterialCleanup(
   p: {
     category?: string; supplier_id?: string; status?: string; szenario?: string
+    search?: string
     page?: number; page_size?: number
   } = {},
 ): Promise<MaterialCleanupScan> {
@@ -198,6 +219,7 @@ export async function scanMaterialCleanup(
   if (p.supplier_id) params.set('supplier_id', p.supplier_id)
   if (p.status) params.set('status', p.status)
   if (p.szenario) params.set('szenario', p.szenario)
+  if (p.search) params.set('search', p.search)
   if (p.page) params.set('page', String(p.page))
   if (p.page_size) params.set('page_size', String(p.page_size))
   const qs = params.toString()
@@ -216,7 +238,10 @@ export async function bulkSetMaterialStatus(
 // Filter-Modus: wirkt auf ALLE Artikel des Filters (alle Seiten) — die
 // Ziel-Liste entsteht server-seitig aus denselben Filtern wie die Ansicht.
 export async function bulkSetMaterialStatusAll(
-  filter: { category?: string; supplier_id?: string; status?: string; szenario?: string },
+  filter: {
+    category?: string; supplier_id?: string; status?: string; szenario?: string
+    search?: string
+  },
   isActive: boolean,
 ): Promise<BulkMaterialStatusResult> {
   return apiFetch<BulkMaterialStatusResult>('/pwa/admin/material-cleanup/bulk-status', {

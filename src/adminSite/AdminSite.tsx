@@ -10,6 +10,9 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { getMe, logout, type UserInfo } from '../api/auth'
+import { setAdminPassword } from '../api/admin/staff'
+import { PasswordDialog } from './PasswordDialog'
+import { useToast, ToastHost } from '../admin/components/useToast'
 import LoginScreen from './LoginScreen'
 import AdminSiteShell, { SCREEN_TITEL } from './AdminSiteShell'
 import ScreenBoundary from './ScreenBoundary'
@@ -21,6 +24,7 @@ import PushTestScreen from './screens/PushTestScreen'
 import ErrorLogsScreen from './screens/ErrorLogsScreen'
 import SupportTicketsScreen from './screens/SupportTicketsScreen'
 import ConfigurationScreen from './screens/ConfigurationScreen'
+import AccountsScreen from './screens/AccountsScreen'
 import LlmCostsScreen from './screens/LlmCostsScreen'
 import UsageScreen from './screens/UsageScreen'
 import MaterialCleanupScreen from './screens/MaterialCleanupScreen'
@@ -67,6 +71,8 @@ import './adminSite.css'
 export default function AdminSite() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [pruefend, setPruefend] = useState(true)
+  const [passwortDialog, setPasswortDialog] = useState(false)
+  const { toast, showToast } = useToast()
   const scope = useTenantScope()
   const { screen, detail, navigate } = useAdminSiteNav()
 
@@ -127,6 +133,7 @@ export default function AdminSite() {
 
       // ── Mandant: arbeitet auf dem gewählten ──
       case 'konfiguration':  return <ConfigurationScreen tenantId={tenantId} userRole={user!.role} />
+      case 'konten':         return <AccountsScreen tenantId={tenantId} />
       case 'llm-kosten':     return <LlmCostsScreen tenantId={tenantId} />
       case 'nutzung':        return <UsageScreen tenantId={tenantId} enabledModules={scope.tenant?.enabled_modules ?? []} />
       case 'material':       return <MaterialCleanupScreen tenantId={tenantId} />
@@ -149,6 +156,7 @@ export default function AdminSite() {
       scope={scope}
       displayName={user.display_name}
       onLogout={abmelden}
+      onChangePassword={() => setPasswortDialog(true)}
       zeigeRechnungen={hatRechnungsbereich(user.enabled_modules)}
     >
       {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
@@ -157,6 +165,24 @@ export default function AdminSite() {
       <ScreenBoundary resetKey={screen} screenTitel={SCREEN_TITEL[screen]}>
         {inhalt()}
       </ScreenBoundary>
+
+      {/* Eigenes Passwort: `POST /pwa/admin/set-password` verlangt das alte und
+          lässt die eigene Sitzung stehen — deshalb `requireCurrent`. Der
+          Dialog hängt hier und nicht an einem Screen, damit er von überall
+          erreichbar ist, auch ohne gewählten Mandanten. */}
+      {passwortDialog && (
+        <PasswordDialog
+          titel="Eigenes Passwort ändern"
+          requireCurrent
+          onSave={(neu, aktuell) => setAdminPassword(aktuell, neu)}
+          onClose={() => setPasswortDialog(false)}
+          onDone={(meldung) => {
+            setPasswortDialog(false)
+            showToast(meldung)
+          }}
+        />
+      )}
+      <ToastHost toast={toast} />
     </AdminSiteShell>
   )
 }

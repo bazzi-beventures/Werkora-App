@@ -286,3 +286,34 @@
 .admin-row-clickable {
   cursor: pointer;
 }
+
+/* Passwort-Dialog: die Felder stapeln sich, statt in der Zeile zu kleben.
+   `.admin-form-group` bringt seinen eigenen Abstand nach unten mit, aber im
+   Dialog stehen drei Felder plus Hinweis plus Fehlerzeilen untereinander —
+   ohne eine Spalte mit festem Zwischenraum sitzt der Hinweis am Feld darueber
+   und liest sich wie dessen Beschriftung. */
+.adminsite-pwd-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  text-align: left;
+}
+
+/* «Passwort vergessen?» unter dem Anmeldeknopf. Ein `<button>` und kein `<a>`:
+   es fuehrt nirgendwo hin, sondern schaltet denselben Schirm um — ein Link
+   ohne Ziel ist fuer Tastatur und Screenreader eine Falle. Aussehen wie ein
+   Link, damit er nicht mit dem Anmeldeknopf um Aufmerksamkeit ringt. */
+.adminsite-login-link {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: var(--s-1);
+  color: var(--muted);
+  font-size: var(--font-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.adminsite-login-link:hover {
+  color: var(--text);
+}

@@ -4,8 +4,6 @@ import type {
   MaterialCleanupScan, MaterialCleanupRow, MaterialSzenario,
 } from '../../api/admin/materials'
 import { isOfflineError } from '../../api/client'
-import { getMaterialsMeta } from '../../api/admin/materials'
-import { listSuppliers } from '../../api/admin/suppliers'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
 import { ToastHost, useToast } from '../../admin/components/useToast'
 
@@ -39,6 +37,8 @@ export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: 
   const [category, setCategory] = useState('')
   const [supplierId, setSupplierId] = useState('')
   const [status, setStatus] = useState('')            // '' = alle, 'active', 'inactive'
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [szenario, setSzenario] = useState<MaterialSzenario | ''>('')
   const [page, setPage] = useState(1)
 
@@ -52,30 +52,40 @@ export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: 
   const [confirm, setConfirm] = useState<{ targetActive: boolean } | null>(null)
   const { toast, showToast } = useToast()
 
-  // Lieferanten + Kategorien für die Filter-Dropdowns.
+  // Lieferanten + Kategorien für die Filter-Dropdowns — beides aus dem
+  // GEWÄHLTEN Mandanten. Über den Mandanten-Weg geladen, zeigte die
+  // Betreiber-Seite die Stammdaten des Betreiber-Kontos: zwei leere Dropdowns
+  // und eine leere Lieferanten-Spalte neben Gehlhaars Artikeln.
   useEffect(() => {
     (async () => {
       try {
         const [sups, meta] = await Promise.all([
-          listSuppliers(),
+          scoped.listSuppliers(tenantId),
           // include_inactive: dieses Tool arbeitet auf archivierten Artikeln — ohne den
           // Parameter fehlen Kategorien, in denen bereits alles auf Loeschvormerkung steht.
-          getMaterialsMeta({ includeInactive: true }),
+          scoped.getMaterialsMeta(tenantId),
         ])
         setSuppliers(sups)
         setCategories(meta.categories ?? [])
       } catch { /* nicht blockierend */ }
     })()
-  }, [])
+  }, [tenantId])
+
+  // 300 ms Debounce wie in der Material-Übersicht: der Scan klassifiziert den
+  // ganzen Mandantenbestand, ein Roundtrip je Tastendruck wäre spürbar.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
 
   // Filter/Szenario-Wechsel → zurück auf Seite 1.
-  useEffect(() => { setPage(1) }, [category, supplierId, status, szenario])
+  useEffect(() => { setPage(1) }, [tenantId, category, supplierId, status, szenario, debouncedSearch])
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
       const res = await scoped.scanMaterialCleanup(tenantId, {
-        category, supplier_id: supplierId, status, szenario,
+        category, supplier_id: supplierId, status, szenario, search: debouncedSearch,
         page, page_size: PAGE_SIZE,
       })
       setScan(res)
@@ -84,12 +94,17 @@ export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: 
     } finally {
       setLoading(false)
     }
-  }, [category, supplierId, status, szenario, page])
+    // `tenantId` gehört dazu: Ohne ihn behielte ein Wechsel des Mandanten die
+    // Artikel des vorigen im Bild — dieselbe Mandantentreue-Falle wie in §10.7
+    // der Spec, nur eine Ebene tiefer.
+  }, [tenantId, category, supplierId, status, szenario, debouncedSearch, page])
 
   useEffect(() => { load() }, [load])
   // Filter/Szenario-Wechsel → Auswahl verwerfen (auch die Filter-weite).
   // Seiten-Wechsel behandelt goToPage: die Filter-weite Auswahl überlebt Blättern.
-  useEffect(() => { setSelected(new Set()); setAllFiltered(false) }, [category, supplierId, status, szenario])
+  useEffect(() => {
+    setSelected(new Set()); setAllFiltered(false)
+  }, [tenantId, category, supplierId, status, szenario, debouncedSearch])
 
   function goToPage(p: number) {
     setPage(p)
@@ -135,7 +150,12 @@ export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: 
     try {
       const res = allFiltered
         ? await scoped.bulkSetMaterialStatusAll(
-            tenantId, { category, supplier_id: supplierId, status, szenario }, targetActive,
+            // Die Suche MUSS mit: «alle Artikel im Filter» meint genau die
+            // Zeilen, die die Ansicht gerade zeigt — ohne sie träfe die Aktion
+            // den ganzen ungesuchten Bestand.
+            tenantId,
+            { category, supplier_id: supplierId, status, szenario, search: debouncedSearch },
+            targetActive,
           )
         : await scoped.bulkSetMaterialStatus(tenantId, [...selected], targetActive)
       const parts = [`${res.updated} aktualisiert`]
@@ -179,6 +199,14 @@ export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: 
 
       <div className="admin-table-wrap">
         <div className="admin-filter-bar">
+          {/* Sucht über Art.-Nr. und Bezeichnung. Der Lieferant fehlt bewusst:
+              dafür steht das Dropdown gleich daneben. */}
+          <input
+            className="admin-search"
+            placeholder="Art.-Nr. oder Bezeichnung…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
           <select className="admin-form-select" style={{ width: 'auto', flexShrink: 0 }} value={category} onChange={e => setCategory(e.target.value)}>
             <option value="">Alle Artikelgruppen</option>
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
@@ -299,7 +327,11 @@ export default function MaterialCleanupScreen({ tenantId = null }: { tenantId?: 
               </thead>
               <tbody>
                 {rows.length === 0 ? (
-                  <tr><td colSpan={9} className="admin-table-empty">Keine Artikel im Filter.</td></tr>
+                  <tr><td colSpan={9} className="admin-table-empty">
+                    {debouncedSearch
+                      ? `Keine Treffer für «${debouncedSearch}».`
+                      : 'Keine Artikel im Filter.'}
+                  </td></tr>
                 ) : rows.map(r => {
                   const prot = isProtected(r)
                   return (

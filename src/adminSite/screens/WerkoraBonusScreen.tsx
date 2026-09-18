@@ -105,7 +105,9 @@ export default function WerkoraBonusScreen({ tenantId = null }: { tenantId?: str
     } finally {
       setLoading(false)
     }
-  }, [von, bis])
+    // `tenantId` gehört dazu: ohne ihn zeigte ein Mandantenwechsel weiter den
+    // Bonus des vorigen (Mandantentreue, Spec §10.7).
+  }, [tenantId, von, bis])
 
   useEffect(() => { void load() }, [load])
 

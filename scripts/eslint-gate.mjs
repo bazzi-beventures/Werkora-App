@@ -41,6 +41,34 @@ const GATED = [
 const eslint = new ESLint()
 const results = await eslint.lintFiles(['.'])
 
+// Der informative Voll-Bericht kommt aus DIESEM Lauf, nicht aus einem zweiten.
+//
+// Bis 2026-09 lief in der CI zusaetzlich `npx eslint .`, um den vollen Bestand
+// ins Job-Summary zu schreiben — ein zweiter kompletter Lint ueber denselben
+// Baum, fuer Zahlen, die in `results` laengst stehen. Das kostete den Job rund
+// 35 s und damit die zweite Abrechnungsminute (GitHub rundet jeden Job auf).
+//
+// Nur in der CI, erkennbar an GITHUB_STEP_SUMMARY: lokal soll `npm run
+// lint:gate` weiter kurz antworten. Wer den vollen Bericht lokal will, hat
+// `npm run lint`.
+const summaryPfad = process.env.GITHUB_STEP_SUMMARY
+if (summaryPfad) {
+  const { appendFile } = await import('node:fs/promises')
+  const formatter = await eslint.loadFormatter('stylish')
+  const bericht = await formatter.format(results)
+  await appendFile(
+    summaryPfad,
+    `## ESLint (informativ)\n\n\`\`\`\n${bericht || 'Keine Meldungen.'}\n\`\`\`\n`,
+  )
+}
+
+// Zaehlung ueber den GESAMTEN Bestand — die eine Zeile, die frueher der
+// informative Job lieferte. Sie steht bewusst vor dem Gate: schlaegt das Gate
+// fehl, ist der Bestand trotzdem schon protokolliert.
+const fehler = results.reduce((n, r) => n + r.errorCount, 0)
+const warnungen = results.reduce((n, r) => n + r.warningCount, 0)
+console.log(`ESLint (informativ): ${fehler} Errors, ${warnungen} Warnings im Gesamtbestand`)
+
 const treffer = results.flatMap(r =>
   r.messages
     .filter(m => GATED.includes(m.ruleId))

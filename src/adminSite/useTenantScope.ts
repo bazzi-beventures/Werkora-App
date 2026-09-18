@@ -12,6 +12,13 @@
  * 3. **Kein Mandant** ist ein gültiger Zustand, kein Fehler: die Mandantenliste
  *    braucht keinen, und der Mandanten-Bereich bleibt dann leer mit Hinweis.
  *
+ * Diese Rangfolge gilt **einmal, beim Laden**. Danach führt der Hash allein:
+ * er wird beim Laden auf die aufgelöste Auswahl nachgezogen, und jede spätere
+ * Änderung — Vor/Zurück im Browser, ein Link aus einer Mail, ein von Hand
+ * getippter Slug — zieht den Wähler mit. Ohne diesen Abgleich zeigte die
+ * Adresse nach einem einzigen Druck auf «Zurück» einen anderen Mandanten als
+ * Kopfzeile und API-Aufruf, und geschrieben würde beim alten (§12).
+ *
  * Was der Hook **nicht** tut: einen Mandanten raten. Genau ein Mandant in der
  * Liste heisst nicht, dass er gemeint ist — die Vorauswahl wäre der Anfang der
  * Verwechslung, vor der §12 warnt.
@@ -42,6 +49,14 @@ function speichern(tenantId: string | null): void {
   } catch {
     /* egal — beim nächsten Start steht der Wähler eben auf «kein Mandant» */
   }
+}
+
+/** Schreibt den Slug in die Adresse, ohne den Rest der Route anzufassen. */
+function hashAufMandantenZiehen(slug: string | null): void {
+  const jetzt = parseHash(window.location.hash)
+  if (jetzt.tenantSlug === slug) return
+  const ziel = buildHash({ ...jetzt, tenantSlug: slug })
+  if (ziel !== window.location.hash) window.location.hash = ziel
 }
 
 export interface TenantScope {
@@ -82,7 +97,13 @@ export function useTenantScope(): TenantScope {
         const vomSlug = ausHash ? liste.find((t) => t.slug === ausHash) : undefined
         const gespeichert = lesenGespeichert()
         const vomSpeicher = gespeichert ? liste.find((t) => t.id === gespeichert) : undefined
-        setTenantId((vomSlug ?? vomSpeicher)?.id ?? null)
+        const aufgeloest = vomSlug ?? vomSpeicher ?? null
+        setTenantId(aufgeloest?.id ?? null)
+        // Ab hier führt die Adresse — also muss sie jetzt dasselbe sagen wie der
+        // Wähler. Kam die Auswahl aus dem Speicher, nennt der Hash sie noch
+        // nicht: der nächste Screenwechsel schriebe den (leeren) Slug zurück,
+        // und der Abgleich unten liesse den Mandanten fallen.
+        hashAufMandantenZiehen(aufgeloest?.slug ?? null)
       })
       .catch((e: unknown) => {
         if (abgebrochen) return
@@ -95,6 +116,31 @@ export function useTenantScope(): TenantScope {
       abgebrochen = true
     }
   }, [tick])
+
+  // Der Hash kann sich ändern, ohne dass `selectTenant` je läuft: Vor/Zurück im
+  // Browser (jede Wahl legt einen History-Eintrag an), ein geöffneter Link, ein
+  // von Hand getippter Slug. Wer das nicht mitliest, hat eine Oberfläche, deren
+  // Adresse «Gehlhaar» sagt, während die Kopfzeile «Stähli» zeigt und die
+  // Schreibaktion bei Stähli landet.
+  useEffect(() => {
+    function beiWechsel() {
+      // Solange die Liste fehlt (Ladevorgang, fehlgeschlagener Load), lässt sich
+      // kein Slug auflösen — und «nicht auflösbar» hiesse hier «kein Mandant».
+      // Das Laden selbst löst die Auswahl auf, diese Weiche hält sie bis dahin.
+      if (tenants.length === 0) return
+
+      const slug = parseHash(window.location.hash).tenantSlug
+      const gefunden = slug ? tenants.find((t) => t.slug === slug) : undefined
+      // Unbekannter Slug (getippt, veraltet, andere Umgebung): lieber kein
+      // Mandant als der zuletzt gewählte. Der leere Zustand ist harmlos, ein
+      // stillschweigend anderer Mandant nicht.
+      const naechste = gefunden?.id ?? null
+      setTenantId((vorher) => (vorher === naechste ? vorher : naechste))
+      speichern(naechste)
+    }
+    window.addEventListener('hashchange', beiWechsel)
+    return () => window.removeEventListener('hashchange', beiWechsel)
+  }, [tenants])
 
   const tenant = useMemo(
     () => tenants.find((t) => t.id === tenantId) ?? null,
@@ -109,9 +155,7 @@ export function useTenantScope(): TenantScope {
       // Der Screen bleibt, wie er ist — wer von «Module» auf einen anderen
       // Mandanten wechselt, will dessen Module sehen, nicht wieder die Übersicht.
       const slug = naechste ? (tenants.find((t) => t.id === naechste)?.slug ?? null) : null
-      const jetzt = parseHash(window.location.hash)
-      const ziel = buildHash({ ...jetzt, tenantSlug: slug })
-      if (ziel !== window.location.hash) window.location.hash = ziel
+      hashAufMandantenZiehen(slug)
     },
     [tenants],
   )

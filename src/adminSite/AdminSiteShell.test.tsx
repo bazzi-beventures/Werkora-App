@@ -44,6 +44,7 @@ function zeige(
       scope={scope}
       displayName="Luca"
       onLogout={vi.fn()}
+      onChangePassword={vi.fn()}
       zeigeRechnungen={zeigeRechnungen}
     >
       <div>inhalt</div>

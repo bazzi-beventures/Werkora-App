@@ -180,7 +180,8 @@ const ACTION_LABELS: Record<string, string> = {
   // ── Material & Lager ──
   admin_create_material: 'Artikel angelegt',
   admin_update_material: 'Artikel geändert',
-  admin_deactivate_material: 'Artikel deaktiviert',
+  admin_deactivate_material: 'Artikel archiviert',
+  admin_reactivate_material: 'Artikel zurückgeholt',
   admin_material_image: 'Artikelbild hochgeladen',
   admin_material_image_delete: 'Artikelbild gelöscht',
   admin_stock_adjust: 'Lagerbestand korrigiert',

@@ -89,6 +89,49 @@ describe('useTenantScope', () => {
     expect(window.location.hash).not.toContain('/t/')
   })
 
+  it('der Speicher wird in die Adresse nachgezogen', async () => {
+    // Sonst kippt der nächste Screenwechsel den Mandanten aus dem Hash — und
+    // der hashchange-Abgleich unten liesse ihn dann fallen.
+    localStorage.setItem(SK.ADMIN_TENANT_ID, 't-2')
+    const { result } = renderHook(() => useTenantScope())
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(window.location.hash).toContain('/t/staehli/')
+  })
+
+  it('Zurück im Browser zieht den Wähler mit', async () => {
+    // Das Fehlerbild ohne diesen Abgleich: Adresse sagt Gehlhaar, Kopfzeile
+    // sagt Stähli, geschrieben wird bei Stähli.
+    window.location.hash = '#/t/staehli/konfiguration'
+    const { result } = renderHook(() => useTenantScope())
+    await waitFor(() => expect(result.current.tenantId).toBe('t-2'))
+
+    act(() => { window.location.hash = '#/t/gehlhaar/konfiguration' })
+
+    await waitFor(() => expect(result.current.tenantId).toBe('t-1'))
+    expect(result.current.tenant?.slug).toBe('gehlhaar')
+    expect(localStorage.getItem(SK.ADMIN_TENANT_ID)).toBe('t-1')
+  })
+
+  it('ein Hash ohne Mandanten räumt die Auswahl ab', async () => {
+    window.location.hash = '#/t/gehlhaar/konfiguration'
+    const { result } = renderHook(() => useTenantScope())
+    await waitFor(() => expect(result.current.tenantId).toBe('t-1'))
+
+    act(() => { window.location.hash = '#/uebersicht' })
+
+    await waitFor(() => expect(result.current.tenantId).toBeNull())
+  })
+
+  it('ein unbekannter Slug lässt nicht den alten Mandanten stehen', async () => {
+    window.location.hash = '#/t/gehlhaar/konfiguration'
+    const { result } = renderHook(() => useTenantScope())
+    await waitFor(() => expect(result.current.tenantId).toBe('t-1'))
+
+    act(() => { window.location.hash = '#/t/gibtsnicht/konfiguration' })
+
+    await waitFor(() => expect(result.current.tenantId).toBeNull())
+  })
+
   it('requireTenantId wirft, solange keiner gewählt ist', async () => {
     const { result } = renderHook(() => useTenantScope())
     await waitFor(() => expect(result.current.loading).toBe(false))

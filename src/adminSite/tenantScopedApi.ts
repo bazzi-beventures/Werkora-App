@@ -29,6 +29,7 @@ import type { AuthUser } from '../api/admin/users'
 import type { HelpDoc } from '../api/help'
 import type { WerkoraBonusResponse } from '../api/admin/werkoraBonus'
 import * as materials from '../api/admin/materials'
+import * as suppliers from '../api/admin/suppliers'
 import * as users from '../api/admin/users'
 import * as werkoraBonus from '../api/admin/werkoraBonus'
 import * as help from '../api/help'
@@ -106,6 +107,18 @@ export async function setBetaTester(
   }, nutzer.id)
 }
 
+/** Passwort eines Kontos zurücksetzen. Beide Wege enden im selben Rumpf
+ *  (`admin_users.set_user_password`), nur der Mandant kommt anders zustande. */
+export async function setUserPassword(
+  tenantId: string | null, userId: string, neuesPasswort: string,
+): Promise<void> {
+  if (tenantId) {
+    await platform.setUserPassword(tenantId, userId, neuesPasswort)
+    return
+  }
+  await users.setUserPassword(userId, neuesPasswort)
+}
+
 // ─── Hilfe-Dokumente ──────────────────────────────────────────────────────
 
 export function listHelpDocs(tenantId: string | null): Promise<HelpDoc[]> {
@@ -133,12 +146,28 @@ export function getReindexStatus(tenantId: string | null): Promise<help.ReindexS
 
 // ─── Materialdatenbereinigung ─────────────────────────────────────────────
 
+/** Kategorien/Einheiten für die Filter — aus dem GEWÄHLTEN Mandanten.
+ *  `includeInactive`, weil das Werkzeug auf archivierten Artikeln arbeitet. */
+export function getMaterialsMeta(tenantId: string | null) {
+  return tenantId
+    ? platform.materialsMeta(tenantId)
+    : materials.getMaterialsMeta({ includeInactive: true })
+}
+
+/** Lieferanten für Filter und Lieferanten-Spalte — aus dem GEWÄHLTEN Mandanten.
+ *  Über den Mandanten-Weg geladen, zeigte die Betreiber-Seite die Lieferanten
+ *  des Betreiber-Kontos: leeres Dropdown, leere Spalte. */
+export function listSuppliers(tenantId: string | null) {
+  return tenantId ? platform.listSuppliers(tenantId) : suppliers.listSuppliers()
+}
+
 /** Dieselbe Signatur wie `api/admin/materials.scanMaterialCleanup`, nur mit
  *  Mandant davor — der Screen soll beim Umzug nichts umbauen müssen. */
 export function scanMaterialCleanup(
   tenantId: string | null,
   p: {
     category?: string; supplier_id?: string; status?: string; szenario?: string
+    search?: string
     page?: number; page_size?: number
   } = {},
 ): Promise<materials.MaterialCleanupScan> {
@@ -159,7 +188,10 @@ export function bulkSetMaterialStatus(
 
 export function bulkSetMaterialStatusAll(
   tenantId: string | null,
-  filter: { category?: string; supplier_id?: string; status?: string; szenario?: string },
+  filter: {
+    category?: string; supplier_id?: string; status?: string; szenario?: string
+    search?: string
+  },
   isActive: boolean,
 ): Promise<materials.BulkMaterialStatusResult> {
   if (!tenantId) return materials.bulkSetMaterialStatusAll(filter, isActive)

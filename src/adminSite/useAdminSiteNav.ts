@@ -26,6 +26,7 @@ export const PLATTFORM_SCREENS = [
 
 export const MANDANT_SCREENS = [
   'konfiguration',
+  'konten',
   'llm-kosten',
   'nutzung',
   'material',

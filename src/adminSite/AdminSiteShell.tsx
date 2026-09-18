@@ -21,7 +21,7 @@ import { useIsMobile } from '../admin/useIsMobile'
 import {
   IconBuilding, IconPulse, IconAlert, IconLifebuoy, IconBell, IconMail,
   IconSettings, IconCash, IconChart, IconBox, IconPercent,
-  IconReceipt, IconUpload, IconAddressBook,
+  IconReceipt, IconUpload, IconAddressBook, IconUsers,
 } from '../admin/AdminIcons'
 import { loadTheme, applyTheme, toggleTheme as flipTheme, type Theme } from '../theme'
 import type { TenantScope } from './useTenantScope'
@@ -40,6 +40,7 @@ export const SCREEN_TITEL: Record<AdminSiteScreen, string> = {
   'push-test': 'Push-Test',
   newsletter: 'Newsletter',
   konfiguration: 'Konfiguration',
+  konten: 'Konten',
   'llm-kosten': 'LLM-Kosten',
   nutzung: 'Nutzung',
   material: 'Materialdatenbereinigung',
@@ -72,6 +73,7 @@ const SCREEN_ICON: Record<AdminSiteScreen, () => React.ReactElement> = {
   'push-test': IconBell,
   newsletter: IconMail,
   konfiguration: IconSettings,
+  konten: IconUsers,
   'llm-kosten': IconCash,
   nutzung: IconChart,
   material: IconBox,
@@ -99,6 +101,8 @@ interface Props {
   scope: TenantScope
   displayName: string
   onLogout: () => void
+  /** Öffnet den Dialog fürs eigene Passwort (Selbstbedienung). */
+  onChangePassword: () => void
   /** Module des ANGEMELDETEN Kontos aus `/pwa/me` — nicht die des gewählten
    *  Mandanten. Trägt es `invoicing` + `payment_matching`, sitzt es im
    *  Betreiber-Mandanten und der Bereich «Rechnungen» erscheint (§8.3). */
@@ -107,7 +111,7 @@ interface Props {
 }
 
 export default function AdminSiteShell({
-  screen, onNav, scope, displayName, onLogout, zeigeRechnungen, children,
+  screen, onNav, scope, displayName, onLogout, onChangePassword, zeigeRechnungen, children,
 }: Props) {
   const isMobile = useIsMobile()
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
@@ -185,6 +189,17 @@ export default function AdminSiteShell({
 
       <div className="adminsite-nav-foot">
         <div className="adminsite-nav-user">{displayName}</div>
+        {/* Das eigene Passwort gehört an den Fuss und nicht in den Mandanten-
+            Bereich: es hängt am angemeldeten Konto, nicht am gewählten
+            Mandanten. Ohne diesen Knopf gäbe es auf der Betreiber-Seite gar
+            keinen Weg dorthin — der Endpunkt existierte, die Oberfläche nie. */}
+        <button
+          type="button"
+          className="admin-btn admin-btn-secondary admin-btn-sm"
+          onClick={onChangePassword}
+        >
+          Passwort ändern
+        </button>
         <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm" onClick={onLogout}>
           Abmelden
         </button>

@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { adjustStock } from '../../api/admin/inventory'
 import {
-  deleteMaterialImage, getMaterialsMeta, listMaterials, saveMaterial, uploadMaterialImage,
+  deleteMaterialImage, getMaterialsMeta, listMaterials, saveMaterial, setMaterialArchived,
+  uploadMaterialImage,
 } from '../../api/admin/materials'
 import type {
-  Material, MaterialSortKey, MaterialsListResponse,
+  Material, MaterialSortKey, MaterialStatusFilter, MaterialsListResponse,
 } from '../../api/admin/materials'
 import { listSuppliers } from '../../api/admin/suppliers'
 import type { Supplier } from '../../api/admin/suppliers'
@@ -16,6 +17,7 @@ import ImportScreen from '../system/ImportScreen'
 import { UserInfo } from '../../api/auth'
 import { isFeatureEnabled } from '../../api/modules'
 import { AdminCardList } from '../components/AdminCardList'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useIsMobile } from '../useIsMobile'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { vkFromEk } from '../utils/quotePricing'
@@ -378,6 +380,21 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   )
 }
 
+/** Kennzeichnet eine Zeile, die nur im Filter «Archivierte»/«Alle» ueberhaupt
+ *  auftaucht — ohne das Schild sieht ein archivierter Artikel dort aus wie
+ *  jeder andere. */
+function ArchivBadge() {
+  return (
+    <span
+      className="admin-badge"
+      style={{ marginLeft: 6, fontSize: 11 }}
+      title="Archiviert — nicht in Offerte, Rechnung und Katalog"
+    >
+      Archiviert
+    </span>
+  )
+}
+
 function MaterialInventoryPanel() {
   const isMobile = useIsMobile()
   const [data, setData] = useState<MaterialsListResponse>({ rows: [], total: 0, page: 1, page_size: PAGE_SIZE })
@@ -390,11 +407,16 @@ function MaterialInventoryPanel() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [supplierFilter, setSupplierFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<MaterialStatusFilter>('active')
   const [sortKey, setSortKey] = useState<MaterialSortKey>('art_nr')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [page, setPage] = useState(1)
   const [editMaterial, setEditMaterial] = useState<Material | null | 'new'>()
   const [stockMaterial, setStockMaterial] = useState<Material | null>(null)
+  // Artikel, fuer den die Archivieren-/Zurueckholen-Rueckfrage offen ist.
+  const [archivMaterial, setArchivMaterial] = useState<Material | null>(null)
+  const [archivBusy, setArchivBusy] = useState(false)
+  const [archivFehler, setArchivFehler] = useState('')
 
   // Lieferanten, Kategorien-Dropdown und naechste Art.-Nr. sind nicht aus der
   // (paginierten) Liste ableitbar → separat laden, nach jedem Speichern auffrischen.
@@ -417,7 +439,7 @@ function MaterialInventoryPanel() {
   }, [search])
 
   // Filter/Suche/Sort aendern → zurueck auf Seite 1.
-  useEffect(() => { setPage(1) }, [debouncedSearch, categoryFilter, supplierFilter, sortKey, sortDir])
+  useEffect(() => { setPage(1) }, [debouncedSearch, categoryFilter, supplierFilter, statusFilter, sortKey, sortDir])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -430,16 +452,37 @@ function MaterialInventoryPanel() {
         search: debouncedSearch,
         category: categoryFilter,
         supplierId: supplierFilter,
+        status: statusFilter,
       }))
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, categoryFilter, supplierFilter, sortKey, sortDir, page])
+  }, [debouncedSearch, categoryFilter, supplierFilter, statusFilter, sortKey, sortDir, page])
 
   useEffect(() => { load() }, [load])
 
   // Nach Speichern/Lager-Anpassung: aktuelle Seite + Meta neu laden.
   const reload = useCallback(() => { load(); loadMeta() }, [load, loadMeta])
+
+  // Archivieren ist kein Loeschen: der Artikel verschwindet aus dieser Liste,
+  // aus dem Katalog der Monteur-App und aus den Auswahlfeldern von Offerte und
+  // Rechnung — Bestand, Warenbewegungen und jede bereits geschriebene Position
+  // bleiben. Genau deshalb die Rueckfrage statt eines stillen Umschaltens: der
+  // Knopf sitzt in der Zeile, und ein Fehlgriff waere sonst erst auffaellig,
+  // wenn der Artikel in der naechsten Offerte fehlt.
+  async function archivStatusSetzen(m: Material, archivieren: boolean) {
+    setArchivBusy(true)
+    setArchivFehler('')
+    try {
+      await setMaterialArchived(m.art_nr, archivieren)
+      setArchivMaterial(null)
+      reload()
+    } catch (e) {
+      setArchivFehler(e instanceof Error ? e.message : 'Aktion fehlgeschlagen.')
+    } finally {
+      setArchivBusy(false)
+    }
+  }
 
   function toggleSort(key: MaterialSortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -479,6 +522,16 @@ function MaterialInventoryPanel() {
             <option value="">Alle Lieferanten</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+          {/* Ohne diesen Filter waere ein archivierter Artikel nicht mehr
+              auffindbar — und das Archivieren damit eine Einbahnstrasse. */}
+          <select
+            className="admin-form-select" style={{ width: 'auto', flexShrink: 0 }}
+            value={statusFilter} onChange={e => setStatusFilter(e.target.value as MaterialStatusFilter)}
+          >
+            <option value="active">Aktive Artikel</option>
+            <option value="archived">Archivierte</option>
+            <option value="all">Aktive und archivierte</option>
+          </select>
         </div>
 
         {loading ? (
@@ -497,7 +550,10 @@ function MaterialInventoryPanel() {
               return (
                 <>
                   <div className="admin-card-head">
-                    <span className="admin-card-title">{m.name}</span>
+                    <span className="admin-card-title">
+                      {m.name}
+                      {!m.is_active && <ArchivBadge />}
+                    </span>
                     <span className="admin-card-meta" style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{m.art_nr}</span>
                   </div>
                   <div className="admin-card-meta">
@@ -513,6 +569,12 @@ function MaterialInventoryPanel() {
                       onClick={e => { e.stopPropagation(); setStockMaterial(m) }}
                     >
                       Lager
+                    </button>
+                    <button
+                      className="admin-btn admin-btn-secondary admin-btn-sm"
+                      onClick={e => { e.stopPropagation(); setArchivFehler(''); setArchivMaterial(m) }}
+                    >
+                      {m.is_active ? 'Archivieren' : 'Zurückholen'}
                     </button>
                   </div>
                 </>
@@ -557,7 +619,11 @@ function MaterialInventoryPanel() {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {m.image_url ? <img src={m.image_url} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} /> : null}
-                        <span><strong>{m.name}</strong>{supplierName ? <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: 12 }}>{supplierName}</span> : null}</span>
+                        <span>
+                          <strong>{m.name}</strong>
+                          {supplierName ? <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: 12 }}>{supplierName}</span> : null}
+                          {!m.is_active && <ArchivBadge />}
+                        </span>
                       </div>
                     </td>
                     <td style={{ color: 'var(--muted)' }}>{m.category || '—'}</td>
@@ -578,12 +644,23 @@ function MaterialInventoryPanel() {
                       }
                     </td>
                     <td onClick={e => e.stopPropagation()}>
-                      <button
-                        className="admin-btn admin-btn-secondary admin-btn-sm"
-                        onClick={() => setStockMaterial(m)}
-                      >
-                        Lager
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          className="admin-btn admin-btn-secondary admin-btn-sm"
+                          onClick={() => setStockMaterial(m)}
+                        >
+                          Lager
+                        </button>
+                        <button
+                          className="admin-btn admin-btn-secondary admin-btn-sm"
+                          onClick={() => { setArchivFehler(''); setArchivMaterial(m) }}
+                          title={m.is_active
+                            ? 'Artikel ausblenden — erscheint nicht mehr in Offerte, Rechnung und Katalog'
+                            : 'Artikel wieder zur Auswahl stellen'}
+                        >
+                          {m.is_active ? 'Archivieren' : 'Zurückholen'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -629,6 +706,34 @@ function MaterialInventoryPanel() {
           existingUnits={units}
           suppliers={suppliers}
           suggestedArtNr={nextArtNr}
+        />
+      )}
+
+      {archivMaterial && (
+        <ConfirmDialog
+          title={archivMaterial.is_active ? 'Artikel archivieren?' : 'Artikel zurückholen?'}
+          message={archivMaterial.is_active ? (
+            <>
+              <strong>{archivMaterial.name}</strong> (Art.-Nr. {archivMaterial.art_nr}) erscheint
+              danach nicht mehr in Offerte, Rechnung, Materialliste und im Katalog der
+              Mitarbeiter-App. Gelöscht wird nichts: Bestand, Lagerbewegungen und alle
+              bereits geschriebenen Positionen bleiben unverändert, und der Artikel lässt
+              sich jederzeit zurückholen.
+            </>
+          ) : (
+            <>
+              <strong>{archivMaterial.name}</strong> (Art.-Nr. {archivMaterial.art_nr}) steht
+              danach wieder in Materialliste, Katalog und den Auswahlfeldern von Offerte und
+              Rechnung.
+            </>
+          )}
+          warning={archivFehler}
+          confirmLabel={archivMaterial.is_active ? 'Archivieren' : 'Zurückholen'}
+          variant={archivMaterial.is_active ? 'danger' : 'primary'}
+          busy={archivBusy}
+          busyLabel="Speichern…"
+          onConfirm={() => archivStatusSetzen(archivMaterial, archivMaterial.is_active)}
+          onCancel={() => setArchivMaterial(null)}
         />
       )}
 

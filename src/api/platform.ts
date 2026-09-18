@@ -21,7 +21,8 @@
 import { apiFetch } from './client'
 import type { AuthUser } from './admin/users'
 import type { HelpDoc, ReindexStatus } from './help'
-import type { BulkMaterialStatusResult, MaterialCleanupScan } from './admin/materials'
+import type { BulkMaterialStatusResult, MaterialCleanupScan, MaterialsMeta } from './admin/materials'
+import type { Supplier } from './admin/suppliers'
 import type { WerkoraBonusResponse } from './admin/werkoraBonus'
 // Die Antwortformen sind identisch — die Rümpfe im Backend sind dieselben
 // Funktionen (agents/routers/admin_tenant_settings.py). Eigene, lose Typen
@@ -143,6 +144,20 @@ export function setBetaTester(
   })
 }
 
+/** Setzt das Passwort eines Kontos im gewählten Mandanten (Reset von aussen).
+ *  Das alte Passwort wird nicht verlangt, die Sitzungen des Kontos enden.
+ *  Policy-Verstösse kommen als deutscher Klartext zurück. */
+export function setUserPassword(
+  tenantId: string,
+  userId: string,
+  newPassword: string,
+): Promise<{ status: string }> {
+  return apiFetch(`${tenantBase(tenantId)}/users/${encodeURIComponent(userId)}/set-password`, {
+    method: 'POST',
+    body: JSON.stringify({ new_password: newPassword }),
+  })
+}
+
 // ─── Hilfe-Bot: Handbücher des Mandanten ──────────────────────────────────
 
 export async function listHelpDocs(tenantId: string): Promise<HelpDoc[]> {
@@ -172,6 +187,16 @@ export function getReindexStatus(tenantId: string): Promise<ReindexStatus> {
 }
 
 // ─── Materialdatenbereinigung und Werkora Bonus ───────────────────────────
+
+/** Kategorien/Einheiten des gewaehlten Mandanten (Filter der Bereinigung). */
+export function materialsMeta(tenantId: string): Promise<MaterialsMeta> {
+  return apiFetch<MaterialsMeta>(`${tenantBase(tenantId)}/materials/meta`)
+}
+
+/** Lieferanten des gewaehlten Mandanten — Filter UND Lieferanten-Spalte. */
+export function listSuppliers(tenantId: string): Promise<Supplier[]> {
+  return apiFetch<Supplier[]>(`${tenantBase(tenantId)}/suppliers`)
+}
 
 export function materialCleanupScan(
   tenantId: string,
