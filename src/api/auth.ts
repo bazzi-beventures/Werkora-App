@@ -15,6 +15,11 @@ export interface UserInfo {
   consent_version: string | null
   consent_required: boolean
   enabled_modules: string[]
+  /** Arbeitet dieses Konto FÜR die Plattform (`werkora`/`werkora_test`) oder IN
+   *  einem Kundenbetrieb? Daran hängt der Bereich «Rechnungen» der
+   *  Betreiber-Seite (docs/specs/admin-werkora-ch.md §8.3). Der Server
+   *  entscheidet es am Slug — das Frontend kennt die Slugs nicht. */
+  betreiber_mandant?: boolean
   feature_flags?: Record<string, Record<string, unknown>>
   /** Sieht dieses Konto Features der Stufe «Beta»? (docs/specs/beta-tester.md)
    *  WAS es sieht, zählt die App nicht auf — das sagt der Betreiber seinen

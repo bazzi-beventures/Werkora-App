@@ -25,6 +25,14 @@ export interface Invoice {
   project_id: string | null
   project_status?: string | null
   project_is_closed?: boolean | null
+  /** Fällig am — gesetzt beim Versand (`set_invoice_sent_at`). Aus ihr leitet die
+   *  Betreiber-Liste «Verspätet» ab, denselben Befund, auf den Zahlungserinnerung
+   *  und Mahnung laufen. `null` heisst: noch nicht versendet, also nie verspätet. */
+  due_date?: string | null
+  sent_at?: string | null
+  /** Freitext auf der Rechnung. Auf der freien Rechnung ist er das, was sonst der
+   *  Projektname erklären würde — die Betreiber-Liste zeigt ihn als «Beschreibung». */
+  remark?: string | null
 }
 
 export interface GenerateInvoiceInput {

@@ -1054,6 +1054,16 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .ersatzteil-pick input { width: 18px; height: 18px; flex: none; }
 .ersatzteil-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
 .ersatzteil-artnr { color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Bestandshinweis in der Ersatzteil-Auswahl (Lager v2). Eigene Zeile, damit er
+   den Artikelnamen nicht verdrängt; klein und grau, weil er eine Auskunft ist
+   und keine Warnung — rot wird er nur, wenn wirklich nichts mehr da ist. */
+.ersatzteil-bestand {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.ersatzteil-bestand.is-low { color: var(--danger); }
 .ersatzteil-unit { font-size: 12px; color: var(--muted); }
 .ersatzteil-foto-btn { align-self: stretch; }
 
@@ -2612,4 +2622,30 @@ input, textarea { font-family: var(--font); color: var(--text); }
    ausblenden kann (admin.css, <=1024px). */
 .beta-section-entries {
   display: contents;
+}
+
+/* ─── Abzeichen der Hilfe-Blase (shared/HelpBubble.tsx) ─────
+   Wartende Support-Antworten (docs/specs/support-antwort.md §4.2).
+   Als Klasse statt Inline-Style, weil die Farben sonst nackte Hex-Werte im TSX
+   wären — und ein Hex im Inline-Style kennt kein Theme (scripts/token-gate.mjs).
+   Eigener Ton statt der Mandantenfarbe: das Abzeichen sitzt AUF dem
+   Mandantenton und wäre darin bei einer roten Firmenfarbe unsichtbar. */
+.help-bubble-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border: 2px solid var(--surface);
+  border-radius: 10px;
+  /* --danger führt heute nur admin/tokens.css; in der Mitarbeiter-App trägt
+     der Fallback. Dieselbe Stelle wie die Fehlermeldungen im Melde-Formular. */
+  background: var(--danger, #ef4444);
+  color: #fff;
+  box-sizing: content-box;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
 }

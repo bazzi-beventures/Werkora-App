@@ -83,7 +83,8 @@ export default function MaterialTab() {
     return [
       { label: 'Aktive Artikel', value: String(aktiv) },
       { label: 'Lager kritisch', value: String(kritisch), color: kritisch > 0 ? 'var(--danger)' : 'var(--success)' },
-      { label: 'Lagerwert', value: chf(lagerwert) },
+      // EK, nicht VK: die Spalte lagerwert der View rechnet mit cost_price.
+      { label: 'Lagerwert (EK)', value: chf(lagerwert) },
       { label: 'Verbrauch 30d', value: num(v30) as string },
     ]
   }, [filtered])

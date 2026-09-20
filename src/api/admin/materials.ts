@@ -21,7 +21,13 @@ export interface Material {
   is_active: boolean
   image_path: string | null   // Objektpfad im privaten Bucket (nur intern)
   image_url?: string | null   // transient: frisch signierte URL zum Anzeigen
-  inventory: { quantity: number; min_quantity: number | null }[]
+  inventory: {
+    quantity: number
+    min_quantity: number | null
+    reorder_quantity?: number | null
+    /** Nachbestell-Zustand, von der Datenbank gepflegt (nicht hier rechnen). */
+    reorder_state?: 'ok' | 'unter_meldebestand' | 'bestellt'
+  }[]
 }
 
 export interface MaterialsListResponse {
@@ -69,6 +75,11 @@ export interface MaterialInput {
   cost_price: number | null
   markup_pct: number | null
   supplier_id: string | null
+  // Schwellenwerte des Lagers. Sie gehören zur Lagerzeile, kommen aber über
+  // dieselbe Maske herein; der Server spaltet sie ab.
+  // `reorder_quantity: null` heisst "Menge aus dem Verbrauch vorschlagen".
+  min_quantity?: number
+  reorder_quantity?: number | null
 }
 
 export async function listMaterials(q: MaterialsListQuery): Promise<MaterialsListResponse> {

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { adjustStock } from '../../api/admin/inventory'
+import type { StockMovementType } from '../../api/admin/inventory'
+import MovementList from './MovementList'
 import {
   deleteMaterialImage, getMaterialsMeta, listMaterials, saveMaterial, setMaterialArchived,
   uploadMaterialImage,
@@ -14,9 +16,11 @@ import { createUnit } from '../../api/admin/units'
 import FrequentMaterialsPanel from './FrequentMaterialsPanel'
 import MaterialVkBulkPanel from './MaterialVkBulkPanel'
 import ImportScreen from '../system/ImportScreen'
+import CountsScreen from '../lager/CountsScreen'
+import LagerOverview from '../lager/LagerOverview'
 import UnitsPanel from './UnitsPanel'
 import { UserInfo } from '../../api/auth'
-import { isFeatureEnabled } from '../../api/modules'
+import { hasModule, isFeatureEnabled } from '../../api/modules'
 import { AdminCardList } from '../components/AdminCardList'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useIsMobile } from '../useIsMobile'
@@ -29,24 +33,47 @@ interface StockModalProps {
   onSaved: () => void
 }
 
-function StockModal({ material, onClose, onSaved }: StockModalProps) {
+// Von Hand buchbar sind drei Arten. `usage` fehlt bewusst: Verbrauch entsteht am
+// Rapport — von Hand gebucht stünde im Journal ein Abgang ohne Beleg. Die Werte
+// müssen zur CHECK-Constraint der Datenbank passen; bis 20260919 taten sie das
+// nicht, und jede Korrektur aus dieser Maske ging still verloren.
+const BEWEGUNGSARTEN: { wert: StockMovementType; label: string; hilfe: string }[] = [
+  { wert: 'delivery', label: 'Lieferung', hilfe: 'Ware ist eingetroffen' },
+  { wert: 'correction', label: 'Korrektur', hilfe: 'Bruch, Schwund, Zählfehler' },
+  { wert: 'return', label: 'Rückgabe', hilfe: 'unverbaut von der Baustelle zurück' },
+]
+
+// Benannt exportiert für den Ratchet in MaterialsScreen.stock.test.tsx: Was
+// dieser Dialog an Bewegungsarten rausschickt, muss die Datenbank annehmen —
+// bis 20260919 tat es das nicht, und die Bewegung ging still verloren. Den
+// ganzen Screen dafür aufzubauen hiesse ein Dutzend Netzaufrufe zu mocken, die
+// mit der Frage nichts zu tun haben.
+export function StockModal({ material, onClose, onSaved }: StockModalProps) {
   const [delta, setDelta] = useState('')
   const [note, setNote] = useState('')
+  const [art, setArt] = useState<StockMovementType>('delivery')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [tab, setTab] = useState<'buchen' | 'journal'>('buchen')
   const currentStock = material.inventory[0]?.quantity ?? 0
   const minStock = material.inventory[0]?.min_quantity ?? null
   // Negativer oder unter-Mindest-Bestand ist ein Problem → rot (wie in der Liste).
-  const stockLow = currentStock < 0 || (minStock !== null && currentStock <= minStock)
+  // Vergleich mit '<', wie Trigger, View und KPI: genau auf der Schwelle ist der
+  // Bestand noch in Ordnung. Bis 20260919 stand hier '<=', und ein Artikel auf
+  // der Schwelle war rot, obwohl die Datenbank ihn 'ok' nannte.
+  const stockLow = currentStock < 0 || (minStock !== null && currentStock < minStock)
+  // Eine Korrektur ohne Begründung ist der Anfang vom Ende jeder Inventur; der
+  // Server lehnt sie ab, also sperren wir den Knopf schon hier.
+  const begruendungFehlt = art === 'correction' && !note.trim()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const num = parseFloat(delta)
-    if (isNaN(num) || num === 0) return
+    if (isNaN(num) || num === 0 || begruendungFehlt) return
     setSaving(true)
     setError('')
     try {
-      await adjustStock(material.art_nr, num, { note: note || null })
+      await adjustStock(material.art_nr, num, { movementType: art, note: note || null })
       onSaved()
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Fehler')
@@ -59,7 +86,7 @@ function StockModal({ material, onClose, onSaved }: StockModalProps) {
     <div className="admin-modal-overlay" {...backdropCloseProps(onClose)}>
       <div className="admin-modal" onClick={e => e.stopPropagation()}>
         <div className="admin-modal-header">
-          <div className="admin-modal-title">Lager anpassen — {material.name}</div>
+          <div className="admin-modal-title">Lager — {material.name}</div>
           <button className="admin-modal-close" onClick={onClose}>×</button>
         </div>
         <form onSubmit={handleSubmit} className="admin-modal-body">
@@ -73,40 +100,95 @@ function StockModal({ material, onClose, onSaved }: StockModalProps) {
           }}>
             <div style={{ fontSize: 11, color: 'var(--muted)' }}>Aktueller Bestand</div>
             <div style={{ fontSize: 28, fontWeight: 700, color: stockLow ? 'var(--danger)' : 'var(--text)' }}>{currentStock} {material.unit || ''}</div>
+            {minStock !== null && minStock > 0 && (
+              <div style={{ fontSize: 11, color: 'var(--muted)' }}>Mindestbestand {minStock} {material.unit || ''}</div>
+            )}
           </div>
-          {error && <div className="admin-form-error">{error}</div>}
-          <div className="admin-form-group">
-            <label className="admin-form-label">Änderung (+ Zugang / − Abgang)</label>
-            <input
-              className="admin-form-input"
-              type="number"
-              step="any"
-              value={delta}
-              onChange={e => setDelta(e.target.value)}
-              placeholder="z.B. 10 oder -3"
-              required
-            />
-            <div className="admin-form-hint">
-              Neuer Bestand: {isNaN(parseFloat(delta)) ? currentStock : (currentStock + parseFloat(delta)).toFixed(2)} {material.unit || ''}
+          <div className="kpi-admin-tabs" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className={`kpi-admin-tab${tab === 'buchen' ? ' active' : ''}`}
+              onClick={() => setTab('buchen')}
+            >
+              Neue Buchung
+            </button>
+            <button
+              type="button"
+              className={`kpi-admin-tab${tab === 'journal' ? ' active' : ''}`}
+              onClick={() => setTab('journal')}
+            >
+              Bewegungen
+            </button>
+          </div>
+          {tab === 'journal' ? (
+            <div style={{ marginTop: 12 }}>
+              <MovementList artNr={material.art_nr} unit={material.unit} />
             </div>
-          </div>
-          <div className="admin-form-group">
-            <label className="admin-form-label">Notiz (optional)</label>
-            <input className="admin-form-input" value={note} onChange={e => setNote(e.target.value)} placeholder="z.B. Inventur" />
-          </div>
+          ) : (
+            <>
+              {error && <div className="admin-form-error">{error}</div>}
+              <div className="admin-form-group">
+                <label className="admin-form-label" htmlFor="lager-art">Art der Bewegung</label>
+                <select id="lager-art" className="admin-form-input" value={art} onChange={e => setArt(e.target.value as StockMovementType)}>
+                  {BEWEGUNGSARTEN.map(a => (
+                    <option key={a.wert} value={a.wert}>{a.label} — {a.hilfe}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-form-label" htmlFor="lager-delta">Änderung (+ Zugang / − Abgang)</label>
+                <input
+                  id="lager-delta"
+                  className="admin-form-input"
+                  type="number"
+                  step="any"
+                  value={delta}
+                  onChange={e => setDelta(e.target.value)}
+                  placeholder="z.B. 10 oder -3"
+                  required
+                />
+                <div className="admin-form-hint">
+                  Neuer Bestand: {isNaN(parseFloat(delta)) ? currentStock : (currentStock + parseFloat(delta)).toFixed(2)} {material.unit || ''}
+                </div>
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-form-label" htmlFor="lager-notiz">
+                  Begründung {art === 'correction' ? '' : '(optional)'}
+                </label>
+                <input
+                  id="lager-notiz"
+                  className="admin-form-input"
+                  value={note}
+                  onChange={e => setNote(e.target.value)}
+                  placeholder={art === 'correction' ? 'z.B. 2 Stk beschädigt' : 'z.B. Lieferschein 4711'}
+                  required={art === 'correction'}
+                />
+                {art === 'correction' && (
+                  <div className="admin-form-hint">
+                    Pflicht bei einer Korrektur — sonst steht beim nächsten Zählen eine
+                    Differenz da, die niemand mehr erklären kann.
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </form>
         <div className="admin-modal-footer">
-          <button className="admin-btn admin-btn-secondary" onClick={onClose}>Abbrechen</button>
-          <button className="admin-btn admin-btn-primary" onClick={e => { e.preventDefault(); (e.currentTarget.closest('div.admin-modal')?.querySelector('form') as HTMLFormElement)?.requestSubmit() }} disabled={saving || !delta}>
-            {saving ? 'Speichern…' : 'Speichern'}
+          <button className="admin-btn admin-btn-secondary" onClick={onClose}>
+            {tab === 'journal' ? 'Schliessen' : 'Abbrechen'}
           </button>
+          {tab === 'buchen' && (
+            <button className="admin-btn admin-btn-primary" onClick={e => { e.preventDefault(); (e.currentTarget.closest('div.admin-modal')?.querySelector('form') as HTMLFormElement)?.requestSubmit() }} disabled={saving || !delta || begruendungFehlt}>
+              {saving ? 'Speichern…' : 'Buchen'}
+            </button>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function MaterialModal({ material, onClose, onSaved, existingCategories, existingUnits, suppliers, suggestedArtNr }: { material: Material | null; onClose: () => void; onSaved: () => void; existingCategories: string[]; existingUnits: string[]; suppliers: Supplier[]; suggestedArtNr: string }) {
+function MaterialModal({ material, onClose, onSaved, existingCategories, existingUnits, suppliers, suggestedArtNr, lagerAktiv }: { material: Material | null; onClose: () => void; onSaved: () => void; existingCategories: string[]; existingUnits: string[]; suppliers: Supplier[]; suggestedArtNr: string; lagerAktiv: boolean }) {
   const isNew = !material
   const [artNr, setArtNr] = useState(material?.art_nr ?? suggestedArtNr)
   const [name, setName] = useState(material?.name ?? '')
@@ -115,6 +197,16 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
   const [unit, setUnit] = useState(material?.unit ?? '')
   const [isNewUnit, setIsNewUnit] = useState(false)
   const [costPrice, setCostPrice] = useState(material?.cost_price?.toString() ?? '')
+  // Schwellenwerte des Lagers. Sie stehen an der Lagerzeile, werden aber hier
+  // gepflegt — bis 20260919 gab es dafür überhaupt keine Maske, und der
+  // Mindestbestand kam ausschliesslich über das Import-Tool herein. Ohne ihn
+  // war "unter Meldebestand" bei jedem von Hand angelegten Artikel bedeutungslos.
+  const [minQuantity, setMinQuantity] = useState(
+    material?.inventory?.[0]?.min_quantity != null ? String(material.inventory[0].min_quantity) : '',
+  )
+  const [reorderQuantity, setReorderQuantity] = useState(
+    material?.inventory?.[0]?.reorder_quantity != null ? String(material.inventory[0].reorder_quantity) : '',
+  )
   // Aufschlag % pro Artikel (Quelle der Wahrheit) + daraus abgeleiteter Ziel-VK.
   // Beide Felder sind gekoppelt: Aufschlag ändern → VK folgt, VK eingeben → Aufschlag folgt.
   const [markupPct, setMarkupPct] = useState(material?.markup_pct != null ? String(material.markup_pct) : '')
@@ -222,6 +314,15 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
         cost_price: costPrice ? parseFloat(costPrice) : null,
         markup_pct,
         supplier_id: supplierId || null,
+        // Nur mitschicken, wenn das Lager-Modul läuft — sonst stünden an einem
+        // Mandanten ohne Lager Schwellenwerte, die niemand je sieht.
+        // min_quantity ist in der Datenbank NOT NULL: leeres Feld = 0, also
+        // keine Überwachung. reorder_quantity darf null sein und heisst dann
+        // "Menge aus dem Verbrauch vorschlagen".
+        ...(lagerAktiv ? {
+          min_quantity: minQuantity !== '' ? parseFloat(minQuantity) : 0,
+          reorder_quantity: reorderQuantity !== '' ? parseFloat(reorderQuantity) : null,
+        } : {}),
       }, isNew ? undefined : artNr)
       // Bild nach dem Speichern der Stammdaten verarbeiten (art_nr steht jetzt fest,
       // Artikel existiert auch bei Neuanlage). Fehler hier nicht verschlucken.
@@ -325,6 +426,32 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
+          {lagerAktiv && (
+            <div className="admin-form-row">
+              <div className="admin-form-group">
+                <label className="admin-form-label">Mindestbestand</label>
+                <input
+                  className="admin-form-input" type="number" step="any" min="0"
+                  value={minQuantity} onChange={e => setMinQuantity(e.target.value)}
+                  placeholder="0 = keine Überwachung"
+                />
+                <div className="admin-form-hint">
+                  Fällt der Bestand darunter, erscheint der Artikel als «unter Meldebestand».
+                </div>
+              </div>
+              <div className="admin-form-group">
+                <label className="admin-form-label">Bestellmenge</label>
+                <input
+                  className="admin-form-input" type="number" step="any" min="0"
+                  value={reorderQuantity} onChange={e => setReorderQuantity(e.target.value)}
+                  placeholder="leer = aus dem Verbrauch"
+                />
+                <div className="admin-form-hint">
+                  Menge für den Bestellvorschlag.
+                </div>
+              </div>
+            </div>
+          )}
           <div className="admin-form-group">
             <label className="admin-form-label">Bild</label>
             {imagePreview ? (
@@ -396,7 +523,12 @@ function ArchivBadge() {
   )
 }
 
-function MaterialInventoryPanel() {
+function MaterialInventoryPanel({ user }: { user: UserInfo }) {
+  // Seit Lager v2 (20260919) legt der Server zu jedem Artikel eine Lagerzeile an.
+  // Vorher verschwand die Bestandsspalte von selbst, wenn keine existierte —
+  // ohne diese Abfrage sähe ein Mandant ohne Lager-Modul jetzt Bestände und
+  // liefe beim Buchen in ein 403.
+  const lagerAktiv = hasModule(user, 'inventory')
   const isMobile = useIsMobile()
   const [data, setData] = useState<MaterialsListResponse>({ rows: [], total: 0, page: 1, page_size: PAGE_SIZE })
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -546,7 +678,7 @@ function MaterialInventoryPanel() {
             renderCard={m => {
               const stock = m.inventory[0]?.quantity ?? null
               const minStock = m.inventory[0]?.min_quantity ?? null
-              const stockLow = stock !== null && minStock !== null && stock <= minStock
+              const stockLow = stock !== null && minStock !== null && stock < minStock
               const supplierName = m.supplier_id ? (supplierMap[m.supplier_id] ?? null) : null
               return (
                 <>
@@ -562,15 +694,17 @@ function MaterialInventoryPanel() {
                   </div>
                   <div className="admin-card-meta">
                     EK: {m.cost_price != null ? `CHF ${m.cost_price.toFixed(2)}` : '—'} · VK: {m.calc_vk != null && m.calc_vk > 0 ? `CHF ${m.calc_vk.toFixed(2)}` : '—'}
-                    {stock !== null && <> · Bestand: <span style={{ color: stockLow ? 'var(--danger)' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span></>}
+                    {lagerAktiv && stock !== null && <> · Bestand: <span style={{ color: stockLow ? 'var(--danger)' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span></>}
                   </div>
                   <div className="admin-card-actions">
-                    <button
-                      className="admin-btn admin-btn-secondary admin-btn-sm"
-                      onClick={e => { e.stopPropagation(); setStockMaterial(m) }}
-                    >
-                      Lager
-                    </button>
+                    {lagerAktiv && (
+                      <button
+                        className="admin-btn admin-btn-secondary admin-btn-sm"
+                        onClick={e => { e.stopPropagation(); setStockMaterial(m) }}
+                      >
+                        Lager
+                      </button>
+                    )}
                     <button
                       className="admin-btn admin-btn-secondary admin-btn-sm"
                       onClick={e => { e.stopPropagation(); setArchivFehler(''); setArchivMaterial(m) }}
@@ -602,17 +736,17 @@ function MaterialInventoryPanel() {
                   EK-Preis <SortIcon active={sortKey === 'cost_price'} dir={sortDir} />
                 </th>
                 <th style={thStaticStyle}>VK-Preis</th>
-                <th style={thStaticStyle}>Bestand</th>
+                {lagerAktiv && <th style={thStaticStyle}>Bestand</th>}
                 <th>Aktionen</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={8} className="admin-table-empty">Keine Materialien gefunden.</td></tr>
+                <tr><td colSpan={lagerAktiv ? 8 : 7} className="admin-table-empty">Keine Materialien gefunden.</td></tr>
               ) : rows.map(m => {
                 const stock = m.inventory[0]?.quantity ?? null
                 const minStock = m.inventory[0]?.min_quantity ?? null
-                const stockLow = stock !== null && minStock !== null && stock <= minStock
+                const stockLow = stock !== null && minStock !== null && stock < minStock
                 const supplierName = m.supplier_id ? (supplierMap[m.supplier_id] ?? null) : null
                 return (
                   <tr key={m.id} onClick={() => setEditMaterial(m)}>
@@ -638,20 +772,24 @@ function MaterialInventoryPanel() {
                         <span style={{ color: 'var(--muted)', marginLeft: 4, fontSize: 11 }} title="Fixer VK-Preis">✎</span>
                       ) : null}
                     </td>
-                    <td>
-                      {stock !== null
-                        ? <span style={{ color: stockLow ? 'var(--danger)' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span>
-                        : <span style={{ color: 'var(--muted)' }}>—</span>
-                      }
-                    </td>
+                    {lagerAktiv && (
+                      <td>
+                        {stock !== null
+                          ? <span style={{ color: stockLow ? 'var(--danger)' : 'inherit', fontWeight: stockLow ? 700 : undefined }}>{stock} {m.unit || ''}</span>
+                          : <span style={{ color: 'var(--muted)' }}>—</span>
+                        }
+                      </td>
+                    )}
                     <td onClick={e => e.stopPropagation()}>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button
-                          className="admin-btn admin-btn-secondary admin-btn-sm"
-                          onClick={() => setStockMaterial(m)}
-                        >
-                          Lager
-                        </button>
+                        {lagerAktiv && (
+                          <button
+                            className="admin-btn admin-btn-secondary admin-btn-sm"
+                            onClick={() => setStockMaterial(m)}
+                          >
+                            Lager
+                          </button>
+                        )}
                         <button
                           className="admin-btn admin-btn-secondary admin-btn-sm"
                           onClick={() => { setArchivFehler(''); setArchivMaterial(m) }}
@@ -707,6 +845,7 @@ function MaterialInventoryPanel() {
           existingUnits={units}
           suppliers={suppliers}
           suggestedArtNr={nextArtNr}
+          lagerAktiv={lagerAktiv}
         />
       )}
 
@@ -756,7 +895,7 @@ function MaterialInventoryPanel() {
 // Einstellung des Mandanten. Mit dem Container ist der Nebeneffekt weg.
 //
 // Ganz rechts, neben "Import": beides sind Werkzeuge am Stamm, nicht am Tagesbestand.
-type MaterialTab = 'inventory' | 'frequent' | 'vkbulk' | 'import' | 'units'
+type MaterialTab = 'inventory' | 'lager' | 'inventur' | 'frequent' | 'vkbulk' | 'import' | 'units'
 
 export default function MaterialsScreen({ user }: { user: UserInfo }) {
   const [tab, setTab] = useState<MaterialTab>('inventory')
@@ -765,6 +904,10 @@ export default function MaterialsScreen({ user }: { user: UserInfo }) {
   const ersatzteilEnabled = isFeatureEnabled(user, 'ersatzteil_prompt')
   // Tab "VK-Massenänderung" nur, wenn eigene Artikel im Einsatz sind (import_eigenartikel).
   const ownArticleEnabled = isFeatureEnabled(user, 'import_eigenartikel')
+  // Reiter «Lager» nur mit Lager-Modul UND dem Flag lager_v2. Ohne das Flag gibt
+  // es die Bestandsführung in dieser Tiefe nicht — die Bestandsspalte im Katalog
+  // bleibt davon unberührt, sie hängt allein am Modul.
+  const lagerV2 = hasModule(user, 'inventory') && isFeatureEnabled(user, 'lager_v2')
 
   return (
     <div className="admin-page">
@@ -775,6 +918,22 @@ export default function MaterialsScreen({ user }: { user: UserInfo }) {
         >
           Material / Lager
         </button>
+        {lagerV2 && (
+          <button
+            className={`kpi-admin-tab${tab === 'lager' ? ' active' : ''}`}
+            onClick={() => setTab('lager')}
+          >
+            Lager
+          </button>
+        )}
+        {lagerV2 && (
+          <button
+            className={`kpi-admin-tab${tab === 'inventur' ? ' active' : ''}`}
+            onClick={() => setTab('inventur')}
+          >
+            Inventur
+          </button>
+        )}
         {ersatzteilEnabled && (
           <button
             className={`kpi-admin-tab${tab === 'frequent' ? ' active' : ''}`}
@@ -805,7 +964,9 @@ export default function MaterialsScreen({ user }: { user: UserInfo }) {
         </button>
       </div>
 
-      {tab === 'inventory' && <MaterialInventoryPanel />}
+      {tab === 'inventory' && <MaterialInventoryPanel user={user} />}
+      {tab === 'lager' && lagerV2 && <LagerOverview />}
+      {tab === 'inventur' && lagerV2 && <CountsScreen />}
       {tab === 'frequent' && ersatzteilEnabled && <FrequentMaterialsPanel />}
       {tab === 'vkbulk' && ownArticleEnabled && <MaterialVkBulkPanel />}
       {tab === 'import' && <ImportScreen ownArticleEnabled={ownArticleEnabled} />}

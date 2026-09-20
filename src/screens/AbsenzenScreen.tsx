@@ -191,7 +191,14 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
               <select
                 className="corr-input"
                 value={form.absence_type}
-                onChange={e => setForm(f => ({ ...f, absence_type: e.target.value as AbsenceCreatePayload['absence_type'] }))}
+                onChange={e => {
+                  const absence_type = e.target.value as AbsenceCreatePayload['absence_type']
+                  // Beim Wechsel auf «Krankheit» fällt eine schon getippte Bemerkung
+                  // weg, statt unsichtbar mitzureisen: das Feld verschwindet gleich
+                  // darunter, und was man nicht mehr sieht, soll auch nicht abgeschickt
+                  // werden.
+                  setForm(f => ({ ...f, absence_type, comment: absence_type === 'sick' ? '' : f.comment }))
+                }}
               >
                 <option value="vacation">Urlaub</option>
                 <option value="sick">Krankheit</option>
@@ -217,16 +224,34 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
                 onChange={e => setForm(f => ({ ...f, date_end: e.target.value }))}
               />
             </div>
-            <div className="corr-row">
-              <label className="corr-label">Bemerkung</label>
-              <input
-                className="corr-input"
-                type="text"
-                placeholder="Optional"
-                value={form.comment}
-                onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
-              />
-            </div>
+            {/*
+              Bei einer Krankmeldung gibt es kein Freitextfeld. Warum jemand krank ist,
+              ist ein besonders schützenswertes Gesundheitsdatum (DSG Art. 5 lit. c) —
+              und für Lohnfortzahlung, Disposition und Arbeitszeitaufzeichnung braucht
+              es nur die Tage. Ein «Optional»-Feld wäre keine freie Entscheidung des
+              Monteurs, sondern eine Einladung: wer es sieht, schreibt hin, was ihm fehlt.
+              Der Hinweis steht bewusst da, statt das Feld nur stillschweigend
+              wegzulassen — die Zusage soll man lesen können.
+            */}
+            {form.absence_type === 'sick' ? (
+              <div className="corr-row">
+                <label className="corr-label">Grund</label>
+                <div className="corr-input" style={{ border: 'none', color: 'var(--muted)', fontSize: 13, lineHeight: 1.4, padding: '4px 0' }}>
+                  Wir fragen nicht, warum du krank bist — melde nur die Tage.
+                </div>
+              </div>
+            ) : (
+              <div className="corr-row">
+                <label className="corr-label">Bemerkung</label>
+                <input
+                  className="corr-input"
+                  type="text"
+                  placeholder="Optional"
+                  value={form.comment}
+                  onChange={e => setForm(f => ({ ...f, comment: e.target.value }))}
+                />
+              </div>
+            )}
             <div className="corr-actions">
               <button
                 className="corr-btn corr-btn-cancel"

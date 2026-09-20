@@ -196,13 +196,20 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   // Projekt des laufenden Rapports — damit «Rapport erstellen» im selben Projekt in
   // den laufenden Rapport zurückspringt, statt ihn stillschweigend zu verwerfen.
   const [pendingProject, setPendingProject] = useState<string | null>(() => draft?.pendingProject ?? null)
-  // Die id des Projekts, mit dem dieser Chat gestartet wurde. NUR für den Weg
-  // ins Offline-Formular: der Name allein genügt dort nicht, seit zwei Projekte
-  // gleich heissen dürfen (Migration 20260807b). Bewusst NICHT im Entwurf
-  // gespeichert — wer den Chat später fortsetzt, kam über den Projekt-Detail und
-  // bringt die id erneut mit; ein alter, im Draft konservierter Wert wäre die
-  // schlechtere Auskunft.
-  const [pendingProjectId, setPendingProjectId] = useState<string | null>(() => initialProjectId ?? null)
+  // Die id des Projekts, an dem dieser Rapport hängt. Zwei Verbraucher:
+  //   * der Weg ins Offline-Formular (der Name genügt dort nicht, seit zwei Projekte
+  //     gleich heissen dürfen — Migration 20260807b), und
+  //   * `resume_project_id` bei JEDEM Turn: damit stellt der Server eine Bindung
+  //     wieder her, die er gerade nicht hat (Chat-Zustand nicht ladbar). Ohne das
+  //     hört der Bot das Projekt wieder aus der letzten Nachricht heraus und der
+  //     Rapport springt auf einen fremden Auftrag (gemeldet 18.09.26).
+  // Sie liegt deshalb IM ENTWURF — anders als früher, wo sie nur aus den Props kam
+  // und jeder Reload sie verlor. Der Entwurf hält sie mit dem Namen zusammen aktuell
+  // (siehe `pending_summary.project_id` in handleActionState); der Prop gewinnt, wenn
+  // «Rapport erstellen» einen neuen Rapport bringt.
+  const [pendingProjectId, setPendingProjectId] = useState<string | null>(
+    () => initialProjectId ?? draft?.pendingProjectId ?? null,
+  )
   // Offene PROJEKT-Rückfrage: zwei Liegenschaften heissen gleich. Solange sie
   // ansteht, ist die Eingabe gesperrt — genau wie bei der Material-Rückfrage. Der
   // Monteur soll das Projekt antippen, nicht beschreiben: eine beschriebene Adresse
@@ -226,7 +233,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
     pendingSignReportId, downloadReportId, reportSigned,
     workTypesCollected, collectedWorkTypes, suggestedWorkTypes, pendingProject,
-    partialChosen, savedAsPartial,
+    pendingProjectId, partialChosen, savedAsPartial,
   }
 
   // Rapport-Zwischenstand persistieren, sobald sich relevanter State ändert.
@@ -237,7 +244,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       collectedErsatz, summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
       pendingSignReportId, downloadReportId, reportSigned,
       workTypesCollected, collectedWorkTypes, suggestedWorkTypes, pendingProject,
-      partialChosen, savedAsPartial])
+      pendingProjectId, partialChosen, savedAsPartial])
 
   // Reload und Tab-schliessen: der Browser fragt selbst nach, solange ein Rapport
   // offen ist. Best effort und mit zwei Einschränkungen — der Text ist der des
@@ -275,6 +282,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     setDownloadReportId(null)
     setReportSigned(false)
     setPendingProject(null)
+    setPendingProjectId(null)
     // Die beiden Teilrapport-Merker gehören zum abgeschlossenen Rapport, nicht zum
     // nächsten: bleiben sie stehen, zeigt der frische Chat die Vorauswahl und den
     // Hinweis des vorherigen.
@@ -394,6 +402,11 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       // Bindung stehen — sie hier auf null zu setzen hiesse, den Rapport wieder
       // heimatlos zu machen.
       setPendingProject(prev => res.pending_summary?.project ?? prev)
+      // Die id wandert mit dem Namen — sonst trüge der Entwurf nach einem Wechsel
+      // im Gespräch den neuen Namen und die ALTE id, und die Wiederaufnahme zöge
+      // den Rapport auf das verlassene Projekt zurück. Ein
+      // Alt-Server ohne das Feld lässt die id stehen (dann gewinnt dort der Name).
+      setPendingProjectId(prev => res.pending_summary?.project_id ?? prev)
       // Neue Bestätigung → Zwischenschritte zurücksetzen
       setKleinCollected(false)
       setErsatzCollected(false)
@@ -445,6 +458,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       setPendingDisambiguation(false)
       setPendingQuoteQuestion(false)
       setPendingProject(null)
+      setPendingProjectId(null)
       setKleinCollected(false)
       setErsatzCollected(false)
       setCollectedKlein(null)
@@ -518,7 +532,12 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     let sawDelta = false
     try {
       let finalRes: ChatResponse | null = null
-      for await (const ev of sendMessageStream(userText, startProject, startProjectId)) {
+      for await (const ev of sendMessageStream(
+        userText, startProject, startProjectId,
+        // Keine Startangabe = Folge-Turn: die Bindung des laufenden Rapports mit,
+        // damit ein Server, der sie verloren hat, sie wiederherstellen kann.
+        startProject || startProjectId ? undefined : resumeBinding(),
+      )) {
         if (ev.type === 'delta') {
           sawDelta = true
           // Spinner ausblenden, sobald der erste Token kommt
@@ -620,6 +639,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     // dasselbe ab; bliebe die Bindung im Client stehen, spränge «Rapport erstellen»
     // danach in einen Rapport zurück, den es nicht mehr gibt.
     setPendingProject(null)
+    setPendingProjectId(null)
     setKleinCollected(false)
     setErsatzCollected(false)
     setCollectedKlein(null)
@@ -688,6 +708,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       // Ab hier gehört der Rapport diesem Projekt — auch für «Rapport erstellen»,
       // das sonst gleich wieder vor einem angeblich fremden Rapport warnen würde.
       setPendingProject(opt.name)
+      setPendingProjectId(opt.project_id)
       handleActionState(res)
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) { onLoggedOut(); return }
@@ -700,6 +721,18 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     }
   }
 
+  /**
+   * Das Projekt des laufenden Rapports, wie dieser Client es kennt — geht bei jedem
+   * Folge-Turn mit. Der Server setzt es nur ein, wenn er selbst keine Bindung hat:
+   * seine liegt in `pwa_chat_state`, und ist die Ablage nicht erreichbar, gilt der
+   * Zustand als leer. Ohne die Angabe hört der Bot das Projekt dann wieder aus der
+   * einen letzten Nachricht heraus, und «8 Stunden für Peter» legt den Rapport auf
+   * «Storen Peter, Chur».
+   */
+  function resumeBinding() {
+    return { project: pendingProject, projectId: pendingProjectId }
+  }
+
   function onSendText(text: string) {
     if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice) return
     handleResponseStream(text)
@@ -707,7 +740,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
 
   function onSendVoice(blob: Blob) {
     if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice) return
-    handleResponse('🎤 Sprachnachricht', sendVoice(blob))
+    handleResponse('🎤 Sprachnachricht', sendVoice(blob, resumeBinding()))
   }
 
   /** Legt das Foto in den Offline-Puffer und sagt ehrlich, ob das geklappt hat. */

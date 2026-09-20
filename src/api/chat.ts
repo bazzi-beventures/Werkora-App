@@ -54,6 +54,12 @@ export interface ChatResponse {
   project_choice?: ProjectChoiceOption[]
   pending_summary?: {
     project: string
+    // Die id des Projekts, auf dem der Rapport steht. Hält `pendingProjectId` im
+    // Entwurf aktuell, wenn der Monteur mitten im Gespräch auf ein anderes Projekt
+    // gewechselt hat — sonst trüge der Entwurf den neuen Namen und die alte id.
+    // Fehlt beim Alt-Server → die id bleibt, wie sie war (und der Name gewinnt
+    // server-seitig als Fallback, sofern er eindeutig ist).
+    project_id?: string | null
     date: string
     staff: { name: string; hours: number }[]
     items: SummaryItem[]
@@ -90,11 +96,27 @@ export type ChatStreamEvent =
  * — der Rapport startete ungebunden, und die Rückfrage nach der Projektnummer
  * beantwortete am Ende das Modell statt der Monteur. Der Name bleibt mitgeschickt,
  * damit ein alter Server ihn weiterhin auswertet.
+ *
+ * `resume` ist dieselbe Angabe für die FOLGE-Turns und geht bei jedem davon mit.
+ * Die Bindung liegt server-seitig in `pwa_chat_state`; ist die Ablage nicht
+ * erreichbar, gilt der Zustand als leer, während der Entwurf hier im localStorage
+ * weiterlebt. Der Riegel gegen den still gewechselten Auftrag wirkt dann nicht mehr,
+ * und der Bot hört das Projekt wieder aus der EINEN letzten Nachricht heraus — «8
+ * Stunden für Peter» hebt ein fremdes Projekt in die Auswahl. Der Server setzt
+ * `resume` nur ein, wenn er selbst keine Bindung hat: ein im Gespräch ausdrücklich
+ * vollzogener Projektwechsel gewinnt weiterhin.
  */
-export async function* sendMessageStream(text: string, project?: string | null, projectId?: string | null): AsyncGenerator<ChatStreamEvent, void, void> {
+export async function* sendMessageStream(
+  text: string,
+  project?: string | null,
+  projectId?: string | null,
+  resume?: { project?: string | null; projectId?: string | null },
+): AsyncGenerator<ChatStreamEvent, void, void> {
   const body: Record<string, string> = { text }
   if (project) body.project = project
   if (projectId) body.project_id = projectId
+  if (resume?.project) body.resume_project = resume.project
+  if (resume?.projectId) body.resume_project_id = resume.projectId
   for await (const raw of apiStreamFetch('/pwa/chat/message', body)) {
     const t = raw.type
     if (t === 'delta' && typeof raw.text === 'string') {
@@ -105,9 +127,20 @@ export async function* sendMessageStream(text: string, project?: string | null, 
   }
 }
 
-export async function sendVoice(blob: Blob): Promise<ChatResponse> {
+/**
+ * Sprachnachricht im Rapport-Chat. `resume` wie bei `sendMessageStream` — hier als
+ * Formularfelder, weil die Route multipart ist. Gerade die Sprachnotiz braucht die
+ * Bindung: «acht Stunden für Peter» ist genau die Nachricht, in der ein
+ * Mitarbeitername ein fremdes Projekt in die Auswahl hebt.
+ */
+export async function sendVoice(
+  blob: Blob,
+  resume?: { project?: string | null; projectId?: string | null },
+): Promise<ChatResponse> {
   const form = new FormData()
   form.append('audio', blob, 'recording.webm')
+  if (resume?.project) form.append('resume_project', resume.project)
+  if (resume?.projectId) form.append('resume_project_id', resume.projectId)
   return apiFormFetch<ChatResponse>('/pwa/chat/voice', form)
 }
 
@@ -331,6 +364,11 @@ export interface FrequentMaterialOption {
   name: string
   unit: string
   calc_vk: number
+  /** Bestand im Hauptlager. Nur gesetzt, wenn der Betrieb das Lager-Modul hat
+   *  (und `lager_v2` für dieses Konto aktiv ist) — sonst `undefined`. */
+  stock?: number
+  /** Bestand ist 0, negativ oder unter dem Meldebestand. */
+  stock_low?: boolean
 }
 
 export async function fetchFrequentMaterials(): Promise<FrequentMaterialOption[]> {

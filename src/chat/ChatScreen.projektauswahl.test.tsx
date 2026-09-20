@@ -118,7 +118,10 @@ describe('ChatScreen — Projekt-Auswahl', () => {
     await screen.findByRole('button', { name: /2600042/ })
 
     expect(sendMessageStream).toHaveBeenCalledWith(
-      'Neuer Rapport für Projekt "Müller Seuzach"', 'Müller Seuzach', 'p-holderweg'
+      'Neuer Rapport für Projekt "Müller Seuzach"', 'Müller Seuzach', 'p-holderweg',
+      // Startnachricht: keine Wiederaufnahme-Angabe. Sie geht nur bei FOLGE-Turns
+      // mit und darf die Startbindung nicht überstimmen (ChatScreen.projektbindung).
+      undefined,
     )
   })
 

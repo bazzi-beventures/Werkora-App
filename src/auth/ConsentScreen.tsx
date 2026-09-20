@@ -28,6 +28,15 @@ interface Props {
 //    nicht mehr gilt. Genau das war der Fehler in v5 (Anthropic stand noch drin,
 //    Hosting/Mail/Push/Karten fehlten).
 //
+// Nachtrag 20.09.2026: Der Absatz zu Krankheit sagt jetzt zu, dass der Grund nicht
+// erhoben wird (Chokepoint in db/absences.py, CHECK-Constraint seit Migration
+// 20260920). CURRENT_CONSENT_VERSION steigt dafür bewusst **nicht**: Der Bump zwingt
+// alle Nutzer aller Mandanten vor eine Sperre, und er ist dafür da, dass niemand eine
+// Ausweitung der Bearbeitung verpasst. Hier wird nichts ausgeweitet, sondern
+// weggenommen — der bisher bestätigte Text bleibt in jedem Punkt wahr, es geschieht
+// nur weniger als darin steht. Wer den Satz trotzdem quittiert sehen will, erhöht die
+// Zahl in db/auth.py; falsch wäre das nicht, bloss teuer.
+//
 // Zwei Zeilen sind bewusst mit «wenn dein Betrieb …» formuliert: Mailweg
 // (Microsoft Graph oder Gmail) und Kartendienst hängen an der Konfiguration des
 // Mandanten, die der Client nicht kennt. Eine falsche Zusage wäre schlimmer als
@@ -84,6 +93,9 @@ export default function ConsentScreen({ logoUrl, displayName, user = null, onAcc
         <p>
           Krankheit und Unfall sind <strong>besonders schützenswerte Gesundheitsdaten</strong>. Sie
           sehen nur deine Vorgesetzten und das Büro — nicht deine Kolleginnen und Kollegen.
+          <strong> Warum</strong> du krank bist, fragt die App nicht: Bei einer Krankmeldung
+          gibt es kein Bemerkungsfeld, und gespeichert werden nur die Tage. Was dir fehlt,
+          geht deinen Betrieb nichts an.
         </p>
 
         <p><strong>Arbeitszeit und Pausen:</strong></p>

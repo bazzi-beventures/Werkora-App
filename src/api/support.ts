@@ -78,6 +78,67 @@ export function appendTranscript(existing: string, addition: string): string {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// «Meine Meldungen» — Spec docs/specs/support-antwort.md
+// ────────────────────────────────────────────────────────────────────────────
+
+/** Eine Antwort des Betreibers auf eine Meldung. Append-only (Spec A4). */
+export type SupportReply = {
+  text: string
+  /** Zeitpunkt der Antwort (ISO). */
+  at: string
+  /** Wer geantwortet hat — Anzeigename, nie eine E-Mail. */
+  by?: string
+}
+
+/**
+ * Die eigene Meldung, wie der Melder sie sieht.
+ *
+ * Bewusst viel schmaler als `SupportTicket`: der Server liefert hier eine
+ * Spalten-Allowlist aus (Spec §6.3) — kein `snapshot` (das ist die Aktivität
+ * der ganzen Firma) und keine interne Notiz.
+ */
+export type MySupportTicket = {
+  id: string
+  ticket_no: number
+  reference: string
+  message: string
+  route?: string | null
+  status: SupportStatus
+  created_at: string
+  closed_at?: string | null
+  replies?: SupportReply[] | null
+  last_reply_at?: string | null
+  reply_read_at?: string | null
+}
+
+export type MySupportTickets = {
+  tickets: MySupportTicket[]
+  /** Wie viele Meldungen eine ungelesene Antwort tragen — vom Server gezählt,
+   *  damit Abzeichen und Liste nie auseinanderlaufen. */
+  unread: number
+}
+
+export async function fetchMySupportTickets(): Promise<MySupportTickets> {
+  return apiFetch<MySupportTickets>('/pwa/support/my-tickets')
+}
+
+/** Quittiert alle eigenen beantworteten Meldungen auf einmal. */
+export async function markSupportRepliesRead(): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>('/pwa/support/my-tickets/read', { method: 'POST' })
+}
+
+/**
+ * Vorbelegung für «Passt nicht» (Spec A8) — reine Funktion.
+ *
+ * Es entsteht bewusst eine NEUE Meldung statt eines wiederaufgemachten Tickets:
+ * wenn das Problem noch auftritt, ist der FRISCHE Aktivitäts-Snapshot das
+ * Wertvolle. Der alte ist Wochen her und eingefroren.
+ */
+export function bezugPrefix(reference: string): string {
+  return `[Bezug: ${reference}] `
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Superadmin-Eingang
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -99,6 +160,9 @@ export type SupportTicket = {
   created_at: string
   updated_at?: string | null
   closed_at?: string | null
+  /** Gesetzt, sobald der Betreiber geantwortet hat — die Liste zeigt es, ohne
+   *  die Antworten selbst zu laden (Spec docs/specs/support-antwort.md §6.1). */
+  last_reply_at?: string | null
   snapshot_error_count: number
   snapshot_top_source?: string | null
   attachment_count: number
@@ -131,6 +195,11 @@ export type SupportSnapshot = {
 export type SupportTicketDetail = SupportTicket & {
   snapshot: SupportSnapshot
   attachments: SupportAttachment[]
+  /** Was der Melder zu sehen bekommt (Spec A2 — im Unterschied zu
+   *  `superadmin_note`, die intern bleibt). */
+  replies?: SupportReply[] | null
+  /** Quittung des Melders: «gelesen am …». */
+  reply_read_at?: string | null
 }
 
 export type SupportListResponse = {
@@ -181,4 +250,19 @@ export type SupportDashboard = {
 
 export async function fetchSupportDashboard(): Promise<SupportDashboard> {
   return apiFetch<SupportDashboard>('/pwa/superadmin/support-dashboard')
+}
+
+/**
+ * Antwort an den Melder senden (Spec docs/specs/support-antwort.md §6.2).
+ *
+ * Eigener Endpunkt neben `updateSupportTicket` mit Absicht: ein Statuswechsel
+ * darf nie etwas verschicken. Was hier hereingeht, geht raus — und nur das.
+ */
+export async function sendSupportReply(
+  id: string, text: string,
+): Promise<{ ok: boolean; replies: SupportReply[]; last_reply_at: string }> {
+  return apiFetch(`/pwa/superadmin/support-tickets/${id}/reply`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
 }

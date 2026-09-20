@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import SupportForm from './SupportForm'
+import { leereMeldungen } from './supportTestFixtures'
 import { ApiError } from '../api/client'
 
 // Spec docs/specs/support-ticket.md §5.5 — «Problem diktieren» (Mistral Voice).
@@ -84,7 +85,7 @@ afterEach(() => {
 describe('SupportForm — Diktat', () => {
   it('schreibt das Transkript ins Textfeld, statt es sofort zu senden', async () => {
     transcribeSupportAudio.mockResolvedValue('Rapport speichert nicht')
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
 
     await record()
 
@@ -96,7 +97,7 @@ describe('SupportForm — Diktat', () => {
 
   it('hängt das Diktat an bereits getippten Text', async () => {
     transcribeSupportAudio.mockResolvedValue('Knopf reagiert nicht')
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
     const feld = screen.getByLabelText<HTMLTextAreaElement>('Was ist passiert?')
     fireEvent.change(feld, { target: { value: 'Seit heute:' } })
 
@@ -106,7 +107,7 @@ describe('SupportForm — Diktat', () => {
   })
 
   it('verwirft die Aufnahme, ohne sie zu transkribieren', async () => {
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
     fireEvent.click(screen.getByRole('button', { name: /diktieren/i }))
     await screen.findByText(/Aufnahme läuft/)
 
@@ -126,7 +127,7 @@ describe('SupportForm — Diktat', () => {
       configurable: true,
       value: { getUserMedia: vi.fn().mockRejectedValue(new Error('NotAllowedError')) },
     })
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
 
     fireEvent.click(screen.getByRole('button', { name: /diktieren/i }))
 
@@ -135,7 +136,7 @@ describe('SupportForm — Diktat', () => {
 
   it('übersetzt einen Transkriptions-Fehler in Klartext', async () => {
     transcribeSupportAudio.mockRejectedValue(new ApiError(502, 'transcription_failed'))
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
 
     await record()
 
@@ -145,7 +146,7 @@ describe('SupportForm — Diktat', () => {
   it('blendet den Knopf aus, wo der Browser nicht aufnehmen kann', () => {
     // Unsicherer Kontext (http://) oder altes iOS: `mediaDevices` fehlt ganz.
     Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: undefined })
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
 
     expect(screen.queryByRole('button', { name: /diktieren/i })).toBeNull()
     // Tippen bleibt der Weg — das Formular selbst ist unverändert da.

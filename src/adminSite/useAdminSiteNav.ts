@@ -69,17 +69,22 @@ export const istRechnungScreen = (s: string): s is RechnungScreen =>
   (RECHNUNG_SCREENS as readonly string[]).includes(s)
 
 /**
- * Die Module, die den Bereich «Rechnungen» tragen (§8.3).
+ * Wer sieht den Bereich «Rechnungen» (§8.3)?
  *
- * Gelesen wird `/pwa/me` des angemeldeten Kontos — nicht der Mandant im
- * Wähler. Ein Superadmin, der (Übergangszeit, §8.6) noch in einem
- * Kundenmandanten sitzt, sieht den Bereich also nicht, und das ist richtig:
- * er hätte dort die Rechnungen dieses Kunden vor sich.
+ * **Nur ein Konto im Betreiber-Mandanten.** Der Bereich zeigt die Rechnungen des
+ * SITZUNGS-Mandanten, nicht die des Wählers — also «unsere Rechnungen an die
+ * Mandanten». Bei einem Konto in einem Kundenbetrieb wären es dessen Rechnungen
+ * an dessen Kundschaft, unter der Überschrift der Betreiber-Seite.
+ *
+ * **Vorher entschied das die Modulliste** (`invoicing` + `payment_matching`) —
+ * und die hat ein Kunde mit Fakturierung genauso. Die Sperre war damit keine:
+ * Ein Superadmin, der (Übergangszeit, §8.6) noch in einem Kundenmandanten
+ * sitzt, bekam dort die 47 Rechnungen dieses Kunden zu sehen (Befund
+ * 18.09.2026). Jetzt antwortet der Server auf die Frage, die gemeint war, und
+ * zwar am Slug: `/pwa/me` liefert `betreiber_mandant`.
  */
-export const RECHNUNG_MODULE = ['invoicing', 'payment_matching'] as const
-
-export const hatRechnungsbereich = (enabledModules: readonly string[]): boolean =>
-  RECHNUNG_MODULE.every((m) => enabledModules.includes(m))
+export const hatRechnungsbereich = (user: { betreiber_mandant?: boolean }): boolean =>
+  user.betreiber_mandant === true
 
 export interface AdminSiteNav {
   route: AdminRoute

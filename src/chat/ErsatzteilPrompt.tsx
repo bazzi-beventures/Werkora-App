@@ -166,6 +166,16 @@ export default function ErsatzteilPrompt({ onSubmit, userId = '', initial }: Pro
                 />
                 <span className="ersatzteil-name">
                   <span className="ersatzteil-artnr">{m.art_nr}</span> {m.name}
+                  {/* Stiller Bestandshinweis (Lager v2) — die einzige Stelle, an
+                      der ein Monteur vom Lager etwas sieht. Keine Sperre: Er
+                      bucht, was er verbaut hat, und ob das Teil da war, weiss er
+                      besser als die Datenbank. Der Hinweis soll ihn nur davor
+                      bewahren, auf die Baustelle zu fahren und nichts zu finden. */}
+                  {m.stock != null && (
+                    <span className={`ersatzteil-bestand${m.stock_low ? ' is-low' : ''}`}>
+                      {m.stock > 0 ? `noch ${m.stock} ${m.unit} am Lager` : 'nicht am Lager'}
+                    </span>
+                  )}
                 </span>
               </label>
               {checked && (

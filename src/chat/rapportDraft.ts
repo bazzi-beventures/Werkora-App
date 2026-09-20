@@ -39,6 +39,19 @@ export interface RapportDraftState {
   // erneut auf «Rapport erstellen», springt er in seinen laufenden Rapport statt ihn
   // zu verwerfen. Fehlt im Draft (ältere Version) → es wird gefragt.
   pendingProject?: string | null
+  // Dasselbe Projekt als **id** — und das ist die massgebliche Angabe (der Name ist
+  // seit 20260807b nicht mehr eindeutig). Sie liegt hier, damit der Client die
+  // Projekt-Bindung des Servers wiederherstellen kann, wenn dieser sie gerade nicht
+  // hat: sie steht in `pwa_chat_state`, und ist die Ablage nicht erreichbar, gilt der
+  // Zustand als leer (`laden_fehlgeschlagen`). Der Riegel `stick_to_active_project`
+  // wirkt dann nicht mehr, und der Bot hört das Projekt wieder aus der letzten
+  // Nachricht heraus — «8 Stunden für Peter» hebt ein fremdes Projekt in die Auswahl.
+  // Der Entwurf hier ist davon nicht betroffen und schickt das Projekt bei jedem Turn
+  // mit (`resume_project_id`).
+  // Reines ZUSATZfeld → kein APP_DATA_VERSION-Schritt nötig; ältere Entwürfe lesen
+  // `undefined` und schicken dann nur den Namen mit, was der Server als Fallback
+  // auswertet (eindeutiger Name bindet, mehrdeutiger nicht).
+  pendingProjectId?: string | null
   // Wurde der gespeicherte Rapport vom Kunden unterschrieben (statt übersprungen)?
   // Steuert, ob der Monteur ihn im Abschluss-Schritt noch selbst löschen darf —
   // nach der Unterschrift ist er abgenommen. Fehlt im Draft (ältere Version),

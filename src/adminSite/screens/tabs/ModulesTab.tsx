@@ -23,6 +23,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   invoicing:        { label: 'Rechnungen',        desc: 'Rechnungen mit PDF-Generierung', category: 'operativ' },
   payment_matching: { label: 'Zahlungsabgleich',  desc: 'CAMT-Bankauszug einlesen und Zahlungseingänge automatisch mit Rechnungen abgleichen (benötigt Rechnungen)', category: 'operativ' },
   inventory:        { label: 'Lager',             desc: 'Bestände & Lagerbewegungen (Material-Katalog bleibt verfügbar)', category: 'operativ' },
+  inventory_alerts: { label: 'Lager-Alarme',      desc: 'Täglicher Lagerbericht per E-Mail (Artikel unter Meldebestand, Bestellvorschläge, Auffälligkeiten) und Sofort-Push ans Büro, wenn ein Bestand unter 0 rutscht. Bestellt wird nie automatisch — der Entwurf liegt bereit, senden tut ein Mensch (benötigt Lager)', category: 'operativ' },
   aftersales:       { label: 'After Sales',       desc: 'Feedback- und saisonale Reparatur-/Service-Nachfassmails nach bezahlter Rechnung (benötigt Rechnungen)', category: 'operativ' },
   task_board:       { label: 'Aufgaben-Board',    desc: 'Kanban-Board «Aufgaben» im Admin: automatisch abgeleitete Aufgaben (z. B. «Offerte akzeptiert → Projekt aufgleisen») neben manuell erfassten, den Projektleitern zugeordnet. Die Schwellwerte der Auto-Aufgaben stehen im Tab Feature-Flags.', category: 'operativ' },
   hr:               { label: 'HR',                desc: 'Absenzen, Ferien, HR-Berichte', category: 'hr' },

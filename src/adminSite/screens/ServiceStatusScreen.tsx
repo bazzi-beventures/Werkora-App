@@ -342,7 +342,7 @@ export default function ServiceStatusScreen() {
         <div>
           <div className="admin-page-title">Service-Status</div>
           <div className="admin-page-subtitle">
-            Externes Monitoring via GitHub Actions
+            Probe alle 5 Minuten · Railway, Supabase, Mistral
           </div>
         </div>
         <button
@@ -408,10 +408,12 @@ export default function ServiceStatusScreen() {
       )}
 
       <div style={{ marginTop: 24, padding: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-        <strong style={{ color: 'var(--text)' }}>Wie das funktioniert:</strong> Drei GitHub-Actions-Workflows pingen
-        Railway, Supabase und Mistral und schreiben jedes Resultat in eine Tabelle.
+        <strong style={{ color: 'var(--text)' }}>Wie das funktioniert:</strong> Ein eigener Probe-Service
+        pingt alle 5 Minuten Railway, Supabase und Mistral und schreibt jedes Resultat in eine Tabelle.
         Die Karten zeigen den aktuellen Status, der Verlauf kombiniert Rohdaten (letzte 30 Tage)
-        mit Tages-Aggregat (älter). GitHub-Cron läuft Best-Effort — geringe Verzögerungen sind normal.
+        mit Tages-Aggregat (älter). Der Probe läuft selbst auf Railway: fällt die Plattform komplett
+        aus, entsteht statt eines «down»-Eintrags eine Lücke im Verlauf — dagegen wacht ein
+        Dead-Man-Switch, der extern Alarm schlägt.
       </div>
     </div>
   )

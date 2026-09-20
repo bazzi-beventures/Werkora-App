@@ -74,3 +74,62 @@
     min-width: 0;
   }
 }
+
+/* ── Antwort an den Melder (Spec docs/specs/support-antwort.md §5) ──────────
+   Optisch abgesetzt vom Rest des Dialogs: was hier steht, verlässt das Haus.
+   Die interne Notiz darunter bleibt ein schlichtes Eingabefeld — der
+   Unterschied soll ohne Lesen erkennbar sein. */
+.support-reply {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-left: 3px solid var(--primary, #3081AB);
+  border-radius: var(--radius-sm);
+}
+
+.support-reply-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.support-reply-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.support-reply-meta {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.support-reply-text {
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+}
+
+.support-reply-input {
+  width: 100%;
+  resize: vertical;
+  padding: 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius-sm);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+}
+
+.support-reply-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.support-reply-hint {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}

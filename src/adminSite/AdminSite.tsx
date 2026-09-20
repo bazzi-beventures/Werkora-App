@@ -36,7 +36,7 @@ import NewsletterScreen from './screens/NewsletterScreen'
 // sie bleiben Mandanten-Screens und werden von beiden Einstiegen importiert.
 // Sie arbeiten ueber die normalen Mandanten-Routen mit der eigenen Sitzung —
 // der Betreiber-Mandant IST hier der Mandant, es gibt nichts zu skopieren.
-import InvoicesScreen from '../admin/operative/InvoicesScreen'
+import OperatorInvoicesScreen from './screens/OperatorInvoicesScreen'
 import PaymentReconciliationScreen from '../admin/operative/PaymentReconciliationScreen'
 import CustomersScreen from '../admin/operative/CustomersScreen'
 
@@ -156,7 +156,7 @@ export default function AdminSite() {
 
       // ── Rechnungen: der EIGENE Mandant des Kontos (§8.3) ──
       // Kein `tenantId`: diese Screens lesen den Mandanten aus der Sitzung.
-      case 'rechnungen':      return <InvoicesScreen />
+      case 'rechnungen':      return <OperatorInvoicesScreen />
       case 'zahlungsabgleich': return <PaymentReconciliationScreen />
       case 'kunden':          return <CustomersScreen />
 
@@ -172,7 +172,7 @@ export default function AdminSite() {
       displayName={user.display_name}
       onLogout={abmelden}
       onChangePassword={() => setPasswortDialog(true)}
-      zeigeRechnungen={hatRechnungsbereich(user.enabled_modules)}
+      zeigeRechnungen={hatRechnungsbereich(user)}
     >
       {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
           Navigation und Mandanten-Wähler stehen, statt dass die ganze Seite

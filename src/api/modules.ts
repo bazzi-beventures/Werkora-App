@@ -7,6 +7,7 @@ export type ModuleName =
   | 'invoicing'
   | 'payment_matching'
   | 'inventory'
+  | 'inventory_alerts'
   | 'hr'
   | 'arg_compliance'
   | 'violation_emails'

@@ -58,7 +58,10 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
-  { test: /material|stock|unit|pricing_rule|supplier|frequent/, module: 'inventory' },
+  // `reorder` ausdrücklich: die Bestellvorschläge heissen
+  // `admin_reorder_draft_send`/`_discard` und tragen weder "material" noch
+  // "stock" im Namen, gehören aber zum Lager (Lager v2, 20260919).
+  { test: /material|stock|reorder|unit|pricing_rule|supplier|frequent/, module: 'inventory' },
   // `beta_tester` steht ausdrücklich da: die Aktion heisst `admin_set_beta_tester`
   // und trägt weder "user" noch "staff" im Namen, gehört aber zur Benutzerverwaltung
   // wie `admin_update_user` (docs/specs/beta-tester.md §5.7).
@@ -185,6 +188,14 @@ const ACTION_LABELS: Record<string, string> = {
   admin_material_image: 'Artikelbild hochgeladen',
   admin_material_image_delete: 'Artikelbild gelöscht',
   admin_stock_adjust: 'Lagerbestand korrigiert',
+  admin_stock_delivery: 'Lieferung gebucht',
+  admin_reorder_draft_send: 'Bestellung an Lieferant',
+  admin_reorder_draft_discard: 'Bestellvorschlag verworfen',
+  admin_stock_count_create: 'Inventur angelegt',
+  admin_stock_count_close: 'Inventur abgeschlossen',
+  admin_stock_count_abort: 'Inventur abgebrochen',
+  admin_stock_count_export: 'Inventur exportiert',
+  admin_stock_anomaly_ignore: 'Auffälligkeit ignoriert',
   admin_add_frequent_material: 'Häufiger Artikel hinzugefügt',
   admin_remove_frequent_material: 'Häufiger Artikel entfernt',
   admin_create_unit: 'Einheit angelegt',
@@ -284,6 +295,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_update_tenant_travel_cost: 'Wegkosten-Tabelle geändert',
   superadmin_push_send: 'Test-Push versendet',
   support_ticket_update: 'Support-Meldung bearbeitet',
+  support_ticket_reply: 'Support-Meldung beantwortet',
   newsletter_send: 'Newsletter versendet',
 
   // ── Roher DSGVO-Audit-Trail aus db/ ──

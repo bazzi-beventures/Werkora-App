@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/client'
 import {
   MAX_SUPPORT_FILE_BYTES,
@@ -9,6 +9,8 @@ import {
   transcribeSupportAudio,
 } from '../api/support'
 import { isVoiceRecordingSupported, useVoiceRecorder } from '../chat/useVoiceRecorder'
+import MyTickets from './MyTickets'
+import type { MySupportTicketsState } from './useMySupportTickets'
 
 /**
  * «Problem melden» — Spec docs/specs/support-ticket.md §5.
@@ -19,13 +21,23 @@ import { isVoiceRecordingSupported, useVoiceRecorder } from '../chat/useVoiceRec
  * Dasselbe gilt fürs Diktat (§5.5): Mistral Voice liefert den Text ins Feld,
  * abgeschickt wird er erst mit «Meldung senden». Wer auf der Baustelle mit
  * Handschuhen am Handy steht, tippt sonst gar nichts — und meldet nichts.
+ *
+ * Seit 2026-09 zwei Ansichten (docs/specs/support-antwort.md §4.1): das Formular
+ * und «Meine Meldungen», wo die Antwort des Betreibers ankommt. Wartet eine
+ * ungelesene Antwort, öffnet der Reiter direkt dort — wer die Blase aufmacht,
+ * während eine Antwort daliegt, soll sie sehen, nicht suchen.
  */
 
 interface Props {
   /** Aktueller Screen — wandert als `route` ins Ticket. */
   route: string
   appContext: 'pwa' | 'admin'
+  /** Eigene Meldungen samt Antworten — geladen von der Hilfe-Blase, damit das
+   *  Abzeichen am FAB auch bei geschlossenem Panel stimmt. */
+  mine: MySupportTicketsState
 }
+
+type View = 'melden' | 'meine'
 
 const ERROR_TEXT: Record<string, string> = {
   module_disabled: 'Support-Meldungen sind für diesen Mandanten nicht aktiviert.',
@@ -49,7 +61,10 @@ function formatSeconds(total: number) {
   return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`
 }
 
-export default function SupportForm({ route, appContext }: Props) {
+export default function SupportForm({ route, appContext, mine }: Props) {
+  // Startwert aus dem Ladezustand der Blase: die Liste ist beim Öffnen des
+  // Panels bereits geholt (Hook hängt am App-Start), der Wert stimmt also.
+  const [view, setView] = useState<View>(mine.unread > 0 ? 'meine' : 'melden')
   const [message, setMessage] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
@@ -150,12 +165,33 @@ export default function SupportForm({ route, appContext }: Props) {
       setLostFiles(Math.max(0, files.length - (created.attachment_count ?? files.length)))
       setMessage('')
       setFiles([])
+      // Damit die frische Meldung unter «Meine Meldungen» steht, sobald der
+      // Nutzer dort nachsieht — und nicht erst beim nächsten App-Start.
+      void mine.reload()
     } catch (e) {
       const detail = e instanceof ApiError ? e.message : ''
       setError(ERROR_TEXT[detail] || 'Die Meldung konnte nicht gesendet werden. Bitte später erneut.')
     } finally {
       setBusy(false)
     }
+  }
+
+  // Die Ansicht zeigt ALLE Antworten auf einmal — also wird auch alles auf
+  // einmal quittiert (Spec §6.2). Der Ref-Riegel sorgt dafür, dass das genau
+  // einmal passiert: `mine` ist bei jedem Render ein neues Objekt, ohne ihn
+  // liefe der Effekt in einer Schleife.
+  const quittiert = useRef(false)
+  useEffect(() => {
+    if (view !== 'meine' || quittiert.current) return
+    quittiert.current = true
+    void mine.markRead()
+  }, [view, mine])
+
+  /** «Passt nicht» — zurück ins Formular, vorbelegt mit dem Bezug (Spec A8). */
+  function neueMeldungMitBezug(prefill: string) {
+    setMessage(current => (current.trim() ? current : prefill))
+    setError('')
+    setView('melden')
   }
 
   // Quittung: der verlässliche Weg. Die zusätzliche Push kann ausfallen (kein
@@ -196,6 +232,57 @@ export default function SupportForm({ route, appContext }: Props) {
     )
   }
 
+  const umschalter = (
+    <div
+      role="tablist"
+      aria-label="Support"
+      style={{
+        display: 'flex', gap: 4, padding: '10px 16px 0', flexShrink: 0,
+      }}
+    >
+      {(['melden', 'meine'] as View[]).map(id => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={view === id}
+          onClick={() => setView(id)}
+          style={{
+            flex: 1, minWidth: 0, padding: '6px 8px', fontSize: '0.85rem',
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            border: '1px solid var(--border, #e5e7eb)',
+            background: view === id ? 'var(--accent)' : 'transparent',
+            color: view === id ? 'var(--on-accent)' : 'inherit',
+            fontWeight: view === id ? 600 : 400,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}
+        >
+          {id === 'melden'
+            ? 'Problem melden'
+            : `Meine Meldungen${mine.unread > 0 ? ` (${mine.unread})` : ''}`}
+        </button>
+      ))}
+    </div>
+  )
+
+  if (view === 'meine') {
+    return (
+      // Dieselbe Höhenregel wie beim Formular unten: eigene Höhe, sonst wächst
+      // die Liste auf Inhaltshöhe und wird im Panel abgeschnitten statt scrollbar.
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+        {umschalter}
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
+          <MyTickets
+            tickets={mine.tickets}
+            loading={mine.loading}
+            failed={mine.failed}
+            onNewWithReference={neueMeldungMitBezug}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     // onPaste am ganzen Formular, nicht nur am Textfeld: nach dem Anhängen des
     // ersten Bildes liegt der Fokus oft nicht mehr im Textfeld, und ein zweites
@@ -209,8 +296,32 @@ export default function SupportForm({ route, appContext }: Props) {
            // DSGVO-Hinweis mitten im Satz weg, teils auch «Meldung senden»).
            // HelpBot und WikiBot füllen ihren Platz genauso.
            height: '100%', overflowY: 'auto',
-           padding: 16, display: 'flex', flexDirection: 'column', gap: 10,
+           padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 10,
          }}>
+      {/* Der Umschalter scrollt hier bewusst mit: das Formular ist die
+          Hauptsache, und eine zweite feste Leiste über dem ohnehin knappen
+          Panel kostet auf dem Handy eine Zeile, die dem Textfeld fehlt. */}
+      {umschalter}
+
+      {/* Sicherheitsnetz zum Startwert oben: kam die Liste erst herein, nachdem
+          das Panel schon offen war, steht die Ansicht auf «melden» — dann darf
+          die wartende Antwort nicht unsichtbar bleiben. */}
+      {mine.unread > 0 && (
+        <button
+          type="button"
+          onClick={() => setView('meine')}
+          style={{
+            textAlign: 'left', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--accent)', background: 'transparent',
+            color: 'inherit', cursor: 'pointer', fontSize: '0.85rem',
+          }}
+        >
+          {mine.unread === 1
+            ? 'Es gibt eine Antwort auf deine Meldung — ansehen'
+            : `Es gibt ${mine.unread} Antworten auf deine Meldungen — ansehen`}
+        </button>
+      )}
+
       <label htmlFor="support-message" style={{ fontSize: '0.9rem', fontWeight: 600 }}>
         Was ist passiert?
       </label>

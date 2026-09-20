@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SupportForm from './SupportForm'
+import { leereMeldungen } from './supportTestFixtures'
 import { ApiError } from '../api/client'
 
 // Spec docs/specs/support-ticket.md §5
@@ -23,7 +24,7 @@ beforeEach(() => {
 
 describe('SupportForm', () => {
   it('sendet nicht ohne Text', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const btn = screen.getByRole('button', { name: /Meldung senden/ })
     expect(btn).toBeDisabled()
   })
@@ -33,7 +34,7 @@ describe('SupportForm', () => {
       ticket_no: 1042, reference: 'WS-1042',
       created_at: '2026-08-24T12:00:00Z', attachment_count: 0,
     })
-    render(<SupportForm route="rapport" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="rapport" appContext="pwa" />)
     fireEvent.change(screen.getByLabelText('Was ist passiert?'), {
       target: { value: 'Rapport speichert nicht' },
     })
@@ -46,7 +47,7 @@ describe('SupportForm', () => {
     sendSupportTicket.mockResolvedValue({
       ticket_no: 1, reference: 'WS-1', created_at: '', attachment_count: 0,
     })
-    render(<SupportForm route="offerten" appContext="admin" />)
+    render(<SupportForm mine={leereMeldungen()} route="offerten" appContext="admin" />)
     fireEvent.change(screen.getByLabelText('Was ist passiert?'), { target: { value: 'x' } })
     fireEvent.click(screen.getByRole('button', { name: /Meldung senden/ }))
     await waitFor(() => expect(sendSupportTicket).toHaveBeenCalled())
@@ -55,14 +56,14 @@ describe('SupportForm', () => {
 
   it('übersetzt Server-Fehlercodes in Klartext', async () => {
     sendSupportTicket.mockRejectedValue(new ApiError(429, 'rate_limited'))
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     fireEvent.change(screen.getByLabelText('Was ist passiert?'), { target: { value: 'x' } })
     fireEvent.click(screen.getByRole('button', { name: /Meldung senden/ }))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/mehrere Meldungen/))
   })
 
   it('lehnt zu grosse Bilder vor dem Senden ab', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const input = document.getElementById('support-files') as HTMLInputElement
     fireEvent.change(input, { target: { files: [jpeg('gross.jpg', 11 * 1024 * 1024)] } })
     expect(screen.getByRole('alert').textContent).toMatch(/zu gross/)
@@ -70,7 +71,7 @@ describe('SupportForm', () => {
   })
 
   it('deckelt die Anzahl Bilder', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const input = document.getElementById('support-files') as HTMLInputElement
     fireEvent.change(input, {
       target: { files: [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg'), jpeg('d.jpg')] },
@@ -80,7 +81,7 @@ describe('SupportForm', () => {
   })
 
   it('lässt ein gewähltes Bild wieder entfernen', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const input = document.getElementById('support-files') as HTMLInputElement
     fireEvent.change(input, { target: { files: [jpeg('a.jpg')] } })
     expect(screen.getByText('a.jpg')).toBeTruthy()
@@ -107,7 +108,7 @@ describe('SupportForm', () => {
   }
 
   it('hängt ein Bild aus der Zwischenablage an', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     fireEvent.paste(
       screen.getByLabelText('Was ist passiert?'),
       pasteEvent([{ kind: 'file', type: 'image/png', file: png() }]),
@@ -119,7 +120,7 @@ describe('SupportForm', () => {
   it('lässt eingefügten Text unangetastet', () => {
     // Nur Bilder werden abgefangen — normales Text-Einfügen muss weiter im Feld
     // landen, sonst nimmt der Handler dem Nutzer das gewohnte Strg+V weg.
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const feld = screen.getByLabelText('Was ist passiert?')
     const evt = pasteEvent([{ kind: 'string', type: 'text/plain' }])
     fireEvent.paste(feld, evt)
@@ -128,7 +129,7 @@ describe('SupportForm', () => {
   })
 
   it('zählt eingefügte Bilder gegen dieselbe Obergrenze', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const feld = screen.getByLabelText('Was ist passiert?')
     for (let i = 0; i < 4; i++) {
       fireEvent.paste(feld, pasteEvent([{ kind: 'file', type: 'image/png', file: png() }]))
@@ -138,7 +139,7 @@ describe('SupportForm', () => {
   })
 
   it('weist ein zu grosses eingefügtes Bild ab', () => {
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     fireEvent.paste(
       screen.getByLabelText('Was ist passiert?'),
       pasteEvent([{ kind: 'file', type: 'image/png', file: png(11 * 1024 * 1024) }]),
@@ -150,7 +151,7 @@ describe('SupportForm', () => {
   it('nennt vor dem Absenden, was mitgeschickt wird', () => {
     // Transparenzhinweis ist Teil der DSGVO-Antwort (Spec §9) — er darf nicht
     // stillschweigend verschwinden.
-    render(<SupportForm route="dashboard" appContext="pwa" />)
+    render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     expect(screen.getByText(/an den Werkora-Support übermittelt/)).toBeTruthy()
   })
 
@@ -162,7 +163,7 @@ describe('SupportForm', () => {
     sendSupportTicket.mockResolvedValue({
       ticket_no: 7, reference: 'WS-7', created_at: '', attachment_count: 0,
     })
-    const { container } = render(<SupportForm route="dashboard" appContext="pwa" />)
+    const { container } = render(<SupportForm mine={leereMeldungen()} route="dashboard" appContext="pwa" />)
     const form = container.firstElementChild as HTMLElement
     expect(form.style.height).toBe('100%')
     expect(form.style.overflowY).toBe('auto')

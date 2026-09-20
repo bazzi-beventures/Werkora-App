@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import HelpBot from './HelpBot'
 import SupportForm from './SupportForm'
 import WikiBot from './WikiBot'
+import { useMySupportTickets } from './useMySupportTickets'
 
 interface Props {
   /** Vorschlagsfragen, die im Chat als Quick-Action-Buttons erscheinen. */
@@ -159,6 +160,11 @@ export default function HelpBubble({
   tenantName = '', route = '', appContext = 'pwa',
 }: Props) {
   const [open, setOpen] = useState(false)
+  // Eigene Meldungen samt Antworten des Betreibers
+  // (docs/specs/support-antwort.md §4.2). Der Hook sitzt HIER und nicht im
+  // Formular: das Abzeichen am FAB muss auch dann stimmen, wenn das Panel zu
+  // ist — und das Panel rendert seinen Inhalt erst beim Öffnen.
+  const mine = useMySupportTickets(showSupport)
   // Die Blase trägt die Mandantenfarbe — und zwar über das Token, das die App
   // um sie herum führt. Beide Token halten nach `applyTenantBranding()`
   // denselben abgeleiteten Ton (brand/palette.ts schreibt `--accent` und
@@ -191,7 +197,7 @@ export default function HelpBubble({
   const TAB_LABELS: Record<TabId, string> = {
     help: 'Fragen',
     wiki: wikiLabel,
-    support: 'Problem melden',
+    support: mine.unread > 0 ? `Support (${mine.unread})` : 'Problem melden',
   }
   const PANEL_TITLES: Record<TabId, string> = { help: 'Hilfe', wiki: wikiLabel, support: 'Support' }
   // Bei mehreren Teilen zählt der Titel sie auf — das Wiki dabei ohne
@@ -407,7 +413,7 @@ export default function HelpBubble({
           {/* Inhalt füllt den Rest */}
           <div style={{ flex: 1, minHeight: 0 }}>
             {active === 'support' && (
-              <SupportForm route={route} appContext={appContext} />
+              <SupportForm route={route} appContext={appContext} mine={mine} />
             )}
             {active === 'wiki' && <WikiBot tenantName={tenantName} />}
             {active === 'help' && <HelpBot suggestions={suggestions} />}
@@ -422,7 +428,13 @@ export default function HelpBubble({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onClick={onFabClick}
-        aria-label={open ? 'Hilfe schliessen' : 'Hilfe öffnen (gedrückt halten und ziehen zum Verschieben)'}
+        aria-label={
+          open
+            ? 'Hilfe schliessen'
+            : mine.unread > 0
+              ? `Hilfe öffnen — ${mine.unread} Antwort(en) vom Support (gedrückt halten und ziehen zum Verschieben)`
+              : 'Hilfe öffnen (gedrückt halten und ziehen zum Verschieben)'
+        }
         aria-expanded={open}
         style={{
           position: 'fixed',
@@ -449,6 +461,14 @@ export default function HelpBubble({
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
           </svg>
+        )}
+        {/* Wartende Antwort des Supports (docs/specs/support-antwort.md §4.2).
+            Der verlässliche Weg — die Push kann fehlen (keine Berechtigung,
+            kein Gerät, Antwort kam während der Ferien). Das `aria-label` des
+            FAB nennt die Zahl mit, weil das Abzeichen selbst `aria-hidden` ist
+            — sonst liest ein Screenreader nur «1». Gestaltung in index.css. */}
+        {!open && mine.unread > 0 && (
+          <span aria-hidden="true" className="help-bubble-badge">{mine.unread}</span>
         )}
       </button>
     </>,

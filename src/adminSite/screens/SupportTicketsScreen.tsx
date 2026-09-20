@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchSupportDashboard,
   fetchSupportTicket,
   fetchSupportTickets,
+  sendSupportReply,
   updateSupportTicket,
   type SupportDashboard,
+  type SupportReply,
   type SupportStatus,
   type SupportTicket,
   type SupportTicketDetail,
@@ -59,24 +61,79 @@ interface DetailProps {
   onChanged: () => void
 }
 
+/** Vorschlagstext beim Abschliessen — abschicken muss ihn trotzdem ein Mensch
+ *  (Spec docs/specs/support-antwort.md A3). */
+const ERLEDIGT_VORSCHLAG = 'Das Problem ist behoben.'
+
 function TicketDetail({ ticket, onClose, onChanged }: DetailProps) {
   const [note, setNote] = useState(ticket.superadmin_note ?? '')
+  // Lokal mitgeführt, weil der Dialog beim Abschliessen offen bleibt (siehe
+  // `apply`) — sonst böte die Fusszeile weiterhin «→ Erledigt» an.
+  const [status, setStatus] = useState<SupportStatus>(ticket.status)
+  const [reply, setReply] = useState('')
+  const [replies, setReplies] = useState<SupportReply[]>(ticket.replies ?? [])
+  // Lokal mitgeführt: eine neue Antwort LEERT die Quittung serverseitig
+  // (docs/specs/support-antwort.md §6.1). Läse die Anzeige weiter aus dem
+  // geladenen Ticket, stünde «gelesen am …» unter einer Antwort, die der Melder
+  // noch gar nicht gesehen haben kann.
+  const [readAt, setReadAt] = useState<string | null>(ticket.reply_read_at ?? null)
   const [busy, setBusy] = useState(false)
+  const replyRef = useRef<HTMLTextAreaElement | null>(null)
   const { toast, showToast } = useToast()
   const snapshot = ticket.snapshot ?? {}
   const crumbs = snapshot.client?.breadcrumbs ?? []
 
-  async function apply(status?: SupportStatus) {
+  async function apply(next?: SupportStatus) {
     setBusy(true)
     try {
       await updateSupportTicket(ticket.id, {
-        ...(status ? { status } : {}),
+        ...(next ? { status: next } : {}),
         superadmin_note: note,
       })
       onChanged()
+      if (next) setStatus(next)
+      // Beim Abschliessen offen lassen: genau hier will man in aller Regel noch
+      // die Antwort schreiben. Der Statuswechsel selbst verschickt nichts (A3),
+      // ohne diesen Zwischenschritt wäre die Meldung zu und der Melder wüsste
+      // weiterhin nichts.
+      if (next === 'erledigt') {
+        vorschlagFuerAbschluss()
+        return
+      }
       onClose()
     } catch {
       showToast('Änderung fehlgeschlagen', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  /**
+   * Abschliessen OHNE zu benachrichtigen (Spec A3).
+   *
+   * Der Statuswechsel verschickt bewusst nichts — er füllt nur das Antwortfeld
+   * vor und setzt den Fokus hinein. Ein automatisches «Ihre Meldung ist
+   * erledigt» ohne Hintergrund ist bei einer Doppelmeldung oder Bedienfrage
+   * nutzlos bis ärgerlich und erzeugt genau die Rückfrage, die es sparen soll.
+   */
+  function vorschlagFuerAbschluss() {
+    setReply(current => current.trim() || ERLEDIGT_VORSCHLAG)
+    replyRef.current?.focus()
+  }
+
+  async function sendReply() {
+    const text = reply.trim()
+    if (!text) return
+    setBusy(true)
+    try {
+      const res = await sendSupportReply(ticket.id, text)
+      setReplies(res.replies ?? [])
+      setReadAt(null)
+      setReply('')
+      showToast('Antwort gesendet', 'success')
+      onChanged()
+    } catch {
+      showToast('Antwort konnte nicht gesendet werden', 'error')
     } finally {
       setBusy(false)
     }
@@ -100,7 +157,7 @@ function TicketDetail({ ticket, onClose, onChanged }: DetailProps) {
             <dt>Von</dt><dd>{ticket.created_by_name || '—'} ({ticket.created_by_role || '—'})</dd>
             <dt>Bereich</dt><dd>{ticket.app_context === 'admin' ? 'Admin' : 'Mitarbeiter-App'}</dd>
             <dt>Screen</dt><dd>{ticket.route || '—'}</dd>
-            <dt>Status</dt><dd>{STATUS_LABEL[ticket.status]}</dd>
+            <dt>Status</dt><dd>{STATUS_LABEL[status]}</dd>
             <dt>Erledigt</dt><dd>{fmtDateTime(ticket.closed_at)}</dd>
           </dl>
 
@@ -181,15 +238,61 @@ function TicketDetail({ ticket, onClose, onChanged }: DetailProps) {
             </dl>
           )}
 
+          {/* Antwort an den MELDER — Spec docs/specs/support-antwort.md §5.
+              Steht bewusst direkt über der internen Notiz und ist beschriftet
+              wie das, was sie ist: die Beschriftung ist die einzige Sicherung
+              dagegen, dass eine interne Bemerkung beim Monteur landet. */}
+          <div className="support-reply">
+            <div className="elog-detail-label">Antwort an den Melder</div>
+
+            {replies.length > 0 && (
+              <div className="support-reply-list">
+                {replies.map((r, index) => (
+                  <div key={`${r.at}-${index}`} className="support-reply-item">
+                    <div className="support-reply-meta">
+                      {fmtDateTime(r.at)}{r.by ? ` · ${r.by}` : ''}
+                      {index === replies.length - 1 && (
+                        readAt
+                          ? ` · gelesen am ${fmtDateTime(readAt)}`
+                          : ' · noch nicht gelesen'
+                      )}
+                    </div>
+                    <div className="support-reply-text">{r.text}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <textarea
+              ref={replyRef}
+              value={reply}
+              onChange={e => setReply(e.target.value)}
+              rows={3}
+              maxLength={1500}
+              placeholder="Was der Melder lesen soll — was war los, was ist jetzt anders …"
+              className="support-reply-input"
+            />
+            <div className="support-reply-actions">
+              <button className="admin-btn admin-btn-primary admin-btn-sm"
+                      disabled={busy || !reply.trim()} onClick={sendReply}>
+                Antwort senden
+              </button>
+              <span className="support-reply-hint">
+                Geht als Push an den Melder und steht in seiner App unter
+                «Meine Meldungen».
+              </span>
+            </div>
+          </div>
+
           <label className="elog-field elog-field--grow">
-            <span>Notiz</span>
+            <span>Notiz (intern)</span>
             <input type="text" value={note} onChange={e => setNote(e.target.value)}
-                   placeholder="Interne Notiz zur Meldung …" />
+                   placeholder="Interne Notiz — der Melder sieht sie nicht" />
           </label>
         </div>
 
         <div className="admin-modal-footer">
-          {STATUS_ORDER.filter(s => s !== ticket.status).map(s => (
+          {STATUS_ORDER.filter(s => s !== status).map(s => (
             <button key={s} className="admin-btn admin-btn-secondary admin-btn-sm"
                     disabled={busy} onClick={() => apply(s)}>
               → {STATUS_LABEL[s]}
@@ -381,6 +484,10 @@ export default function SupportTicketsScreen({ initialTicketId }: { initialTicke
                 <span className="elog-cell-msg">{t.message}</span>
                 <span className="elog-cell-tenant">
                   {t.tenant_name ?? 'Plattform'} · {STATUS_LABEL[t.status]}
+                  {/* Ohne Öffnen sehen, wo schon geantwortet wurde — die Liste
+                      liest dafür `last_reply_at` und nie die Antworten selbst
+                      (docs/specs/support-antwort.md §6.1). */}
+                  {t.last_reply_at && ' · beantwortet'}
                 </span>
               </button>
             ))}
