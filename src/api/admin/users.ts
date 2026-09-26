@@ -109,6 +109,24 @@ export async function setUserPassword(id: string, newPassword: string): Promise<
   })
 }
 
+export interface GeneratedPin {
+  pin: string
+  /** ISO-Zeitpunkt, ab dem die PIN nicht mehr gilt. Kommt aus dem
+   *  Spalten-Default von `pwa_registration_pins` — derzeit 24 Stunden. */
+  expires_at: string
+}
+
+/** Neue Einmal-PIN für die Passkey-Einrichtung — für ein neues Gerät oder einen
+ *  verlorenen Passkey. Beim Anlegen einer Person kommt die erste PIN aus
+ *  `createUser`; für einen **bestehenden** Zugang ist das hier der einzige Weg.
+ *
+ *  Die PIN steht nur in dieser Antwort: das Backend legt sie gehasht ab
+ *  (`db/webauthn.py::create_registration_pin`) und ersetzt dabei eine noch
+ *  offene PIN desselben Kontos. Wer sie nicht notiert, erzeugt eine neue. */
+export async function generateUserPin(id: string): Promise<GeneratedPin> {
+  return apiFetch<GeneratedPin>(`/pwa/admin/users/${id}/generate-pin`, { method: 'POST' })
+}
+
 /** DSGVO-Anonymisierung: irreversibel, nur für Management. */
 export async function anonymizeUser(id: string): Promise<void> {
   await apiFetch(`/pwa/admin/users/${id}/anonymize`, { method: 'POST' })

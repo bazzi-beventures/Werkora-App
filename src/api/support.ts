@@ -163,6 +163,11 @@ export type SupportTicket = {
   /** Gesetzt, sobald der Betreiber geantwortet hat — die Liste zeigt es, ohne
    *  die Antworten selbst zu laden (Spec docs/specs/support-antwort.md §6.1). */
   last_reply_at?: string | null
+  /** Quittung des Melders: gelesen, wenn `reply_read_at >= last_reply_at`. */
+  reply_read_at?: string | null
+  /** Erstes Öffnen durch den Betreiber; `null` = ungelesen im Eingang
+   *  (Spec docs/specs/support-uebersicht.md §5). */
+  seen_at?: string | null
   snapshot_error_count: number
   snapshot_top_source?: string | null
   attachment_count: number
@@ -198,8 +203,6 @@ export type SupportTicketDetail = SupportTicket & {
   /** Was der Melder zu sehen bekommt (Spec A2 — im Unterschied zu
    *  `superadmin_note`, die intern bleibt). */
   replies?: SupportReply[] | null
-  /** Quittung des Melders: «gelesen am …». */
-  reply_read_at?: string | null
 }
 
 export type SupportListResponse = {
@@ -241,11 +244,22 @@ export type SupportDashboard = {
   error_share_30d: number | null
   total_30d: number
   window_days: number
-  by_week: { week: string; count: number }[]
+  /** Älteste offene Meldung (offen/in Arbeit) — «älteste wartet …». */
+  oldest_open_at?: string | null
+  /** Häufungen offener Meldungen der letzten 24 h (Spec support-uebersicht.md §3.4). */
+  clusters?: SupportCluster[]
+  by_week: { week: string; count: number; with_errors?: number }[]
   by_tenant: { key: string; name?: string; count: number }[]
   by_context: { key: string; count: number }[]
-  by_route: { key: string; count: number }[]
+  by_route: { key: string; count: number; with_errors?: number }[]
   by_source: { key: string; count: number }[]
+}
+
+export type SupportCluster = {
+  kind: 'route' | 'source'
+  key: string
+  count: number
+  since: string
 }
 
 export async function fetchSupportDashboard(): Promise<SupportDashboard> {

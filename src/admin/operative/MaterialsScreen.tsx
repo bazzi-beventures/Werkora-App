@@ -897,8 +897,35 @@ function MaterialInventoryPanel({ user }: { user: UserInfo }) {
 // Ganz rechts, neben "Import": beides sind Werkzeuge am Stamm, nicht am Tagesbestand.
 type MaterialTab = 'inventory' | 'lager' | 'inventur' | 'frequent' | 'vkbulk' | 'import' | 'units'
 
-export default function MaterialsScreen({ user }: { user: UserInfo }) {
-  const [tab, setTab] = useState<MaterialTab>('inventory')
+/**
+ * Wohin ein Direktsprung führt. Muster wie bei `QuotesScreen initialStatus`:
+ * Die Kachel auf dem Dashboard und die Push tragen ein `detailId`, und der
+ * Screen wertet es genau einmal aus (`onConsumed`).
+ *
+ * `'lager'` und `'inventur'` öffnen den Reiter, `'inventur:<id>'` zusätzlich
+ * die Zählung. Alles andere wird ignoriert — ein unbekanntes Ziel soll den
+ * Screen nicht leer lassen.
+ */
+function parseSprung(detailId?: string): { tab: MaterialTab; countId?: string } | null {
+  if (!detailId) return null
+  if (detailId === 'lager') return { tab: 'lager' }
+  if (detailId === 'inventur') return { tab: 'inventur' }
+  if (detailId.startsWith('inventur:')) {
+    const id = detailId.slice('inventur:'.length).trim()
+    return id ? { tab: 'inventur', countId: id } : { tab: 'inventur' }
+  }
+  return null
+}
+
+export default function MaterialsScreen({ user, detailId, onConsumed }: {
+  user: UserInfo
+  /** Direktsprung: 'lager' | 'inventur' | 'inventur:<count_id>' (siehe parseSprung). */
+  detailId?: string
+  onConsumed?: () => void
+}) {
+  const sprung = parseSprung(detailId)
+  const [tab, setTab] = useState<MaterialTab>(sprung?.tab ?? 'inventory')
+  const [sprungCountId, setSprungCountId] = useState<string | undefined>(sprung?.countId)
   const tabsRef = useTabStrip(tab)
   // Tab "Häufig benutzte Produkte" nur, wenn der Workflow ersatzteil_prompt aktiv ist.
   const ersatzteilEnabled = isFeatureEnabled(user, 'ersatzteil_prompt')
@@ -966,7 +993,12 @@ export default function MaterialsScreen({ user }: { user: UserInfo }) {
 
       {tab === 'inventory' && <MaterialInventoryPanel user={user} />}
       {tab === 'lager' && lagerV2 && <LagerOverview />}
-      {tab === 'inventur' && lagerV2 && <CountsScreen />}
+      {tab === 'inventur' && lagerV2 && (
+        <CountsScreen
+          openCountId={sprungCountId}
+          onConsumed={() => { setSprungCountId(undefined); onConsumed?.() }}
+        />
+      )}
       {tab === 'frequent' && ersatzteilEnabled && <FrequentMaterialsPanel />}
       {tab === 'vkbulk' && ownArticleEnabled && <MaterialVkBulkPanel />}
       {tab === 'import' && <ImportScreen ownArticleEnabled={ownArticleEnabled} />}

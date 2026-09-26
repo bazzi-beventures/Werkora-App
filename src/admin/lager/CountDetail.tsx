@@ -16,83 +16,32 @@ import {
 } from '../../api/admin/inventory'
 import type { CountSummary, StockCountDetail, StockCountItem } from '../../api/admin/inventory'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import CountWizard from '../../shared/count/CountWizard'
+import { AbschlussDialog } from '../../shared/count/AbschlussDialog'
+import { useIsMobile } from '../useIsMobile'
 
 function chf(v: number | null | undefined): string {
   return v == null ? '—' : `CHF ${v.toFixed(2)}`
 }
 
-function AbschlussDialog({
-  detail, onConfirm, onCancel, busy,
-}: {
-  detail: StockCountDetail
-  onConfirm: () => void
-  onCancel: () => void
-  busy: boolean
-}) {
-  const gezaehlt = detail.items.filter(i => i.counted_qty != null)
-  const offen = detail.items.length - gezaehlt.length
-
-  // Vorschau der Differenzen gegen `expected_at_start`. Die endgültige Zahl
-  // rechnet der Server gegen den Bestand zum Zählzeitpunkt — sie kann hier
-  // abweichen, wenn seit der Zählung gebucht wurde. Genau deshalb steht der
-  // Hinweis darunter, statt eine Zahl zu behaupten, die sich gleich ändert.
-  const vorschau = gezaehlt
-    .map(i => ({ ...i, vorab_diff: (i.counted_qty ?? 0) - i.expected_at_start }))
-    .filter(i => i.vorab_diff !== 0)
-
-  return (
-    <ConfirmDialog
-      title="Inventur abschliessen?"
-      message={
-        <div>
-          <p>
-            {gezaehlt.length} von {detail.items.length} Positionen gezählt,
-            {' '}{vorschau.length} mit Abweichung.
-          </p>
-          {offen > 0 && (
-            <p style={{ color: 'var(--warning, #b45309)' }}>
-              {offen} Position(en) hat niemand angesehen. Sie bleiben ungezählt — es
-              wird für sie nichts gebucht.
-            </p>
-          )}
-          {vorschau.length > 0 && (
-            <div style={{ maxHeight: 180, overflow: 'auto', marginTop: 8 }}>
-              <table className="admin-table">
-                <thead>
-                  <tr><th>Artikel</th><th style={{ textAlign: 'right' }}>Abweichung</th></tr>
-                </thead>
-                <tbody>
-                  {vorschau.slice(0, 40).map(i => (
-                    <tr key={i.id}>
-                      <td>{i.name} <span style={{ color: 'var(--muted)' }}>{i.art_nr}</span></td>
-                      <td style={{ textAlign: 'right', color: i.vorab_diff < 0 ? 'var(--danger)' : undefined }}>
-                        {i.vorab_diff > 0 ? '+' : ''}{i.vorab_diff} {i.unit || ''}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>
-            Die endgültige Abweichung rechnet Werkora gegen den Bestand zum Zeitpunkt
-            der Zählung — Buchungen seitdem zählen nicht als Inventurdifferenz.
-            Jede Abweichung wird als Lagerbewegung gebucht.
-          </p>
-        </div>
-      }
-      confirmLabel="Abschliessen und buchen"
-      onConfirm={onConfirm}
-      onCancel={onCancel}
-      busy={busy}
-      busyLabel="Wird gebucht…"
-      scrollable
-      maxWidth={640}
-    />
-  )
-}
-
+/**
+ * Zählung im Admin: Tabelle oder Zählmodus.
+ *
+ * Am Handy öffnet eine **offene** Zählung den Zählmodus — dort zählt man, und
+ * eine achtspaltige Tabelle auf 390 px ist keine Zählmaske. Am Schreibtisch
+ * bleibt die Tabelle der Einstieg, weil man dort abgleicht statt zählt. Beides
+ * ist ein Umschalter, keine Einbahnstrasse: Wer am Tablet im Regal steht, will
+ * den Zählmodus auch dort.
+ *
+ * Der Zählmodus lädt die Zählung ein zweites Mal — er braucht die signierten
+ * Artikelbilder, die die Tabelle nicht anfordert. Eine Tranche hat zwanzig
+ * Positionen; das ist der Preis dafür, dass eine Jahresinventur mit 800 Zeilen
+ * keine 800 Bildadressen signieren lässt, die niemand ansieht.
+ */
 export default function CountDetail({ countId, onBack }: { countId: string; onBack: () => void }) {
+  const isMobile = useIsMobile()
+  const [zaehlmodus, setZaehlmodus] = useState(false)
+  const [modusGewaehlt, setModusGewaehlt] = useState(false)
   const [detail, setDetail] = useState<StockCountDetail | null>(null)
   const [entwuerfe, setEntwuerfe] = useState<Record<string, string>>({})
   const [sollZeigen, setSollZeigen] = useState(false)
@@ -118,6 +67,14 @@ export default function CountDetail({ countId, onBack }: { countId: string; onBa
   }, [countId])
 
   useEffect(() => { void laden() }, [laden])
+
+  // Die Vorauswahl fällt einmal, sobald der Status bekannt ist — danach gehört
+  // der Modus dem Nutzer, auch wenn er das Gerät dreht.
+  useEffect(() => {
+    if (modusGewaehlt || !detail) return
+    setModusGewaehlt(true)
+    if (isMobile && detail.count.status === 'offen') setZaehlmodus(true)
+  }, [detail, isMobile, modusGewaehlt])
 
   const sichtbar = useMemo(() => {
     if (!detail) return []
@@ -169,6 +126,17 @@ export default function CountDetail({ countId, onBack }: { countId: string; onBa
   if (loading && !detail) return <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>
   if (!detail) return <div className="admin-form-error">{error || 'Zählung nicht gefunden.'}</div>
 
+  if (zaehlmodus) {
+    return (
+      <CountWizard
+        countId={countId}
+        onBack={onBack}
+        onSwitchToList={() => setZaehlmodus(false)}
+        onDone={() => { void laden() }}
+      />
+    )
+  }
+
   const offen = detail.count.status === 'offen'
   const fortschritt = detail.progress
 
@@ -193,6 +161,9 @@ export default function CountDetail({ countId, onBack }: { countId: string; onBa
           </button>
           {offen && (
             <>
+              <button className="admin-btn admin-btn-secondary" onClick={() => setZaehlmodus(true)}>
+                Zählmodus
+              </button>
               <button className="admin-btn admin-btn-secondary" onClick={() => setAbbruchFrage(true)}>
                 Abbrechen
               </button>

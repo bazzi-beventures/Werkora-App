@@ -1,0 +1,222 @@
+/* ── Wünsche & Roadmap, Nutzerseite (docs/specs/feature-anfragen.md §5) ──────
+   Läuft in BEIDEN Apps: Mitarbeiter-PWA (index.css: --accent) und Admin
+   (tokens.css: --primary). Keine eigenen Tokens — die Akzentfarbe wählt die
+   Modifikator-Klasse `.is-admin`, nicht ein erfundenes Custom Property
+   (scripts/token-gate.mjs, Regel 2/3). */
+
+.wish-root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text, #111);
+  font-size: 14px;
+}
+
+.wish-accent { color: var(--accent, #9A6716); }
+.wish-root.is-admin .wish-accent { color: var(--primary, #3081AB); }
+
+.wish-muted { color: var(--muted, #6b7280); font-size: 12px; }
+.wish-error { color: var(--danger, #dc2626); font-size: 13px; }
+
+.wish-field { display: flex; flex-direction: column; gap: 4px; }
+.wish-field > span { font-size: 12px; color: var(--muted, #6b7280); }
+
+.wish-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  color: var(--text, #111);
+  font: inherit;
+  padding: 8px 10px;
+}
+.wish-input:focus { outline: none; border-color: var(--accent, #9A6716); }
+.wish-root.is-admin .wish-input:focus { border-color: var(--primary, #3081AB); }
+textarea.wish-input { resize: vertical; min-height: 64px; }
+
+.wish-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.wish-row > * { flex: 1 1 140px; min-width: 0; }
+
+.wish-btn {
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 9px 14px;
+  background: var(--accent, #9A6716);
+  color: var(--on-accent, #fff);
+}
+.wish-root.is-admin .wish-btn { background: var(--primary, #3081AB); }
+.wish-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wish-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  color: var(--text, #111);
+  cursor: pointer;
+  font: inherit;
+  padding: 6px 10px;
+}
+.wish-btn-ghost:disabled { opacity: 0.5; cursor: default; }
+
+.wish-link {
+  background: none;
+  border: none;
+  color: var(--accent, #9A6716);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+.wish-root.is-admin .wish-link { color: var(--primary, #3081AB); }
+
+.wish-switch { display: flex; gap: 4px; }
+.wish-switch button {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  color: var(--text, #111);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+.wish-switch button[aria-pressed='true'] { border-color: currentColor; font-weight: 600; }
+
+/* Duplikat-Hinweis (§5.3) */
+.wish-similar {
+  border: 1px dashed var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wish-similar-item { display: flex; flex-direction: column; gap: 4px; }
+.wish-similar-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+
+/* Karten — Board, «Meine Wünsche», Hinweise */
+.wish-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  color: var(--text, #111);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: inherit;
+  padding: 10px 12px;
+  position: relative;
+  text-align: left;
+  width: 100%;
+}
+button.wish-card { cursor: pointer; }
+.wish-card-title { font-weight: 600; }
+.wish-card-new {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #9A6716);
+}
+.wish-root.is-admin .wish-card-new { background: var(--primary, #3081AB); }
+
+.wish-quote {
+  border-left: 3px solid var(--border, #e5e7eb);
+  padding: 2px 8px;
+  white-space: pre-wrap;
+}
+
+.wish-phase {
+  display: inline-block;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+}
+
+/* ── Roadmap-Board ──
+   Breit: Spalten nebeneinander, das Board läuft innen quer — die Seite nie.
+   Schmal: nur die gewählte Phase (Chips oben). EIN Markup für beide. */
+
+.roadmap-chips { display: none; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.roadmap-chips button {
+  background: transparent;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 999px;
+  color: var(--text, #111);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+}
+.roadmap-chips button[aria-pressed='true'] { border-color: currentColor; font-weight: 600; }
+
+.roadmap-board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(200px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+}
+.roadmap-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.roadmap-col-head { display: flex; justify-content: space-between; font-weight: 600; font-size: 13px; }
+
+@media (max-width: 767px) {
+  .roadmap-chips { display: flex; }
+  .roadmap-board { display: block; }
+  .roadmap-board .roadmap-col { display: none; }
+  .roadmap-board .roadmap-col.is-selected { display: flex; }
+  .roadmap-board .roadmap-col-head { display: none; }
+}
+
+/* Mitarbeiter-PWA: die Spalte ist höchstens 480px breit, auch auf einem
+   breiten Bildschirm — dort gilt immer die schmale Darstellung. */
+.wish-root.is-compact .roadmap-chips { display: flex; }
+.wish-root.is-compact .roadmap-board { display: block; }
+.wish-root.is-compact .roadmap-board .roadmap-col { display: none; }
+.wish-root.is-compact .roadmap-board .roadmap-col.is-selected { display: flex; }
+.wish-root.is-compact .roadmap-board .roadmap-col-head { display: none; }
+
+.roadmap-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.roadmap-filters > * { flex: 1 1 160px; min-width: 0; }
+
+.roadmap-timeline { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--border, #e5e7eb); }
+.roadmap-timeline li { padding: 2px 0 8px 10px; }
+.roadmap-timeline-head { display: flex; justify-content: space-between; gap: 8px; }
+
+/* Detail als Bottom-Sheet (PWA) bzw. Dialog (Admin, breit) */
+.roadmap-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1100;
+}
+.roadmap-sheet {
+  background: var(--surface, #fff);
+  color: var(--text, #111);
+  border-radius: 16px 16px 0 0;
+  max-height: 85dvh;
+  overflow-y: auto;
+  padding: 16px;
+  width: min(640px, 100vw);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (min-width: 768px) {
+  .roadmap-sheet-backdrop { align-items: center; }
+  .roadmap-sheet { border-radius: 16px; }
+}

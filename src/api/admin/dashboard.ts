@@ -18,6 +18,13 @@ export interface AdminDashboard {
   recently_accepted_quotes: number
   recently_rejected_quotes: number
   my_open_tasks?: number
+  /** Ungezählte Positionen über alle offenen Zählungen — die eigenen zuerst.
+   *  `null` heisst «dieser Betrieb führt kein Lager»: Die Kachel fehlt dann
+   *  ganz, statt eine 0 zu zeigen, die nichts bedeutet. */
+  inventory_count_open_items?: number | null
+  /** Die Zählung, in die ein Tipp auf die Kachel führt. */
+  inventory_count_open_id?: string | null
+  inventory_below_min?: number | null
 }
 
 export interface OverdueProject {

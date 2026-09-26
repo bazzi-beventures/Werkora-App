@@ -6,12 +6,12 @@ import {
   IconDashboard, IconFolder, IconClock, IconCash,
   IconUsers, IconAddressBook, IconReceipt, IconCalendar,
   IconDocument, IconBox, IconTag, IconChart, IconKey, IconLogout, IconSettings,
-  IconAftersales, IconTasks,
+  IconAftersales, IconTasks, IconBulb,
 } from './AdminIcons'
 
 interface Props {
   screen: AdminScreen
-  onNav: (screen: AdminScreen) => void
+  onNav: (screen: AdminScreen, detailId?: string) => void
   onLoggedOut: () => void
   onSwitchToUser: () => void
   displayName: string
@@ -25,6 +25,10 @@ interface Props {
     drafts?: number
     tasks?: number
   }
+  /** Die dem Konto zugeteilte offene Zählung. Sie ist zugleich die Berechtigung
+   *  und der Einstieg: Der Eintrag erscheint, sobald eine Tranche ihm gehört —
+   *  der zweite Weg dorthin, wenn man nicht auf dem Dashboard steht. */
+  inventur?: { count_id: string; offen: number } | null
 }
 
 const PRIMARY_TABS: AdminScreen[] = ['dashboard', 'projects', 'corrections', 'invoices']
@@ -37,6 +41,14 @@ function IconMenu() {
   )
 }
 
+function IconClipboard() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path d="M9 2a1 1 0 0 0-.894.553L7.382 4H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.382l-.724-1.447A1 1 0 0 0 11 2H9zm-2 8a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2H8a1 1 0 0 1-1-1zm1 3a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H8z"/>
+    </svg>
+  )
+}
+
 function IconSwitchUser() {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
@@ -45,7 +57,7 @@ function IconSwitchUser() {
   )
 }
 
-export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, badges }: Props) {
+export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, badges, inventur }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -54,9 +66,9 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
   const isMoreActive = !PRIMARY_TABS.includes(screen)
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
 
-  function navigate(target: AdminScreen) {
+  function navigate(target: AdminScreen, detailId?: string) {
     setDrawerOpen(false)
-    onNav(target)
+    onNav(target, detailId)
   }
 
   async function handleLogout() {
@@ -156,6 +168,17 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     <IconClock /><span>Meine Zeit</span>
                   </button>
                 )}
+                {inventur && (
+                  <button
+                    className="admin-mobile-drawer-item"
+                    onClick={() => navigate('materials', `inventur:${inventur.count_id}`)}
+                  >
+                    <IconClipboard /><span>Inventur</span>
+                    {inventur.offen > 0 && (
+                      <span className="admin-mobile-drawer-item-badge">{inventur.offen}</span>
+                    )}
+                  </button>
+                )}
                 <button className={`admin-mobile-drawer-item${screen === 'staff' ? ' active' : ''}`} onClick={() => navigate('staff')}>
                   <IconUsers /><span>Mitarbeiter</span>
                 </button>
@@ -241,6 +264,11 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 <button className={`admin-mobile-drawer-item${screen === 'users' ? ' active' : ''}`} onClick={() => navigate('users')}>
                   <IconKey /><span>Benutzerverwaltung</span>
                 </button>
+                {has('feature_requests') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'roadmap' ? ' active' : ''}`} onClick={() => navigate('roadmap')}>
+                    <IconBulb /><span>Wünsche &amp; Roadmap</span>
+                  </button>
+                )}
                 {isManagement && has('document_backup') && (
                   <button className={`admin-mobile-drawer-item${screen === 'document-backup' ? ' active' : ''}`} onClick={() => navigate('document-backup')}>
                     <IconDocument /><span>Datensicherung</span>

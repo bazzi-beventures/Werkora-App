@@ -72,7 +72,14 @@ export interface TenantScope {
   reload: () => void
 }
 
-export function useTenantScope(): TenantScope {
+/**
+ * `angemeldet`: erst mit Sitzung laden. Der Hook sitzt ganz oben in `AdminSite`
+ * und läuft damit schon, bevor `getMe` feststeht. Lud er sofort, bekam er bei
+ * abgelaufenem Cookie ein 401, merkte sich «Sitzung abgelaufen» — und lud
+ * nach dem Login nie wieder: der Wähler blieb gesperrt, bis man die Seite neu
+ * lud (Befund 25.09.2026, Handy). Jetzt lädt er beim Wechsel auf angemeldet.
+ */
+export function useTenantScope(angemeldet = true): TenantScope {
   const [tenants, setTenants] = useState<PlatformTenant[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -80,6 +87,7 @@ export function useTenantScope(): TenantScope {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
+    if (!angemeldet) return
     let abgebrochen = false
     setLoading(true)
     listTenants()
@@ -115,7 +123,7 @@ export function useTenantScope(): TenantScope {
     return () => {
       abgebrochen = true
     }
-  }, [tick])
+  }, [tick, angemeldet])
 
   // Der Hash kann sich ändern, ohne dass `selectTenant` je läuft: Vor/Zurück im
   // Browser (jede Wahl legt einen History-Eintrag an), ein geöffneter Link, ein

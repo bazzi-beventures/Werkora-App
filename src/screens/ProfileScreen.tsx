@@ -11,6 +11,9 @@ interface Props {
   logoUrl?: string
   onBack: () => void
   onLoggedOut: () => void
+  /** «Wünsche & Roadmap» — nur gesetzt, wenn das Modul für dieses Konto da ist
+   *  (docs/specs/feature-anfragen.md §5.4). */
+  onOpenRoadmap?: () => void
 }
 
 // Anzeigenamen der fünf Rollen (agents/routers/admin_users.py ALL_ROLES,
@@ -43,7 +46,7 @@ function pushLabel(state: PushState | 'loading', busy: boolean): string {
 }
 
 export default function ProfileScreen({
-  displayName, email, role, tenantName, logoUrl, onBack, onLoggedOut,
+  displayName, email, role, tenantName, logoUrl, onBack, onLoggedOut, onOpenRoadmap,
 }: Props) {
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
   const [pushState, setPushState] = useState<PushState | 'loading'>('loading')
@@ -153,6 +156,21 @@ export default function ProfileScreen({
             <div className="menu-label">{roleLabel(role)}</div>
           </div>
         </div>
+
+        {/* Wünsche & Roadmap (docs/specs/feature-anfragen.md §5.4) */}
+        {onOpenRoadmap && (
+          <div className="menu-item" onClick={onOpenRoadmap}>
+            <div className="menu-icon menu-icon-accent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
+                <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.4.3.6.7.6 1.2v1h6v-1c0-.5.2-.9.6-1.2A6 6 0 0 0 12 3z"/>
+              </svg>
+            </div>
+            <div className="menu-text">
+              <div className="menu-sub">Was ist geplant, was wünscht ihr?</div>
+              <div className="menu-label">Wünsche &amp; Roadmap</div>
+            </div>
+          </div>
+        )}
 
         {/* Darstellung */}
         <div className="menu-item" onClick={handleToggleTheme}>

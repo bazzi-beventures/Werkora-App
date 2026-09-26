@@ -37,9 +37,11 @@ import DocumentBackupScreen from './system/DocumentBackupScreen'
 import SettingsScreen from './configuration/SettingsScreen'
 import KpiScreen from './kpis/KpiScreen'
 import HelpBubble from '../shared/HelpBubble'
+import { SCREEN_TITLES } from './screenTitles'
+import Roadmap from '../shared/Roadmap'
 import EasterEggs from './eastereggs/EasterEggs'
 import { trackNav } from '../shared/breadcrumbs'
-import { takeDeepLink } from '../shared/deepLink'
+import { takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
@@ -75,35 +77,6 @@ interface Props {
   onSwitchToUser: () => void
 }
 
-const SCREEN_TITLES: Record<AdminScreen, string> = {
-  'dashboard': 'Dashboard',
-  'tasks': 'Aufgaben',
-  'my-time': 'Meine Zeiterfassung',
-  'staff': 'Mitarbeiter',
-  'bulk-clockin': 'Massen-Einstempeln',
-  'absences': 'Absenzen',
-  'corrections': 'Zeitkorrekturen',
-  'hr-reports': 'HR-Berichte',
-  'vacation': 'Ferien',
-  'projects': 'Projekte',
-  'project-drafts': 'Projekt-Entwürfe',
-  'project-schedule': 'Einsatzplanung',
-  'customers': 'Kundenstamm',
-  'quotes': 'Offerten',
-  'invoices': 'Rechnungen',
-  'aftersales': 'After Sales',
-  'payment-reconciliation': 'Zahlungsabgleich',
-  'suppliers': 'Lieferanten',
-  'supplier-wiki': 'Lieferanten-Wiki',
-  'staff-roles': 'Personal',
-  'materials': 'Material / Lager',
-  'pricing-rules': 'Preisregeln',
-  'quote-templates': 'Vorlagen',
-  'users': 'Benutzerverwaltung',
-  'kpis': 'Kennzahlen',
-  'document-backup': 'Datensicherung',
-  'settings': 'Einstellungen',
-}
 
 export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOut, onSwitchToUser }: Props) {
   const { screen, detailId, resetTick, nav, clearDetail, previous } = useAdminNav()
@@ -128,12 +101,12 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // keine offene Maske mit ungespeicherten Änderungen.
   //
   // Leere Deps: der Sprung ist ein Startereignis, kein Zustand. `nav` und
-  // `takeDeepLink` sind absichtlich nicht in der Liste — ein zweiter Lauf
+  // `takeProjectDeepLink` sind absichtlich nicht in der Liste — ein zweiter Lauf
   // fände ohnehin nichts mehr vor, würde aber eine begonnene Navigation
   // überschreiben.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const link = takeDeepLink()
+    const link = takeProjectDeepLink()
     if (!link) return
     setDeepLinkTab(link.tab)
     nav('projects', link.projectId)
@@ -218,7 +191,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // 'support'/'support_admin', unabhängig vom Hilfe-Bot (Spec §6.1).
   const showHelp = hasModule(user, 'help_bot') && isFeatureEnabled(user, 'help_bot_admin')
   const showSupport = hasModule(user, 'support') && isFeatureEnabled(user, 'support_admin')
-  const showHelpBubble = showHelp || showSupport
+  // Wünsche & Roadmap (docs/specs/feature-anfragen.md §5): nur das Modul,
+  // beta-bewusst aus /pwa/me. Admins sind nie user_light.
+  const showWishes = hasModule(user, 'feature_requests')
+  const showHelpBubble = showHelp || showSupport || showWishes
   // Modul 'task_board' schaltet das Board an/ab; das gleichnamige Feature-Flag
   // hält nur die Schwellwert-Parameter (feature_registry.py).
   const showTaskBoard = hasModule(user, 'task_board')
@@ -233,7 +209,15 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     switch (screen) {
       case 'dashboard':    return <DashboardScreen dashboard={dashboard} onNav={guardedNav} onBadgeChange={loadDashboard} />
       case 'tasks':        return showTaskBoard
-        ? <TaskBoardScreen onNav={guardedNav} onBadgeChange={loadDashboard} />
+        ? <TaskBoardScreen
+            onNav={(next, id, tab) => {
+              // Der Reiter reist über denselben Weg wie der aus einer Info-Mail:
+              // die Projektmaske liest ihn nur beim Öffnen.
+              setDeepLinkTab(tab ?? null)
+              guardedNav(next, id)
+            }}
+            onBadgeChange={loadDashboard}
+          />
         : <ComingSoon title="Kein Zugriff" />
       case 'my-time':      return guard('timekeeping', <MyTimeScreen user={user} onLoggedOut={onLoggedOut} />)
       case 'staff':        return <StaffScreen actingRole={user.role} />
@@ -262,8 +246,23 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'payment-reconciliation': return guard('payment_matching', <PaymentReconciliationScreen />)
       case 'suppliers':    return <SuppliersScreen />
       case 'supplier-wiki': return guard('supplier_wiki', <SupplierWikiScreen />)
+      case 'roadmap':      return guard('feature_requests', (
+        <div className="admin-page">
+          <div className="admin-page-header">
+            <div>
+              <div className="admin-page-title">Wünsche &amp; Roadmap</div>
+              <div className="admin-page-subtitle">
+                Was angefragt ist, wie es steht — und was euer Betrieb sich gewünscht hat.
+              </div>
+            </div>
+          </div>
+          <Roadmap userId={user.authorized_user_id} role={user.role} appContext="admin" compact={isMobile} />
+        </div>
+      ))
       case 'staff-roles':  return <StaffRolesScreen />
-      case 'materials':    return <MaterialsScreen user={user} />
+      case 'materials':    return (
+        <MaterialsScreen user={user} detailId={detailId ?? undefined} onConsumed={clearDetail} />
+      )
       case 'pricing-rules':return <PricingRulesScreen />
       case 'quote-templates': return <QuoteTemplatesScreen />
       case 'users':        return <UsersScreen actingRole={user.role} />
@@ -343,6 +342,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           badges={badges}
+          inventur={user.inventur_offen ?? null}
         />
       )}
       {/* Meilenstein-Animationen (Feature `eastereggs`, Beta). Prueft Flag und
@@ -352,6 +352,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
         <HelpBubble
           showHelp={showHelp}
           showSupport={showSupport}
+          showWishes={showWishes}
+          onOpenRoadmap={() => guardedNav('roadmap')}
           route={screen}
           appContext="admin"
         />
@@ -365,7 +367,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           allowSave={dirtyGuard()?.canSave?.() !== false}
           onSave={savePendingNav}
           onDiscard={commitPendingNav}
-          onCancel={() => setPendingNav(null)}
+          onCancel={() => { setPendingNav(null); setDeepLinkTab(null) }}
         />
       )}
     </div>

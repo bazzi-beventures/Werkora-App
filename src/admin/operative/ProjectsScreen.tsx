@@ -4,7 +4,7 @@ import { projectCustomerName } from '../utils/project'
 import type { Project, ProjectLocality, ProjectsListResponse } from '../../api/admin/projects'
 import { getAdminStaff } from '../../api/admin/staff'
 import { getMe } from '../../api/auth'
-import { isFeatureEnabled } from '../../api/modules'
+import { getFeature, isFeatureEnabled } from '../../api/modules'
 import ProjectDetailScreen from './ProjectDetailScreen'
 import type { ProjectTab } from './projectDetail/ProjectTabBar'
 import { ProjectStatus, PROJECT_STATUS_LABELS, PROJECT_STATUS_BADGE, QUOTE_STATUS_LABELS, INVOICE_STATUS_LABELS } from '../constants/statuses'
@@ -16,6 +16,16 @@ import { MobileFilterSheet } from '../components/MobileFilterSheet'
 import { useListState } from '../hooks/useListState'
 import { addressLocality } from './scheduleShared'
 import { useIsMobile } from '../useIsMobile'
+import { projectWarranty, warrantyBadge } from '../../shared/warranty'
+import type { WarrantyConfig } from '../../shared/warranty'
+
+// Farbe des Garantie-Vermerks — dieselbe Zuordnung wie im Projekt-Kopf
+// (projectDetail/ProjectDetailHeader.tsx).
+const GARANTIE_BADGE: Record<'ok' | 'warn' | 'muted', string> = {
+  ok: 'admin-badge-approved',
+  warn: 'admin-badge-open',
+  muted: 'admin-badge-closed',
+}
 
 const DOC_STATUS_BADGE: Record<string, string> = {
   ausstehend: 'admin-badge-open',
@@ -197,6 +207,8 @@ export default function ProjectsScreen({
   const [showProjektleiterCol, setShowProjektleiterCol] = useState(false)
   // Beschaffungs-Spalte (Feature `beschaffungsstatus`, Default aus).
   const [showBeschaffungCol, setShowBeschaffungCol] = useState(false)
+  // null = Feature «garantiefall» aus (oder /me noch nicht da) → kein Vermerk.
+  const [garantieConfig, setGarantieConfig] = useState<WarrantyConfig | null>(null)
 
   useEffect(() => {
     getAdminStaff()
@@ -224,9 +236,22 @@ export default function ProjectsScreen({
       .then(me => {
         setShowProjektleiterCol(isFeatureEnabled(me, 'projektleiter_spalte'))
         setShowBeschaffungCol(isFeatureEnabled(me, 'beschaffungsstatus'))
+        // Garantie-Vermerk je Zeile (Spec docs/specs/garantiefall.md §6.3).
+        // Gerechnet wird hier statt am Server: die Zeile bringt `completed_at`
+        // schon mit, eine Fristauskunft je Zeile waeren 50 Abfragen pro Seite.
+        setGarantieConfig(isFeatureEnabled(me, 'garantiefall')
+          ? getFeature<WarrantyConfig>(me, 'garantiefall')
+          : null)
       })
       .catch(() => {})
   }, [])
+
+  // Ein Stichtag fuer die ganze Seite: sonst berechnete jede Zeile ihr eigenes
+  // `new Date()`, und ueber Mitternacht stuenden zwei Fristen nebeneinander.
+  const heute = useMemo(() => new Date(), [])
+  const garantieBadge = useCallback((p: Project) => (
+    garantieConfig ? warrantyBadge(projectWarranty(p, garantieConfig, heute)) : null
+  ), [garantieConfig, heute])
 
   // Der Ref (statt einer Pruefung auf `localities === null`) haelt den Fetch auch
   // dann bei einem, wenn der Filter zweimal schnell hintereinander geoeffnet wird
@@ -514,6 +539,14 @@ export default function ProjectsScreen({
           setSelected(saved ?? null)
           load()
         }}
+        // Sprung zwischen Ursprungsprojekt und Nacharbeit (Spec garantiefall.md).
+        // Derselbe Weg wie der Doppelklick aus der Einsatzplanung: Zeile holen,
+        // `selected` setzen — der `key` oben baut die Maske sauber neu auf.
+        onOpenProject={id => {
+          getProject(id)
+            .then(p => { setInitialTab(null); setShowNew(false); setSelected(p) })
+            .catch(() => {})
+        }}
       />
     )
   }
@@ -633,6 +666,14 @@ export default function ProjectsScreen({
                       {PROJECT_STATUS_LABELS[effectiveStatus]}
                     </span>
                   </div>
+                  {(() => {
+                    const g = garantieBadge(p)
+                    return g ? (
+                      <div style={{ marginTop: 4 }}>
+                        <span className={`admin-badge ${GARANTIE_BADGE[g.tone]}`}>{g.text}</span>
+                      </div>
+                    ) : null
+                  })()}
                   {/* Auf dem Handy gibt es keine Spalten — der Beschaffungsschritt kommt
                       als eigene Badge-Zeile, damit er nicht im Meta-Text untergeht. */}
                   {showBeschaffungCol && beschaffungStep(p.workflow_status) && (
@@ -756,6 +797,17 @@ export default function ProjectsScreen({
                       <span className={`admin-badge ${PROJECT_STATUS_BADGE[effectiveStatus]}`}>
                         {PROJECT_STATUS_LABELS[effectiveStatus]}
                       </span>
+                      {(() => {
+                        const g = garantieBadge(p)
+                        return g ? (
+                          <span
+                            className={`admin-badge ${GARANTIE_BADGE[g.tone]}`}
+                            style={{ marginLeft: 6 }}
+                          >
+                            {g.text}
+                          </span>
+                        ) : null
+                      })()}
                     </td>
                     <td style={{ color: 'var(--muted)' }}>
                       {new Date(p.created_at).toLocaleDateString('de-CH')}

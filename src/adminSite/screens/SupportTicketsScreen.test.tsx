@@ -27,6 +27,11 @@ vi.mock('../../api/support', () => ({
   sendSupportReply: (id: string, text: string) => sendSupportReply(id, text),
 }))
 
+const supportTicketToFeatureRequest = vi.fn()
+vi.mock('../../api/featureRequests', () => ({
+  supportTicketToFeatureRequest: (id: string) => supportTicketToFeatureRequest(id),
+}))
+
 import SupportTicketsScreen from './SupportTicketsScreen'
 
 const TICKET = {
@@ -128,5 +133,108 @@ describe('SupportTicketsScreen — Antwort an den Melder', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
     await waitFor(() => expect(screen.queryByText(/noch nicht gelesen/)).not.toBeNull())
     expect(screen.queryByText(/gelesen am/)).toBeNull()
+  })
+})
+
+describe('SupportTicketsScreen — Weiche Support → Wunsch (feature-anfragen §7.3)', () => {
+  it('«Ist ein Wunsch» übernimmt, schliesst und belegt die Antwort nur vor', async () => {
+    supportTicketToFeatureRequest.mockResolvedValue({
+      id: 'r-9', reference: 'WW-2001',
+      reply_suggestion: 'Das nehmen wir als Wunsch auf: WW-2001.',
+    })
+    await oeffneDetail()
+    fireEvent.click(screen.getByRole('button', { name: 'Ist ein Wunsch' }))
+    await waitFor(() => expect(supportTicketToFeatureRequest).toHaveBeenCalledWith('tk-1'))
+    const feld = screen.getByPlaceholderText(/Was der Melder lesen soll/) as HTMLTextAreaElement
+    await waitFor(() => expect(feld.value).toBe('Das nehmen wir als Wunsch auf: WW-2001.'))
+    // Wie beim Abschliessen (A3): vorbelegt, nicht verschickt.
+    expect(sendSupportReply).not.toHaveBeenCalled()
+    const notiz = screen.getByPlaceholderText(/Melder sieht sie nicht/) as HTMLInputElement
+    expect(notiz.value).toBe('→ WW-2001')
+    expect(screen.getByRole('button', { name: 'Ist ein Wunsch' })).toBeDisabled()
+  })
+})
+
+// ── Posteingang — docs/specs/support-uebersicht.md ─────────────────────────
+
+const DASH = {
+  counts: { offen: 1, in_arbeit: 0, erledigt: 1 },
+  open_total: 1, new_7d: 2, new_prev_7d: 0,
+  median_hours_30d: null, error_share_30d: null, total_30d: 2,
+  window_days: 90, by_week: [], by_tenant: [], by_context: [], by_route: [], by_source: [],
+  oldest_open_at: '2026-09-18T08:00:00Z',
+  clusters: [],
+}
+
+describe('SupportTicketsScreen — Posteingang', () => {
+  beforeEach(() => {
+    fetchSupportDashboard.mockResolvedValue({ ...DASH })
+    fetchSupportTickets.mockResolvedValue({
+      tickets: [
+        TICKET,
+        { ...TICKET, id: 'tk-2', reference: 'WS-1043', message: 'Längst erledigt',
+          status: 'erledigt', created_at: '2026-09-19T08:00:00Z' },
+      ],
+      tenants: [], capped: false,
+    })
+  })
+
+  it('zeigt beim Öffnen nur, was zu erledigen ist', async () => {
+    render(<SupportTicketsScreen />)
+    await screen.findByText('Rapport speichert nicht')
+    expect(screen.queryByText('Längst erledigt')).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: /Erledigt/ }))
+    expect(await screen.findByText('Längst erledigt')).toBeTruthy()
+  })
+
+  it('nennt in der Statuszeile, wie viel offen ist und wie lange die älteste wartet', async () => {
+    render(<SupportTicketsScreen />)
+    expect(await screen.findByText('1 zu erledigen')).toBeTruthy()
+    expect(screen.getByText(/älteste wartet/)).toBeTruthy()
+  })
+
+  it('markiert nie Geöffnetes und nimmt den Punkt beim Öffnen weg', async () => {
+    fetchSupportTickets.mockResolvedValue({
+      tickets: [{ ...TICKET, seen_at: null }], tenants: [], capped: false,
+    })
+    fetchSupportTicket.mockResolvedValue({ ...DETAIL, seen_at: '2026-09-25T10:00:00Z' })
+    render(<SupportTicketsScreen />)
+    expect(await screen.findByLabelText('ungelesen')).toBeTruthy()
+    fireEvent.click(screen.getByTitle('Meldung öffnen'))
+    await screen.findByText('Antwort an den Melder')
+    await waitFor(() => expect(screen.queryByLabelText('ungelesen')).toBeNull())
+  })
+
+  it('öffnet eine per Link übergebene Meldung direkt', async () => {
+    render(<SupportTicketsScreen initialTicketId="tk-1" />)
+    await screen.findByText('Antwort an den Melder')
+    expect(fetchSupportTicket).toHaveBeenCalledWith('tk-1')
+  })
+
+  it('meldet eine Häufung und filtert auf Klick darauf', async () => {
+    fetchSupportDashboard.mockResolvedValue({
+      ...DASH,
+      clusters: [{ kind: 'route', key: 'projekte', count: 3, since: '2026-09-25T07:12:00Z' }],
+    })
+    fetchSupportTickets.mockResolvedValue({
+      tickets: [
+        { ...TICKET, route: 'rapport', app_context: 'pwa' },
+        { ...TICKET, id: 'tk-3', message: 'Projektliste leer', route: 'projekte', app_context: 'pwa' },
+      ],
+      tenants: [], capped: false,
+    })
+    render(<SupportTicketsScreen />)
+    const banner = await screen.findByRole('button', { name: /Häufung: 3 offene Meldungen von «Projekte»/ })
+    fireEvent.click(banner)
+    await waitFor(() => expect(screen.queryByText('Rapport speichert nicht')).toBeNull())
+    expect(screen.getByText('Projektliste leer')).toBeTruthy()
+  })
+
+  it('Auswertung: keine Diagramme bei zu wenig Daten, sondern ein Satz', async () => {
+    render(<SupportTicketsScreen />)
+    await screen.findByText('1 zu erledigen')
+    fireEvent.click(screen.getByRole('button', { name: 'Auswertung' }))
+    expect(await screen.findByText(/Diagramme erscheinen, sobald/)).toBeTruthy()
+    expect(screen.getAllByText('zu wenig Daten').length).toBe(2)
   })
 })

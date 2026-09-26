@@ -5,32 +5,20 @@ import {
   createBoardTask, deleteBoardTask, getTaskBoard, updateBoardTask,
 } from '../../api/admin'
 import { AdminScreen } from '../useAdminNav'
+import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 import { useToast, ToastHost } from '../components/useToast'
 import { fmtDate } from '../utils/format'
 import {
   BoardView, COLUMN_LABELS, daysSince, dropSortOrder,
-  groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound,
+  groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, navTarget,
 } from './taskBoardLogic'
 
 const PROCESS_BOUND_HINT = 'Fester Prozessschritt — erledigt sich automatisch, sobald die Arbeit getan ist.'
 
 interface Props {
-  onNav: (screen: AdminScreen, detailId?: string) => void
+  /** `tab`: Reiter, auf dem die Projektmaske aufgeht (nur mit Projekt-id). */
+  onNav: (screen: AdminScreen, detailId?: string, tab?: ProjectTab) => void
   onBadgeChange?: () => void
-}
-
-/** Deep-Link von der Karte zum Quell-Datensatz. */
-function navTarget(task: BoardTask): { screen: AdminScreen; detailId?: string } | null {
-  switch (task.ref_kind) {
-    case 'quote': return { screen: 'quotes' }
-    case 'invoice': return { screen: 'invoices' }
-    case 'project': return task.project_id ? { screen: 'projects', detailId: task.project_id } : { screen: 'projects' }
-    case 'draft': return { screen: 'project-drafts' }
-    case 'approval': return { screen: 'dashboard' }
-    case 'aftersales': return { screen: 'aftersales' }
-    default:
-      return task.project_id ? { screen: 'projects', detailId: task.project_id } : null
-  }
 }
 
 function initials(name: string | null | undefined): string {
@@ -231,7 +219,7 @@ function TaskDetailModal({ task, board, onClose, onChanged, onNav }: DetailModal
 
           <div className="tb-detail-actions">
             {target && (
-              <button className="admin-btn admin-btn-secondary" onClick={() => { onClose(); onNav(target.screen, target.detailId) }}>
+              <button className="admin-btn admin-btn-secondary" onClick={() => { onClose(); onNav(target.screen, target.detailId, target.tab) }}>
                 Öffnen
               </button>
             )}

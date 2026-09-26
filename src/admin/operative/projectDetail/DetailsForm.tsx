@@ -1,4 +1,5 @@
 import { AddressAutocomplete } from '../../../shared/AddressAutocomplete'
+import { ReferenceProjectPicker } from './ReferenceProjectPicker'
 import AppointmentsCard from './AppointmentsCard'
 import { CustomerCombobox } from '../CustomerCombobox'
 import { WORK_TYPES } from '../../../api/workTypes'
@@ -19,7 +20,7 @@ export interface StaffMember {
 }
 
 export function DetailsForm({
-  form, staff, customers, schedulingEnabled, showGeruestfach, onSubmit, onCancel,
+  form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -28,6 +29,15 @@ export function DetailsForm({
   schedulingEnabled: boolean
   /** Feature «geruestfach» — Gerüstfach-Nummer nur für Mandanten mit Gerüstbau. */
   showGeruestfach: boolean
+  /**
+   * Feature «garantiefall» und ein gespeichertes Projekt: dann steht das
+   * Abnahmedatum zum Nachtragen da.
+   *
+   * Bewusst nicht nur an abgeschlossenen Projekten: eines, das nach «Fehler beim
+   * Abschluss» wieder offen ist, hat sein Datum verloren, und ohne das Feld wäre
+   * es nicht mehr nachtragbar (Spec §3.3).
+   */
+  showAbnahme: boolean
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
 }) {
@@ -48,6 +58,9 @@ export function DetailsForm({
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,
     wartungNextDueAt, setWartungNextDueAt,
+    parentProjectId, parentProjectLabel, pickReferenceProject,
+    completedAt, setCompletedAt,
+    isWarranty, setIsWarranty,
     saving, error,
   } = form
 
@@ -79,6 +92,39 @@ export function DetailsForm({
                   })}
                 </div>
               </div>
+              {/* Referenzprojekt — nur bei «Reparatur» (Spec garantiefall.md §3.9).
+                  Ein einmal gesetzter Verweis bleibt sichtbar, auch wenn der Chip
+                  wieder abgewaehlt wird: er ist eine Tatsache ueber die Herkunft
+                  der Arbeit, keine Eigenschaft der Leistungsart — und wer ihn
+                  loswerden will, findet «Entfernen» daneben. */}
+              {(artDerArbeit.includes('Reparatur') || !!parentProjectId || isWarranty) && (
+                <>
+                  <ReferenceProjectPicker
+                    value={parentProjectId}
+                    label={parentProjectLabel}
+                    onPick={pickReferenceProject}
+                  />
+                  {/* Das Häkchen stand bis 20260922 nur im Reopen-Dialog und traf
+                      dort das ALTE Projekt. Hier trifft es das Projekt, das die
+                      Garantiearbeit trägt — und es ist eine bewusste Entscheidung
+                      des Büros, keine Folge des Referenzprojekts (Spec §3.9). */}
+                  <div className="admin-form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
+                      <input
+                        type="checkbox"
+                        checked={isWarranty}
+                        onChange={e => setIsWarranty(e.target.checked)}
+                      />
+                      Garantiefall — wird nicht oder nur reduziert verrechnet
+                    </label>
+                    <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                      Unterdrückt Mindestrechnung und Aufrundung, setzt den Vermerk
+                      aufs Rechnungs-PDF und belegt das Garantie-Feld neuer Rapporte vor.
+                      Positionen werden <strong>nicht</strong> automatisch auf null gesetzt.
+                    </p>
+                  </div>
+                </>
+              )}
               <div className="admin-form-group">
                 <label className="admin-form-label">
                   Bemerkung
@@ -95,6 +141,27 @@ export function DetailsForm({
                   style={{ resize: 'vertical' }}
                 />
               </div>
+              {showAbnahme && (
+                <div className="admin-form-group">
+                  <label className="admin-form-label" htmlFor="project-completed-at">
+                    Abgeschlossen am
+                    <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: 6 }}>
+                      (Abnahme — ab hier läuft die Garantiefrist)
+                    </span>
+                  </label>
+                  <input
+                    id="project-completed-at"
+                    className="admin-form-input"
+                    type="date"
+                    value={completedAt}
+                    onChange={e => setCompletedAt(e.target.value)}
+                  />
+                  <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                    Wird beim Abschliessen automatisch gesetzt. Nachtragen musst du es nur
+                    bei Projekten, die vor der Einführung dieses Feldes geschlossen wurden.
+                  </p>
+                </div>
+              )}
               {showGeruestfach && (
                 <div className="admin-form-group">
                   <label className="admin-form-label">Gerüstfach (Lagerort)</label>

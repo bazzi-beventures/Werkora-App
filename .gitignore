@@ -8,3 +8,9 @@ dist-admin/
 # reportsDirectory (z. B. coverage-all/) sollen genauso wenig im Repo landen.
 coverage*
 .env.local
+# Inkrementeller tsc-Cache (`tsconfig.json` hat `incremental`). Wird bei jedem
+# Build neu geschrieben und ist schon einmal versehentlich im Repo gelandet —
+# von dort synchronisiert ihn `sync-bau-app.yml` auch noch in den öffentlichen
+# Spiegel.
+tsconfig.tsbuildinfo
+*.tsbuildinfo

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { reopenProject, saveProjectForm, setProjectStatus } from '../../api/admin/projects'
+import { getProject, reopenProject, saveProjectForm, setProjectStatus } from '../../api/admin/projects'
+import type { RepairCaseRef, RepairProjectRef, WarrantyInfo } from '../../api/admin/projects'
 import { getAdminStaff } from '../../api/admin/staff'
 import { getAllCustomers } from '../../api/admin/customers'
 import type { Kontakt, Project } from '../../api/admin/projects'
@@ -27,7 +28,7 @@ import { DetailsForm, StaffMember } from './projectDetail/DetailsForm'
 import { ProjectTab, ProjectTabBar } from './projectDetail/ProjectTabBar'
 import { ApprovalCreateDialog } from './projectDetail/ApprovalCreateDialog'
 import { ProjectDetailHeader } from './projectDetail/ProjectDetailHeader'
-import { ProjectStatusDialog, ProjectStatusDialogs } from './projectDetail/ProjectStatusDialogs'
+import { ProjectStatusDialog, ProjectStatusDialogs, ReopenReason } from './projectDetail/ProjectStatusDialogs'
 import { ProjectMaskDialogs } from './projectDetail/ProjectMaskDialogs'
 import { ProjectTabContent } from './projectDetail/ProjectTabContent'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
@@ -50,6 +51,13 @@ interface Props {
    */
   onSaved: (saved?: Project | null) => void
   /**
+   * Sprung in ein anderes Projekt — Ursprungsprojekt einer Reparatur oder
+   * umgekehrt eine Nacharbeit (Spec docs/specs/garantiefall.md §3.9). Ein
+   * `<a href="#/…">` taete es nicht: der Hash-Sprung wird nur beim App-Start
+   * eingeloest (shared/deepLink.ts), im laufenden Betrieb passierte nichts.
+   */
+  onOpenProject?: (id: string) => void
+  /**
    * Reiter, auf dem die Maske aufgeht. Nur beim Direktsprung gesetzt (Button in
    * einer Info-Mail, siehe shared/deepLink.ts) — gelesen wird er ausschliesslich
    * beim Mount, wie `project` auch.
@@ -57,7 +65,9 @@ interface Props {
   initialTab?: ProjectTab
 }
 
-export default function ProjectDetailScreen({ project, onClose, onSaved, initialTab }: Props) {
+export default function ProjectDetailScreen({
+  project, onClose, onSaved, onOpenProject, initialTab,
+}: Props) {
   const isNew = !project
 
   // Module und Feature-Flags des Mandanten (Charge H, H3).
@@ -71,7 +81,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
   const [statusDialog, setStatusDialog] = useState<ProjectStatusDialog>(null)
   const { toast, showToast } = useToast()
 
-  const [reopenReason, setReopenReason] = useState<'fehler' | 'garantiefall'>('fehler')
+  const [reopenReason, setReopenReason] = useState<ReopenReason>('fehler')
   const [reopening, setReopening] = useState(false)
 
   const [activeTab, setActiveTab] = useState<ProjectTab>(initialTab ?? 'details')
@@ -85,6 +95,48 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
     schedulingEnabled: features.scheduling,
     focusDetails: () => setActiveTab('details'),
   })
+
+  // Garantie-Angaben zum Projekt: Frist und die Nacharbeiten, die auf dieses
+  // Projekt verweisen (Spec docs/specs/garantiefall.md).
+  //
+  // Warum ein eigener Fetch und nicht das `project`-Prop: die Projektliste gibt
+  // ihre Zeile direkt weiter, und die stammt aus `vw_admin_projects_list` —
+  // dort gibt es weder `warranty` noch `repair_projects`, die hängt nur die
+  // Detail-Route an. Ohne diesen Nachschlag sähe man Vermerk und Rückverweise
+  // ausgerechnet auf dem häufigsten Weg nie, wohl aber beim Sprung per
+  // Deep-Link. Der Aufruf läuft nur mit aktivem Feature und nur für ein
+  // gespeichertes Projekt.
+  //
+  // Mit Modul «warranty» (Phase 3) kommt am Reparatur-Projekt der Garantiefall
+  // dazu, aus dem es entstand — auch ohne das Fristen-Feature. Jede Angabe nur
+  // unter ihrem eigenen Schalter: das Feature und das Modul können getrennt im
+  // Betatest stehen.
+  const [garantie, setGarantie] = useState<{
+    warranty: WarrantyInfo | null
+    repairProjects: RepairProjectRef[]
+    repairCase: RepairCaseRef | null
+  }>({ warranty: null, repairProjects: [], repairCase: null })
+
+  useEffect(() => {
+    if (!project?.id || !(features.garantiefall || features.warranty)) {
+      setGarantie({ warranty: null, repairProjects: [], repairCase: null })
+      return
+    }
+    let aktuell = true
+    getProject(project.id)
+      .then(detail => {
+        if (!aktuell) return
+        setGarantie({
+          warranty: features.garantiefall ? detail.warranty ?? null : null,
+          repairProjects: features.garantiefall ? detail.repair_projects ?? [] : [],
+          repairCase: features.warranty ? detail.repair_case ?? null : null,
+        })
+      })
+      // Stillschweigend: ein fehlender Vermerk ist harmlos, eine Fehlermeldung
+      // über der Projektmaske wäre es nicht.
+      .catch(() => {})
+    return () => { aktuell = false }
+  }, [project?.id, features.garantiefall, features.warranty])
 
   // Beschaffungsschritt (Feature beschaffungsstatus) im Hook (Charge H, H3).
   const beschaffung = useProjectBeschaffung(project, showToast)
@@ -190,7 +242,11 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
   }
 
   // Abfrage offen, weil „Zurück"/„Abbrechen" bei ungespeicherten Änderungen gedrückt wurde.
-  const [pendingLeave, setPendingLeave] = useState(false)
+  // Offene Verlassen-Abfrage. `jumpTo` traegt das Ziel: null = zurueck in die
+  // Uebersicht, sonst das Projekt, in das gesprungen werden soll (Rueckverweis
+  // aus der Garantie-Spec). Ohne das Ziel im Zustand liefe der Sprung an der
+  // Abfrage vorbei und wuerfe ungespeicherte Aenderungen weg.
+  const [pendingLeave, setPendingLeave] = useState<{ jumpTo: string | null } | null>(null)
 
   useEffect(() => {
     document.querySelector('.admin-content')?.scrollTo({ top: 0 })
@@ -282,7 +338,26 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
 
   // Verlassen der Maske (Zurück/Abbrechen) — bei ungespeicherten Änderungen erst fragen.
   function requestClose() {
-    if (form.isDirty) setPendingLeave(true)
+    if (form.isDirty) setPendingLeave({ jumpTo: null })
+    else onClose()
+  }
+
+  /**
+   * Sprung in ein anderes Projekt (Ursprungsprojekt oder Nacharbeit).
+   *
+   * Laeuft ueber dieselbe Abfrage wie der Zurueck-Pfeil: der Sprung baut die
+   * Maske komplett neu auf (der Aufrufer wechselt `key`), ungespeicherte
+   * Aenderungen waeren also genauso weg wie beim Schliessen — nur ohne Warnung.
+   */
+  function requestOpenProject(id: string) {
+    if (!onOpenProject) return
+    if (form.isDirty) setPendingLeave({ jumpTo: id })
+    else onOpenProject(id)
+  }
+
+  function leaveTo(jumpTo: string | null) {
+    setPendingLeave(null)
+    if (jumpTo) onOpenProject?.(jumpTo)
     else onClose()
   }
 
@@ -297,9 +372,11 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
   useScreenBack(true, () => { requestClose(); return true }, SCREEN_BACK_DEPTH.detail)
 
   async function saveAndLeave() {
+    const jumpTo = pendingLeave?.jumpTo ?? null
     const saved = await form.persist()
-    if (saved === false) { setPendingLeave(false); return }
-    setPendingLeave(false)
+    if (saved === false) { setPendingLeave(null); return }
+    setPendingLeave(null)
+    if (jumpTo) { onOpenProject?.(jumpTo); return }
     // Gespeichert und trotzdem raus: zurück in die Übersicht (dort neu laden),
     // auch beim frisch angelegten Projekt — der Anwender wollte ja weg.
     onSaved(null)
@@ -359,16 +436,14 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
     if (!project) return
     setReopening(true)
     try {
-      await reopenProject(project.id)
-      if (reopenReason === 'garantiefall') {
-        // Garantiefall: die Reparatur muss als solche erkennbar bleiben — sonst
-        // taucht die Nacharbeit in den Kennzahlen wie ein normaler Auftrag auf.
-        await saveProjectForm({
-          name: project.name,
-          art_der_arbeit: Array.from(new Set([...form.artDerArbeit, 'Reparatur'])),
-          is_warranty: true,
-        }, project.id)
-      }
+      // Der Grund geht an den Server: «fehler» setzt das Abnahmedatum zurueck,
+      // «nacharbeit» laesst es stehen (Spec docs/specs/garantiefall.md §3.3).
+      //
+      // Hier stand frueher ein zweiter Aufruf, der bei Grund «garantiefall»
+      // `Reparatur` + `is_warranty` auf DIESES Projekt schrieb. Er ist weg: die
+      // Garantie-Reparatur ist ein eigenes Projekt mit Referenz auf dieses (§3.9),
+      // sonst faerbte das Haekchen den abgeschlossenen Auftrag rueckwirkend ein.
+      await reopenProject(project.id, reopenReason)
       showToast('Projekt wiedereröffnet')
       setTimeout(onSaved, 1000)
     } catch {
@@ -389,6 +464,14 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
         beschaffung={beschaffung.status}
         beschaffungAt={beschaffung.at}
         beschaffungSource={beschaffung.source}
+        // Beides aus dem Nachschlag oben — das `project`-Prop traegt es nicht,
+        // wenn die Maske aus der Projektliste heraus geoeffnet wurde.
+        warranty={garantie.warranty}
+        repairProjects={garantie.repairProjects}
+        repairCase={garantie.repairCase}
+        // Ueber `requestOpenProject`, nicht direkt: der Sprung baut die Maske
+        // neu auf und muss durch dieselbe Verlassen-Abfrage wie der Zurueck-Pfeil.
+        onOpenProject={onOpenProject ? requestOpenProject : undefined}
         onBack={requestClose}
       />
 
@@ -398,6 +481,7 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
           active={activeTab}
           onSelect={setActiveTab}
           showNachkalkulation={features.nachkalkulation}
+          showWarranty={features.warranty}
         />
       )}
 
@@ -412,6 +496,12 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
           customers={customers}
           schedulingEnabled={features.scheduling}
           showGeruestfach={features.geruestfach}
+          // An jedem gespeicherten Projekt, nicht nur an abgeschlossenen: ein
+          // Projekt, das nach «Fehler beim Abschluss» wieder offen ist, hat sein
+          // Abnahmedatum verloren, und ohne das Feld waere es nicht mehr
+          // nachtragbar — das erneute Schliessen stempelte dann heute und
+          // verschoebe die Garantiefrist still.
+          showAbnahme={features.garantiefall && !isNew}
           onSubmit={handleSave}
           onCancel={requestClose}
         />
@@ -437,6 +527,10 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
           teilrapportEnabled={features.teilrapport}
           nachkalkulationEnabled={features.nachkalkulation}
           verlaufEnabled={features.verlauf}
+          warrantyEnabled={features.warranty}
+          warranty={garantie.warranty}
+          onToast={showToast}
+          onOpenProject={onOpenProject ? requestOpenProject : undefined}
           useAcceptedQuote={useAcceptedQuote}
           onUseAcceptedQuoteChange={setUseAcceptedQuote}
           defaultInvoiceEmail={form.selectedCustomer?.email ?? project.customer?.email ?? ''}
@@ -645,8 +739,8 @@ export default function ProjectDetailScreen({ project, onClose, onSaved, initial
               : `Die Änderungen an «${project?.name}» sind noch nicht gespeichert.`
           }
           onSave={saveAndLeave}
-          onDiscard={() => { setPendingLeave(false); onClose() }}
-          onCancel={() => setPendingLeave(false)}
+          onDiscard={() => leaveTo(pendingLeave.jumpTo)}
+          onCancel={() => setPendingLeave(null)}
         />
       )}
 

@@ -13,6 +13,18 @@ import type { ProjectInvoice } from './types'
 export type ProjectStatusDialog =
   | 'close' | 'closeAfterPaid' | 'archive' | 'reactivate' | 'reopen' | null
 
+// Warum ein abgeschlossenes Projekt wieder geoeffnet wird. Der Grund entscheidet
+// ueber das Abnahmedatum und damit ueber die Garantiefrist (Spec
+// docs/specs/garantiefall.md §3.3).
+//
+// Den frueheren Grund «Garantiefall» gibt es nicht mehr: er setzte `Reparatur`
+// und `is_warranty` auf das ALTE Projekt und faerbte damit den abgeschlossenen
+// Auftrag rueckwirkend ein — in den Kennzahlen wurde aus der Neumontage von 2024
+// ein Garantieprojekt, und jede spaetere Rechnung darauf verlor Mindestrechnung
+// und Werkora-Bonus. Eine Garantie-Reparatur ist jetzt ein eigenes Projekt: im
+// Projektformular «Reparatur» waehlen und das Referenzprojekt angeben (§3.9).
+export type ReopenReason = 'fehler' | 'nacharbeit'
+
 export function ProjectStatusDialogs({
   open, projectName, invoices, settingStatus, reopening,
   reopenReason, onReopenReasonChange, onDismiss, onClose, onArchive, onReopen,
@@ -23,8 +35,8 @@ export function ProjectStatusDialogs({
   invoices: ProjectInvoice[]
   settingStatus: boolean
   reopening: boolean
-  reopenReason: 'fehler' | 'garantiefall'
-  onReopenReasonChange: (r: 'fehler' | 'garantiefall') => void
+  reopenReason: ReopenReason
+  onReopenReasonChange: (r: ReopenReason) => void
   onDismiss: () => void
   onClose: () => void
   onArchive: () => void
@@ -104,18 +116,23 @@ export function ProjectStatusDialogs({
                   checked={reopenReason === 'fehler'}
                   onChange={() => onReopenReasonChange('fehler')}
                 />
-                Fehler beim Abschluss
+                Fehler beim Abschluss <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>(Abnahmedatum wird zurückgesetzt)</span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 14 }}>
                 <input
                   type="radio"
                   name="reopenReason"
-                  value="garantiefall"
-                  checked={reopenReason === 'garantiefall'}
-                  onChange={() => onReopenReasonChange('garantiefall')}
+                  value="nacharbeit"
+                  checked={reopenReason === 'nacharbeit'}
+                  onChange={() => onReopenReasonChange('nacharbeit')}
                 />
-                Garantiefall <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>(Reparatur, als Garantie markiert)</span>
+                Es wird weitergearbeitet <span style={{ fontSize: 12, color: 'var(--muted)', marginLeft: 4 }}>(Abnahmedatum bleibt stehen)</span>
               </label>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                Für eine Garantie-Reparatur bitte ein <strong>neues Projekt</strong> anlegen und
+                dort unter «Reparatur» dieses Projekt als Referenz angeben — so behält der
+                abgeschlossene Auftrag seine Kennzahlen.
+              </p>
           </div>
         </ConfirmDialog>
       )}

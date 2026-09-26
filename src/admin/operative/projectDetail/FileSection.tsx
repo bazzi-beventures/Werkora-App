@@ -36,6 +36,14 @@ export const REPORT_DOC_SECTIONS: { key: ProjectFileCategory; title: string }[] 
 // Rapporten. NICHT zu verwechseln mit 'anhang' ("Anhänge für Offerte"): das sind
 // Dokumente, die MIT der Offerte an den Kunden rausgehen. Hier liegt das Dokument
 // nur am Projekt.
+// Fotos und Unterlagen zu Garantiefällen: die Mängelrüge des Kunden, die Fotos
+// von der Besichtigung. Stehen im Reiter «Garantie» — dort, wo der Fall geführt
+// wird (docs/specs/garantiefall.md §4). Ohne den Eintrag in ALL_CATEGORY_KEYS
+// oben erschienen sie zusätzlich unter «Sonstiges».
+export const WARRANTY_DOC_SECTIONS: { key: ProjectFileCategory; title: string }[] = [
+  { key: 'garantie', title: 'Fotos und Unterlagen zu Garantiefällen' },
+]
+
 export const QUOTE_DOC_SECTIONS: { key: ProjectFileCategory; title: string }[] = [
   { key: 'offerte', title: 'Hochgeladene Offerten (Papier / Fremdsystem)' },
   // Die versendeten Auftragsbestätigungen: das PDF legt der Versand-Knopf selbst hier
@@ -50,7 +58,10 @@ export const QUOTE_DOC_SECTIONS: { key: ProjectFileCategory; title: string }[] =
 // auffangen – sonst würden Lieferanten-Dateien (z.B. auftragsbestaetigung)
 // zusätzlich unter "Sonstiges" doppelt erscheinen.
 const ALL_CATEGORY_KEYS = new Set<ProjectFileCategory>(
-  [...PROJECT_DOC_SECTIONS, ...SUPPLIER_DOC_SECTIONS, ...REPORT_DOC_SECTIONS, ...QUOTE_DOC_SECTIONS].map(s => s.key),
+  [
+    ...PROJECT_DOC_SECTIONS, ...SUPPLIER_DOC_SECTIONS, ...REPORT_DOC_SECTIONS,
+    ...QUOTE_DOC_SECTIONS, ...WARRANTY_DOC_SECTIONS,
+  ].map(s => s.key),
 )
 // Altbestand: wird in der Anhänge-Sektion angezeigt und darf nicht zusätzlich
 // unter "Sonstiges" auftauchen.

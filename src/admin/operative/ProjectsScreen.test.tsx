@@ -187,6 +187,24 @@ describe('ProjectsScreen — ungespeicherte Änderungen', () => {
     expect(JSON.parse(String(patch![1]!.body)).name).toBe('Fassade Seehalde Etappe 2')
   })
 
+  // Der Audit-Eintrag nennt die geschickten Feldnamen, und daraus baut der
+  // Projekt-Verlauf seinen Satz «Geändert: …». Fahren die Garantie-Felder bei
+  // jedem Speichern mit, meldet er «Garantiefall geändert», obwohl niemand das
+  // Häkchen angefasst hat.
+  it('schickt die Garantie-Felder nur mit, wenn sie sich geändert haben', async () => {
+    const user = await openDetailAndEdit()
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+    await user.click((await leaveDialog()).getByRole('button', { name: 'Speichern' }))
+    await bestaetigeOhneProjektleiter(user)
+
+    const patch = mockFetch.mock.calls.find(([, opt]) => opt?.method === 'PATCH')
+    const body = JSON.parse(String(patch![1]!.body))
+    expect(body.name).toBe('Fassade Seehalde Etappe 2')
+    expect('is_warranty' in body).toBe(false)
+    expect('parent_project_id' in body).toBe(false)
+    expect('completed_at' in body).toBe(false)
+  })
+
   it('fragt nicht nach, wenn nichts geändert wurde', async () => {
     const user = userEvent.setup()
     routeApi([EXISTING])

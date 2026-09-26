@@ -25,6 +25,17 @@ export interface UserInfo {
    *  WAS es sieht, zählt die App nicht auf — das sagt der Betreiber seinen
    *  Testern direkt (Spec-Header, Entscheid 3). */
   beta_tester?: boolean
+  /** Die dem Konto zugeteilte offene Zählung — oder `null`. Sie ist zugleich
+   *  die Berechtigung und der Einstieg: Ein Lagerist mit Rolle `user` sieht die
+   *  Inventur-Kachel, sobald ihm eine Tranche gehört, und sonst nie
+   *  (docs/specs/rollierende-inventur.md §6.5). */
+  inventur_offen?: {
+    count_id: string
+    title: string | null
+    due_on: string | null
+    offen: number
+    ueberfaellig: boolean
+  } | null
 }
 
 export async function lookupUser(tenantSlug: string, displayName: string): Promise<{ authorized_user_id: string; display_name: string }> {

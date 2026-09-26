@@ -1,5 +1,5 @@
 // Globales Vitest-Setup für alle Testdateien (siehe vite.config.ts → test.setupFiles).
-import '@testing-library/jest-dom'
+import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
 

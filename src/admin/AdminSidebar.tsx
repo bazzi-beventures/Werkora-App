@@ -4,7 +4,7 @@ import { ModuleName } from '../api/modules'
 import {
   IconDashboard, IconUsers, IconCalendar, IconClock, IconDocument, IconBox,
   IconFolder, IconReceipt, IconCash, IconTag, IconKey, IconChart,
-  IconLogout, IconAddressBook, IconSettings, IconAftersales, IconTasks,
+  IconLogout, IconAddressBook, IconSettings, IconAftersales, IconTasks, IconBulb,
 } from './AdminIcons'
 
 interface Props {
@@ -153,6 +153,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
             stehen auf admin.werkora.ch (Spec §6.5). */}
         <div className="admin-nav-group-label">System</div>
         <NavItem label="Benutzerverwaltung" target="users" current={screen} onNav={onNav} icon={<IconKey />} />
+        {has('feature_requests') && (
+          <NavItem label="Wünsche & Roadmap" target="roadmap" current={screen} onNav={onNav} icon={<IconBulb />} />
+        )}
         {isManagement && has('document_backup') && (
           <NavItem label="Datensicherung" target="document-backup" current={screen} onNav={onNav} icon={<IconDocument />} />
         )}

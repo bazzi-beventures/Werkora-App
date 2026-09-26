@@ -25,6 +25,29 @@ beforeEach(() => {
 })
 
 describe('useTenantScope', () => {
+  it('lädt ohne Sitzung nichts — und nach dem Login die Liste', async () => {
+    // Befund 25.09.2026: ein 401 von VOR dem Login blieb als «Sitzung
+    // abgelaufen» stehen, der Wähler war nach dem Login gesperrt.
+    const { result, rerender } = renderHook(({ an }) => useTenantScope(an), {
+      initialProps: { an: false },
+    })
+    expect(listTenants).not.toHaveBeenCalled()
+    rerender({ an: true })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(listTenants).toHaveBeenCalledTimes(1)
+    expect(result.current.error).toBeNull()
+    expect(result.current.tenants).toHaveLength(2)
+  })
+
+  it('ein gescheiterter Load lässt sich neu anstossen', async () => {
+    listTenants.mockRejectedValueOnce(new Error('Sitzung abgelaufen'))
+    const { result } = renderHook(() => useTenantScope())
+    await waitFor(() => expect(result.current.error).toBe('Sitzung abgelaufen'))
+    act(() => result.current.reload())
+    await waitFor(() => expect(result.current.error).toBeNull())
+    expect(result.current.tenants).toHaveLength(2)
+  })
+
   it('ohne Hash und ohne Speicher ist kein Mandant gewählt', async () => {
     const { result } = renderHook(() => useTenantScope())
     await waitFor(() => expect(result.current.loading).toBe(false))

@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import HelpBot from './HelpBot'
 import SupportForm from './SupportForm'
 import WikiBot from './WikiBot'
+import WishPanel from './WishPanel'
 import { useMySupportTickets } from './useMySupportTickets'
+import { useMyWishes } from './useMyWishes'
 
 interface Props {
   /** Vorschlagsfragen, die im Chat als Quick-Action-Buttons erscheinen. */
@@ -18,6 +20,13 @@ interface Props {
    *  Spec docs/specs/lieferanten-wiki.md — dritter Teil, unabhängig von den
    *  beiden anderen: ein Mandant kann allein das Wiki gebucht haben. */
   showWiki?: boolean
+  /** «Wünsche» anzeigen (Modul `feature_requests`). Default false.
+   *  Spec docs/specs/feature-anfragen.md §5.1 — ein eigener Reiter neben
+   *  «Problem melden», damit Wunsch und Störung schon beim Einstieg getrennt
+   *  sind statt erst beim Betreiber. */
+  showWishes?: boolean
+  /** Öffnet die Roadmap (eigener Screen der jeweiligen App). */
+  onOpenRoadmap?: () => void
   /** Firmenname des Mandanten — beschriftet den Wiki-Reiter («Meier AG Wiki»).
    *  Ohne Namen heisst der Reiter schlicht «Wiki». */
   tenantName?: string
@@ -34,7 +43,7 @@ interface Props {
 type Pos = { left: number; top: number }
 
 /** Die Teile der Blase — Hilfe-Chat, Lieferanten-Wiki, Support-Meldung. */
-type TabId = 'help' | 'wiki' | 'support' 
+type TabId = 'help' | 'wiki' | 'support' | 'wish'
 
 const FAB_SIZE = 56
 const MARGIN = 12          // Mindestabstand zum Viewport-Rand
@@ -156,8 +165,8 @@ function loadRawPos(): Pos | null {
  */
 export default function HelpBubble({
   suggestions, columnMaxWidth,
-  showHelp = true, showSupport = false, showWiki = false,
-  tenantName = '', route = '', appContext = 'pwa',
+  showHelp = true, showSupport = false, showWiki = false, showWishes = false,
+  onOpenRoadmap, tenantName = '', route = '', appContext = 'pwa',
 }: Props) {
   const [open, setOpen] = useState(false)
   // Eigene Meldungen samt Antworten des Betreibers
@@ -165,6 +174,10 @@ export default function HelpBubble({
   // Formular: das Abzeichen am FAB muss auch dann stimmen, wenn das Panel zu
   // ist — und das Panel rendert seinen Inhalt erst beim Öffnen.
   const mine = useMySupportTickets(showSupport)
+  // Eigene Wünsche (docs/specs/feature-anfragen.md §5.5) — dieselbe Begründung:
+  // das Abzeichen muss auch bei geschlossenem Panel stimmen.
+  const wishes = useMyWishes(showWishes)
+  const unreadTotal = mine.unread + wishes.unread
   // Die Blase trägt die Mandantenfarbe — und zwar über das Token, das die App
   // um sie herum führt. Beide Token halten nach `applyTenantBranding()`
   // denselben abgeleiteten Ton (brand/palette.ts schreibt `--accent` und
@@ -185,6 +198,7 @@ export default function HelpBubble({
     ...(showHelp ? ['help' as const] : []),
     ...(showWiki ? ['wiki' as const] : []),
     ...(showSupport ? ['support' as const] : []),
+    ...(showWishes ? ['wish' as const] : []),
   ]
   const [tab, setTab] = useState<TabId>(parts[0] ?? 'help')
   // Der aktive Reiter muss ein aktiver Teil sein: schaltet der Betreiber einen
@@ -198,11 +212,14 @@ export default function HelpBubble({
     help: 'Fragen',
     wiki: wikiLabel,
     support: mine.unread > 0 ? `Support (${mine.unread})` : 'Problem melden',
+    wish: wishes.unread > 0 ? `Wünsche (${wishes.unread})` : 'Wünsche',
   }
-  const PANEL_TITLES: Record<TabId, string> = { help: 'Hilfe', wiki: wikiLabel, support: 'Support' }
+  const PANEL_TITLES: Record<TabId, string> = {
+    help: 'Hilfe', wiki: wikiLabel, support: 'Support', wish: 'Wünsche & Roadmap',
+  }
   // Bei mehreren Teilen zählt der Titel sie auf — das Wiki dabei ohne
   // Firmennamen, der steht schon im Reiter darunter.
-  const SHORT_TITLES: Record<TabId, string> = { help: 'Hilfe', wiki: 'Wiki', support: 'Support' }
+  const SHORT_TITLES: Record<TabId, string> = { help: 'Hilfe', wiki: 'Wiki', support: 'Support', wish: 'Wünsche' }
   const panelTitle = parts.length === 1
     ? PANEL_TITLES[active]
     : parts.map(id => SHORT_TITLES[id]).join(' & ')
@@ -415,6 +432,14 @@ export default function HelpBubble({
             {active === 'support' && (
               <SupportForm route={route} appContext={appContext} mine={mine} />
             )}
+            {active === 'wish' && (
+              <WishPanel
+                route={route}
+                appContext={appContext}
+                mine={wishes}
+                onOpenRoadmap={onOpenRoadmap ? () => { setOpen(false); onOpenRoadmap() } : undefined}
+              />
+            )}
             {active === 'wiki' && <WikiBot tenantName={tenantName} />}
             {active === 'help' && <HelpBot suggestions={suggestions} />}
           </div>
@@ -431,8 +456,8 @@ export default function HelpBubble({
         aria-label={
           open
             ? 'Hilfe schliessen'
-            : mine.unread > 0
-              ? `Hilfe öffnen — ${mine.unread} Antwort(en) vom Support (gedrückt halten und ziehen zum Verschieben)`
+            : unreadTotal > 0
+              ? `Hilfe öffnen — ${unreadTotal} neue Nachricht(en) zu Meldungen oder Wünschen (gedrückt halten und ziehen zum Verschieben)`
               : 'Hilfe öffnen (gedrückt halten und ziehen zum Verschieben)'
         }
         aria-expanded={open}
@@ -467,8 +492,8 @@ export default function HelpBubble({
             kein Gerät, Antwort kam während der Ferien). Das `aria-label` des
             FAB nennt die Zahl mit, weil das Abzeichen selbst `aria-hidden` ist
             — sonst liest ein Screenreader nur «1». Gestaltung in index.css. */}
-        {!open && mine.unread > 0 && (
-          <span aria-hidden="true" className="help-bubble-badge">{mine.unread}</span>
+        {!open && unreadTotal > 0 && (
+          <span aria-hidden="true" className="help-bubble-badge">{unreadTotal}</span>
         )}
       </button>
     </>,

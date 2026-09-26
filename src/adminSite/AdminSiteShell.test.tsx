@@ -10,12 +10,13 @@
  *    falschen System ist der teuerste Fehler dieser Seite.
  */
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 
 vi.mock('../admin/useIsMobile', () => ({ useIsMobile: () => false }))
 
 import AdminSiteShell from './AdminSiteShell'
 import type { TenantScope } from './useTenantScope'
+import type { AdminSiteScreen } from './useAdminSiteNav'
 
 const GEHLHAAR = { id: 't-1', slug: 'gehlhaar', name: 'Gehlhaar AG', enabled_modules: [], beta_modules: [] }
 
@@ -36,10 +37,11 @@ function zeige(
   tenantId: string | null,
   scope = scopeMit(tenantId),
   zeigeRechnungen = false,
+  aktuellerScreen: AdminSiteScreen = 'uebersicht',
 ) {
   return render(
     <AdminSiteShell
-      screen="uebersicht"
+      screen={aktuellerScreen}
       onNav={vi.fn()}
       scope={scope}
       displayName="Luca"
@@ -84,6 +86,19 @@ describe('AdminSiteShell', () => {
     expect(screen.getByRole('combobox')).toHaveProperty('value', 't-1')
   })
 
+  it('graut den Wähler auf Seiten aus, die ihn ignorieren (support-uebersicht.md §3.5)', () => {
+    // Sonst liest sich «Gehlhaar AG» im Kopf als Filter über dem Support-Eingang,
+    // der aber alle Mandanten zeigt.
+    zeige('t-1', scopeMit('t-1'), false, 'support')
+    expect(screen.getByRole('combobox')).toBeDisabled()
+    expect(screen.getByTitle('Diese Seite zeigt alle Mandanten')).toBeTruthy()
+  })
+
+  it('lässt den Wähler dort aktiv, wo er wirkt', () => {
+    zeige('t-1', scopeMit('t-1'), false, 'fehler')
+    expect(screen.getByRole('combobox')).not.toBeDisabled()
+  })
+
   it('nennt die Umgebung — ohne VITE_ENV_SUFFIX ist das Produktion', () => {
     // Der Suffix ist im Test nicht gesetzt, also der Produktions-Build.
     zeige('t-1')
@@ -93,6 +108,13 @@ describe('AdminSiteShell', () => {
   it('meldet einen Fehler der Mandantenliste, statt ihn zu verschlucken', () => {
     zeige(null, { ...scopeMit(null), error: 'Netzwerkfehler' })
     expect(screen.getByText(/Netzwerkfehler/)).toBeTruthy()
+  })
+
+  it('bietet bei einem Fehler der Mandantenliste «Erneut laden» an', () => {
+    const scope = { ...scopeMit(null), error: 'Sitzung abgelaufen' }
+    zeige(null, scope)
+    fireEvent.click(screen.getByRole('button', { name: 'Erneut laden' }))
+    expect(scope.reload).toHaveBeenCalled()
   })
 
   it('zeigt den Rechnungs-Bereich NICHT, solange das Konto die Module nicht hat', () => {

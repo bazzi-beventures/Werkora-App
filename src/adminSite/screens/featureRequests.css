@@ -1,0 +1,325 @@
+/* ── Feature-Anfragen (docs/specs/feature-anfragen.md §7) ─────────────────────
+   Ergänzt error-logs.css/support.css (Chips, Filterzeile, leerer Zustand) um
+   Reiter, Board und die Dialoge. Nur Tokens aus tokens.css — kein Hex, damit
+   Hell/Dunkel ohne Zutun stimmen. */
+
+.fr-tabs {
+  display: flex;
+  gap: var(--s-2);
+  border-bottom: 1px solid var(--border);
+  margin: var(--s-4) 0 var(--s-2);
+}
+
+.fr-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-sm);
+  padding: var(--s-2) var(--s-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.fr-tab.is-active {
+  border-bottom-color: var(--primary);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.fr-badge {
+  background: var(--primary);
+  color: var(--on-accent, #fff);
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  line-height: 1;
+  padding: 3px 7px;
+}
+
+.fr-muted { color: var(--text-muted); font-size: var(--font-xs); }
+.fr-error { color: var(--danger); font-size: var(--font-sm); }
+.fr-grow { flex: 1 1 200px; min-width: 0; }
+
+.fr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  justify-content: flex-end;
+}
+.fr-actions-inline { display: inline-flex; margin-left: auto; }
+
+.fr-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: flex-end;
+}
+.fr-inline > .admin-form-group { margin-bottom: 0; }
+
+.fr-form { display: flex; flex-direction: column; gap: var(--s-3); }
+.fr-check { display: inline-flex; align-items: center; gap: var(--s-2); font-size: var(--font-sm); }
+.fr-actions-list { display: flex; flex-direction: column; gap: var(--s-1); }
+
+.fr-link {
+  background: none;
+  border: none;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+}
+.fr-link:hover { text-decoration: underline; }
+
+.fr-section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: var(--s-4);
+}
+
+/* ── Eingang ── */
+
+.fr-row { cursor: pointer; }
+.fr-row:hover td { background: var(--surface-2); }
+.fr-table td { vertical-align: top; }
+
+.fr-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-3);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  font-size: var(--font-sm);
+}
+.fr-bulk select { max-width: 360px; }
+
+.fr-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s-1) var(--s-3);
+  font-size: var(--font-sm);
+  margin: 0;
+}
+.fr-meta dt { color: var(--text-muted); }
+.fr-meta dd { margin: 0; }
+
+.fr-quote-title { font-weight: 600; }
+.fr-quote {
+  border-left: 3px solid var(--border);
+  padding: var(--s-1) var(--s-3);
+  white-space: pre-wrap;
+  font-size: var(--font-sm);
+}
+
+.fr-similar { list-style: none; margin: 0; padding: 0; font-size: var(--font-sm); }
+.fr-similar li { padding: 2px 0; }
+
+.fr-picker { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.fr-target { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.fr-target .admin-input { width: auto; }
+.fr-target-preview { font-size: var(--font-sm); color: var(--text-muted); }
+
+/* ── Board ──
+   Sechs Spalten nebeneinander; wird es schmal, läuft das Board quer statt
+   die Karten zu quetschen. Nur im Board selbst — die Seite scrollt nie seitlich. */
+
+.fr-board {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(200px, 1fr));
+  gap: var(--s-3);
+  overflow-x: auto;
+  padding-bottom: var(--s-2);
+}
+.fr-board-end { grid-template-columns: repeat(2, minmax(200px, 1fr)); max-width: 640px; }
+
+.fr-column {
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  padding: var(--s-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-height: 120px;
+}
+
+.fr-column-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px var(--s-1);
+}
+
+.fr-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  cursor: grab;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: inherit;
+  padding: var(--s-2) var(--s-3);
+  text-align: left;
+  width: 100%;
+}
+.fr-card:hover { border-color: var(--primary); }
+.fr-card.is-intern { border-style: dashed; }
+.fr-card-top { display: flex; justify-content: space-between; gap: var(--s-2); }
+.fr-card-title { font-weight: 600; font-size: var(--font-sm); }
+.fr-card-meta { font-size: var(--font-xs); color: var(--text-muted); }
+
+.fr-end-toggle { margin: var(--s-3) 0; font-size: var(--font-sm); }
+
+.fr-phase {
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  padding: 2px 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.fr-phase-geplant, .fr-phase-entwurf { background: var(--primary-soft); color: var(--primary); }
+.fr-phase-umsetzung, .fr-phase-test { background: var(--warning-soft); color: var(--warning); }
+.fr-phase-verfuegbar { background: var(--success-soft); color: var(--success); }
+.fr-phase-abgelehnt { background: var(--danger-soft); color: var(--danger); }
+
+/* ── Dialoge ── */
+
+.fr-dialog { max-width: 560px; }
+.fr-dialog-wide { max-width: 760px; }
+.fr-detail { max-width: 1000px; }
+
+.fr-detail-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--font-sm);
+}
+.fr-detail-status .admin-btn { margin-left: auto; }
+
+.fr-detail-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-4);
+  margin-top: var(--s-3);
+}
+.fr-detail-public, .fr-detail-internal {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-3);
+}
+.fr-detail-internal { background: var(--surface-2); }
+
+.fr-timeline { list-style: none; margin: var(--s-2) 0; padding: 0 0 0 var(--s-3); border-left: 2px solid var(--border); }
+.fr-timeline-item { padding: var(--s-1) 0 var(--s-2) var(--s-3); position: relative; font-size: var(--font-sm); }
+.fr-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--s-3) - 6px);
+  top: 9px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.fr-timeline-intern::before { background: var(--text-muted); }
+.fr-timeline-ziel::before { background: var(--warning); }
+.fr-timeline-head { display: flex; justify-content: space-between; gap: var(--s-2); }
+.fr-timeline-text { white-space: pre-wrap; color: var(--text-muted); }
+
+.fr-update { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.fr-summary {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  max-height: 360px;
+  overflow: auto;
+  padding: var(--s-3);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 767px) {
+  .fr-detail-columns { grid-template-columns: 1fr; }
+  .fr-board { grid-template-columns: repeat(6, minmax(78vw, 1fr)); scroll-snap-type: x mandatory; }
+  .fr-column { scroll-snap-align: start; }
+}
+
+/* ── Auswertung (Paket 3, Spec §8) ─────────────────────────────────────── */
+
+.fr-analysis { display: flex; flex-direction: column; gap: var(--s-3); }
+.fr-analysis-controls { align-items: flex-end; }
+.fr-date { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--font-xs); color: var(--text-muted); }
+.fr-date .admin-input { min-width: 0; }
+.fr-analysis-block { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.fr-tile-button {
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.fr-tile-button:hover { border-color: var(--primary); }
+
+.fr-rank { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-1); }
+.fr-rank-row {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  font: inherit;
+  font-size: var(--font-sm);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.fr-rank-row:hover { border-color: var(--border); background: var(--surface-2); }
+.fr-rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fr-rank-bar { display: block; height: 10px; border-radius: var(--radius-md); background: var(--surface-2); overflow: hidden; }
+.fr-rank-bar > span { display: block; height: 100%; background: var(--primary); }
+.fr-rank-value { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+.fr-matrix td, .fr-matrix th { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fr-matrix td:first-child, .fr-matrix th:first-child { text-align: left; }
+
+@media (max-width: 640px) {
+  .fr-rank-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .fr-rank-bar { grid-column: 1 / -1; grid-row: 2; }
+}
+
+/* ── KI-Entwurf und Zusammenlegen (Paket 3, Spec §7.1, §7.5) ───────────── */
+
+.fr-ai { width: 100%; font-size: var(--font-sm); }
+.fr-merge { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.fr-merge > select { flex: 1 1 16rem; min-width: 0; }
+.fr-merge-confirm {
+  flex: 1 1 100%;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-md);
+  background: var(--warning-soft);
+  font-size: var(--font-sm);
+}

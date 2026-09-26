@@ -26,6 +26,12 @@ export interface KpiDashboardRow {
   offene_offerten_anzahl: number
   lager_kritisch_anzahl: number
   ueberstunden_gesamt_stunden: number
+  /** Anteil aktiver Artikel mit einer Zählung in den letzten 365 Tagen.
+   *  `null` ohne Lagerzeilen — eine 0 läse sich als «nichts gezählt», und das
+   *  wäre eine Aussage über ein Lager, das es nicht gibt.
+   *  Das Fenster ist nicht einstellbar: Es ist die Frage des Treuhänders
+   *  (docs/specs/rollierende-inventur.md §5). */
+  inventur_abdeckung_pct: number | null
 }
 
 export interface KpiProjektRow {
@@ -196,6 +202,9 @@ export interface KpiMaterialRow {
   reichweite_tage: number | null
   erster_verbrauch: string | null
   letzter_verbrauch: string | null
+  /** Letzte Inventurbuchung an diesem Artikel. `null` = nie gezählt (und bei
+   *  Pauschalen immer — die sind kein Lagerartikel). */
+  zuletzt_gezaehlt: string | null
 }
 
 export interface KpiWartungRow {
@@ -208,6 +217,35 @@ export interface KpiWartungRow {
   wartung_next_due_at: string | null
   days_remaining: number | null
   status: 'kein_plan' | 'ueberfaellig' | 'faellig' | 'anstehend' | 'ok'
+}
+
+/** Eine Zeile je Garantiefall (vw_kpi_garantie, docs/specs/garantiefall.md §5.7). */
+export interface KpiGarantieRow {
+  tenant_id: string
+  fall_id: string
+  case_no: number
+  reported_at: string
+  jahr: number
+  status: 'gemeldet' | 'in_pruefung' | 'entschieden' | 'in_arbeit' | 'behoben' | 'abgeschlossen'
+  decision: 'anerkannt' | 'kulanz' | 'abgelehnt' | null
+  cause: 'eigener_fehler' | 'material' | 'fremdverschulden' | 'verschleiss' | 'unklar' | null
+  supplier_id: string | null
+  supplier_name: string | null
+  source_project_id: string
+  ursprung_nummer: string | null
+  ursprung_name: string | null
+  kunde_name: string | null
+  repair_project_id: string | null
+  reparatur_nummer: string | null
+  reparatur_name: string | null
+  deadline_at: string | null
+  in_frist: boolean | null
+  stunden: number | null
+  lohn_kosten: number | null
+  material_kosten: number | null
+  /** Interne Kosten des Reparatur-Projekts; null = ohne Projekt oder unvollständig bewertet. */
+  kosten: number | null
+  umsatz: number | null
 }
 
 export interface KpiLeistungsartMonatRow {

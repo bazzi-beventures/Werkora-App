@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BoardTask } from '../../api/admin'
-import { dropSortOrder, groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, taskField } from './taskBoardLogic'
+import { dropSortOrder, groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, navTarget, taskField } from './taskBoardLogic'
 
 function task(over: Partial<BoardTask>): BoardTask {
   return {
@@ -115,5 +115,21 @@ describe('groupByAssignee', () => {
     const grouped = groupByAssignee(tasks)
     expect(grouped.get('s1')!.map(t => t.id)).toEqual(['a'])
     expect(grouped.get(null)!.map(t => t.id)).toEqual(['b'])
+  })
+})
+
+describe('navTarget', () => {
+  it('Garantiefall: öffnet das Ursprungsprojekt auf dem Reiter «Garantie»', () => {
+    expect(navTarget(task({ ref_kind: 'warranty_case', ref_id: 'c-1', project_id: 'p-1' })))
+      .toEqual({ screen: 'projects', detailId: 'p-1', tab: 'warranty' })
+  })
+
+  it('Garantiefall ohne Projekt: kein Sprung ins Leere', () => {
+    expect(navTarget(task({ ref_kind: 'warranty_case', ref_id: 'c-1' }))).toBeNull()
+  })
+
+  it('übrige Karten springen ohne Reiter', () => {
+    expect(navTarget(task({ ref_kind: 'project', project_id: 'p-1' })))
+      .toEqual({ screen: 'projects', detailId: 'p-1' })
   })
 })

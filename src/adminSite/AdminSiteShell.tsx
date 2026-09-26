@@ -19,7 +19,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { WerkoraMark } from '../brand/WerkoraMark'
 import { useIsMobile } from '../admin/useIsMobile'
 import {
-  IconBuilding, IconPulse, IconAlert, IconLifebuoy, IconBell, IconMail,
+  IconBuilding, IconPulse, IconAlert, IconLifebuoy, IconBulb, IconBell, IconMail,
   IconSettings, IconCash, IconChart, IconBox, IconPercent,
   IconReceipt, IconUpload, IconAddressBook, IconUsers,
 } from '../admin/AdminIcons'
@@ -37,6 +37,7 @@ export const SCREEN_TITEL: Record<AdminSiteScreen, string> = {
   'service-status': 'Service-Status',
   fehler: 'Error-Logs',
   support: 'Support',
+  'feature-anfragen': 'Feature-Anfragen',
   'push-test': 'Push-Test',
   newsletter: 'Newsletter',
   konfiguration: 'Konfiguration',
@@ -70,6 +71,7 @@ const SCREEN_ICON: Record<AdminSiteScreen, () => React.ReactElement> = {
   'service-status': IconPulse,
   fehler: IconAlert,
   support: IconLifebuoy,
+  'feature-anfragen': IconBulb,
   'push-test': IconBell,
   newsletter: IconMail,
   konfiguration: IconSettings,
@@ -95,6 +97,20 @@ const SCREEN_ICON: Record<AdminSiteScreen, () => React.ReactElement> = {
 const IST_STAGING = (import.meta.env.VITE_ENV_SUFFIX ?? '') !== ''
 const UMGEBUNG = IST_STAGING ? 'Staging' : 'Produktion'
 
+/**
+ * Plattform-Screens, auf die der Kopf-Wähler nicht wirkt (Spec
+ * docs/specs/support-uebersicht.md §3.5). Dort wird er ausgegraut statt
+ * ausgeblendet — Ausblenden liesse den Kopf beim Screenwechsel springen. Ein
+ * aktiver Wähler über einer Seite, die ihn ignoriert, las sich als Filter:
+ * «Gehlhaar GmbH Test» oben, darunter die Meldungen aller Mandanten.
+ *
+ * Nicht dabei: die Übersicht (setzt den Wähler per Klick auf eine Zeile) und
+ * das Fehlerprotokoll (übernimmt ihn als Vorauswahl seines Filters).
+ */
+const WAEHLER_OHNE_WIRKUNG: readonly AdminSiteScreen[] = [
+  'service-status', 'support', 'push-test', 'newsletter',
+]
+
 interface Props {
   screen: AdminSiteScreen
   onNav: (screen: AdminSiteScreen) => void
@@ -107,11 +123,14 @@ interface Props {
    *  Mandanten. Trägt es `invoicing` + `payment_matching`, sitzt es im
    *  Betreiber-Mandanten und der Bereich «Rechnungen» erscheint (§8.3). */
   zeigeRechnungen: boolean
+  /** Zahl je Screen, die als Abzeichen am Eintrag steht — heute nur die neuen
+   *  Feature-Anfragen (docs/specs/feature-anfragen.md §7). */
+  badges?: Partial<Record<AdminSiteScreen, number>>
   children: ReactNode
 }
 
 export default function AdminSiteShell({
-  screen, onNav, scope, displayName, onLogout, onChangePassword, zeigeRechnungen, children,
+  screen, onNav, scope, displayName, onLogout, onChangePassword, zeigeRechnungen, badges, children,
 }: Props) {
   const isMobile = useIsMobile()
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
@@ -128,6 +147,7 @@ export default function AdminSiteShell({
         <div className="adminsite-nav-heading">Plattform</div>
         {PLATTFORM_SCREENS.map((s) => {
           const Icon = SCREEN_ICON[s]
+          const badge = badges?.[s] ?? 0
           return (
             <button
               key={s}
@@ -137,6 +157,9 @@ export default function AdminSiteShell({
             >
               <Icon />
               <span>{SCREEN_TITEL[s]}</span>
+              {badge > 0 && (
+                <span className="adminsite-nav-badge" aria-label={`${badge} neu`}>{badge}</span>
+              )}
             </button>
           )
         })}
@@ -207,14 +230,18 @@ export default function AdminSiteShell({
     </nav>
   )
 
+  const ohneWirkung = WAEHLER_OHNE_WIRKUNG.includes(screen)
   const waehler = (
-    <label className="adminsite-tenant-picker">
+    <label
+      className={`adminsite-tenant-picker${ohneWirkung ? ' is-inert' : ''}`}
+      title={ohneWirkung ? 'Diese Seite zeigt alle Mandanten' : undefined}
+    >
       <span className="adminsite-tenant-picker-label">Mandant</span>
       <select
         className="admin-form-select"
         value={scope.tenantId ?? ''}
         onChange={(e) => scope.selectTenant(e.target.value || null)}
-        disabled={scope.loading || !!scope.error}
+        disabled={ohneWirkung || scope.loading || !!scope.error}
       >
         <option value="">— keiner gewählt —</option>
         {scope.tenants.map((t) => (
@@ -268,6 +295,11 @@ export default function AdminSiteShell({
         {scope.error && (
           <div className="admin-form-error adminsite-tenant-error">
             Mandantenliste nicht geladen: {scope.error}
+            {' '}
+            <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm"
+                    onClick={scope.reload}>
+              Erneut laden
+            </button>
           </div>
         )}
 

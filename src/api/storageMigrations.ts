@@ -35,6 +35,10 @@ function isKnownKey(k: string): boolean {
   if (k.startsWith('offline-rapport-entwurf:')) return true
   if (k === 'admin-theme') return true
   if (k === 'helpbubble-pos') return true  // gemerkte Drag-Position der Hilfe-Blase
+  // Zeitpunkt des letzten Roadmap-Besuchs, pro Konto — nur für den Punkt
+  // «geändert seit letztem Besuch» (docs/specs/feature-anfragen.md §5.4).
+  // Additiver Key, keine APP_DATA_VERSION-Erhöhung nötig.
+  if (k.startsWith('roadmap-seen:')) return true
   if (k === 'schedule-week-zoom') return true  // Zoom-Stufe des Wochen-Zeitrasters
   if (k === 'schedule-gantt-zoom') return true  // Zoom-Stufe des Tagesplans (Gantt)
   if (k === 'schedule-gantt-span') return true  // Sichtbarer Zeitraum des Tagesplans (1/3/5 Tage)

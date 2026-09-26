@@ -25,6 +25,8 @@ export type ModuleName =
   | 'support'
   | 'newsletter'
   | 'supplier_wiki'
+  | 'feature_requests'
+  | 'warranty'
 
 export function hasModule(user: UserInfo | null, name: ModuleName): boolean {
   if (!user) return false

@@ -19,6 +19,7 @@ const KNOWN_MODULES = [
   'project_change_push', 'admin_clock_in_push', 'correction_request_push',
   'aftersales', 'document_backup',
   'rapport_check_mail', 'task_board', 'newsletter', 'support', 'supplier_wiki',
+  'feature_requests', 'warranty',
 ]
 
 describe('moduleOfAction', () => {

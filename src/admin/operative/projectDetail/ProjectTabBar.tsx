@@ -7,7 +7,7 @@ import { useTabStrip } from '../../hooks/useTabStrip'
 
 export type ProjectTab =
   | 'details' | 'documents' | 'supplier' | 'quotes' | 'reports'
-  | 'invoices' | 'approvals' | 'tasks' | 'nachkalkulation' | 'status'
+  | 'invoices' | 'approvals' | 'tasks' | 'nachkalkulation' | 'warranty' | 'status'
 
 const TABS: { key: ProjectTab; label: string }[] = [
   { key: 'details', label: 'Projekt Details' },
@@ -19,6 +19,7 @@ const TABS: { key: ProjectTab; label: string }[] = [
   { key: 'invoices', label: 'Rechnungen' },
   { key: 'approvals', label: 'Visierung' },
   { key: 'nachkalkulation', label: 'Nachkalkulation' },
+  { key: 'warranty', label: 'Garantie' },
   { key: 'status', label: 'Status' },
 ]
 
@@ -26,13 +27,18 @@ const TABS: { key: ProjectTab; label: string }[] = [
 // services/app_links.PROJECT_TABS gehalten). Was ein Benutzer tatsächlich sieht,
 // entscheidet `showNachkalkulation`: Eigenkosten und Gewinn gehen nur das
 // Management etwas an, und ohne Modul `kpis` antwortet der Endpunkt ohnehin 403.
-export function ProjectTabBar({ active, onSelect, showNachkalkulation = false }: {
+// Ebenso `showWarranty`: «Garantie» nur mit Modul `warranty` (beta-bewusst aus
+// /pwa/me) — ohne antwortet /admin/warranty/cases mit 403.
+export function ProjectTabBar({ active, onSelect, showNachkalkulation = false, showWarranty = false }: {
   active: ProjectTab
   onSelect: (tab: ProjectTab) => void
   showNachkalkulation?: boolean
+  showWarranty?: boolean
 }) {
   const tabsRef = useTabStrip(active)
-  const visible = TABS.filter(t => t.key !== 'nachkalkulation' || showNachkalkulation)
+  const visible = TABS.filter(t =>
+    (t.key !== 'nachkalkulation' || showNachkalkulation)
+    && (t.key !== 'warranty' || showWarranty))
 
   return (
     <div className="kpi-admin-tabs" ref={tabsRef} style={{ marginBottom: 20 }}>

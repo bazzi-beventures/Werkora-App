@@ -75,6 +75,13 @@ function IconXCircle() {
   return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM8.707 7.293a1 1 0 0 0-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 1 0 1.414 1.414L10 11.414l1.293 1.293a1 1 0 0 0 1.414-1.414L11.414 10l1.293-1.293a1 1 0 0 0-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/></svg>
 }
 
+function IconClipboardCount() {
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 2a1 1 0 0 0-.894.553L7.382 4H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.382l-.724-1.447A1 1 0 0 0 11 2H9zm-2 8a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2H8a1 1 0 0 1-1-1zm1 3a1 1 0 1 0 0 2h3a1 1 0 1 0 0-2H8z"/></svg>
+}
+function IconBoxLow() {
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 0 0-1 1v2h14V4a1 1 0 0 0-1-1H4zm13 5H3v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zm-9 3h4a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2z"/></svg>
+}
+
 function daysSince(iso: string | null): number {
   if (!iso) return 0
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
@@ -758,6 +765,39 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange }: Pro
           />
         </div>
       </section>
+
+      {/* Lager: nur, wenn der Betrieb eines führt. Der Server schickt `null`
+          statt 0, wenn Modul oder Flag fehlen — eine Kachel «Inventur: 0 zu
+          zählen» wäre sonst eine Zahl ohne Bedeutung, und der Klick führte in
+          einen Reiter, den es gar nicht gibt. */}
+      {dashboard?.inventory_count_open_items != null && (
+        <section className="admin-kpi-section">
+          <h3 className="admin-kpi-group-title">Lager</h3>
+          <div className="admin-kpi-grid">
+            <KpiCard
+              label="Inventur: zu zählen"
+              value={dashboard.inventory_count_open_items}
+              colorClass="orange"
+              onClick={() => onNav(
+                'materials',
+                dashboard.inventory_count_open_id
+                  ? `inventur:${dashboard.inventory_count_open_id}`
+                  : 'inventur',
+              )}
+              icon={<IconClipboardCount />}
+              badge
+            />
+            <KpiCard
+              label="Unter Meldebestand"
+              value={dashboard.inventory_below_min ?? null}
+              colorClass="red"
+              onClick={() => onNav('materials', 'lager')}
+              icon={<IconBoxLow />}
+              badge
+            />
+          </div>
+        </section>
+      )}
 
       <section className="admin-kpi-section">
         <h3 className="admin-kpi-group-title">Vertrieb & Projekte</h3>

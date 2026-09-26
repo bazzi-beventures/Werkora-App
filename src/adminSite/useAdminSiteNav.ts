@@ -20,6 +20,7 @@ export const PLATTFORM_SCREENS = [
   'service-status',
   'fehler',
   'support',
+  'feature-anfragen',
   'push-test',
   'newsletter',
 ] as const

@@ -9,18 +9,20 @@ import HomeScreen from './screens/HomeScreen'
 import ChatScreen from './chat/ChatScreen'
 import ArbeitsZeitScreen from './screens/ArbeitsZeitScreen'
 import ProfileScreen from './screens/ProfileScreen'
+import RoadmapScreen from './screens/RoadmapScreen'
 import BerichtScreen, { BerichtType } from './screens/BerichtScreen'
 import ProjekteScreen from './screens/ProjekteScreen'
 import OffertenScreen from './screens/OffertenScreen'
 import ProjektEntwurfScreen from './screens/ProjektEntwurfScreen'
 import AbsenzenScreen from './screens/AbsenzenScreen'
+import InventurScreen from './inventur/InventurScreen'
 import AdminApp from './admin/AdminApp'
 import { WerkoraMark } from './brand/WerkoraMark'
 import { derivePalette, paletteCss } from './brand/palette'
 import { MigrationBanner, MIGRATION_STREIFEN_HOEHE, aktuelleMigrationStufe } from './shared/MigrationBanner'
 import HelpBubble from './shared/HelpBubble'
 import { consumeBack, consumeScreenBack } from './shared/backButton'
-import { captureDeepLink } from './shared/deepLink'
+import { captureDeepLink, rememberDeepLink, takeCountDeepLink } from './shared/deepLink'
 import { advance, retreat } from './shared/navHistory'
 import { trackNav } from './shared/breadcrumbs'
 import { hasModule, isFeatureEnabled } from './api/modules'
@@ -42,7 +44,7 @@ declare global {
   }
 }
 
-type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen'
+type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen' | 'inventur' | 'roadmap'
 
 // Die Wahl der Schrift auf der Akzentfläche wohnt jetzt in brand/palette.ts,
 // zusammen mit der übrigen Farbableitung. Der Re-Export hält die Funktion an
@@ -156,6 +158,8 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [swUpdateReady, setSwUpdateReady] = useState(false)
   const [pushMsg, setPushMsg] = useState<{ title: string; body: string } | null>(null)
+  // Sprung in eine bestimmte Zählung (Push oder Kaltstart über #/inventur/<id>).
+  const [inventurCountId, setInventurCountId] = useState<string | null>(null)
   const [authExpiredAt, setAuthExpiredAt] = useState<number | null>(null)
   // Besuchte Screens ohne den aktuellen — der Zurück-Knopf läuft ihn ab.
   const [navHistory, setNavHistory] = useState<Screen[]>([])
@@ -210,6 +214,10 @@ export default function App() {
     const onMsg = (e: MessageEvent) => {
       if (e.data?.type === 'push') {
         setPushMsg({ title: e.data.title || 'Mitteilung', body: e.data.body || '' })
+        // Trägt die Meldung eine bekannte Adresse, wird sie zum Weg statt zur
+        // blossen Ansage. Alles Unbekannte (der Normalfall `/`) bleibt ein
+        // Banner — `rememberDeepLink` gibt dann `false` zurück und ändert nichts.
+        if (typeof e.data.url === 'string') rememberDeepLink(e.data.url)
       }
     }
     navigator.serviceWorker.addEventListener('message', onMsg)
@@ -255,6 +263,22 @@ export default function App() {
     const t = window.setTimeout(() => setAuthExpiredAt(null), 8000)
     return () => window.clearTimeout(t)
   }, [authExpiredAt])
+
+  // Der Sprung in eine Zählung (`#/inventur/<id>` aus einer Push oder einem
+  // Kaltstart). Er wartet in shared/deepLink.ts, bis jemand angemeldet ist —
+  // dazwischen liegt im Zweifel ein ganzer Login.
+  //
+  // Er landet für JEDE Rolle im Inventur-Screen, nicht rollenabhängig in der
+  // Admin-App: Das ist die Maske, in der gezählt wird, und sie funktioniert für
+  // beide. Der Admin, der stattdessen die Tabelle will, findet sie weiterhin
+  // unter Material → Inventur.
+  useEffect(() => {
+    if (!user || screen === 'loading' || screen === 'login' || screen === 'pin') return
+    const link = takeCountDeepLink()
+    if (!link) return
+    setInventurCountId(link.countId)
+    setScreen('inventur')
+  }, [user, screen])
 
   // Keep refs in sync so the popstate handler always sees the latest state
   useEffect(() => { screenRef.current = screen }, [screen])
@@ -644,6 +668,16 @@ export default function App() {
         onNavProfile={() => go('profile')}
         onLoggedOut={goToAuth}
         onSwitchToAdmin={(user.role === 'admin' || user.role === 'management' || user.role === 'superadmin') ? () => go('admin') : undefined}
+        inventur={user.inventur_offen ?? null}
+        onNavInventur={() => go('inventur')}
+      />
+    )
+  } else if (screen === 'inventur' && user) {
+    inner = (
+      <InventurScreen
+        onBack={() => go('home')}
+        initialCountId={inventurCountId}
+        onInitialConsumed={() => setInventurCountId(null)}
       />
     )
   } else if (screen === 'profile' && user) {
@@ -656,6 +690,22 @@ export default function App() {
         logoUrl={effectiveLogo}
         onBack={() => go('home')}
         onLoggedOut={goToAuth}
+        onOpenRoadmap={
+          hasModule(user, 'feature_requests') && user.role !== 'user_light'
+            ? () => go('roadmap')
+            : undefined
+        }
+      />
+    )
+  } else if (screen === 'roadmap' && user) {
+    // Modul (beta-bewusst aus /pwa/me) und Rolle wie am Server (Spec §10.1, O2).
+    if (!hasModule(user, 'feature_requests') || user.role === 'user_light') { resetTo('home'); return null }
+    inner = (
+      <RoadmapScreen
+        userId={user.authorized_user_id}
+        role={user.role}
+        logoUrl={effectiveLogo}
+        onBack={() => go('home')}
       />
     )
   } else if (screen === 'rapport' && user) {
@@ -847,7 +897,11 @@ export default function App() {
   // Lieferanten-Wiki: nur das Modul, kein zusätzliches Feature-Flag — der Reiter
   // gehört von Haus aus dem Monteur, nicht dem Admin (Spec docs/specs/lieferanten-wiki.md).
   const showWiki = onBubbleScreen && hasModule(user, 'supplier_wiki')
-  const showHelpBubble = showHelp || showSupport || showWiki
+  // Wünsche & Roadmap (docs/specs/feature-anfragen.md §5.1): nur das Modul —
+  // user_light nicht (O2), wie am Server.
+  const showWishes =
+    onBubbleScreen && hasModule(user, 'feature_requests') && user?.role !== 'user_light'
+  const showHelpBubble = showHelp || showSupport || showWiki || showWishes
 
   return (
     <>
@@ -863,6 +917,8 @@ export default function App() {
           showHelp={showHelp}
           showSupport={showSupport}
           showWiki={showWiki}
+          showWishes={showWishes}
+          onOpenRoadmap={() => go('roadmap')}
           tenantName={tenantName}
           route={screen}
           appContext="pwa"

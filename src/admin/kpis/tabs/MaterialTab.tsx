@@ -17,6 +17,15 @@ const COLUMNS: ColumnDef<KpiMaterialRow>[] = [
   { key: 'lagerwert', label: 'Lagerwert', align: 'right', format: chf },
   { key: 'total_verbrauch', label: 'Verbrauch', align: 'right', format: num },
   { key: 'reichweite_tage', label: 'Reichweite', align: 'right', format: (v) => v != null ? `${v} Tage` : '—' },
+  // «Nie» statt «—»: Die Spalte existiert, um den Rückstand zu zeigen, und ein
+  // Strich läse sich wie «keine Angabe» statt wie «nie gezählt».
+  {
+    key: 'zuletzt_gezaehlt',
+    label: 'Zuletzt gezählt',
+    format: (v) => typeof v === 'string'
+      ? new Date(v).toLocaleDateString('de-CH')
+      : 'nie',
+  },
 ]
 
 export default function MaterialTab() {

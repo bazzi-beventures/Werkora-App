@@ -31,6 +31,8 @@ import MaterialCleanupScreen from './screens/MaterialCleanupScreen'
 import WerkoraBonusScreen from './screens/WerkoraBonusScreen'
 import TenantsOverviewScreen from './screens/TenantsOverviewScreen'
 import NewsletterScreen from './screens/NewsletterScreen'
+import FeatureRequestsScreen from './screens/FeatureRequestsScreen'
+import { fetchNewRequestCount } from '../api/featureRequests'
 
 // Die drei Rechnungs-Screens werden NICHT nach adminSite/ verschoben (§8.3):
 // sie bleiben Mandanten-Screens und werden von beiden Einstiegen importiert.
@@ -73,8 +75,14 @@ export default function AdminSite() {
   const [pruefend, setPruefend] = useState(true)
   const [passwortDialog, setPasswortDialog] = useState(false)
   const { toast, showToast } = useToast()
-  const scope = useTenantScope()
+  // Erst mit Sitzung laden — sonst bleibt ein 401 von vor dem Login als
+  // «Sitzung abgelaufen» im Wähler stehen (siehe useTenantScope).
+  const scope = useTenantScope(user !== null)
   const { screen, detail, navigate } = useAdminSiteNav()
+  // Neue Feature-Anfragen als Abzeichen in der Leiste (docs/specs/feature-anfragen.md
+  // §7, §9.2): der Betreiber bekommt je Anfrage weder Push noch Mail — die Zahl
+  // hier ist der Hinweis. Nachgeladen bei jedem Screenwechsel, kein Polling.
+  const [neueAnfragen, setNeueAnfragen] = useState(0)
 
   // Beim Start: gibt es schon eine gültige Sitzung? Das 30-Tage-Cookie ist der
   // Normalfall (E6 — Passkeys kommen erst mit O3), ein Login also die Ausnahme.
@@ -86,6 +94,15 @@ export default function AdminSite() {
       .finally(() => { if (!abgebrochen) setPruefend(false) })
     return () => { abgebrochen = true }
   }, [])
+
+  useEffect(() => {
+    if (!user) return
+    let abgebrochen = false
+    fetchNewRequestCount()
+      .then((r) => { if (!abgebrochen) setNeueAnfragen(r.count) })
+      .catch(() => { /* Abzeichen ist Beiwerk — ohne Zahl bleibt die Leiste, wie sie ist */ })
+    return () => { abgebrochen = true }
+  }, [user, screen])
 
   const abmelden = useCallback(async () => {
     try { await logout() } finally { setUser(null) }
@@ -153,6 +170,13 @@ export default function AdminSite() {
       // bestehenden «Alle Mandanten»-Filters — nicht als Skopierung (§4.1).
       case 'fehler':         return <ErrorLogsScreen initialTenantId={scope.tenantId ?? undefined} />
       case 'support':        return <SupportTicketsScreen initialTicketId={detail ?? undefined} />
+      case 'feature-anfragen':
+        return (
+          <FeatureRequestsScreen
+            initialTenantId={scope.tenantId ?? undefined}
+            onCountChange={setNeueAnfragen}
+          />
+        )
 
       // ── Rechnungen: der EIGENE Mandant des Kontos (§8.3) ──
       // Kein `tenantId`: diese Screens lesen den Mandanten aus der Sitzung.
@@ -173,6 +197,7 @@ export default function AdminSite() {
       onLogout={abmelden}
       onChangePassword={() => setPasswortDialog(true)}
       zeigeRechnungen={hatRechnungsbereich(user)}
+      badges={{ 'feature-anfragen': neueAnfragen }}
     >
       {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
           Navigation und Mandanten-Wähler stehen, statt dass die ganze Seite

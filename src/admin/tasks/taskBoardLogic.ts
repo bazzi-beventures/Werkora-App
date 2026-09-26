@@ -1,4 +1,6 @@
 import { BoardColumn, BoardTask, TaskTypeInfo } from '../../api/admin'
+import type { AdminScreen } from '../useAdminNav'
+import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 
 export const COLUMN_LABELS: Record<BoardColumn, string> = {
   offen: 'Offen',
@@ -119,4 +121,21 @@ export function isOverdue(task: Pick<BoardTask, 'due_date' | 'status'>, today = 
   if (!task.due_date || task.status === 'erledigt') return false
   const iso = today.toISOString().slice(0, 10)
   return task.due_date < iso
+}
+
+/** Deep-Link von der Karte zum Quell-Datensatz. */
+export function navTarget(task: BoardTask): { screen: AdminScreen; detailId?: string; tab?: ProjectTab } | null {
+  switch (task.ref_kind) {
+    case 'quote': return { screen: 'quotes' }
+    case 'invoice': return { screen: 'invoices' }
+    case 'project': return task.project_id ? { screen: 'projects', detailId: task.project_id } : { screen: 'projects' }
+    case 'draft': return { screen: 'project-drafts' }
+    case 'approval': return { screen: 'dashboard' }
+    case 'aftersales': return { screen: 'aftersales' }
+    // Der Fall liegt im Projekt, Reiter «Garantie» (Spec garantiefall.md §6.2).
+    case 'warranty_case':
+      return task.project_id ? { screen: 'projects', detailId: task.project_id, tab: 'warranty' } : null
+    default:
+      return task.project_id ? { screen: 'projects', detailId: task.project_id } : null
+  }
 }

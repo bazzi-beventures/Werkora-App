@@ -113,8 +113,55 @@ export interface Project {
   // Fahrdistanz zum Objekt (projects.distance_km) — füllt die Fahrspesen im
   // Offert-Formular vor.
   distance_km?: number | null
+  // Abnahme: der erste Wechsel auf 'abgeschlossen'. Anker der Garantiefrist
+  // (Spec docs/specs/garantiefall.md §3.3). null = nie abgeschlossen, oder der
+  // Abschluss liegt vor der Einfuehrung der Spalte — dann gilt «Frist unbekannt».
+  completed_at?: string | null
+  // Zweiter moeglicher Anker: erste gesendete Rechnung dieses Projekts.
+  warranty_invoice_anchor_at?: string | null
+  // Referenzprojekt einer Reparatur — das Projekt, aus dem die Nacharbeit stammt.
+  parent_project_id?: string | null
   invoice?: ProjectInvoiceSummary | null
   quote?: ProjectQuoteSummary | null
+  // Nur an GET /admin/projects/{id}: die Fristauskunft des Servers und die
+  // Nacharbeiten, die auf dieses Projekt zeigen. In der Liste fehlen beide —
+  // dort rechnet die App die Frist selbst (shared/warranty.ts).
+  warranty?: WarrantyInfo | null
+  repair_projects?: RepairProjectRef[] | null
+  // Nur an GET /admin/projects/{id} eines Reparatur-Projekts mit Modul
+  // «warranty»: der Garantiefall, aus dem es entstand (Spec garantiefall.md §6.1).
+  repair_case?: RepairCaseRef | null
+}
+
+/** Der Garantiefall hinter einem Reparatur-Projekt (schmale Angabe für den Kopf). */
+export interface RepairCaseRef {
+  id: string
+  case_no: number
+  decision: 'anerkannt' | 'kulanz' | 'abgelehnt' | null
+  status: string
+  source_project_id: string
+}
+
+/** Fristauskunft zu einem Projekt, wie sie GET /admin/projects/{id} liefert. */
+export interface WarrantyInfo {
+  state: 'unbekannt' | 'in_garantie' | 'nur_verdeckte_maengel' | 'abgelaufen'
+  anchor_kind: 'abnahme' | 'rechnung'
+  anchor_at: string | null
+  deadline_at: string | null
+  expiry_at: string | null
+  ruegefrist_monate: number
+  verjaehrung_monate: number
+}
+
+/** Eine Nacharbeit, die auf dieses Projekt verweist (schmale Zeile). */
+export interface RepairProjectRef {
+  id: string
+  project_id_text: string | null
+  name: string
+  status: ProjectStatus
+  is_warranty: boolean
+  art_der_arbeit: string[] | null
+  created_at: string
 }
 
 export interface ProjectsListResponse {
@@ -241,9 +288,19 @@ export async function saveProjectForm(
   )
 }
 
-/** Macht einen Abschluss rueckgaengig — das Projekt ist danach wieder offen. */
-export async function reopenProject(id: string): Promise<void> {
-  await apiFetch(`/pwa/admin/projects/${id}/reopen`, { method: 'POST' })
+/**
+ * Macht einen Abschluss rueckgaengig — das Projekt ist danach wieder offen.
+ *
+ * `reason` entscheidet ueber das Abnahmedatum (Spec §3.3): 'fehler' heisst, das
+ * Projekt war nie abgenommen, also faellt `completed_at` weg und mit ihm die
+ * Garantiefrist. 'nacharbeit' laesst es stehen — es wird nur weitergearbeitet.
+ */
+export async function reopenProject(
+  id: string, reason: 'fehler' | 'nacharbeit' = 'fehler',
+): Promise<void> {
+  await apiFetch(`/pwa/admin/projects/${id}/reopen`, {
+    method: 'POST', body: JSON.stringify({ reason }),
+  })
 }
 
 export async function closeProject(id: string): Promise<void> {

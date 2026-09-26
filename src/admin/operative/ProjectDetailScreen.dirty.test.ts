@@ -146,5 +146,61 @@ describe('initialProjectForm', () => {
     expect(form.kontakte).toEqual([])
     expect(form.billingDiffers).toBe(false)
     expect(form.eigentuemer).toEqual({ name: '', adresse: '', telefon: '', email: '' })
+    expect(form.parentProjectId).toBe('')
+    expect(form.isWarranty).toBe(false)
+    expect(form.completedAt).toBe('')
+  })
+
+  // Die Garantie-Felder müssen im Ausgangsstand stehen, sonst gilt die Maske
+  // nach dem Setzen eines Referenzprojekts nicht als geändert — die
+  // Verlassen-Abfrage bliebe aus und die Auswahl wäre weg.
+  it('übernimmt die Garantie-Felder aus dem Projekt', () => {
+    const form = initialProjectForm(makeProject({
+      parent_project_id: 'p-alt',
+      is_warranty: true,
+      completed_at: '2024-03-14',
+    }))
+    expect(form.parentProjectId).toBe('p-alt')
+    expect(form.isWarranty).toBe(true)
+    expect(form.completedAt).toBe('2024-03-14')
+  })
+
+  it('nimmt vom Abnahmedatum nur den Tag', () => {
+    // Die Spalte ist `date`; ein Alt-Wert mit Zeitanteil darf das
+    // <input type="date"> nicht sprengen.
+    const form = initialProjectForm(makeProject({
+      completed_at: '2024-03-14T00:00:00+00:00',
+    }))
+    expect(form.completedAt).toBe('2024-03-14')
+  })
+})
+
+describe('Garantie-Felder und die Verlassen-Abfrage', () => {
+  it('eine unveraenderte Maske gilt nicht als geaendert', () => {
+    // Der Vergleich serialisiert zwei getrennte Objektliterale (Ausgangsstand
+    // und aktueller Stand). Haengt er an der Schluesselreihenfolge, meldet sich
+    // die Maske beim Oeffnen sofort als geaendert, und die Verlassen-Abfrage
+    // kommt bei jedem Zurueck — genau das passierte beim Ergaenzen der
+    // Garantie-Felder.
+    const base = initialProjectForm(makeProject())
+    const umsortiert = Object.fromEntries(
+      Object.entries(base).reverse(),
+    ) as typeof base
+    expect(isProjectFormDirty(base, umsortiert)).toBe(false)
+  })
+
+  it('ein gesetztes Referenzprojekt markiert die Maske als geändert', () => {
+    const base = initialProjectForm(makeProject())
+    expect(isProjectFormDirty(base, { ...base, parentProjectId: 'p-alt' })).toBe(true)
+  })
+
+  it('ein gesetztes Garantie-Häkchen ebenso', () => {
+    const base = initialProjectForm(makeProject())
+    expect(isProjectFormDirty(base, { ...base, isWarranty: true })).toBe(true)
+  })
+
+  it('ein nachgetragenes Abnahmedatum ebenso', () => {
+    const base = initialProjectForm(makeProject())
+    expect(isProjectFormDirty(base, { ...base, completedAt: '2024-03-14' })).toBe(true)
   })
 })

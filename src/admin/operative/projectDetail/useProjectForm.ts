@@ -19,6 +19,15 @@ import {
   ProjectFormValues, disposalEmpty, hasEntsorgungsart, initialProjectForm, isProjectFormDirty,
 } from './projectForm'
 
+/** «Nummer — Name» eines Referenzprojekts, fuers Anzeigen im Feld. */
+export function referenceLabel(p: Pick<Project, 'project_id_text' | 'name'>): string {
+  return p.project_id_text ? `${p.project_id_text} — ${p.name}` : p.name
+}
+
+function isEigentuemerEmpty(e: Eigentuemer | null | undefined): boolean {
+  return !e || !(e.name || e.adresse || e.telefon || e.email)
+}
+
 // Die Projektmaske selbst (Charge H, H3): jedes Feld, sein Ausgangsstand, die
 // Dirty-Rechnung und das Speichern. Der Screen sagt nur noch, WANN gespeichert
 // wird — mit welcher Nutzlast, entscheidet dieser Hook.
@@ -125,6 +134,39 @@ export interface UseProjectForm {
   setWartungLastAt: (v: string) => void
   wartungNextDueAt: string
   setWartungNextDueAt: (v: string) => void
+  /**
+   * Referenzprojekt einer Reparatur (Spec docs/specs/garantiefall.md §3.9) —
+   * '' = keins. Gesetzt wird es ueber `pickReferenceProject`, nicht direkt:
+   * die Auswahl bringt die Felder des Referenzprojekts mit.
+   */
+  parentProjectId: string
+  /** Name/Nummer des gewaehlten Referenzprojekts, fuers Anzeigen im Feld. */
+  parentProjectLabel: string
+  /**
+   * Referenzprojekt uebernehmen: setzt den Verweis und fuellt Kunde, Objekt,
+   * Kontakte, Eigentuemer, Distanz und Projektleiter — aber nur, was die Maske
+   * noch leer hat. Getipptes bleibt stehen (dieselbe Regel wie beim Kunden-Seed).
+   * `null` loest den Verweis wieder; uebernommene Felder bleiben, weil sie
+   * inzwischen jemand bearbeitet haben koennte.
+   */
+  pickReferenceProject: (p: Project | null) => void
+  /**
+   * Garantiefall — das Projekt wird nicht oder nur reduziert verrechnet.
+   *
+   * Bis 20260922 war dieses Feld nur über den Reopen-Dialog erreichbar («Grund:
+   * Garantiefall»), der es dem WIEDEREROEFFNETEN Ursprungsprojekt verpasste. Der
+   * Grund ist weg (Spec §2.2); das Häkchen gehört ins Formular des Projekts, das
+   * die Garantiearbeit tatsächlich trägt.
+   */
+  isWarranty: boolean
+  setIsWarranty: (v: boolean) => void
+  /**
+   * Abnahmedatum ('YYYY-MM-DD'), leer = keines. Sichtbarkeit entscheidet der
+   * Screen über `showAbnahme` — an einem wiedereröffneten Projekt steht das Feld
+   * ebenfalls, sonst wäre ein verlorenes Datum nicht mehr nachtragbar.
+   */
+  completedAt: string
+  setCompletedAt: (v: string) => void
   saving: boolean
   error: string
   setError: (v: string) => void
@@ -157,6 +199,14 @@ export function useProjectForm(opts: {
   const [prefill] = useState<NewProjectPrefill | null>(() => (project ? null : takeNewProjectPrefill()))
 
   const [baseline, setBaseline] = useState<ProjectFormValues>(() => initialProjectForm(project, prefill))
+
+  const [parentProjectId, setParentProjectId] = useState(baseline.parentProjectId)
+  // Beim Oeffnen eines bestehenden Reparatur-Projekts kennt die Maske nur die id;
+  // den Namen traegt das Kopfteil nach (project.parent_project_name gibt es nicht,
+  // der Rueckverweis steht im Kopf). Leer heisst: noch kein Label bekannt.
+  const [parentProjectLabel, setParentProjectLabel] = useState('')
+  const [completedAt, setCompletedAt] = useState(baseline.completedAt)
+  const [isWarranty, setIsWarranty] = useState(baseline.isWarranty)
 
   const [name, setName] = useState(baseline.name)
   const [customerId, setCustomerId] = useState(baseline.customerId)
@@ -264,6 +314,9 @@ export function useProjectForm(opts: {
     wartungInterval,
     wartungLastAt,
     wartungNextDueAt,
+    parentProjectId,
+    completedAt,
+    isWarranty,
   }
 
   const entsorgungsart = hasEntsorgungsart(artDerArbeit)
@@ -273,6 +326,48 @@ export function useProjectForm(opts: {
     setEigentuemer(prev => ({ ...prev, [field]: value }))
   const updateDisposal = (field: keyof DisposalDetails, value: string) =>
     setDisposal(prev => ({ ...prev, [field]: value }))
+
+  /**
+   * Referenzprojekt uebernehmen (Spec §3.9).
+   *
+   * Ergaenzt nur Leeres — wer den Kunden schon gewaehlt oder die Adresse schon
+   * getippt hat, behaelt seine Eingabe. Das ist dieselbe Zusage wie beim
+   * Kunden-Seed: eine Auswahl darf helfen, aber nichts wegnehmen.
+   *
+   * Ausdruecklich NICHT uebernommen: `is_warranty` (ob die Nacharbeit auf
+   * Garantie geht, entscheidet das Buero), Monteure, Auftragsnummer, Rabatte,
+   * Termine und der Wartungsplan.
+   */
+  function pickReferenceProject(ref: Project | null) {
+    if (!ref) {
+      setParentProjectId('')
+      setParentProjectLabel('')
+      return
+    }
+    setParentProjectId(ref.id)
+    setParentProjectLabel(referenceLabel(ref))
+
+    if (!customerId && ref.customer_id) setCustomerId(ref.customer_id)
+    if (!objectName.trim() && ref.object_name) setObjectName(ref.object_name)
+    // Abweichende Rechnungsadresse mitnehmen — sie steht in REFERENCE_FIELDS und
+    // kaeme vom Server, wenn die Maske das Feld nicht ohnehin immer mitschickte.
+    // Ohne diese Zeilen verloere ein hier angelegtes Reparatur-Projekt den
+    // Override, waehrend ein schmaler API-Aufrufer ihn erbt.
+    if (!billingDiffers && (ref.billing_name || ref.billing_address)) {
+      setBillingDiffers(true)
+      setProjBillingName(ref.billing_name ?? '')
+      setProjBillingAddress(ref.billing_address ?? '')
+    }
+    if (!objectAddress.trim() && ref.object_address) {
+      setObjectAddress(ref.object_address)
+      // Als «angefasst» markieren: sonst ueberschriebe ein spaeter gewaehlter
+      // Kunde die Adresse, die der Anwender gerade bewusst uebernommen hat.
+      setObjectAddressTouched(true)
+    }
+    if (kontakte.length === 0 && ref.kontakte?.length) setKontakte(ref.kontakte)
+    if (!projektleiterId && ref.projektleiter_id) setProjektleiterId(ref.projektleiter_id)
+    if (isEigentuemerEmpty(eigentuemer) && ref.eigentuemer) setEigentuemer(ref.eigentuemer)
+  }
 
   function selectCustomer(id: string) {
     setCustomerId(id)
@@ -465,7 +560,24 @@ export function useProjectForm(opts: {
         disposal_details: entsorgungsart && !disposalEmpty(disposal) ? disposal : null,
         wartung_interval_months: wartungInterval ? parseInt(wartungInterval, 10) : null,
         wartung_last_at: wartungLastAt || null,
-      wartung_next_due_at: wartungNextDueAt || null,
+        wartung_next_due_at: wartungNextDueAt || null,
+        // Die drei Garantie-Felder (Spec §3.9/§3.3) gehen nur mit, wenn sie sich
+        // vom Ausgangsstand unterscheiden — dann aber IMMER, auch als `null`
+        // oder `false`.
+        //
+        // Beide Hälften sind noetig. Ein leerer Wert muss mitgeschickt werden,
+        // weil der Server auf `v is not None` filtert: ohne das mitgeschickte
+        // Feld raeumte «Entfernen» nur die Maske auf, die Zeile in der Datenbank
+        // bliebe unveraendert, und beim naechsten Oeffnen stuende der alte Wert
+        // wieder da. Unveraenderte Felder duerfen umgekehrt NICHT mit: der
+        // Audit-Eintrag nennt die geschickten Feldnamen, und der Projekt-Verlauf
+        // meldete sonst bei jedem Speichern «Garantiefall geändert», auch wenn
+        // niemand das Häkchen angefasst hat.
+        ...(parentProjectId !== baseline.parentProjectId
+          ? { parent_project_id: parentProjectId || null } : {}),
+        ...(isWarranty !== baseline.isWarranty ? { is_warranty: isWarranty } : {}),
+        ...(completedAt !== baseline.completedAt
+          ? { completed_at: completedAt || null } : {}),
       }, project?.id)   // POST liefert die neu angelegte Zeile mit
 
       // Termine (eigene Tabelle, eigene Endpunkte) nachziehen. Erst jetzt, weil
@@ -538,6 +650,9 @@ export function useProjectForm(opts: {
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,
     wartungNextDueAt, setWartungNextDueAt,
+    parentProjectId, parentProjectLabel, pickReferenceProject,
+    completedAt, setCompletedAt,
+    isWarranty, setIsWarranty,
     saving, error, setError,
     isDirty: isProjectFormDirty(baseline, currentForm),
     persist,

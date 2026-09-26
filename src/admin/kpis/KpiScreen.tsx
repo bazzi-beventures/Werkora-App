@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import UebersichtTab from './tabs/UebersichtTab'
 import PipelineTab from './tabs/PipelineTab'
 import ProjekteTab from './tabs/ProjekteTab'
@@ -7,14 +7,17 @@ import ArbeitszeitTab from './tabs/ArbeitszeitTab'
 import MaterialTab from './tabs/MaterialTab'
 import PricingTab from './tabs/PricingTab'
 import WartungTab from './tabs/WartungTab'
+import GarantieTab from './tabs/GarantieTab'
 import LeistungsartTab from './tabs/LeistungsartTab'
 import KundenTab from './tabs/KundenTab'
 import LieferantenTab from './tabs/LieferantenTab'
 import DeckungsbeitragTab from './tabs/DeckungsbeitragTab'
 import { useTabStrip } from '../hooks/useTabStrip'
+import { getMe } from '../../api/auth'
+import { hasModule } from '../../api/modules'
 import './kpi-dashboard.css'
 
-type Tab = 'uebersicht' | 'pipeline' | 'projekte' | 'kunden' | 'finanzen' | 'deckungsbeitrag' | 'arbeitszeit' | 'material' | 'lieferanten' | 'pricing' | 'wartung' | 'leistungsart'
+type Tab = 'uebersicht' | 'pipeline' | 'projekte' | 'kunden' | 'finanzen' | 'deckungsbeitrag' | 'arbeitszeit' | 'material' | 'lieferanten' | 'pricing' | 'wartung' | 'garantie' | 'leistungsart'
 
 // Die Kennfarbe kommt als Token, nicht als Hex: ein Literal im Inline-Style
 // kennt kein Theme (dieselbe Regel wie bei den Karten-Farben in tokens.css).
@@ -30,12 +33,21 @@ const TABS: { id: Tab; label: string; color: string }[] = [
   { id: 'lieferanten', label: 'Lieferanten-Marge',  color: 'var(--kpi-tab-lieferanten)' },
   { id: 'pricing',     label: 'Pricing & Supplier', color: 'var(--kpi-tab-pricing)' },
   { id: 'wartung',     label: 'Wartungen',          color: 'var(--kpi-tab-wartung)' },
+  // Nur mit Modul «warranty» (docs/specs/garantiefall.md §6.4) — siehe `visible`.
+  { id: 'garantie',    label: 'Garantie',           color: 'var(--kpi-tab-garantie)' },
   { id: 'leistungsart',label: 'Leistungsart',       color: 'var(--kpi-tab-leistungsart)' },
 ]
 
 export default function KpiScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('uebersicht')
   const tabsRef = useTabStrip(activeTab)
+  // /pwa/me filtert Module pro Konto (Beta-Häkchen): ohne «warranty» kein Tab —
+  // die View antwortete ohnehin mit 403.
+  const [showGarantie, setShowGarantie] = useState(false)
+  useEffect(() => {
+    getMe().then(me => setShowGarantie(hasModule(me, 'warranty'))).catch(() => {})
+  }, [])
+  const visible = TABS.filter(t => t.id !== 'garantie' || showGarantie)
 
   function renderTab() {
     switch (activeTab) {
@@ -50,6 +62,7 @@ export default function KpiScreen() {
       case 'lieferanten': return <LieferantenTab />
       case 'pricing':     return <PricingTab />
       case 'wartung':     return <WartungTab />
+      case 'garantie':    return <GarantieTab />
       case 'leistungsart': return <LeistungsartTab />
     }
   }
@@ -69,7 +82,7 @@ export default function KpiScreen() {
       </div>
 
       <div className="kpi-admin-tabs" ref={tabsRef}>
-        {TABS.map((t) => (
+        {visible.map((t) => (
           <button
             key={t.id}
             className={`kpi-admin-tab${activeTab === t.id ? ' active' : ''}`}

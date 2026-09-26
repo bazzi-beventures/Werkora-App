@@ -5,10 +5,12 @@ import {
 import { hasBillableReport } from './billingRules'
 import { NachkalkulationTab } from './NachkalkulationTab'
 import { StatusTab } from './StatusTab'
+import { WarrantyTab } from './WarrantyTab'
 import type { ProjectStatus } from '../../constants/statuses'
 import type { ProjectStatusDialog } from './ProjectStatusDialogs'
 import type { BeschaffungStep } from '../../constants/beschaffungSteps'
-import type { Project } from '../../../api/admin/projects'
+import type { Project, WarrantyInfo } from '../../../api/admin/projects'
+import type { ToastFn } from '../../components/useToast'
 import type { ProjectTab } from './ProjectTabBar'
 import type { ProjectQuote } from './types'
 import type { UseProjectApprovals } from './useProjectApprovals'
@@ -29,7 +31,7 @@ export function ProjectTabContent({
   beschaffungSteps, beschaffung, beschaffungAt, beschaffungSource,
   savingBeschaffung, onBeschaffungChange,
   quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
-  verlaufEnabled,
+  verlaufEnabled, warrantyEnabled, warranty, onToast, onOpenProject,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
   currentUserId,
   onShowQuoteForm, onShowReportForm, onAddNextEinsatz, onEditReport, onEditQuote,
@@ -59,6 +61,13 @@ export function ProjectTabContent({
   nachkalkulationEnabled: boolean
   /** Feature «projekt_verlauf» (Beta): Abschnitt «Verlauf» im Reiter «Status». */
   verlaufEnabled?: boolean
+  /** Modul «warranty»: Reiter «Garantie» mit den Garantiefällen. */
+  warrantyEnabled?: boolean
+  /** Fristauskunft des Servers für den Meldedialog; null = Feature «garantiefall» aus. */
+  warranty?: WarrantyInfo | null
+  onToast: ToastFn
+  /** Sprung in ein anderes Projekt (Reparatur-Projekt eines Garantiefalls). */
+  onOpenProject?: (id: string) => void
   useAcceptedQuote: boolean
   onUseAcceptedQuoteChange: (v: boolean) => void
   defaultInvoiceEmail: string
@@ -212,6 +221,17 @@ export function ProjectTabContent({
 
       {/* Nur die Status-Aktion (Abschliessen/Wiedereroeffnen). Kommentare stehen
           tab-unabhaengig in der rechten Seitenleiste. */}
+      {tab === 'warranty' && warrantyEnabled && (
+        <WarrantyTab
+          projectId={project.id}
+          projectStatus={status}
+          warranty={warranty ?? null}
+          documents={documents}
+          onToast={onToast}
+          onOpenProject={onOpenProject}
+        />
+      )}
+
       {tab === 'status' && (
         <StatusTab
           projectId={project.id}

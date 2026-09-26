@@ -1,53 +1,6 @@
 /* ── Support-Eingang ─────────────────────────────────────────────────────────
-   Ergänzt error-logs.css (Chips, Liste, Detail-Dialog werden geteilt) um das,
-   was nur der Support-Screen braucht.
-
-   Die Filterzeile ist der Grund für diese Datei: sie mischt Statuschips mit
-   einem Auswahlfeld. Die geteilte .elog-field stapelt Beschriftung über Feld
-   (~56px hoch) — neben 28px hohen Chips in derselben Zeile ergibt das eine
-   sichtbar schiefe Kante. Hier stehen deshalb beide auf einer gemeinsamen
-   Grundlinie und in gleicher Höhe. */
-
-.support-filterbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s-2);
-  margin: var(--s-4) 0;
-}
-
-/* Chips auf Feldhöhe bringen: dieselben 32px wie das Auswahlfeld rechts. */
-.support-filterbar .elog-chip {
-  min-height: 32px;
-  padding: 0 14px;
-}
-
-/* Beschriftung neben das Feld statt darüber — in einer waagrechten Zeile ist
-   das die einzige Anordnung, die keine zweite Textzeile über den Chips öffnet. */
-.support-filter-tenant {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  margin-left: auto;
-  font-size: var(--font-xs);
-  color: var(--text-muted);
-}
-
-.support-filter-tenant select {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--font-sm);
-  height: 32px;
-  padding: 0 8px;
-}
-
-.support-filter-tenant select:focus {
-  outline: none;
-  border-color: var(--primary);
-}
+   Ergänzt error-logs.css (Chips, Pre-Blöcke, Meta-Raster werden geteilt) um
+   das, was nur der Support-Screen braucht. */
 
 /* Leerer Eingang: als ruhige Fläche im selben Rahmen wie die Liste, damit der
    Abschnitt nicht nach einem abgeschnittenen Screen aussieht. */
@@ -59,20 +12,6 @@
   font-size: var(--font-sm);
   text-align: center;
   padding: var(--s-6) var(--s-4);
-}
-
-@media (max-width: 767px) {
-  /* Auf Handybreite bricht die Zeile ohnehin um; `margin-left: auto` würde das
-     Feld dann einsam nach rechts schieben. */
-  .support-filter-tenant {
-    margin-left: 0;
-    width: 100%;
-  }
-  .support-filter-tenant select {
-    flex: 1;
-    height: 40px;
-    min-width: 0;
-  }
 }
 
 /* ── Antwort an den Melder (Spec docs/specs/support-antwort.md §5) ──────────
@@ -132,4 +71,303 @@
 .support-reply-hint {
   font-size: 0.75rem;
   opacity: 0.7;
+}
+
+/* ── Posteingang (Spec docs/specs/support-uebersicht.md §3) ─────────────────
+   Zwei Spalten auf dem Desktop: Liste links, Detail rechts — kein Modal. Auf
+   Handybreite eine Spalte: ohne Auswahl die Liste, mit Auswahl nur das Detail
+   (Zurück-Knopf). Die Umschaltung macht CSS, nicht ein matchMedia-Hook: so
+   rendert der Screen in jeder Breite dasselbe DOM. */
+
+.support-statusline {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.support-statusline b { color: var(--text); }
+
+.support-age--warn { color: var(--warning-ink, #92400e); font-weight: 600; }
+.support-age--late { color: var(--danger-ink, #991b1b); font-weight: 600; }
+
+.support-clusters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.support-cluster {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: 1px solid var(--warning);
+  border-radius: var(--radius-md);
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+.support-cluster.is-active { border-width: 2px; }
+.support-cluster-action { margin-left: auto; font-weight: 600; white-space: nowrap; }
+
+.support-inbox {
+  display: grid;
+  grid-template-columns: minmax(300px, 38%) 1fr;
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.support-list-pane,
+.support-detail-pane {
+  min-width: 0;
+}
+
+.support-detail-pane {
+  position: sticky;
+  top: var(--s-4);
+  max-height: calc(var(--app-vh, 100dvh) - 140px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.support-detail-empty {
+  padding: var(--s-6) var(--s-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.support-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+.support-tabs .elog-chip { min-height: 32px; padding: 0 14px; }
+
+.support-list-filters {
+  display: flex;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+.support-list-filters select,
+.support-list-filters input {
+  height: 32px;
+  min-width: 0;
+  padding: 0 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--font-sm);
+}
+.support-list-filters select { flex: 0 1 45%; }
+.support-list-filters input { flex: 1; }
+
+.support-filter-note {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin: var(--s-2) 0;
+}
+.support-linkbtn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.support-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.support-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-top: 1px solid var(--border);
+  border-left: 3px solid transparent;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.support-row:first-child { border-top: none; }
+.support-row:hover { background: var(--surface-2); }
+.support-row.is-selected { background: var(--surface-2); border-left-color: var(--primary); }
+
+.support-row-line1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+}
+.support-row-ref { font-variant-numeric: tabular-nums; }
+.support-row.is-unread .support-row-ref,
+.support-row.is-unread .support-row-msg { font-weight: 600; }
+.support-row-tenant {
+  margin-left: auto;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.support-row-line2 {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+.support-row-msg {
+  font-size: var(--font-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.support-row-marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.support-mark {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.support-mark--error {
+  color: var(--danger-ink, #991b1b);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.support-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.support-dot.is-unread { background: var(--primary); }
+
+/* Detail */
+.support-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+.support-back { display: none; align-self: flex-start; }
+.support-detail-title { font-size: var(--font-lg, 1.1rem); font-weight: 600; }
+.support-detail-meta { font-size: var(--font-sm); color: var(--text-muted); }
+.support-status { font-weight: 600; color: var(--text); }
+.support-status--offen { color: var(--primary); }
+
+.support-shots { display: flex; flex-wrap: wrap; gap: 8px; }
+.support-shot {
+  max-width: 180px;
+  max-height: 180px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.support-shot-missing { font-size: var(--font-xs); color: var(--text-muted); }
+.support-partial { font-size: var(--font-xs); color: var(--warning-ink); }
+
+.support-sections { display: flex; flex-direction: column; gap: 6px; }
+.support-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+.support-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: 600;
+}
+.support-section[open] > summary { margin-bottom: 6px; }
+
+.support-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+/* Auswertung: Seitenleiste über dem Inhalt, nicht dritte Spalte — drei
+   Spalten liessen Liste und Detail zu schmal. */
+.support-analysis {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  width: min(460px, 100vw);
+  height: 100dvh;
+  height: var(--app-vh, 100dvh);
+  overflow-y: auto;
+  padding: var(--s-4);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+.support-analysis-head { display: flex; align-items: center; justify-content: space-between; }
+.support-analysis-title {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.support-analysis-hint { font-size: var(--font-sm); color: var(--text-muted); }
+.support-figures {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: var(--font-sm);
+}
+.support-figures dt { color: var(--text-muted); }
+.support-figures dd { margin: 0; font-weight: 600; text-align: right; }
+.support-source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--font-sm);
+}
+.support-source-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 767px) {
+  .support-inbox { grid-template-columns: 1fr; }
+  .support-inbox.has-selection .support-list-pane { display: none; }
+  .support-inbox:not(.has-selection) .support-detail-pane { display: none; }
+  .support-detail-pane { position: static; max-height: none; }
+  .support-back { display: inline-flex; }
+  .support-list-filters select { height: 40px; }
+  .support-list-filters input { height: 40px; }
 }

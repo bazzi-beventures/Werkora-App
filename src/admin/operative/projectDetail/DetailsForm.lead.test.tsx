@@ -49,6 +49,7 @@ function setup(monteurIds: string[]) {
       customers={[]}
       schedulingEnabled
       showGeruestfach={false}
+      showAbnahme={false}
       onSubmit={vi.fn()}
       onCancel={vi.fn()}
     />,

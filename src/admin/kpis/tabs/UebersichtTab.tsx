@@ -43,6 +43,17 @@ export default function UebersichtTab() {
       value: String(row.lager_kritisch_anzahl),
       color: row.lager_kritisch_anzahl > 0 ? 'var(--danger)' : 'var(--success)',
     },
+    // Nur wenn der Betrieb ein Lager führt: Ohne Lagerzeilen liefert die View
+    // `null`, und eine Kachel «0 %» behauptete einen Rückstand, den es nicht
+    // gibt. Farbstufen wie im Reiter Inventur (Spec §9).
+    ...(row.inventur_abdeckung_pct == null ? [] : [{
+      label: 'Inventur-Abdeckung (12 Mt)',
+      value: `${Math.round(row.inventur_abdeckung_pct)} %`,
+      sub: 'Artikel mit Zählung im letzten Jahr',
+      color: row.inventur_abdeckung_pct < 50
+        ? 'var(--danger)'
+        : row.inventur_abdeckung_pct < 90 ? 'var(--warning)' : 'var(--success)',
+    }]),
     {
       label: 'Überstunden (gesamt)',
       value: `${row.ueberstunden_gesamt_stunden.toLocaleString('de-CH')} h`,

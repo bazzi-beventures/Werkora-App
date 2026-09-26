@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { anonymizeUser, saveUser, setUserPassword } from '../../api/admin/users'
+import { anonymizeUser, generateUserPin, saveUser, setUserPassword } from '../../api/admin/users'
 import type { AuthUser } from '../../api/admin/users'
 import { assignableRoles, mayAnonymize } from './userRoles'
 import { BetaBadge } from '../../shared/BetaBadge'
@@ -35,6 +35,19 @@ interface Props {
 // Spiegelt services/password_policy.py — die verbindliche Prüfung passiert im Backend.
 const MIN_PASSWORD_LENGTH = 12
 
+/** Ablauf der PIN als Uhrzeit — der Wert kommt vom Server (Spalten-Default von
+ *  `pwa_registration_pins`, derzeit 24 Stunden). Absichtlich nicht im Frontend
+ *  gerechnet: eine hier hartcodierte Dauer wäre die nächste Stelle, die von der
+ *  Datenbank abdriftet, so wie es dem Handbuch mit «15 Minuten» passiert ist. */
+function fmtExpiry(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('de-CH', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    timeZone: 'Europe/Zurich',
+  })
+}
+
 export default function UserDetailScreen({ user, actingRole, onClose, onSaved }: Props) {
   const [email, setEmail] = useState(user.email ?? '')
   const [displayName, setDisplayName] = useState(user.display_name ?? '')
@@ -46,6 +59,12 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
   const [newPassword, setNewPassword] = useState('')
   const [settingPassword, setSettingPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  // Die erzeugte PIN steht nur in der Antwort des Endpoints — das Backend legt
+  // sie gehasht ab. Sie bleibt deshalb hier im State stehen, bis der Bildschirm
+  // verlassen wird; ein Neuladen holt sie nicht zurück.
+  const [pin, setPin] = useState<{ pin: string; expires_at: string } | null>(null)
+  const [generatingPin, setGeneratingPin] = useState(false)
 
   const [confirmAnonymize, setConfirmAnonymize] = useState(false)
   const [acting, setActing] = useState(false)
@@ -95,6 +114,18 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
       setError(err instanceof Error && err.message ? err.message : 'Fehler beim Setzen des Passworts')
     } finally {
       setSettingPassword(false)
+    }
+  }
+
+  async function handleGeneratePin() {
+    setGeneratingPin(true)
+    setError('')
+    try {
+      setPin(await generateUserPin(user.id))
+    } catch (err: unknown) {
+      setError(err instanceof Error && err.message ? err.message : 'Fehler beim Erzeugen der PIN')
+    } finally {
+      setGeneratingPin(false)
     }
   }
 
@@ -245,6 +276,37 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                   {settingPassword ? 'Speichere…' : 'Passwort setzen'}
                 </button>
               </form>
+            </div>
+
+            {/* Zugangs-PIN — der einzige Weg zu einem Passkey auf einem weiteren
+                Gerät: die Passkey-Registrierung verlangt eine gültige PIN
+                (agents/routers/auth.py::validate_and_consume_pin). Beim Anlegen
+                kommt sie aus NewPersonScreen; danach nur noch von hier. */}
+            <div className="admin-table-wrap" style={{ padding: 20 }}>
+              <div className="admin-section-title">Zugangs-PIN</div>
+              <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 14px' }}>
+                Einmal-Code für die Passkey-Einrichtung auf einem neuen Gerät — etwa nach
+                einem Handywechsel. Eine noch offene PIN dieses Kontos wird dabei ersetzt.
+              </p>
+              {pin ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 24, letterSpacing: 2 }}>{pin.pin}</div>
+                  <div className="admin-form-hint">
+                    Jetzt notieren und der Person <strong>mündlich</strong> weitergeben — die PIN
+                    lässt sich später nicht mehr anzeigen, nur neu erzeugen.
+                    {fmtExpiry(pin.expires_at) && <> Gültig bis {fmtExpiry(pin.expires_at)}.</>}
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="admin-btn admin-btn-secondary"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  disabled={generatingPin}
+                  onClick={() => void handleGeneratePin()}
+                >
+                  {generatingPin ? 'Erzeuge…' : 'PIN generieren'}
+                </button>
+              )}
             </div>
 
             {/* Gefahrenzone — DSGVO-Löschung ist irreversibel und bleibt Management vorbehalten */}

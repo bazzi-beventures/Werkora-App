@@ -21,6 +21,7 @@ export type AdminScreen =
   | 'payment-reconciliation'
   | 'suppliers'
   | 'supplier-wiki'
+  | 'roadmap'
   | 'staff-roles'
   | 'materials'
   | 'pricing-rules'

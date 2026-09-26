@@ -34,6 +34,9 @@ const ALLOWED: Record<string, number> = {
   'admin/operative/projectDetail/ProjectMaskDialogs.tsx': 3,
   // Die Freigabe-Maske, ebenfalls mit H3 ausgezogen (mit backdropCloseProps).
   'admin/operative/projectDetail/ApprovalCreateDialog.tsx': 1,
+  // Garantiefall melden + Fall-Ansicht (Formular-Overlays, beide mit
+  // backdropCloseProps und Dirty-Sperre; docs/specs/garantiefall.md §6).
+  'admin/operative/projectDetail/WarrantyTab.tsx': 2,
 }
 
 function countByFile(): Record<string, number> {

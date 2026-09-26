@@ -66,6 +66,14 @@
 .adminsite-nav-item:hover { background: var(--surface-2); }
 .adminsite-nav-item.is-active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
 
+/* Zahl am Eintrag (neue Feature-Anfragen): rechtsbündig, damit die
+   Beschriftungen der Leiste auf einer Kante bleiben. */
+.adminsite-nav-badge {
+  margin-left: auto; min-width: 20px; padding: 2px 6px; border-radius: 999px;
+  background: var(--primary); color: var(--on-accent, #fff);
+  font-size: 11px; font-weight: 600; line-height: 1.3; text-align: center;
+}
+
 .adminsite-nav-hint { padding: 6px 10px; font-size: 12px; color: var(--text-muted); }
 
 .adminsite-nav-foot {
@@ -85,6 +93,8 @@
 
 .adminsite-tenant-picker { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
 .adminsite-tenant-picker-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+/* Seite ignoriert den Wähler (Plattform-Screen über alle Mandanten). */
+.adminsite-tenant-picker.is-inert { opacity: 0.5; }
 .adminsite-tenant-picker .admin-form-select { min-width: 180px; max-width: 260px; }
 
 .adminsite-env {

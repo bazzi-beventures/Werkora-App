@@ -44,6 +44,25 @@ export interface ProjectFormValues {
   wartungInterval: string
   wartungLastAt: string
   wartungNextDueAt: string
+  /**
+   * Referenzprojekt einer Reparatur — das abgeschlossene Projekt, aus dem die
+   * Nacharbeit stammt (Spec docs/specs/garantiefall.md §3.9). '' = keins.
+   * Steht im Ausgangsstand, damit ein gesetzter Verweis die Maske als geändert
+   * markiert und die Verlassen-Warnung greift.
+   */
+  parentProjectId: string
+  /**
+   * Garantiefall: dieses Projekt wird nicht (oder reduziert) verrechnet.
+   * Unterdrückt Mindestrechnung und Werkora-Bonus und setzt das Garantie-Banner
+   * aufs Rechnungs-PDF; die Rapporte erben es als Vorbelegung.
+   */
+  isWarranty: boolean
+  /**
+   * Abnahme (projects.completed_at) als 'YYYY-MM-DD' — Anker der Garantiefrist.
+   * Der Server setzt sie beim Abschliessen selbst; hier steht sie, damit sie
+   * nachgetragen werden kann, wo der Backfill nichts fand.
+   */
+  completedAt: string
 }
 
 // Aufgezogenes Zeitfenster → erster Termin-Entwurf. `endDate` bleibt leer,
@@ -98,13 +117,19 @@ export function initialProjectForm(
     wartungInterval: project?.wartung_interval_months?.toString() ?? '',
     wartungLastAt: project?.wartung_last_at ?? '',
     wartungNextDueAt: project?.wartung_next_due_at ?? '',
+    parentProjectId: project?.parent_project_id ?? '',
+    isWarranty: !!project?.is_warranty,
+    // Nur der Datumsteil: das Eingabefeld ist ein <input type="date">, und fuer
+    // die Frist zaehlt ohnehin nur der Tag.
+    completedAt: (project?.completed_at ?? '').slice(0, 10),
   }
 }
 
-// Kanonische Form für den Vergleich: feste Feldreihenfolge, sortierte
-// Mehrfachauswahlen und aufgefüllte Optionalfelder. Ohne das gälte die Maske
-// schon als geändert, wenn ein Monteur ab- und wieder angewählt wird oder eine
-// vom Server ohne `is_site_contact` gelieferte Zeile einmal angefasst wurde.
+// Kanonische Form für den Vergleich: sortierte Mehrfachauswahlen und
+// aufgefüllte Optionalfelder. Ohne das gälte die Maske schon als geändert, wenn
+// ein Monteur ab- und wieder angewählt wird oder eine vom Server ohne
+// `is_site_contact` gelieferte Zeile einmal angefasst wurde. Die Schlüssel-
+// reihenfolge macht `stabil()` weiter unten unschädlich.
 function normalizeForm(v: ProjectFormValues) {
   return {
     ...v,
@@ -135,8 +160,28 @@ function normalizeForm(v: ProjectFormValues) {
   }
 }
 
+/**
+ * Stabile Serialisierung: Schlüssel sortiert, damit der Vergleich nicht an der
+ * REIHENFOLGE der Objektliterale hängt.
+ *
+ * `JSON.stringify` schreibt Schlüssel in Einfügereihenfolge, und
+ * `initialProjectForm` (Ausgangsstand) und `currentForm` im Hook sind zwei
+ * getrennte Literale. Wer ein Feld an verschiedenen Stellen einfügt, hat eine
+ * Maske, die sich beim Öffnen sofort als geändert meldet — die Verlassen-Abfrage
+ * kommt dann bei jedem Zurück, auch wenn niemand etwas angefasst hat. Genau das
+ * ist beim Ergänzen der Garantie-Felder passiert (2026-09-22).
+ */
+function stabil(value: unknown): string {
+  return JSON.stringify(value, (_key, val) => (
+    val && typeof val === 'object' && !Array.isArray(val)
+      ? Object.fromEntries(Object.entries(val as Record<string, unknown>).sort(
+          ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : val
+  ))
+}
+
 export function isProjectFormDirty(baseline: ProjectFormValues, current: ProjectFormValues): boolean {
-  return JSON.stringify(normalizeForm(baseline)) !== JSON.stringify(normalizeForm(current))
+  return stabil(normalizeForm(baseline)) !== stabil(normalizeForm(current))
 }
 
 /**

@@ -228,67 +228,126 @@ export async function discardReorderDraft(id: string): Promise<void> {
 }
 
 // ─── Inventur (Lager v2, Phase 3) ───────────────────────────
+//
+// Das Zählen selbst liegt in `api/inventory.ts`: Ein Inventurmanager ohne
+// Admin-Rolle zählt in der Monteur-PWA, und die darf nicht aus dem
+// Admin-Barrel importieren (docs/specs/rollierende-inventur.md §10.5). Hier
+// stehen die Aufrufe, die wirklich Admin-Sache bleiben — Anlegen, Liste,
+// Export, Zählpläne — und die Re-Exporte, damit bestehende Importe gültig
+// bleiben.
 
-export type CountKind = 'voll' | 'stich'
-export type CountStatus = 'offen' | 'abgeschlossen' | 'abgebrochen'
+export {
+  abortStockCount, closeStockCount, getStockCount, listMyStockCounts, recordCountItem,
+} from '../inventory'
+export type {
+  CountKind, CountStatus, CountSummary, StockCount, StockCountDetail, StockCountItem,
+} from '../inventory'
 
-export interface StockCount {
+// Für die eigenen Signaturen unten — `export … from` legt keine lokale Bindung an.
+import type { CountKind, StockCount } from '../inventory'
+
+// ─── Rollierende Inventur: Zählpläne ────────────────────────
+//
+// Die Pläne liegen im Reiter Inventur und nicht in der Superadmin-Konfiguration:
+// «20 Artikel pro Woche» ist eine Betriebsgrösse, die der Mandant nachstellt,
+// wenn er nach vier Wochen sieht, dass sie nicht passt
+// (docs/specs/rollierende-inventur.md E1).
+
+export type CountPeriod = 'tag' | 'woche' | 'monat'
+
+export interface CountPlan {
   id: string
-  kind: CountKind
-  status: CountStatus
-  title: string
-  scope: { category?: string }
-  started_at: string
-  started_by: string
-  closed_at: string | null
-  closed_by: string | null
-  note: string | null
-  /** Inventurdifferenz in CHF zum Einkaufspreis; erst nach dem Abschluss gesetzt. */
-  diff_value_ek: number | null
+  active: boolean
+  per_period: number
+  period: CountPeriod
+  weekday: number
+  day_of_month: number
+  /** `null` = alle Kategorien, die kein anderer aktiver Plan abdeckt. */
+  category: string | null
+  manager_user_id: string
+  manager_name: string | null
+  /** Konto deaktiviert oder entzogen: Der Nachtlauf überspringt den Plan, und
+   *  die Karte muss das sagen — sonst wartet der Betrieb auf Tranchen, die nicht
+   *  kommen. */
+  manager_fehlt: boolean
+  last_generated_on: string | null
+  /** Aktive Artikel, die dieser Plan abdeckt. */
+  artikel: number
+  /** «Bei 20 Artikeln pro Woche ist jeder Artikel etwa alle 13 Wochen dran.» */
+  zyklus: string
+  naechste_tranche: string
+  offene_tranche: {
+    count_id: string
+    title: string | null
+    due_on: string | null
+    progress: { gezaehlt?: number; gesamt?: number }
+    ueberfaellig: boolean
+  } | null
 }
 
-export interface StockCountItem {
-  id: string
-  count_id: string
-  material_id: string
-  art_nr: string
-  name: string
-  unit: string | null
-  kategorie: string | null
-  /** Bestand beim Anlegen der Zählung — nur Anzeige («Soll anzeigen»). */
-  expected_at_start: number
-  counted_qty: number | null
-  counted_at: string | null
-  counted_by: string | null
-  /** Soll zum ZÄHLZEITPUNKT, beim Abschluss zurückgerechnet. Verglichen wird
-   *  hiermit, nicht mit `expected_at_start`: Die Zählung friert nichts ein. */
-  expected_at_count: number | null
-  diff: number | null
-  cost_price_snapshot: number | null
-  cost_price: number | null
-  note: string | null
+export interface CountPlansResponse {
+  plans: CountPlan[]
+  /** Kategorien, für die sich noch ein eigener Plan anlegen lässt. */
+  kategorien_ohne_plan: string[]
+  sammelplan_vorhanden: boolean
 }
 
-export interface StockCountDetail {
-  count: StockCount
-  items: StockCountItem[]
-  progress: { gezaehlt: number; gesamt: number }
+export interface CountPlanInput {
+  active: boolean
+  per_period: number
+  period: CountPeriod
+  weekday?: number
+  day_of_month?: number
+  category?: string | null
+  manager_user_id: string
 }
 
-export interface CountSummary {
-  positionen: number
-  gezaehlt: number
-  offen: number
-  mit_differenz: number
-  diff_value_ek: number
-  /** Positionen mit Differenz, aber ohne Einkaufspreis — sie fehlen in der
-   *  CHF-Summe. Ohne diese Zahl läse sich die Summe als vollständig. */
-  ohne_ek: number
+/** Was mit einer noch offenen Tranche geschehen soll (Spec E4). */
+export type OpenTrancheChoice = 'abort' | 'carry'
+
+export async function listCountPlans(): Promise<CountPlansResponse> {
+  return apiFetch<CountPlansResponse>('/pwa/admin/inventory/count-plans')
 }
 
-export async function listStockCounts(status = ''): Promise<{ rows: StockCount[] }> {
-  const q = status ? `?status=${encodeURIComponent(status)}` : ''
-  return apiFetch<{ rows: StockCount[] }>(`/pwa/admin/inventory/counts${q}`)
+export async function saveCountPlan(
+  input: CountPlanInput, planId?: string,
+): Promise<{ plan: CountPlan }> {
+  return apiFetch<{ plan: CountPlan }>(
+    planId
+      ? `/pwa/admin/inventory/count-plans/${encodeURIComponent(planId)}`
+      : '/pwa/admin/inventory/count-plans',
+    { method: planId ? 'PATCH' : 'POST', body: JSON.stringify(input) },
+  )
+}
+
+export async function deleteCountPlan(planId: string): Promise<void> {
+  await apiFetch(`/pwa/admin/inventory/count-plans/${encodeURIComponent(planId)}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * «Jetzt zählen» — legt die nächste Tranche an.
+ *
+ * Läuft noch eine, antwortet der Server mit 409 und dem Code `open_tranche`,
+ * statt selbst zu entscheiden: Abbrechen verwirft gezählte Mengen, Übernehmen
+ * bucht sie. Beides gehört dem Menschen, der gezählt hat.
+ */
+export async function runCountPlan(
+  planId: string, openTranche?: OpenTrancheChoice,
+): Promise<{ count: StockCount; positionen: number; carried?: number }> {
+  return apiFetch<{ count: StockCount; positionen: number; carried?: number }>(
+    `/pwa/admin/inventory/count-plans/${encodeURIComponent(planId)}/run`,
+    { method: 'POST', body: JSON.stringify({ open_tranche: openTranche ?? null }) },
+  )
+}
+
+export async function listStockCounts(status = '', kind = ''): Promise<{ rows: StockCount[] }> {
+  const p = new URLSearchParams()
+  if (status) p.set('status', status)
+  if (kind) p.set('kind', kind)
+  const q = p.toString()
+  return apiFetch<{ rows: StockCount[] }>(`/pwa/admin/inventory/counts${q ? `?${q}` : ''}`)
 }
 
 export async function createStockCount(input: {
@@ -305,28 +364,6 @@ export async function createStockCount(input: {
     method: 'POST',
     body: JSON.stringify(input),
   })
-}
-
-export async function getStockCount(id: string): Promise<StockCountDetail> {
-  return apiFetch<StockCountDetail>(`/pwa/admin/inventory/counts/${encodeURIComponent(id)}`)
-}
-
-/** `countedQty: null` macht die Position wieder ungezählt (Weg zurück nach einem Vertipper). */
-export async function recordCountItem(
-  countId: string, itemId: string, countedQty: number | null, note?: string | null,
-): Promise<{ status: string; item: StockCountItem }> {
-  return apiFetch(
-    `/pwa/admin/inventory/counts/${encodeURIComponent(countId)}/items/${encodeURIComponent(itemId)}`,
-    { method: 'PATCH', body: JSON.stringify({ counted_qty: countedQty, note: note ?? null }) },
-  )
-}
-
-export async function closeStockCount(id: string): Promise<{ status: string; summary: CountSummary }> {
-  return apiFetch(`/pwa/admin/inventory/counts/${encodeURIComponent(id)}/close`, { method: 'POST' })
-}
-
-export async function abortStockCount(id: string): Promise<void> {
-  await apiFetch(`/pwa/admin/inventory/counts/${encodeURIComponent(id)}/abort`, { method: 'POST' })
 }
 
 /** Lädt die CSV der Zählung herunter — die Datei, die zum Treuhänder geht. */
@@ -383,4 +420,56 @@ export async function ignoreAnomaly(id: string, note: string): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ note }),
   })
+}
+
+// ─── Zählstand nach Kategorie (Rollierende Inventur, R3) ────
+//
+// Die Antwort kommt als Ganzes und wird im Browser gefiltert — wie
+// `LagerOverview`. Die Tabelle hat Dutzende Zeilen, nicht Tausende, und jede
+// Filterrunde über den Server wäre eine Wartezeit für eine Antwort, die
+// schon da ist.
+
+export interface CoverageRow {
+  kategorie: string
+  artikel: number
+  nie_gezaehlt: number
+  aelter_als_fenster: number
+  in_offener_zaehlung: number
+  gezaehlt_im_fenster: number
+  /** Anteil der Artikel mit einer Zählung im Fenster. `null` ohne Artikel —
+   *  eine 0 läse sich als «nichts gezählt». */
+  abdeckung_pct: number | null
+  /** Ältester Zählstand der Kategorie; `null`, wenn nie gezählt wurde. */
+  aeltester: string | null
+  /** Lagerwert (EK) der Artikel ausserhalb des Fensters — die Zahl, die aus
+   *  «ungezählt» ein Risiko macht. */
+  lagerwert_ungezaehlt: number
+  /** Plan, der diese Kategorie abdeckt (eigener Plan oder Sammelplan). */
+  plan_id: string | null
+  eigener_plan: boolean
+}
+
+export interface CoverageArticle {
+  material_id: string
+  art_nr: string
+  name: string
+  kategorie: string | null
+  unit: string | null
+  quantity: number
+  lagerwert: number | null
+  last_counted_at: string | null
+  in_offener_zaehlung: boolean
+}
+
+export interface CountCoverage {
+  kategorien: CoverageRow[]
+  gesamt: Omit<CoverageRow, 'kategorie' | 'plan_id' | 'eigener_plan'>
+  /** 365, und nicht einstellbar: Es ist die Frage des Treuhänders. */
+  fenster_tage: number
+  /** Aktive Artikel, «am längsten her zuerst». */
+  artikel: CoverageArticle[]
+}
+
+export async function getCountCoverage(): Promise<CountCoverage> {
+  return apiFetch<CountCoverage>('/pwa/admin/inventory/count-coverage')
 }

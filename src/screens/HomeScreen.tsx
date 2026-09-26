@@ -17,6 +17,12 @@ interface Props {
   onNavProfile: () => void
   onLoggedOut: () => void
   onSwitchToAdmin?: () => void
+  /** Die mir zugeteilte offene Zählung (`/pwa/me.inventur_offen`) — oder
+   *  `null`/`undefined`. Sie allein entscheidet über die Inventur-Kachel: kein
+   *  Modul-Häkchen, keine Rolle. Die Zuteilung IST die Berechtigung
+   *  (docs/specs/rollierende-inventur.md §10.5). */
+  inventur?: { count_id: string; title: string | null; offen: number; ueberfaellig: boolean } | null
+  onNavInventur?: () => void
 }
 
 interface SessionStatus {
@@ -43,7 +49,7 @@ function formatClockIn(isoUtc: string): string {
   return dt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })
 }
 
-export default function HomeScreen({ displayName, logoUrl, role, enabledModules, onNavRapport, onNavArbeitszeit, onNavProjekte, onNavOfferten, onNavProjektEntwurf, onNavProfile, onLoggedOut, onSwitchToAdmin }: Props) {
+export default function HomeScreen({ displayName, logoUrl, role, enabledModules, onNavRapport, onNavArbeitszeit, onNavProjekte, onNavOfferten, onNavProjektEntwurf, onNavProfile, onLoggedOut, onSwitchToAdmin, inventur, onNavInventur }: Props) {
   const firstName = displayName.split(' ')[0]
   const isLight = role === 'user_light'
   const has = (m: ModuleName) => enabledModules.includes(m)
@@ -130,6 +136,44 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
       <div className="home-scroll">
       {/* Tiles */}
       <div className="tiles">
+        {inventur && onNavInventur && (
+          // Zuoberst, solange sie offen ist: Eine zugeteilte Tranche ist eine
+          // Aufgabe mit Frist, und sie verschwindet von selbst, sobald sie
+          // abgeschlossen ist.
+          <div className="tile tile-amber tile-full" onClick={onNavInventur}>
+            <div className="tile-icon tile-icon-amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" strokeWidth="1.8">
+                <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/>
+                <rect x="9" y="2" width="6" height="4" rx="1"/>
+                <path d="M9 13l2 2 4-4"/>
+              </svg>
+            </div>
+            <div>
+              <div className="tile-label">
+                Inventur
+                {inventur.offen > 0 && (
+                  <span style={{
+                    marginLeft: 8, fontSize: 12, fontWeight: 600,
+                    color: inventur.ueberfaellig ? 'var(--danger)' : 'var(--muted)',
+                  }}>
+                    {inventur.offen} offen
+                  </span>
+                )}
+              </div>
+              <div className="tile-desc">
+                {inventur.ueberfaellig
+                  ? `${inventur.title ?? 'Zählung'} — überfällig`
+                  : (inventur.title ?? 'Zählung zählen')}
+              </div>
+            </div>
+            <div className="tile-arrow">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 8h10M9 4l4 4-4 4"/>
+              </svg>
+            </div>
+          </div>
+        )}
+
         {showRapport && (
           <div className="tile tile-accent" onClick={onNavRapport}>
             <div className="tile-icon tile-icon-accent">

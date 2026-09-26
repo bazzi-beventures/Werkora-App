@@ -8,7 +8,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { createStockCount, getStockOverview, listStockCounts } from '../../api/admin/inventory'
 import type { CountKind, StockCount, StockOverviewRow } from '../../api/admin/inventory'
+import CountCoverageTabelle from './CountCoverage'
 import CountDetail from './CountDetail'
+import CountPlans from './CountPlans'
 
 function datum(iso: string | null): string {
   if (!iso) return '—'
@@ -24,6 +26,28 @@ const STATUS_LABEL: Record<string, string> = {
   offen: 'Offen',
   abgeschlossen: 'Abgeschlossen',
   abgebrochen: 'Abgebrochen',
+}
+
+const ART_LABEL: Record<CountKind, string> = {
+  voll: 'Vollzählung',
+  stich: 'Stichzählung',
+  rollierend: 'Rollierend',
+}
+
+function fortschrittText(c: StockCount): string {
+  if (c.status !== 'offen' || !c.progress) return '—'
+  return `${c.progress.gezaehlt} von ${c.progress.gesamt}`
+}
+
+/** Fällig wann — und rot, sobald die Frist durch ist. */
+function Faelligkeit({ count }: { count: StockCount }) {
+  if (!count.due_on || count.status !== 'offen') return <span style={{ color: 'var(--muted)' }}>—</span>
+  const ueberfaellig = String(count.due_on).slice(0, 10) < new Date().toISOString().slice(0, 10)
+  return (
+    <span style={{ color: ueberfaellig ? 'var(--danger)' : 'var(--muted)' }}>
+      {datum(count.due_on)}{ueberfaellig ? ' · überfällig' : ''}
+    </span>
+  )
 }
 
 function NeueZaehlung({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
@@ -172,12 +196,20 @@ function NeueZaehlung({ onClose, onCreated }: { onClose: () => void; onCreated: 
   )
 }
 
-export default function CountsScreen() {
+export default function CountsScreen({ openCountId, onConsumed }: {
+  /** Direktsprung vom Dashboard oder aus einer Push in genau diese Zählung. */
+  openCountId?: string
+  onConsumed?: () => void
+} = {}) {
   const [counts, setCounts] = useState<StockCount[]>([])
-  const [offenId, setOffenId] = useState<string | null>(null)
+  const [offenId, setOffenId] = useState<string | null>(openCountId ?? null)
   const [neuOffen, setNeuOffen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  // Der Zählstand liest dieselben Artikel wie die Zählungen. Entsteht eine
+  // Zählung oder ändert sich ein Plan, stimmt er sonst still nicht mehr.
+  const [standTick, setStandTick] = useState(0)
+  const [planFuerKategorie, setPlanFuerKategorie] = useState<string | null>(null)
 
   const laden = useCallback(async () => {
     setLoading(true)
@@ -194,8 +226,23 @@ export default function CountsScreen() {
 
   useEffect(() => { void laden() }, [laden])
 
+  // Der Sprung ist ein Startereignis, kein Zustand: einmal ausgeführt, danach
+  // gehört die Navigation wieder dem Nutzer — sonst spränge jedes «Zurück»
+  // sofort wieder in dieselbe Zählung.
+  useEffect(() => {
+    if (openCountId) {
+      setOffenId(openCountId)
+      onConsumed?.()
+    }
+  }, [openCountId, onConsumed])
+
   if (offenId) {
-    return <CountDetail countId={offenId} onBack={() => { setOffenId(null); void laden() }} />
+    return (
+      <CountDetail
+        countId={offenId}
+        onBack={() => { setOffenId(null); void laden(); setStandTick(t => t + 1) }}
+      />
+    )
   }
 
   return (
@@ -212,6 +259,19 @@ export default function CountsScreen() {
 
       {error && <div className="admin-form-error">{error}</div>}
 
+      <CountPlans
+        onOeffnen={id => { setOffenId(id); void laden() }}
+        neuFuerKategorie={planFuerKategorie}
+        onNeuVerbraucht={() => setPlanFuerKategorie(null)}
+        onGeaendert={() => setStandTick(t => t + 1)}
+      />
+
+      <CountCoverageTabelle
+        reloadTick={standTick}
+        onOeffnen={id => { setOffenId(id); void laden() }}
+        onPlanAnlegen={setPlanFuerKategorie}
+      />
+
       {loading ? (
         <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>
       ) : counts.length === 0 ? (
@@ -226,8 +286,10 @@ export default function CountsScreen() {
               <th>Bezeichnung</th>
               <th>Art</th>
               <th>Status</th>
+              <th>Fortschritt</th>
+              <th>Zähler</th>
+              <th>Fällig</th>
               <th>Begonnen</th>
-              <th>Abgeschlossen</th>
               <th style={{ textAlign: 'right' }}>Differenz (EK)</th>
             </tr>
           </thead>
@@ -235,10 +297,12 @@ export default function CountsScreen() {
             {counts.map(c => (
               <tr key={c.id} onClick={() => setOffenId(c.id)} style={{ cursor: 'pointer' }}>
                 <td><strong>{c.title}</strong></td>
-                <td style={{ color: 'var(--muted)' }}>{c.kind === 'voll' ? 'Vollzählung' : 'Stichzählung'}</td>
+                <td style={{ color: 'var(--muted)' }}>{ART_LABEL[c.kind] ?? c.kind}</td>
                 <td>{STATUS_LABEL[c.status] ?? c.status}</td>
+                <td style={{ color: 'var(--muted)' }}>{fortschrittText(c)}</td>
+                <td style={{ color: 'var(--muted)' }}>{c.assigned_name ?? '—'}</td>
+                <td><Faelligkeit count={c} /></td>
                 <td style={{ color: 'var(--muted)' }}>{datum(c.started_at)} · {c.started_by}</td>
-                <td style={{ color: 'var(--muted)' }}>{datum(c.closed_at)}</td>
                 <td style={{
                   textAlign: 'right',
                   color: (c.diff_value_ek ?? 0) < 0 ? 'var(--danger)' : undefined,

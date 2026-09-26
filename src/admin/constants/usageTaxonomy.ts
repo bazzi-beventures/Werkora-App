@@ -44,7 +44,7 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   { test: /^(report_|log_report)|rapport|aggregate_report/, module: 'rapport' },
   // Mandanten-Einstellungen und Superadmin-Werkzeuge. Vor /schedul/, sonst
   // zählt `admin_update_tenant_scheduling` als Einsatzplanung.
-  { test: /tenant_|superadmin_push|support_ticket|newsletter/, module: 'konfiguration' },
+  { test: /tenant_|superadmin_push|support_ticket|feature_request|newsletter/, module: 'konfiguration' },
   { test: /aftersales/,                          module: 'aftersales' },
   // Offerten-Umfeld: 'variant' (Offerten-Variante), 'special_position' und
   // 'installation_template' tragen das Wort "quote" nicht im Namen.
@@ -55,6 +55,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   { test: /correction|clock_in|clock_out|timesheet|zeit_/, module: 'timekeeping' },
   // Aufgaben-Vorlagen vor /project/, sonst zählen sie als Grundfunktion.
   { test: /task_template|board_task/,            module: 'task_board' },
+  // Garantiefälle vor /project/: `admin_create_warranty_case` hängt am Projekt,
+  // gehört aber zum Modul `warranty` (docs/specs/garantiefall.md Phase 2).
+  { test: /warranty/,                            module: 'warranty' },
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
@@ -195,6 +198,9 @@ const ACTION_LABELS: Record<string, string> = {
   admin_stock_count_close: 'Inventur abgeschlossen',
   admin_stock_count_abort: 'Inventur abgebrochen',
   admin_stock_count_export: 'Inventur exportiert',
+  admin_stock_count_plan_set: 'Zählplan gespeichert',
+  admin_stock_count_plan_delete: 'Zählplan gelöscht',
+  admin_stock_count_tranche: 'Zähl-Tranche angelegt',
   admin_stock_anomaly_ignore: 'Auffälligkeit ignoriert',
   admin_add_frequent_material: 'Häufiger Artikel hinzugefügt',
   admin_remove_frequent_material: 'Häufiger Artikel entfernt',
@@ -213,6 +219,10 @@ const ACTION_LABELS: Record<string, string> = {
   admin_set_project_status: 'Projekt-Status gesetzt',
   admin_close_project: 'Projekt geschlossen',
   admin_reopen_project: 'Projekt wiedereröffnet',
+  // ── Garantiefälle ──
+  admin_create_warranty_case: 'Garantiefall gemeldet',
+  admin_update_warranty_case: 'Garantiefall bearbeitet',
+  admin_create_warranty_project: 'Reparatur-Projekt aus Garantiefall angelegt',
   admin_delete_project_file: 'Projektdatei entfernt',
   admin_create_project_approval: 'Visierung angefordert',
   admin_approve_project_approval: 'Visierung erteilt',
@@ -296,6 +306,11 @@ const ACTION_LABELS: Record<string, string> = {
   superadmin_push_send: 'Test-Push versendet',
   support_ticket_update: 'Support-Meldung bearbeitet',
   support_ticket_reply: 'Support-Meldung beantwortet',
+  // Feature-Anfragen (docs/specs/feature-anfragen.md §10.5) — Triage durch den
+  // Betreiber, im Mandanten der Anfrage protokolliert.
+  feature_request_erfasst: 'Feature-Anfrage im Auftrag erfasst',
+  feature_request_aus_support: 'Support-Meldung als Feature-Anfrage übernommen',
+  feature_request_triage: 'Feature-Anfrage triagiert',
   newsletter_send: 'Newsletter versendet',
 
   // ── Roher DSGVO-Audit-Trail aus db/ ──

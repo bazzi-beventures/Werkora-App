@@ -14,7 +14,7 @@ export interface BoardTask {
   description: string | null
   project_id: string | null
   project_name: string | null
-  ref_kind: 'quote' | 'invoice' | 'project' | 'draft' | 'approval' | 'aftersales' | null
+  ref_kind: 'quote' | 'invoice' | 'project' | 'draft' | 'approval' | 'aftersales' | 'warranty_case' | null
   ref_id: string | null
   status: BoardColumn
   sort_order: number

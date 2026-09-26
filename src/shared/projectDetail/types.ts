@@ -80,6 +80,9 @@ export type ProjectFileCategory =
   // und mitschickt (inhaltlich die Offerte). Steht im Offerten-Tab, weil es die
   // Fortsetzung der Offerte ist — nicht zu verwechseln mit 'auftragsbestaetigung'.
   | 'auftragsbestaetigung_kunde'
+  // Fotos und Unterlagen zu Garantiefällen — steht im Reiter «Garantie», nicht
+  // im Dokumente-Tab (docs/specs/garantiefall.md §4).
+  | 'garantie'
 
 export interface ProjectFile {
   id: string
@@ -105,6 +108,7 @@ export const CATEGORY_LABELS: Record<ProjectFileCategory, string> = {
   rapport: 'Rapport',
   offerte: 'Offerte',
   auftragsbestaetigung_kunde: 'Auftragsbestätigung',
+  garantie: 'Garantiefall',
 }
 
 // ─── Kommentare am Projekt ──────────────────────────────────

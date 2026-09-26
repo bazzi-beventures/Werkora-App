@@ -91,6 +91,12 @@ export function IconLifebuoy() {
   return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 2.5c.83 0 1.62.18 2.33.5l-1.2 1.77a3.5 3.5 0 0 0-2.26 0L7.67 5A5.47 5.47 0 0 1 10 4.5zM4.5 10c0-.83.18-1.62.5-2.33l1.77 1.2a3.5 3.5 0 0 0 0 2.26L5 12.33A5.47 5.47 0 0 1 4.5 10zm5.5 5.5c-.83 0-1.62-.18-2.33-.5l1.2-1.77a3.5 3.5 0 0 0 2.26 0l1.2 1.77c-.71.32-1.5.5-2.33.5zm4.5-3.17-1.77-1.2a3.5 3.5 0 0 0 0-2.26L15 7.67a5.5 5.5 0 0 1 0 4.66zM10 8a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" clipRule="evenodd"/></svg>
 }
 
+export function IconBulb() {
+  // Feature-Anfragen: Glühbirne — die Idee, die jemand hatte. Bewusst nicht
+  // IconTasks (Kanban): das Board ist hier Mittel, nicht der Inhalt.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 0 0-3.6 10.8c.37.28.6.72.6 1.2v.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V14c0-.48.23-.92.6-1.2A6 6 0 0 0 10 2z"/><path d="M8 17.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5v.5a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-.5z" opacity=".6"/></svg>
+}
+
 export function IconBell() {
   // Push-Test: Glocke.
   return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a5 5 0 0 0-5 5v2.6l-1.3 2.6A1 1 0 0 0 4.6 14h10.8a1 1 0 0 0 .9-1.8L15 9.6V7a5 5 0 0 0-5-5zM8 15.5a2 2 0 0 0 4 0H8z"/></svg>
