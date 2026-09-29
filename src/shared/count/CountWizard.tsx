@@ -15,7 +15,7 @@
 // auch mal aus, und eine halbe Stunde Zählarbeit im Arbeitsspeicher ist eine
 // halbe Stunde, die man ein zweites Mal macht.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { isNetworkError } from '../../api/client'
 import {
   closeStockCount, getStockCount, recordCountItem,
@@ -94,10 +94,18 @@ export default function CountWizard({ countId, onBack, onDone, onSwitchToList }:
 
   // Beim Positionswechsel steht der gespeicherte Wert im Feld — so sieht man
   // beim Zurückblättern, was man eingetragen hat, statt eines leeren Felds.
+  //
+  // Layout-Effekt, nicht useEffect: Das Feld erscheint im selben Commit wie
+  // die Position. Ein passiver Effekt setzte es erst DANACH zurück, und
+  // alles, was in diesem Fenster eingetragen wurde, war wieder weg — die
+  // Eingabe stand kurz da und verschwand. In der CI traf es
+  // CountWizard.test.tsx sporadisch (PR #855): Die Testbibliothek wartet mit
+  // setTimeout(0), React verschiebt passive Effekte per setImmediate, und
+  // welches von beiden in Node zuerst dran ist, ist nicht festgelegt.
   const itemId = item?.id
   const itemMenge = item?.counted_qty ?? null
   const itemNotiz = item?.note ?? ''
-  useEffect(() => {
+  useLayoutEffect(() => {
     setEntwurf(itemMenge != null ? String(itemMenge) : '')
     setNotiz(itemNotiz)
     setNotizOffen(Boolean(itemNotiz))

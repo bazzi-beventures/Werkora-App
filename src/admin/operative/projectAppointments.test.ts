@@ -249,7 +249,7 @@ describe('Anzeige', () => {
   it('nutzt beim Typ «sonstiges» den Freitext als Überschrift', () => {
     expect(draftTitle(draft({ kind: 'sonstiges', label: 'Begehung' }))).toBe('Begehung')
     expect(draftTitle(draft({ kind: 'sonstiges', label: '' }))).toBe('Sonstiges')
-    expect(draftTitle(draft({ kind: 'aufmass' }))).toBe('Aufmass')
+    expect(draftTitle(draft({ kind: 'aufmass' }))).toBe('Ausmass')
   })
 
   it('fällt ohne Termin-Team auf das Projekt-Team zurück', () => {

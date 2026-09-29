@@ -239,7 +239,7 @@ describe('Plantafel', () => {
     await user.click(screen.getByRole('button', { name: 'Plantafel' }))
 
     const chips = [...container.querySelectorAll('.project-cal-board-chip')]
-    expect(chips[0]).toHaveTextContent('📐')  // Aufmass
+    expect(chips[0]).toHaveTextContent('📐')  // Ausmass
     expect(chips[1]).toHaveTextContent('🔧')  // ohne termin_kind = Montage-Default
   })
 

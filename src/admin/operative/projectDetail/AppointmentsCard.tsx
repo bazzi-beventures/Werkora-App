@@ -56,7 +56,7 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
     <div className="admin-table-wrap" style={{ padding: 24 }}>
       <div className="admin-section-title">Termine</div>
       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
-        Beliebig viele Termine je Projekt (z.B. Aufmass vorab, Montage später). Ohne eigene
+        Beliebig viele Termine je Projekt (z.B. Ausmass vorab, Montage später). Ohne eigene
         Auswahl gilt beim Termin das Projekt-Team aus der Einsatzplanung. Termine erscheinen
         im Einsatz-Kalender und werden mit «Speichern» übernommen.
       </div>

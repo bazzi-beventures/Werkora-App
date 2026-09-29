@@ -67,6 +67,34 @@ describe('LoginScreen', () => {
     expect(await screen.findByText('Benutzername oder Passwort falsch.')).toBeTruthy()
   })
 
+  it('sagt, dass das Passwort stimmte, wenn danach die Sitzung fehlt', async () => {
+    // Login 200, /pwa/me 401: der Browser hat das Cookie nicht behalten.
+    // apiFetch macht daraus «Sitzung abgelaufen» — am Handy las sich das wie
+    // ein falsches Passwort.
+    getMe.mockRejectedValue(new ApiError(401, 'Sitzung abgelaufen'))
+    const onLoggedIn = vi.fn()
+    render(<LoginScreen onLoggedIn={onLoggedIn} />)
+    anmelden()
+
+    expect(await screen.findByText(/Passwort stimmt, aber der Browser/)).toBeTruthy()
+    expect(screen.queryByText('Sitzung abgelaufen')).toBeNull()
+    expect(onLoggedIn).not.toHaveBeenCalled()
+  })
+
+  it('blendet das Passwort per Auge ein, ohne Autokorrektur', () => {
+    // Am Handy kam ein anderes Passwort an als vom Rechner. Ohne Auge lässt
+    // sich nicht sehen, was wirklich im Feld steht.
+    render(<LoginScreen onLoggedIn={vi.fn()} />)
+    const feld = screen.getByLabelText('Passwort') as HTMLInputElement
+    expect(feld.type).toBe('password')
+    expect(feld.getAttribute('autocorrect')).toBe('off')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Passwort anzeigen' }))
+    expect(feld.type).toBe('text')
+    fireEvent.click(screen.getByRole('button', { name: 'Passwort verbergen' }))
+    expect(feld.type).toBe('password')
+  })
+
   it('bietet den «Passwort vergessen»-Weg an', () => {
     // Bis 20260918 fehlte er: die Reset-Seite verlinkte danach in die
     // Mandanten-App, fuer ein Betreiberkonto eine Sackgasse. Behoben in

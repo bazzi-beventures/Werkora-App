@@ -247,6 +247,9 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                   <input
                     className="admin-form-input"
                     type={showPassword ? 'text' : 'password'}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder="••••••••"

@@ -123,6 +123,9 @@ export function PasswordDialog({ titel, requireCurrent = false, onSave, onClose,
             <input
               className="admin-form-input"
               type="password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               autoComplete="current-password"
               value={aktuell}
               onChange={(e) => setAktuell(e.target.value)}
@@ -135,6 +138,9 @@ export function PasswordDialog({ titel, requireCurrent = false, onSave, onClose,
           <input
             className="admin-form-input"
             type="password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             autoComplete="new-password"
             value={neu}
             onChange={(e) => setNeu(e.target.value)}
@@ -146,6 +152,9 @@ export function PasswordDialog({ titel, requireCurrent = false, onSave, onClose,
           <input
             className="admin-form-input"
             type="password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             autoComplete="new-password"
             value={wiederholung}
             onChange={(e) => setWiederholung(e.target.value)}

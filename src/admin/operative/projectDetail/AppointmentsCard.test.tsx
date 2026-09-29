@@ -44,7 +44,7 @@ describe('AppointmentsCard', () => {
       draft({ key: 'a-2', id: 'a-2', startDate: '2026-09-01', ownTeam: true, monteurIds: ['s-2'] }),
     ])
     // Mehrfach, weil ein anstehender Termin zusätzlich im «Nächster Termin»-Banner steht.
-    expect(screen.getAllByText('Aufmass').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Ausmass').length).toBeGreaterThan(0)
     expect(screen.getAllByText(/07:30–09:00/).length).toBeGreaterThan(0)
     // Ohne eigenes Team gilt das Projekt-Team, mit eigenem Team dessen Auswahl.
     expect(screen.getByText('Projekt-Team: Marvin Walser')).toBeTruthy()

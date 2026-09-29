@@ -136,7 +136,11 @@ export interface Quote {
   storage_path?: string | null
   xlsx_storage_path?: string | null
   reminder_sent_at: string | null
+  /** Heutiger Projektleiter des Projekts — danach filtert die Liste. */
   projektleiter_id: string | null
+  /** Projektleiter beim Erstellen der Offerte (Snapshot, steht so auf dem PDF).
+   *  Leer bei sehr alten Offerten; dann zeigt die Liste den heutigen. */
+  projektleiter_name?: string | null
   // Text-Snapshot des Rechnungsempfängers (siehe quotes.customer_id) — für die
   // Kunden-Spalte und die Suche in der Liste.
   customer_name?: string | null

@@ -448,7 +448,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       setApptForm(apptToForm(appt))
     } else {
       // Projekt ohne konkreten Termin gewählt (Picker): den nächsten Termin in
-      // den Editor laden. Sonst bliebe der Termin-Typ (Aufmass/Montage/Service …)
+      // den Editor laden. Sonst bliebe der Termin-Typ (Ausmass/Montage/Service …)
       // unerreichbar, obwohl er Symbol und Badge im Kalender bestimmt.
       setApptForm(nextAppointment(p.id))
     }
@@ -837,7 +837,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
 
   // Kalender-Einträge: EIN Eintrag je Termin. id = Termin-ID (eindeutige Keys/
   // Lanes/Drag), Terminfelder überlagern das Projekt; Team = Termin-Team,
-  // Fallback Projekt-Team. Badge nur bei Nicht-Standard-Typ (Aufmass/Service/…),
+  // Fallback Projekt-Team. Badge nur bei Nicht-Standard-Typ (Ausmass/Service/…),
   // damit der Normalfall (Montage) ruhig bleibt.
   const calendarEntries = useMemo<CalendarEntry[]>(() => {
     const projById = new Map(filteredByPl.map(p => [p.id, p]))

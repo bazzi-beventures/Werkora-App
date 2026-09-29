@@ -333,6 +333,12 @@ export default function SupportForm({ route, appContext, mine }: Props) {
         rows={5}
         placeholder="Z.B. Rapport lässt sich nicht speichern, Knopf reagiert nicht …"
         style={{
+          // `flexShrink: 0` gehört zum `height: 100%` der Spalte oben: sobald der
+          // Inhalt höher ist als das Panel, schrumpft Flexbox die Kinder, statt
+          // zu scrollen. Eine textarea hat `overflow: auto` und damit
+          // `min-height: 0` — sie gab als einzige nach und fiel auf einen
+          // Streifen zusammen, in dem nur noch der halbe Platzhalter stand.
+          flexShrink: 0,
           width: '100%', resize: 'vertical', padding: 10, borderRadius: 'var(--radius-sm)',
           border: '1px solid var(--border, #e5e7eb)', background: 'var(--surface, #fff)',
           color: 'inherit', font: 'inherit',

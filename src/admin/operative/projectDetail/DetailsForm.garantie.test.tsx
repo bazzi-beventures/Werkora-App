@@ -119,3 +119,17 @@ describe('Abnahmedatum', () => {
     expect(form.setCompletedAt).toHaveBeenCalledWith('2024-03-14')
   })
 })
+
+// Nicht Garantie, aber dieselbe Maske — der Stub oben trägt beides.
+describe('Eigentümer-Grenzen', () => {
+  it('zeigt unter dem Feld, wenn Seitentext im Namen steht', () => {
+    // Am 2026-09-28 stand so der Text der ganzen Projektseite auf einer Rechnung.
+    setup({ eigentuemer: { name: 'Mitarbeiter-App MW Marvin Walser … '.repeat(5), adresse: '', telefon: '', email: '' } })
+    expect(screen.getByRole('alert').textContent).toMatch(/Eigentümer – Name: höchstens 120 Zeichen/)
+  })
+
+  it('schweigt bei einem gewöhnlichen Eigentümer', () => {
+    setup({ eigentuemer: { name: 'Erika Muster', adresse: 'Bergweg 3, 8002 Zürich', telefon: '', email: '' } })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+})

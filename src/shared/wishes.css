@@ -188,6 +188,11 @@ button.wish-card { cursor: pointer; }
 
 .roadmap-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .roadmap-filters > * { flex: 1 1 160px; min-width: 0; }
+/* Häkchen «Nur unsere»: `.wish-row > *` gäbe Kästchen und Text je 140px
+   Mindestbreite — die beiden brachen untereinander um, das Kästchen stand
+   allein über dem Wort. Hier bleiben sie nebeneinander, so breit wie nötig. */
+.roadmap-filters > label.wish-row { flex: 0 0 auto; flex-wrap: nowrap; }
+.roadmap-filters > label.wish-row > * { flex: 0 0 auto; }
 
 .roadmap-timeline { list-style: none; margin: 0; padding: 0 0 0 12px; border-left: 2px solid var(--border, #e5e7eb); }
 .roadmap-timeline li { padding: 2px 0 8px 10px; }

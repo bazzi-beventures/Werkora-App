@@ -3106,7 +3106,7 @@ button.admin-list-item {
   font-weight: 600;
 }
 
-/* Termin-Typ-Badge auf Kalenderblöcken (z.B. "Aufmass") — nur bei
+/* Termin-Typ-Badge auf Kalenderblöcken (z.B. "Ausmass") — nur bei
    Nicht-Standard-Terminen gesetzt, damit der Normalfall ruhig bleibt. */
 .project-cal-termin-badge {
   display: inline-block;
@@ -3560,7 +3560,7 @@ button.admin-list-item {
   line-height: 1.3;
 }
 
-/* Typ-Symbol (Aufmass/Montage/Service/…) auf Kalender-Kacheln und Chips. */
+/* Typ-Symbol (Ausmass/Montage/Service/…) auf Kalender-Kacheln und Chips. */
 .project-cal-kind-symbol {
   margin-right: 4px;
   font-size: 11px;

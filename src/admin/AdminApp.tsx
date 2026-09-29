@@ -247,7 +247,12 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'suppliers':    return <SuppliersScreen />
       case 'supplier-wiki': return guard('supplier_wiki', <SupplierWikiScreen />)
       case 'roadmap':      return guard('feature_requests', (
-        <div className="admin-page">
+        // admin-page-wide: das Board hat sechs Spalten à mindestens 200px. Bei
+        // den 1200px von .admin-page lief «Verfügbar» rechts aus dem Bild und
+        // war nur per Scrollbalken erreichbar — auch auf einem Bildschirm mit
+        // reichlich Platz. Quer scrollt das Board jetzt nur noch, wenn es
+        // wirklich eng ist.
+        <div className="admin-page admin-page-wide">
           <div className="admin-page-header">
             <div>
               <div className="admin-page-title">Wünsche &amp; Roadmap</div>

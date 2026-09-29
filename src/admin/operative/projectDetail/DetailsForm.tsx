@@ -7,6 +7,7 @@ import { recomputeNextDue } from './projectForm'
 import type { UseProjectForm } from './useProjectForm'
 import type { Customer } from '../../../api/admin/customers'
 import { KontaktNameInput } from './KontaktNameInput'
+import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
 
 // Der Reiter «Projekt Details» (Charge H, H3) — die eigentliche Projektmaske.
 // Reines JSX: jeder Wert und jeder Setter kommt aus useProjectForm, damit hier
@@ -352,18 +353,30 @@ export function DetailsForm({
               <div className="admin-form-group" style={{ margin: 0 }}>
                 <label className="admin-form-label">Name</label>
                 <input className="admin-form-input" autoComplete="new-eigentuemer-name" value={eigentuemer.name} onChange={e => updateEigentuemer('name', e.target.value)} placeholder="z.B. Erika Muster / Eigentümergemeinschaft" />
+                {eigentuemerFeldFehler('name', eigentuemer.name) && (
+                  <div className="admin-form-error" role="alert">{eigentuemerFeldFehler('name', eigentuemer.name)}</div>
+                )}
               </div>
               <div className="admin-form-group" style={{ margin: 0 }}>
                 <label className="admin-form-label">Adresse</label>
                 <input className="admin-form-input" autoComplete="new-eigentuemer-adresse" value={eigentuemer.adresse} onChange={e => updateEigentuemer('adresse', e.target.value)} placeholder="Strasse Nr, PLZ Ort" />
+                {eigentuemerFeldFehler('adresse', eigentuemer.adresse) && (
+                  <div className="admin-form-error" role="alert">{eigentuemerFeldFehler('adresse', eigentuemer.adresse)}</div>
+                )}
               </div>
               <div className="admin-form-group" style={{ margin: 0 }}>
                 <label className="admin-form-label">Telefon</label>
                 <input className="admin-form-input" autoComplete="new-eigentuemer-telefon" value={eigentuemer.telefon} onChange={e => updateEigentuemer('telefon', e.target.value)} />
+                {eigentuemerFeldFehler('telefon', eigentuemer.telefon) && (
+                  <div className="admin-form-error" role="alert">{eigentuemerFeldFehler('telefon', eigentuemer.telefon)}</div>
+                )}
               </div>
               <div className="admin-form-group" style={{ margin: 0 }}>
                 <label className="admin-form-label">E-Mail</label>
                 <input className="admin-form-input" autoComplete="new-eigentuemer-email" type="email" value={eigentuemer.email} onChange={e => updateEigentuemer('email', e.target.value)} />
+                {eigentuemerFeldFehler('email', eigentuemer.email) && (
+                  <div className="admin-form-error" role="alert">{eigentuemerFeldFehler('email', eigentuemer.email)}</div>
+                )}
               </div>
             </div>
           </div>

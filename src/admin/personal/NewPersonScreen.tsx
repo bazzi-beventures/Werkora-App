@@ -426,6 +426,9 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                       id="np-password"
                       className="admin-form-input"
                       type={showPassword ? 'text' : 'password'}
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="leer lassen = nur Passkey-Login"

@@ -19,7 +19,7 @@ export interface ScheduleEntry {
   is_internal: boolean
   art_der_arbeit: string
   /** Fertig beschriftet vom Server ('07:30–12:00', 'ganztägig', 'ab 08:00
-   *  (mehrtägig)') — inklusive Termin-Typ, wo er etwas sagt ('Aufmass · …').
+   *  (mehrtägig)') — inklusive Termin-Typ, wo er etwas sagt ('Ausmass · …').
    *  Bewusst nicht im Client zusammengebaut: dieselbe Zeile steht so im
    *  Wochenplan-PDF und auf dem Papier-Rapport. */
   time_label: string

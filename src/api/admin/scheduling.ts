@@ -12,12 +12,12 @@ import { apiFetch, ApiError } from '../client'
 // db/project_appointments.py APPOINTMENT_KIND_LABELS). Schlüssel = DB-Wert,
 // Wert = Anzeigename; die Reihenfolge ist die Reihenfolge im Dropdown und in
 // der Kalender-Legende und folgt dem Ablauf einer Baustelle
-// (Aufmass → Demontage → Montage → Wiedermontage → Service).
+// (Ausmass → Demontage → Montage → Wiedermontage → Service).
 // Wer hier einen Typ ergänzt, braucht keine weitere UI-Änderung — nur das
 // Typ-Symbol in admin/operative/scheduleShared.ts, die CHECK-Constraint der
 // Spalte `kind` (Migration) und die Backend-Registry.
 export const APPOINTMENT_KIND_LABELS = {
-  aufmass: 'Aufmass',
+  aufmass: 'Ausmass',
   demontage: 'Demontage',
   montage: 'Montage',
   wiedermontage: 'Wiedermontage',

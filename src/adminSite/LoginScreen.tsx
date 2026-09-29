@@ -31,6 +31,7 @@ import { useState, type FormEvent } from 'react'
 import { getMe, logout, type UserInfo } from '../api/auth'
 import { loginWithPassword, requestPasswordReset } from '../api/admin/staff'
 import { WerkoraMark } from '../brand/WerkoraMark'
+import { EyeIcon } from '../shared/EyeIcon'
 import { ApiError } from '../api/client'
 
 /**
@@ -65,6 +66,7 @@ interface Props {
 export default function LoginScreen({ onLoggedIn }: Props) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [passwortSichtbar, setPasswortSichtbar] = useState(false)
   const [fehler, setFehler] = useState<string | null>(null)
   const [laeuft, setLaeuft] = useState(false)
 
@@ -82,7 +84,25 @@ export default function LoginScreen({ onLoggedIn }: Props) {
     setLaeuft(true)
     try {
       await loginWithPassword(username.trim(), password)
-      const user = await getMe()
+      let user: UserInfo
+      try {
+        user = await getMe()
+      } catch (err: unknown) {
+        // Passwort war richtig (sonst stünde der Fehler oben), aber die
+        // Sitzung kam beim nächsten Aufruf nicht mit: der Browser hat das
+        // Cookie des API-Hosts nicht behalten oder nicht gesendet. Bisher
+        // stand hier «Sitzung abgelaufen» — am Handy las sich das wie ein
+        // falsches Passwort, und die Suche lief in die falsche Richtung.
+        if (err instanceof ApiError && err.status === 401) {
+          setFehler(
+            'Passwort stimmt, aber der Browser hat die Anmeldung nicht behalten. '
+            + 'Cookies für diese Seite erlauben (Safari: «Alle Cookies blockieren» aus) '
+            + 'und nochmals anmelden.',
+          )
+          return
+        }
+        throw err
+      }
       if (user.role !== 'superadmin') {
         // Die Sitzung besteht jetzt — sie hier wieder zu beenden ist kein
         // Schönheitsschritt: sonst hinge auf dieser Origin ein Cookie, mit dem
@@ -219,14 +239,32 @@ export default function LoginScreen({ onLoggedIn }: Props) {
 
         <label className="admin-form-group">
           <span className="admin-form-label">Passwort</span>
-          <input
-            className="admin-form-input"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
+          {/* Das Auge ist hier kein Komfort: am Handy tippt man blind auf einer
+              anderen Tastatur als am Rechner, und «das Passwort stimmt doch»
+              lässt sich nur klären, wenn man sieht, was wirklich im Feld steht.
+              Die drei Sperren gelten auch verborgen — iOS ersetzt sonst
+              gerade Anführungszeichen und Bindestriche typografisch. */}
+          <div className="adminsite-password">
+            <input
+              className="admin-form-input"
+              type={passwortSichtbar ? 'text' : 'password'}
+              autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <button
+              type="button"
+              className="adminsite-password-toggle"
+              onClick={() => setPasswortSichtbar((v) => !v)}
+              aria-label={passwortSichtbar ? 'Passwort verbergen' : 'Passwort anzeigen'}
+            >
+              <EyeIcon open={passwortSichtbar} />
+            </button>
+          </div>
         </label>
 
         {fehler && <div className="admin-form-error">{fehler}</div>}

@@ -26,7 +26,7 @@ export interface StaffLite {
 // Kalender-Eintrag = EIN Termin (project_appointments). Der Screen spreadet das
 // Projekt und überlagert die Terminfelder; `id` ist die TERMIN-ID — dadurch sind
 // Keys/Lanes/Drag&Drop je Termin eindeutig, auch bei mehreren Terminen desselben
-// Projekts. termin_badge: Typ-Label (z.B. "Aufmass"), leer beim Standardfall.
+// Projekts. termin_badge: Typ-Label (z.B. "Ausmass"), leer beim Standardfall.
 // termin_kind: roher Termin-Typ (AppointmentKind, siehe api/admin/scheduling.ts)
 // für das Typ-Symbol — nur bei Kundenprojekten gesetzt, interne Einsätze nutzen
 // p.kind.
@@ -224,7 +224,7 @@ export function kindSymbol(p: CalendarEntry): string {
   return TERMIN_SYMBOLS[(p.termin_kind ?? DEFAULT_APPOINTMENT_KIND) as AppointmentKind] ?? ''
 }
 
-// Legende der Termin-Typen ("📐 Aufmass · 🔩 Demontage · …") — aus der Registry
+// Legende der Termin-Typen ("📐 Ausmass · 🔩 Demontage · …") — aus der Registry
 // abgeleitet, damit ein neuer Typ nicht in der Legende vergessen wird.
 export function terminLegend(): string {
   return APPOINTMENT_KINDS.map(k => `${TERMIN_SYMBOLS[k]} ${APPOINTMENT_KIND_LABELS[k]}`).join(' · ')

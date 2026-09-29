@@ -48,6 +48,10 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
   const [search, setSearch] = useState('')
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
   const [projektleiterOptions, setProjektleiterOptions] = useState<ProjektleiterOption[]>([])
+  // id → Name für ALLE Mitarbeiter, nicht nur die mit PL-Häkchen: löst den
+  // Projektleiter alter Offerten ohne Snapshot auf, auch wenn er das Häkchen
+  // inzwischen nicht mehr trägt (wie ProjectsScreen).
+  const [staffNameById, setStaffNameById] = useState<Record<string, string>>({})
   const [acting, setActing] = useState<number | null>(null)
   const { toast, showToast } = useToast()
   const [showCreate, setShowCreate] = useState(false)
@@ -113,6 +117,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
   useEffect(() => {
     getAdminStaff()
       .then(staff => {
+        setStaffNameById(Object.fromEntries(staff.map(s => [s.id, s.name])))
         setProjektleiterOptions(
           staff
             .filter(s => s.projektleiter)
@@ -177,12 +182,18 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
     onMarkSent: openPostal,
   }
 
+  // Der Projektleiter, der die Offerte erstellt hat: der Snapshot auf der
+  // Offerte, sonst (alte Offerten) der heutige des Projekts.
+  const projektleiterName = (q: Quote): string =>
+    q.projektleiter_name || (q.projektleiter_id ? staffNameById[q.projektleiter_id] ?? '' : '')
+
   const filtered = quotes.filter(q => {
     const matchStatus = statusFilters.has(q.status)
     const needle = search.toLowerCase()
     const matchSearch = q.project_name.toLowerCase().includes(needle) ||
       q.quote_number.toLowerCase().includes(needle) ||
-      (q.customer_name ?? '').toLowerCase().includes(needle)
+      (q.customer_name ?? '').toLowerCase().includes(needle) ||
+      projektleiterName(q).toLowerCase().includes(needle)
     const matchPl = !projektleiterFilter || q.projektleiter_id === projektleiterFilter
     return matchStatus && matchSearch && matchPl
   })
@@ -211,7 +222,10 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
   }
 
   return (
-    <div className="admin-page">
+    // admin-page-wide: acht Spalten, und die Aktionen allein brauchen vier bis
+    // sechs Knöpfe. Bei den 1200px von .admin-page brachen sie in zwei Zeilen um,
+    // während rechts die Hälfte des Bildschirms leer blieb.
+    <div className="admin-page admin-page-wide">
       <div className="admin-page-header">
         <div>
           <div className="admin-page-title">Offerten</div>
@@ -226,7 +240,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
         <div className="admin-filter-bar">
           <input
             className="admin-search"
-            placeholder="Projekt, Kunde oder Offerten-Nr. suchen…"
+            placeholder="Projekt, Kunde, Projektleiter oder Offerten-Nr. suchen…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -262,6 +276,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                 <div className="admin-card-meta"><strong>{q.project_name}</strong></div>
                 <div className="admin-card-meta">
                   {q.customer_name ? `${q.customer_name} · ` : ''}{fmtCHF(q.total_amount)} · erstellt {fmtDate(q.created_at)}
+                  {projektleiterName(q) ? ` · ${projektleiterName(q)}` : ''}
                 </div>
                 {/* Die Knöpfe erledigen ihre eigene Aktion — sie dürfen nicht
                     zusätzlich den Karten-Klick auslösen und die Maske öffnen. */}
@@ -278,6 +293,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                 <th>Nr.</th>
                 <th>Projekt</th>
                 <th>Kunde</th>
+                <th>Projektleiter</th>
                 <th>Betrag</th>
                 <th>Status</th>
                 <th>Erstellt</th>
@@ -286,7 +302,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="admin-table-empty">Keine Offerten gefunden.</td></tr>
+                <tr><td colSpan={8} className="admin-table-empty">Keine Offerten gefunden.</td></tr>
               ) : filtered.map(q => {
                 // Ein Klick irgendwo auf die Zeile öffnet die Offerte — dieselbe
                 // Maske wie «Bearbeiten» und bei denselben Status. Klicks auf
@@ -304,6 +320,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{q.quote_number}</td>
                   <td><strong>{q.project_name}</strong></td>
                   <td style={{ color: 'var(--muted)' }}>{q.customer_name || '—'}</td>
+                  <td style={{ color: 'var(--muted)' }}>{projektleiterName(q) || '—'}</td>
                   <td style={{ fontWeight: 700 }}>{fmtCHF(q.total_amount)}</td>
                   <td><QuoteStatusCell quote={q} flags={flags} /></td>
                   <td style={{ color: 'var(--muted)' }}>{fmtDate(q.created_at)}</td>

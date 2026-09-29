@@ -11,6 +11,7 @@ import {
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
 import { projectBillingAddress, projectCustomerName } from '../../utils/project'
+import { eigentuemerFehler } from './eigentuemerGrenzen'
 import {
   KontaktCandidate, applyKontaktCandidate, kontakteOhneKundenstamm, kontaktFromCustomer,
   seedKontaktFromCustomer,
@@ -475,6 +476,10 @@ export function useProjectForm(opts: {
     if (!name.trim()) return fail('Projektname ist erforderlich.')
     const apptError = validateDrafts(appointments)
     if (apptError) return fail(apptError)
+    // Dieselbe Grenze prüft der Server — hier, damit die Meldung vor dem
+    // Speichern kommt und nicht erst als Antwort darauf.
+    const ownerError = eigentuemerFehler(eigentuemer)
+    if (ownerError) return fail(ownerError)
 
     // Ohne Projektleiter gibt es niemanden, der Rückfragen aus der Monteur-App
     // beantwortet, und das Projekt fehlt in jeder Auswertung je Projektleiter.
