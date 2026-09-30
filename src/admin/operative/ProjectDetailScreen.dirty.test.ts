@@ -29,7 +29,7 @@ function makeProject(over: Partial<Project> = {}): Project {
     created_by: null,
     created_by_id: null,
     bemerkung: null,
-    geruestfach: null,
+    geruestfaecher: [],
     start_date: '2026-08-03',
     end_date: null,
     start_time: '07:30:00',

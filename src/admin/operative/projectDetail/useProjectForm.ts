@@ -7,7 +7,7 @@ import type { Customer } from '../../../api/admin/customers'
 import type { DisposalDetails, Eigentuemer, Kontakt, Project } from '../../../api/admin/projects'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, apptToDraft, diffAppointments, draftPayload,
-  pinProjectTeam, teamsDiffer, validateDrafts,
+  pinProjectTeam, teamlessFollowersError, teamsDiffer, validateDraftTeams, validateDrafts,
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
 import { projectBillingAddress, projectCustomerName } from '../../utils/project'
@@ -90,8 +90,8 @@ export interface UseProjectForm {
   entsorgungsart: boolean
   bemerkung: string
   setBemerkung: (v: string) => void
-  geruestfach: string
-  setGeruestfach: (v: string) => void
+  geruestfaecher: string[]
+  setGeruestfaecher: (v: string[]) => void
   projektleiterId: string
   setProjektleiterId: (v: string) => void
   monteurIds: string[]
@@ -244,7 +244,7 @@ export function useProjectForm(opts: {
   // Mehrfachauswahl: ein Projekt kann mehrere Leistungsarten tragen (z.B. Neumontage + Reparatur)
   const [artDerArbeit, setArtDerArbeit] = useState<string[]>(baseline.artDerArbeit)
   const [bemerkung, setBemerkung] = useState(baseline.bemerkung)
-  const [geruestfach, setGeruestfach] = useState(baseline.geruestfach)
+  const [geruestfaecher, setGeruestfaecher] = useState<string[]>(baseline.geruestfaecher)
   const [projektleiterId, setProjektleiterId] = useState(baseline.projektleiterId)
   const [monteurIds, setMonteurIds] = useState<string[]>(baseline.monteurIds)
   // Termine des Projekts (project_appointments) — mehrere je Projekt, gespeichert
@@ -305,7 +305,7 @@ export function useProjectForm(opts: {
     billingAddress: projBillingAddress,
     artDerArbeit,
     bemerkung,
-    geruestfach,
+    geruestfaecher,
     projektleiterId,
     monteurIds,
     appointments,
@@ -474,7 +474,12 @@ export function useProjectForm(opts: {
     const fail = (message: string) => { setError(message); focusDetails(); return false as const }
 
     if (!name.trim()) return fail('Projektname ist erforderlich.')
+    // Monteur-Pflicht nur für Kundenprojekte — interne Einsätze (Teamsitzung,
+    // Blocker …) dürfen «noch niemand» sein, wie in der Einsatzplanung.
     const apptError = validateDrafts(appointments)
+      ?? ((project?.kind ?? 'project') === 'project'
+        ? validateDraftTeams(appointments, baseline.appointments, monteurIds)
+        : null)
     if (apptError) return fail(apptError)
     // Dieselbe Grenze prüft der Server — hier, damit die Meldung vor dem
     // Speichern kommt und nicht erst als Antwort darauf.
@@ -513,6 +518,11 @@ export function useProjectForm(opts: {
           setTeamQuestion({ count: followers.length })
         })
         if (answer === 'cancel') return false
+        // «Übernehmen» mit leerem Projekt-Team liesse jeden dieser Termine ohne
+        // Monteur zurück — sie verschwänden aus der Einsatzplanung.
+        if (answer === 'apply' && monteurIds.length === 0 && (project?.kind ?? 'project') === 'project') {
+          return fail(teamlessFollowersError(followers.length))
+        }
         if (answer === 'keep') {
           try {
             // VOR dem Projekt-Write: danach sähe der Termin-Änderungs-Push das
@@ -551,7 +561,9 @@ export function useProjectForm(opts: {
         billing_address: billingDiffers ? projBillingAddress : '',
         art_der_arbeit: artDerArbeit,
         bemerkung: bemerkung || null,
-        geruestfach: geruestfach.trim() ? parseInt(geruestfach, 10) : null,
+        // [] statt null: nur eine leere Liste leert das Feld (null filtert das
+        // Backend im PATCH weg).
+        geruestfaecher,
         projektleiter_id: projektleiterId || null,
         monteur_ids: monteurIds,
         // Terminfelder (start_date/end_date/start_time/end_time) sendet die
@@ -644,7 +656,7 @@ export function useProjectForm(opts: {
     billingDiffers, setBillingDiffers,
     projBillingName, setProjBillingName, projBillingAddress, setProjBillingAddress,
     artDerArbeit, toggleArt, entsorgungsart,
-    bemerkung, setBemerkung, geruestfach, setGeruestfach,
+    bemerkung, setBemerkung, geruestfaecher, setGeruestfaecher,
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments, loadAppointments,
     teamQuestion, answerTeamQuestion,

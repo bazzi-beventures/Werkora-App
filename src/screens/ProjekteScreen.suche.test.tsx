@@ -40,7 +40,7 @@ function project(over: Record<string, unknown> = {}) {
     end_time: null,
     kontakte: [],
     bemerkung: null,
-    geruestfach: null,
+    geruestfaecher: [],
     ...over,
   }
 }

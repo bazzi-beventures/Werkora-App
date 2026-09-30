@@ -159,7 +159,8 @@ export interface MonteurProject {
   end_time: string | null
   kontakte: Kontakt[]
   bemerkung: string | null
-  geruestfach: number | null
+  // Fehlt in Offline-Snapshots von vor 20260930 — Leser nehmen `?? []`.
+  geruestfaecher?: string[]
   // Vom Backend gesetzt (Feature rapport_offerten_annahme_pflicht): das Projekt hat
   // mindestens eine nicht-archivierte Offerte, aber keine ist angenommen. Der
   // Rapport-Knopf ist dann gesperrt. Fehlt das Feld (ältere API), gilt "nicht gesperrt".

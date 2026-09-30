@@ -35,7 +35,7 @@ function project(id: string): MonteurProject {
     end_time: null,
     kontakte: [],
     bemerkung: null,
-    geruestfach: null,
+    geruestfaecher: [],
   }
 }
 

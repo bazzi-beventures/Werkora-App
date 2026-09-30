@@ -11,6 +11,7 @@ import { AdminScreen } from '../useAdminNav'
 import { fmtCHF, fmtDate, todayISO } from '../utils/format'
 import { apiUrl } from '../../api/client'
 import { useToast, ToastHost } from '../components/useToast'
+import { DateTimeInput } from '../components/DateTimeInput'
 
 interface Props {
   dashboard: AdminDashboard | null
@@ -629,38 +630,38 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
                     <div className="admin-form-row">
                       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Start</span>
-                        <input
+                        <DateTimeInput
                           type="date"
                           className="admin-input"
                           value={d.startDate}
-                          onChange={e => patchDraft(p.id, { startDate: e.target.value })}
+                          onValueChange={v => patchDraft(p.id, { startDate: v })}
                         />
                       </label>
                       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Ende</span>
-                        <input
+                        <DateTimeInput
                           type="date"
                           className="admin-input"
                           value={d.endDate}
-                          onChange={e => patchDraft(p.id, { endDate: e.target.value })}
+                          onValueChange={v => patchDraft(p.id, { endDate: v })}
                         />
                       </label>
                       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Startzeit</span>
-                        <input
+                        <DateTimeInput
                           type="time"
                           className="admin-input"
                           value={d.startTime}
-                          onChange={e => patchDraft(p.id, { startTime: e.target.value })}
+                          onValueChange={v => patchDraft(p.id, { startTime: v })}
                         />
                       </label>
                       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
                         <span>Endzeit</span>
-                        <input
+                        <DateTimeInput
                           type="time"
                           className="admin-input"
                           value={d.endTime}
-                          onChange={e => patchDraft(p.id, { endTime: e.target.value })}
+                          onValueChange={v => patchDraft(p.id, { endTime: v })}
                         />
                       </label>
                     </div>

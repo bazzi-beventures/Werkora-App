@@ -43,6 +43,7 @@ import { DownloadIcon } from '../shared/DownloadIcon'
 import { formatDateTime } from '../shared/datetime'
 import { KIND_COLORS } from './kindColors'
 import { CATEGORY_LABELS, PROJECT_KIND_LABELS } from '../shared/projectDetail/types'
+import { formatGeruestfaecher } from '../shared/geruestfaecher'
 import type {
   MonteurProject, ProjectComment, ProjectFile, ProjectFileCategory, ProjectKind,
 } from '../shared/projectDetail/types'
@@ -1009,12 +1010,14 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
             </div>
           )}
 
-          {/* Gerüstfach / Lagerort */}
-          {selected.geruestfach != null && (
+          {/* Gerüstfächer — `?? []`: Offline-Snapshots von vor 20260930 kennen das Feld nicht */}
+          {(selected.geruestfaecher ?? []).length > 0 && (
             <div className="projekte-detail-card">
-              <div className="projekte-detail-title">Gerüstfach / Lagerort</div>
+              <div className="projekte-detail-title">
+                {(selected.geruestfaecher ?? []).length === 1 ? 'Gerüstfach' : 'Gerüstfächer'}
+              </div>
               <div style={{ fontSize: 22, fontWeight: 700 }}>
-                {selected.geruestfach}
+                {formatGeruestfaecher(selected.geruestfaecher)}
               </div>
             </div>
           )}

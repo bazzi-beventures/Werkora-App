@@ -40,7 +40,7 @@ const EXISTING: Project = {
   created_by: null,
   created_by_id: null,
   bemerkung: null,
-  geruestfach: null,
+  geruestfaecher: [],
   start_date: null,
   end_date: null,
   start_time: null,

@@ -172,6 +172,55 @@ export function validateDrafts(list: AppointmentDraft[]): string | null {
   return null
 }
 
+// ─── Monteur-Pflicht ─────────────────────────────────────────────────────
+
+// Wer ist bei diesem Termin effektiv eingeplant: das eigene Termin-Team, sonst
+// (auch bei gesetztem Häkchen ohne Auswahl, siehe draftPayload) das Projekt-Team.
+// Dieselbe Regel wie draftTeamNames, nur mit ids.
+export function effectiveTeamIds(d: AppointmentDraft, projectTeam: string[]): string[] {
+  return d.ownTeam && d.monteurIds.length ? d.monteurIds : projectTeam
+}
+
+export const NO_MONTEUR_ERROR =
+  'Kein Monteur eingeplant. Bitte beim Termin einen Monteur wählen oder das Projekt-Team besetzen — '
+  + 'ohne Monteur fehlt der Termin in der Mitarbeiteransicht, im Wochenplan und in der App.'
+
+// Antwort «Überall übernehmen» auf die Team-Rückfrage, obwohl das neue
+// Projekt-Team leer ist: jeder erbende Termin stünde danach ohne Monteur da.
+export function teamlessFollowersError(count: number): string {
+  return `${count === 1 ? 'Ein bestehender Termin hätte' : `${count} bestehende Termine hätten`}`
+    + ` ohne Projekt-Team keinen Monteur mehr. Bitte «Bestehende behalten» wählen`
+    + ' oder einen Monteur ins Projekt-Team nehmen.'
+}
+
+// Ein Termin ohne jeden Monteur fehlt in der Mitarbeiteransicht und bei jedem
+// Monteur-Filter der Einsatzplanung, im Wochenplan-PDF und bei allen in der App
+// — für den Planer ist er nach dem Speichern «verschwunden» (nur die Sammelzeile
+// «Ohne Monteur» der Plantafel zeigt ihn noch). Deshalb Pflicht, sobald ein
+// Termin angelegt oder geändert wird.
+//
+// Unveränderte gespeicherte Termine bleiben aussen vor: ein Altbestand ohne
+// Team darf nicht jedes Speichern der Projektmaske (Adresse, Bemerkung …)
+// blockieren. Ebenso Termine, die nur über einen Projekt-Team-Wechsel betroffen
+// sind — dort entscheidet die Rückfrage «bestehende behalten / übernehmen»,
+// und die prüft der Aufrufer selbst.
+export function validateDraftTeams(
+  current: AppointmentDraft[], baseline: AppointmentDraft[], projectTeam: string[],
+): string | null {
+  const baselineById = new Map(
+    baseline.filter(d => d.id).map(d => [d.id as string, d]),
+  )
+  for (let i = 0; i < current.length; i++) {
+    const d = current[i]
+    const before = d.id ? baselineById.get(d.id) : undefined
+    const touched = !before || !sameDraft(before, d)
+    if (touched && effectiveTeamIds(d, projectTeam).length === 0) {
+      return `${i + 1}. Termin: ${NO_MONTEUR_ERROR}`
+    }
+  }
+  return null
+}
+
 // ─── Projekt-Team-Wechsel ────────────────────────────────────────────────
 
 // Ein Termin ohne eigenes Team erbt das Projekt-Team — und zwar LIVE, nicht

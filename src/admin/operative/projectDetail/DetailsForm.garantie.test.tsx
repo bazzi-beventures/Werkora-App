@@ -29,7 +29,7 @@ function formStub(over: Partial<UseProjectForm> = {}): UseProjectForm {
     projBillingAddress: '', setProjBillingAddress: vi.fn(),
     artDerArbeit: [], toggleArt: vi.fn(), entsorgungsart: false,
     bemerkung: '', setBemerkung: vi.fn(),
-    geruestfach: '', setGeruestfach: vi.fn(),
+    geruestfaecher: [], setGeruestfaecher: vi.fn(),
     projektleiterId: 's-1', setProjektleiterId: vi.fn(),
     monteurIds: [], toggleMonteur: vi.fn(),
     appointments: [], changeAppointments: vi.fn(),

@@ -44,7 +44,7 @@ const PROJEKT: Project = {
   projektleiter_id: null, monteur_ids: [], kontakte: [], eigentuemer: null,
   disposal_details: null, status: 'offen', is_closed: false,
   created_at: '2026-08-19T10:00:00Z', created_by: null, created_by_id: null,
-  bemerkung: null, geruestfach: null, start_date: null, end_date: null,
+  bemerkung: null, geruestfaecher: [], start_date: null, end_date: null,
   start_time: null, end_time: null, quote: null, invoice: null,
 }
 

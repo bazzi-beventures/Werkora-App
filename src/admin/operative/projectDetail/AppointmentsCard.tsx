@@ -8,8 +8,9 @@
 
 import { useState } from 'react'
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS } from '../../../api/admin'
+import { DateTimeInput } from '../../components/DateTimeInput'
 import {
-  AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, fmtDraftWhen,
+  AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, effectiveTeamIds, fmtDraftWhen,
   newAppointmentDraft, nextAppointment, todayISO,
 } from '../projectAppointments'
 
@@ -81,6 +82,9 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
         {appointments.map(d => {
           const open = openKey === d.key
           const team = draftTeamNames(d, projectTeam, staff)
+          // Ohne Monteur «verschwindet» der Termin aus der Einsatzplanung —
+          // Speichern lehnt ihn ab (validateDraftTeams), hier schon sichtbar.
+          const noMonteur = effectiveTeamIds(d, projectTeam).length === 0
           return (
             <div key={d.key} className={`project-appt-item${open ? ' open' : ''}`}>
               <div className="project-appt-head">
@@ -92,10 +96,13 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                 >
                   <span className="project-appt-kind">{draftTitle(d)}</span>
                   <span className="project-appt-when">{fmtDraftWhen(d)}</span>
-                  <span className="project-appt-team">
+                  <span
+                    className="project-appt-team"
+                    style={noMonteur ? { color: 'var(--danger)' } : undefined}
+                  >
                     {team.names
                       ? `${team.fromProject ? 'Projekt-Team' : 'Team'}: ${team.names}`
-                      : 'Kein Team'}
+                      : noMonteur ? 'Kein Monteur gewählt' : 'Kein Team'}
                   </span>
                 </button>
                 <button
@@ -142,43 +149,43 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                   <div className="admin-form-row">
                     <div className="admin-form-group" style={{ margin: 0 }}>
                       <label className="admin-form-label">Start (Datum)</label>
-                      <input
+                      <DateTimeInput
                         className="admin-form-input" type="date"
                         aria-label="Start (Datum)"
                         value={d.startDate}
-                        onChange={e => patch(d.key, applyStartDate(d, e.target.value))}
+                        onValueChange={v => patch(d.key, applyStartDate(d, v))}
                       />
                     </div>
                     <div className="admin-form-group" style={{ margin: 0 }}>
                       <label className="admin-form-label">
                         Ende (Datum) <span style={{ fontWeight: 400, color: 'var(--muted)' }}>leer = eintägig</span>
                       </label>
-                      <input
+                      <DateTimeInput
                         className="admin-form-input" type="date"
                         aria-label="Ende (Datum)"
                         value={d.endDate}
                         min={d.startDate || undefined}
-                        onChange={e => patch(d.key, { endDate: e.target.value })}
+                        onValueChange={v => patch(d.key, { endDate: v })}
                       />
                     </div>
                     <div className="admin-form-group" style={{ margin: 0 }}>
                       <label className="admin-form-label">
                         Startzeit <span style={{ fontWeight: 400, color: 'var(--muted)' }}>leer = ganztägig</span>
                       </label>
-                      <input
+                      <DateTimeInput
                         className="admin-form-input" type="time"
                         aria-label="Startzeit"
                         value={d.startTime}
-                        onChange={e => patch(d.key, { startTime: e.target.value })}
+                        onValueChange={v => patch(d.key, { startTime: v })}
                       />
                     </div>
                     <div className="admin-form-group" style={{ margin: 0 }}>
                       <label className="admin-form-label">Endzeit</label>
-                      <input
+                      <DateTimeInput
                         className="admin-form-input" type="time"
                         aria-label="Endzeit"
                         value={d.endTime}
-                        onChange={e => patch(d.key, { endTime: e.target.value })}
+                        onValueChange={v => patch(d.key, { endTime: v })}
                       />
                     </div>
                   </div>
@@ -191,6 +198,7 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                         onChange={e => patch(d.key, { ownTeam: e.target.checked })}
                       />
                       Eigenes Team für diesen Termin
+                      {noMonteur && <span style={{ color: 'var(--danger)' }}> *</span>}
                     </label>
                     {d.ownTeam ? (
                       <>
@@ -214,7 +222,7 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                               </button>
                             )
                           })}
-                          {d.monteurIds.length === 0 && (
+                          {d.monteurIds.length === 0 && !noMonteur && (
                             <span style={{ color: 'var(--muted)', fontSize: 12, alignSelf: 'center' }}>
                               Keine Auswahl = Projekt-Team.
                             </span>
@@ -229,6 +237,12 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                     ) : (
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
                         Es gilt das Projekt-Team{team.names ? `: ${team.names}` : ' (noch niemand zugeteilt)'}.
+                      </div>
+                    )}
+                    {noMonteur && (
+                      <div role="alert" style={{ fontSize: 12, color: 'var(--danger)', marginTop: 6 }}>
+                        Mindestens ein Monteur ist nötig — hier auswählen oder das Projekt-Team oben
+                        besetzen. Ohne Monteur fehlt der Termin im Wochenplan und in der App.
                       </div>
                     )}
                   </div>

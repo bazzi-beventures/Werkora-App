@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, applyStartDate, apptToDraft,
-  diffAppointments, draftPayload, draftTeamNames, draftTitle, emptyDraft, fmtDraftWhen,
-  isOpenAppointment, newAppointmentDraft, nextAppointment, normalizeDrafts,
-  pinProjectTeam, sortDrafts, teamsDiffer, todayISO, validateDrafts,
+  diffAppointments, draftPayload, draftTeamNames, draftTitle, effectiveTeamIds, emptyDraft,
+  fmtDraftWhen, isOpenAppointment, newAppointmentDraft, nextAppointment, normalizeDrafts,
+  pinProjectTeam, sortDrafts, teamlessFollowersError, teamsDiffer, todayISO, validateDraftTeams,
+  validateDrafts,
 } from './projectAppointments'
 import type { ProjectAppointment } from '../../api/admin'
 
@@ -117,6 +118,47 @@ describe('validateDrafts', () => {
     expect(validateDrafts([
       draft({ endDate: '2026-08-20', startTime: '12:00', endTime: '07:30' }),
     ])).toBeNull()
+  })
+})
+
+describe('Monteur-Pflicht', () => {
+  it('effektives Team: eigenes Team, sonst (auch bei leerem Häkchen) das Projekt-Team', () => {
+    expect(effectiveTeamIds(draft({ ownTeam: true, monteurIds: ['s-2'] }), ['s-1'])).toEqual(['s-2'])
+    expect(effectiveTeamIds(draft({ ownTeam: true, monteurIds: [] }), ['s-1'])).toEqual(['s-1'])
+    expect(effectiveTeamIds(draft({ ownTeam: false, monteurIds: ['s-2'] }), ['s-1'])).toEqual(['s-1'])
+  })
+
+  it('lehnt einen neuen Termin ohne jeden Monteur ab (Fehlerbild: Termin verschwindet)', () => {
+    const neu = newAppointmentDraft()
+    const err = validateDraftTeams([{ ...neu, startDate: '2026-10-01' }], [], [])
+    expect(err).toMatch(/^1\. Termin: Kein Monteur eingeplant/)
+  })
+
+  it('ein neuer Termin ohne eigene Auswahl ist ok, wenn das Projekt-Team besetzt ist', () => {
+    expect(validateDraftTeams([draft({ ownTeam: true, monteurIds: [] })], [], ['s-1'])).toBeNull()
+    expect(validateDraftTeams([draft()], [], ['s-1'])).toBeNull()
+  })
+
+  it('lässt einen unveränderten Altbestand ohne Team durch — er darf das Speichern nicht blockieren', () => {
+    const alt = draft({ id: 'a-1', key: 'a-1' })
+    expect(validateDraftTeams([alt], [alt], [])).toBeNull()
+  })
+
+  it('prüft einen geänderten gespeicherten Termin ohne Team', () => {
+    const alt = draft({ id: 'a-1', key: 'a-1' })
+    const geaendert = { ...alt, startTime: '08:00' }
+    expect(validateDraftTeams([geaendert], [alt], [])).toMatch(/^1\. Termin: /)
+  })
+
+  it('nennt die Nummer des betroffenen Termins', () => {
+    const ok = draft({ ownTeam: true, monteurIds: ['s-1'] })
+    const leer = draft()
+    expect(validateDraftTeams([ok, leer], [], [])).toMatch(/^2\. Termin: /)
+  })
+
+  it('Rückfrage «Überall übernehmen» mit leerem Projekt-Team: Meldung in Ein- und Mehrzahl', () => {
+    expect(teamlessFollowersError(1)).toMatch(/^Ein bestehender Termin hätte /)
+    expect(teamlessFollowersError(3)).toMatch(/^3 bestehende Termine hätten /)
   })
 })
 

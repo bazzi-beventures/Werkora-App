@@ -26,7 +26,7 @@ export interface ProjectFormValues {
   billingAddress: string
   artDerArbeit: string[]
   bemerkung: string
-  geruestfach: string
+  geruestfaecher: string[]
   projektleiterId: string
   monteurIds: string[]
   /**
@@ -107,7 +107,7 @@ export function initialProjectForm(
     billingAddress: project?.billing_address ?? '',
     artDerArbeit: project?.art_der_arbeit ?? [],
     bemerkung: project?.bemerkung ?? '',
-    geruestfach: project?.geruestfach?.toString() ?? '',
+    geruestfaecher: project?.geruestfaecher ?? [],
     projektleiterId: project?.projektleiter_id ?? '',
     monteurIds: project?.monteur_ids ?? slot?.monteurIds ?? [],
     appointments: slot ? [slotToDraft(slot)] : [],

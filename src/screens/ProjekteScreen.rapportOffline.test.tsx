@@ -44,7 +44,7 @@ function project(over: Partial<MonteurProject> = {}): MonteurProject {
     id: 'p1', name: 'MFH Sonnhalde', kind: 'project', art_der_arbeit: null,
     customer_id: null, customer: null, object_name: null, object_address: null,
     start_date: null, end_date: null, start_time: null, end_time: null,
-    kontakte: [], bemerkung: null, geruestfach: null,
+    kontakte: [], bemerkung: null, geruestfaecher: [],
     ...over,
   }
 }

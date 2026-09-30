@@ -41,7 +41,7 @@ function project(customer: Record<string, unknown> | null) {
     end_time: null,
     kontakte: [],
     bemerkung: null,
-    geruestfach: null,
+    geruestfaecher: [],
   }
 }
 

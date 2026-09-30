@@ -53,7 +53,7 @@ function project(over: Partial<MonteurProject> = {}): MonteurProject {
     end_time: null,
     kontakte: [],
     bemerkung: null,
-    geruestfach: null,
+    geruestfaecher: [],
     ...over,
   }
 }

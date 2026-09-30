@@ -7,6 +7,7 @@ import { recomputeNextDue } from './projectForm'
 import type { UseProjectForm } from './useProjectForm'
 import type { Customer } from '../../../api/admin/customers'
 import { KontaktNameInput } from './KontaktNameInput'
+import GeruestfaecherInput from './GeruestfaecherInput'
 import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
 
 // Der Reiter «Projekt Details» (Charge H, H3) — die eigentliche Projektmaske.
@@ -28,7 +29,7 @@ export function DetailsForm({
   customers: Customer[]
   /** Modul «scheduling» — ohne das gibt es die Termin-Kachel nicht. */
   schedulingEnabled: boolean
-  /** Feature «geruestfach» — Gerüstfach-Nummer nur für Mandanten mit Gerüstbau. */
+  /** Feature «geruestfach» — Gerüstfächer (mehrere, z. B. 2C) nur für Mandanten mit Gerüstbau. */
   showGeruestfach: boolean
   /**
    * Feature «garantiefall» und ein gespeichertes Projekt: dann steht das
@@ -51,7 +52,7 @@ export function DetailsForm({
     billingDiffers, setBillingDiffers,
     projBillingName, setProjBillingName, projBillingAddress, setProjBillingAddress,
     artDerArbeit, toggleArt, entsorgungsart: hasEntsorgungsart,
-    bemerkung, setBemerkung, geruestfach, setGeruestfach,
+    bemerkung, setBemerkung, geruestfaecher, setGeruestfaecher,
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments: handleAppointmentsChange,
     kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
@@ -165,16 +166,8 @@ export function DetailsForm({
               )}
               {showGeruestfach && (
                 <div className="admin-form-group">
-                  <label className="admin-form-label">Gerüstfach (Lagerort)</label>
-                  <input
-                    className="admin-form-input"
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={geruestfach}
-                    onChange={e => setGeruestfach(e.target.value)}
-                    placeholder="z. B. 12"
-                  />
+                  <label className="admin-form-label" htmlFor="project-geruestfaecher">Gerüstfächer</label>
+                  <GeruestfaecherInput value={geruestfaecher} onChange={setGeruestfaecher} />
                 </div>
               )}
             </div>

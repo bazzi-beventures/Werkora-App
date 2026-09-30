@@ -11,8 +11,8 @@ import {
   listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
 } from '../../api/projectTasks'
 import {
-  apptToDraft, draftPayload, emptyDraft, isOpenAppointment, newAppointmentDraft,
-  teamsDiffer, validateDraft,
+  apptToDraft, draftPayload, effectiveTeamIds, emptyDraft, isOpenAppointment, newAppointmentDraft,
+  NO_MONTEUR_ERROR, teamlessFollowersError, teamsDiffer, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -28,6 +28,8 @@ import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { shiftISO, hhmmToMin, minToHHMM, toDateStr } from '../utils/calendarHelpers'
 import { useToast, ToastHost } from '../components/useToast'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { DateTimeInput } from '../components/DateTimeInput'
+import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
 
 interface StaffLite {
   id: string
@@ -203,6 +205,22 @@ function emptyInternalForm(kind: ProjectKind, blockerCategories: string[] = []):
   }
 }
 
+// Zeitfenster der geladenen Termine rund um heute (Tage) — deckt jede
+// realistische Kalender-Navigation ab, ohne Range-State durchzureichen.
+const APPT_WINDOW_BACK_DAYS = 400
+const APPT_WINDOW_AHEAD_DAYS = 600
+
+// Live-Aktualisierung: Projekte + Termine alle 2 s, Absenzen und Mitarbeiter
+// (ändern sich selten) höchstens einmal pro Minute. Siehe refreshLive().
+const LIVE_REFRESH_MS = 2000
+const SLOW_REFRESH_MS = 60_000
+
+// Gleiche Zeilen wie vorher? Dann den alten Array behalten — kein Re-Render der
+// Tafel, keine neue Distanz-Signatur, keine Unruhe beim Tippen im Panel.
+function sameRows<T>(a: T[], b: T[]): boolean {
+  return a.length === b.length && JSON.stringify(a) === JSON.stringify(b)
+}
+
 interface Props {
   canton?: string
   onNav?: (screen: AdminScreen, detailId?: string) => void
@@ -267,11 +285,57 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerWrapRef = useRef<HTMLDivElement>(null)
 
+  // ─── Live-Aktualisierung ────────────────────────────────────────────────
+  // Termine, die anderswo entstehen (Projektmaske, ein Kollege, die App),
+  // erschienen hier bisher erst nach Verlassen und Wiederöffnen der Ansicht.
+  // Jetzt holt die Ansicht alle 2 s Projekte und Termine nach — still (kein
+  // Spinner, kein Toast), nur bei sichtbarem Tab und nie zwei Abrufe
+  // übereinander (useVisibilityPolling). Unveränderte Antworten lösen kein
+  // Re-Render aus (sameRows); die Fahrdistanzen fragt die Tafel erst nach ein
+  // paar Sekunden Ruhe an (scheduleShared.ts, DISTANCE_SETTLE_MS).
+  //
+  // Eigene Änderungen haben Vorrang: `localGen` zählt jede lokale Änderung,
+  // und ein Abruf, der davor gestartet ist, wird verworfen — sonst spränge ein
+  // eben verschobener Einsatz für 2 s an seinen alten Platz zurück.
+  // `pendingWrites` hält den Abruf an, solange ein optimistisch angezeigtes
+  // Verschieben noch nicht beim Server ist.
+  const localGen = useRef(0)
+  const pendingWrites = useRef(0)
+  const lastSlowRefresh = useRef(0)
+  // Klammer um jeden eigenen Schreibvorgang (Speichern, Verschieben, Löschen).
+  function beginWrite() { pendingWrites.current += 1; localGen.current += 1 }
+  function endWrite() { pendingWrites.current -= 1; localGen.current += 1 }
+
+  async function refreshLive() {
+    if (loading || absencePrompt || pendingWrites.current > 0) return
+    const gen = localGen.current
+    const todayIso = toDateStr(new Date())
+    const slowDue = Date.now() - lastSlowRefresh.current >= SLOW_REFRESH_MS
+    try {
+      // Anders als loadAll ohne `.catch(() => [])`: ein fehlgeschlagener
+      // Hintergrund-Abruf darf die Tafel nicht leeren — er fällt aus, der
+      // nächste Takt versucht es wieder.
+      const [proj, appts, abs, st] = await Promise.all([
+        getScheduleProjects(),
+        listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS)),
+        slowDue ? listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS)) : null,
+        slowDue ? getAdminStaff() : null,
+      ])
+      if (gen !== localGen.current || pendingWrites.current > 0) return
+      setProjects(prev => sameRows(prev, proj) ? prev : proj)
+      setAppointments(prev => sameRows(prev, appts) ? prev : appts)
+      if (abs) setAbsences(prev => sameRows(prev, abs) ? prev : abs)
+      if (st) setStaff(prev => sameRows(prev, st) ? prev : st)
+      if (slowDue) lastSlowRefresh.current = Date.now()
+    } catch {
+      // still — siehe oben
+    }
+  }
+
   async function loadAll() {
+    localGen.current += 1
     setLoading(true)
     try {
-      // Termine in einem grosszügigen Fenster um heute laden — deckt jede
-      // realistische Kalender-Navigation ab, ohne Range-State durchzureichen.
       const todayIso = toDateStr(new Date())
       const [proj, appts, abs, st] = await Promise.all([
         // /projects/schedule statt /projects: schon server-seitig auf planbare
@@ -279,12 +343,13 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
         // alle je angelegten Projekte samt beider Beleg-Tabellen über die
         // Leitung, nur damit die Zeile hier gleich wieder wegfiel.
         getScheduleProjects(),
-        listAppointments(shiftISO(todayIso, -400), shiftISO(todayIso, 600)).catch(() => [] as ProjectAppointment[]),
+        listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
+          .catch(() => [] as ProjectAppointment[]),
         // Absenzen nur für das Fenster, in dem geplant wird — rückwärts kurz
         // (die Vergangenheit ändert niemand mehr), vorwärts so weit wie die
         // Termine. Fehler bleiben still: ohne Markierung plant man wie bisher,
         // und die Sperre sitzt ohnehin serverseitig.
-        listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, 600))
+        listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
           .catch(() => [] as ScheduleAbsence[]),
         getAdminStaff(),
       ])
@@ -292,6 +357,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       setAppointments(appts)
       setAbsences(abs)
       setStaff(st)
+      lastSlowRefresh.current = Date.now()
     } catch {
       showToast('Daten konnten nicht geladen werden.', 'error')
     } finally {
@@ -318,7 +384,11 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     return () => { alive = false }
   }, [])
 
-  useEffect(() => { loadAll() }, [])
+  // Erster Aufruf: loadAll (mit Spinner), danach alle 2 s refreshLive.
+  useVisibilityPolling(
+    ({ background }) => (background ? refreshLive() : loadAll()),
+    LIVE_REFRESH_MS,
+  )
 
   // Kundenstamm erst beim ersten Öffnen des Panels — und dann nur einmal.
   useEffect(() => {
@@ -565,6 +635,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       start_time: newStartTime, end_time: newEndTime,
       monteur_ids: teamChanged ? monteurIds! : appt.monteur_ids,
     }
+    beginWrite()
     setAppointments(prev => prev.map(a => a.id === id ? optimistic : a))
     // Partial-PATCH: '' = Feld explizit löschen (ganztägig), fehlend = unverändert.
     const payload: Partial<ProjectAppointment> = { start_date: newStartDate }
@@ -587,18 +658,25 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       // Die optimistische Anzeige bleibt vorerst stehen: der Chip liegt schon
       // dort, wo der Planer ihn hingezogen hat, und die Rückfrage entscheidet
       // nur noch, ob es dabei bleibt. Beim Abbrechen springt er zurück.
+      // Solange die Rückfrage offen ist, pausiert die Live-Aktualisierung
+      // (siehe refreshLive), während des zweiten Schreibens ebenso.
       setAbsencePrompt({
         message: conflict,
         onConfirm: async () => {
+          beginWrite()
           try {
             await updateAppointment(id, { ...payload, ignore_absence_conflicts: true })
           } catch {
             revert()
             showToast('Verschieben fehlgeschlagen.', 'error')
+          } finally {
+            endWrite()
           }
         },
-        onCancel: revert,
+        onCancel: () => { localGen.current += 1; revert() },
       })
+    } finally {
+      endWrite()
     }
   }
 
@@ -646,6 +724,13 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       if (apptForm.requireMonteur && effectiveTeam.length === 0) {
         setError('Mindestens ein Mitarbeiter ist erforderlich.'); return
       }
+      // Kundenprojekt-Termine brauchen einen Monteur — dieselbe Regel wie in der
+      // Projektmaske (validateDraftTeams). Interne Einsätze (Teamsitzung,
+      // Blocker …) bleiben frei: dort ist «noch niemand» ein gültiger Stand.
+      if (form.kind === 'project' && apptForm.startDate
+        && effectiveTeamIds(apptForm, form.monteurIds).length === 0) {
+        setError(NO_MONTEUR_ERROR); return
+      }
       // Eine Serie wird beim Speichern in echte Termine aufgelöst — ohne Ende
       // wüsste der Server nicht, wie viele. Deshalb hier hart verlangt statt
       // still gedeckelt.
@@ -659,6 +744,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       }
     }
     setSaving(true)
+    beginWrite()
     const isInternal = form.kind !== 'project'
     let savedMsg = form.id ? 'Eintrag aktualisiert.' : 'Eintrag erstellt.'
     let targetId = savedProjectId
@@ -679,6 +765,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
             setTeamQuestion({ count: followers.length })
           })
           if (answer === 'cancel') return
+          if (answer === 'apply' && form.monteurIds.length === 0 && form.kind === 'project') {
+            setError(teamlessFollowersError(followers.length)); return
+          }
           if (answer === 'keep') {
             // VOR dem Projekt-Write: danach sähe der Termin-Änderungs-Push das
             // schon neue Projekt-Team als Vorher-Zustand und meldete jedem
@@ -752,6 +841,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       setError('Speichern fehlgeschlagen.')
     } finally {
       setSaving(false)
+      endWrite()
     }
   }
 
@@ -777,6 +867,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   async function handleDeleteAppt(a: ProjectAppointment, scope: 'single' | 'series' = 'single') {
     setSeriesDeletePrompt(null)
     setSaving(true)
+    beginWrite()
     try {
       await deleteAppointment(a.id, scope)
       setAppointments(prev => scope === 'series' && a.series_id
@@ -788,12 +879,14 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       showToast('Entfernen fehlgeschlagen.', 'error')
     } finally {
       setSaving(false)
+      endWrite()
     }
   }
 
   async function handleClearSchedule() {
     if (!form || !form.id) return
     setSaving(true)
+    beginWrite()
     try {
       for (const a of appointments.filter(x => x.project_id === form.id)) {
         await deleteAppointment(a.id)
@@ -805,6 +898,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       showToast('Entfernen fehlgeschlagen.', 'error')
     } finally {
       setSaving(false)
+      endWrite()
     }
   }
 
@@ -1322,13 +1416,12 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                     <div className="project-schedule-row">
                       <label className="project-schedule-field">
                         <span>Start</span>
-                        <input
+                        <DateTimeInput
                           type="date"
                           className="admin-input"
                           value={apptForm.startDate}
-                          onChange={e => setApptForm(a => {
+                          onValueChange={v => setApptForm(a => {
                             if (!a) return a
-                            const v = e.target.value
                             // Enddatum vorbelegen bzw. nachziehen: leer oder vor dem Start → gleicher Tag.
                             const endDate = (v && (!a.endDate || a.endDate < v)) ? v : a.endDate
                             return { ...a, startDate: v, endDate }
@@ -1337,12 +1430,12 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                       </label>
                       <label className="project-schedule-field">
                         <span>Ende</span>
-                        <input
+                        <DateTimeInput
                           type="date"
                           className="admin-input"
                           value={apptForm.endDate}
                           min={apptForm.startDate || undefined}
-                          onChange={e => setApptForm(a => a && ({ ...a, endDate: e.target.value }))}
+                          onValueChange={v => setApptForm(a => a && ({ ...a, endDate: v }))}
                         />
                       </label>
                     </div>
@@ -1350,20 +1443,20 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                     <div className="project-schedule-row">
                       <label className="project-schedule-field">
                         <span>Startzeit</span>
-                        <input
+                        <DateTimeInput
                           type="time"
                           className="admin-input"
                           value={apptForm.startTime}
-                          onChange={e => setApptForm(a => a && ({ ...a, startTime: e.target.value }))}
+                          onValueChange={v => setApptForm(a => a && ({ ...a, startTime: v }))}
                         />
                       </label>
                       <label className="project-schedule-field">
                         <span>Endzeit</span>
-                        <input
+                        <DateTimeInput
                           type="time"
                           className="admin-input"
                           value={apptForm.endTime}
-                          onChange={e => setApptForm(a => a && ({ ...a, endTime: e.target.value }))}
+                          onValueChange={v => setApptForm(a => a && ({ ...a, endTime: v }))}
                         />
                       </label>
                     </div>
@@ -1390,12 +1483,12 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                         {apptForm.repeat && (
                           <label className="project-schedule-field">
                             <span>Serie bis<span className="project-schedule-req"> *</span></span>
-                            <input
+                            <DateTimeInput
                               type="date"
                               className="admin-input"
                               value={apptForm.repeatUntil}
                               min={apptForm.startDate || undefined}
-                              onChange={e => setApptForm(a => a && ({ ...a, repeatUntil: e.target.value }))}
+                              onValueChange={v => setApptForm(a => a && ({ ...a, repeatUntil: v }))}
                             />
                           </label>
                         )}

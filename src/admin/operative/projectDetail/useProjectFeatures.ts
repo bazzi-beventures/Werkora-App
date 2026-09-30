@@ -13,7 +13,7 @@ import { BeschaffungStep, enabledBeschaffungSteps } from '../../constants/bescha
 export interface ProjectFeatures {
   /** Modul «scheduling» — ohne das antworten die Termin-Endpunkte 403. */
   scheduling: boolean
-  /** Feature «geruestfach» — Gerüstfach-Nummer nur bei Mandanten mit Gerüstbau. */
+  /** Feature «geruestfach» — Gerüstfächer nur bei Mandanten mit Gerüstbau. */
   geruestfach: boolean
   /** Feature «offerte_dank_mail» — „Dankeschön senden" bei angenommenen Offerten. */
   dankMail: boolean

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { useProjectForm } from './useProjectForm'
+import { newAppointmentDraft } from '../projectAppointments'
 import type { Project } from '../../../api/admin/projects'
 import type { ProjectAppointment } from '../../../api/admin'
 
@@ -139,5 +140,58 @@ describe('useProjectForm — Projekt-Team-Wechsel', () => {
 
     expect(result.current.teamQuestion).toBeNull()
     expect(calls).toEqual(['project'])
+  })
+})
+
+// Ein Termin ohne jeden Monteur fehlt nach dem Speichern in der Mitarbeiter-
+// ansicht, im Wochenplan und in der App — er «verschwindet». Deshalb lehnt die
+// Maske ihn ab, bevor irgendetwas geschrieben ist.
+describe('useProjectForm — Monteur-Pflicht bei Terminen', () => {
+  it('lehnt einen neuen Termin ab, wenn weder er noch das Projekt einen Monteur hat', async () => {
+    const { result } = await withLoadedAppointments()
+    act(() => { result.current.toggleMonteur('s-marvin') })
+    act(() => { result.current.toggleMonteur('s-franco') })
+    act(() => {
+      result.current.changeAppointments([
+        ...result.current.appointments,
+        { ...newAppointmentDraft(), startDate: '2026-10-05' },
+      ])
+    })
+
+    let persisted: unknown
+    await act(async () => { persisted = await result.current.persist() })
+
+    expect(persisted).toBe(false)
+    expect(result.current.error).toMatch(/^2\. Termin: Kein Monteur eingeplant/)
+    expect(calls).toEqual([])
+  })
+
+  it('ein neuer Termin ohne eigene Auswahl ist ok, solange das Projekt-Team besetzt ist', async () => {
+    const { result } = await withLoadedAppointments()
+    act(() => {
+      result.current.changeAppointments([
+        ...result.current.appointments,
+        { ...newAppointmentDraft(), startDate: '2026-10-05' },
+      ])
+    })
+    await act(async () => { await result.current.persist() })
+
+    expect(result.current.error).toBe('')
+    expect(calls).toEqual(['project', 'appointment:create'])
+  })
+
+  it('«Überall übernehmen» mit leerem Projekt-Team wird abgelehnt', async () => {
+    const { result } = await withLoadedAppointments()
+    act(() => { result.current.toggleMonteur('s-marvin') })
+    act(() => { result.current.toggleMonteur('s-franco') })
+
+    let persisted: unknown
+    act(() => { persisted = result.current.persist() })
+    await waitFor(() => expect(result.current.teamQuestion).not.toBeNull())
+    act(() => { result.current.answerTeamQuestion('apply') })
+    await act(async () => { expect(await persisted).toBe(false) })
+
+    expect(result.current.error).toMatch(/^Ein bestehender Termin hätte ohne Projekt-Team keinen Monteur mehr/)
+    expect(calls).toEqual([])
   })
 })

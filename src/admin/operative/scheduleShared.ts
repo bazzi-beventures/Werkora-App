@@ -453,6 +453,13 @@ export function pairKey(a: string | null | undefined, b: string | null | undefin
   return x <= y ? `${x}${PAIR_SEP}${y}` : `${y}${PAIR_SEP}${x}`
 }
 
+// Wie lange sich die sichtbaren Adresspaare nicht mehr ändern müssen, bevor
+// neue Distanzen angefragt werden. Die Einsatzplanung frischt ihre Termine alle
+// 2 s auf (ProjectScheduleScreen); ohne diese Ruhezeit ginge jeder Zwischen-
+// stand beim Verschieben und jede Änderung eines Kollegen sofort als Routen-
+// anfrage raus. Die Distanz ist Zusatzinfo — sie darf ein paar Sekunden warten.
+export const DISTANCE_SETTLE_MS = 5000
+
 // Löst die übergebenen Adresspaare (pairKey-Strings) beim Server auf und liefert
 // eine Funktion, die zwei Einsätze in km übersetzt. Distanz ist reine Zusatzinfo:
 // Fehler bleiben still, unbekannte Paare geben null.
@@ -462,6 +469,17 @@ export function useScheduleDistances(pairKeys: string[]) {
   // Bereits angefragte Paare — verhindert Wiederholungs-Requests für Paare,
   // die der Server (noch) nicht auflösen konnte.
   const requestedPairsRef = useRef<Set<string>>(new Set())
+  // Die erste Anfrage (Ansicht geöffnet) geht sofort raus, jede weitere erst
+  // nach DISTANCE_SETTLE_MS Ruhe.
+  const firstRequestDoneRef = useRef(false)
+  // Nur beim Abbau des Hooks verwerfen, nicht schon bei einer neuen Signatur:
+  // die Paare sind als angefragt markiert, eine verworfene Antwort würde nie
+  // nachgeholt. Das Mergen ist je Paar und damit immer harmlos.
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
   const neededSig = [...new Set(pairKeys)].sort().join('\n')
 
   // Fehlende Paare gebündelt beim Server anfragen (cache-first, dort gedeckelt).
@@ -469,24 +487,33 @@ export function useScheduleDistances(pairKeys: string[]) {
   // die sichtbare Ansicht ändert — nicht bei jedem Distanz-Merge.
   useEffect(() => {
     if (!neededSig) return
-    const missing = neededSig.split('\n').filter(k => !requestedPairsRef.current.has(k))
-    if (missing.length === 0) return
-    missing.forEach(k => requestedPairsRef.current.add(k))
-    let cancelled = false
-    resolveScheduleDistances(missing.map(k => k.split(PAIR_SEP) as [string, string]))
-      .then(res => {
-        if (cancelled || res.distances.length === 0) return
-        setDistances(prev => {
-          const next = { ...prev }
-          for (const d of res.distances) {
-            const k = pairKey(d.a, d.b)
-            if (k) next[k] = d.km
-          }
-          return next
+
+    function request() {
+      const missing = neededSig.split('\n').filter(k => !requestedPairsRef.current.has(k))
+      if (missing.length === 0) return
+      missing.forEach(k => requestedPairsRef.current.add(k))
+      firstRequestDoneRef.current = true
+      resolveScheduleDistances(missing.map(k => k.split(PAIR_SEP) as [string, string]))
+        .then(res => {
+          if (!mountedRef.current || res.distances.length === 0) return
+          setDistances(prev => {
+            const next = { ...prev }
+            for (const d of res.distances) {
+              const k = pairKey(d.a, d.b)
+              if (k) next[k] = d.km
+            }
+            return next
+          })
         })
-      })
-      .catch(() => {})
-    return () => { cancelled = true }
+        .catch(() => {})
+    }
+
+    if (!firstRequestDoneRef.current) {
+      request()
+      return
+    }
+    const timer = setTimeout(request, DISTANCE_SETTLE_MS)
+    return () => clearTimeout(timer)
   }, [neededSig])
 
   // km zwischen zwei Einsätzen (beide getaktet, Adressen vorhanden/verschieden).

@@ -105,7 +105,7 @@ export interface Project {
   created_by: string | null
   created_by_id: string | null
   bemerkung: string | null
-  geruestfach: number | null
+  geruestfaecher: string[]
   start_date: string | null
   end_date: string | null
   start_time: string | null
