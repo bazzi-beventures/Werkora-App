@@ -361,6 +361,11 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           onOpenRoadmap={() => guardedNav('roadmap')}
           route={screen}
           appContext="admin"
+          user={user}
+          // Über guardedNav: auch ein Sprung aus dem Hilfe-Chat fragt nach
+          // ungespeicherten Änderungen. Die Schlüssel hält shared/helpTargets.ts;
+          // der Ratchet tests/unit/test_help_targets.py prüft sie gegen screenTitles.ts.
+          onNavigate={target => guardedNav(target.screen as AdminScreen)}
         />
       )}
       {pendingNav && (

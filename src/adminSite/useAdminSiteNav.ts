@@ -23,6 +23,7 @@ export const PLATTFORM_SCREENS = [
   'feature-anfragen',
   'push-test',
   'newsletter',
+  'rueckmeldung',
 ] as const
 
 export const MANDANT_SCREENS = [

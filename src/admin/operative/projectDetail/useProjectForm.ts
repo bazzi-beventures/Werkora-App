@@ -7,17 +7,20 @@ import type { Customer } from '../../../api/admin/customers'
 import type { DisposalDetails, Eigentuemer, Kontakt, Project } from '../../../api/admin/projects'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, apptToDraft, diffAppointments, draftPayload,
-  pinProjectTeam, teamlessFollowersError, teamsDiffer, validateDraftTeams, validateDrafts,
+  isDraftDirty, mergeAfterSync, pinProjectTeam, teamlessFollowersError, teamsDiffer, validateDraft,
+  validateDraftTeams, validateDrafts,
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
 import { projectBillingAddress, projectCustomerName } from '../../utils/project'
 import { eigentuemerFehler } from './eigentuemerGrenzen'
 import {
-  KontaktCandidate, applyKontaktCandidate, kontakteOhneKundenstamm, kontaktFromCustomer,
-  seedKontaktFromCustomer,
+  KontaktCandidate, applyKontaktCandidate, customerToLink, kontakteOhneKundenstamm, kontaktFromCustomer,
+  linkKontakteToCustomers, seedKontaktFromCustomer,
 } from './kontaktKundenstamm'
 import {
-  ProjectFormValues, disposalEmpty, hasEntsorgungsart, initialProjectForm, isProjectFormDirty,
+  AutosaveField, ProjectFormValues, advanceBaseline, appointmentsDirty, autosavePatch, autosaveSignature,
+  changedAutosaveFields, disposalEmpty, hasEntsorgungsart, initialProjectForm, isProjectFormDirty,
+  teamDirty,
 } from './projectForm'
 
 /** «Nummer — Name» eines Referenzprojekts, fuers Anzeigen im Feld. */
@@ -97,7 +100,7 @@ export interface UseProjectForm {
   monteurIds: string[]
   toggleMonteur: (id: string) => void
   appointments: AppointmentDraft[]
-  changeAppointments: (next: AppointmentDraft[]) => void
+  changeAppointments: (next: AppointmentDraft[] | ((prev: AppointmentDraft[]) => AppointmentDraft[])) => void
   /**
    * Offene Rückfrage «Projekt-Team geändert — was wird aus den bestehenden
    * Terminen?». Gesetzt = der Screen zeigt den Dialog, `persist` wartet auf
@@ -180,6 +183,44 @@ export interface UseProjectForm {
   persist: () => Promise<Project | null | false>
   /** Termine vom Server holen und zum Ausgangsstand machen (beim Oeffnen). */
   loadAppointments: () => Promise<void>
+
+  // ── Automatisches Speichern (docs/specs/projektmaske-autosave.md) ──────
+  /** Fingerabdruck der selbst speichernden Werte — Auslöser für den Autosave. */
+  autosaveSignature: string
+  /** Selbst speichernde Felder, die noch nicht gespeichert sind. */
+  autosaveDirtyFields: AutosaveField[]
+  /** Projekt-Team weicht vom gespeicherten ab (Leiste «Team übernehmen»). */
+  teamDirty: boolean
+  /** Das gespeicherte Projekt-Team — Vergleichsgrösse der Leiste. */
+  savedMonteurIds: string[]
+  /** Mindestens ein Termin ist geändert oder neu und noch nicht gespeichert. */
+  appointmentsDirty: boolean
+  /**
+   * Die letzte Änderung war ein Klick (kein Tippen) — sofort speichern statt
+   * entprellt. Liefert den Wert und setzt ihn zurück.
+   */
+  takeImmediate: () => boolean
+  /** Die Objektadresse ist fertig getippt (Feld verlassen) und darf mit. */
+  releaseAddressHold: () => void
+  /**
+   * Speichert die geänderten selbst speichernden Felder als EIN PATCH. `payload`
+   * ist, was rausging (null = nichts zu tun); `error` ist gesetzt, wenn es
+   * scheiterte. Keine Rückfragen — die stehen vorher (Projektleiter) oder
+   * hängen an Team/Terminen.
+   */
+  persistAuto: () => Promise<{ payload: Record<string, unknown> | null; error: string }>
+  /** Team übernehmen (§3.3): mit Rückfrage, wenn Termine dem Team folgen. `''` = ok, sonst Fehlertext. */
+  commitTeam: () => Promise<string>
+  /** Team-Änderung verwerfen. */
+  resetTeam: () => void
+  /** Einen Termin speichern (§3.4). `''` = ok, sonst Fehlertext. */
+  commitAppointment: (key: string) => Promise<string>
+  /** Einen Termin entfernen — gespeichert: sofort auf dem Server. `''` = ok, sonst Fehlertext. */
+  removeAppointmentNow: (key: string) => Promise<string>
+  /** Ist dieser Termin geändert oder neu? */
+  isAppointmentDirty: (d: AppointmentDraft) => boolean
+  /** Frisch angelegte Kunden an ihre Kontaktzeilen (und ggf. ans Projekt) hängen. */
+  linkCreatedCustomers: (created: { id: string; name: string }[]) => void
 }
 
 export function useProjectForm(opts: {
@@ -190,8 +231,15 @@ export function useProjectForm(opts: {
   schedulingEnabled: boolean
   /** Fehler stehen im Detail-Reiter; wer aus einem anderen heraus speichert, muss dorthin. */
   focusDetails: () => void
+  /**
+   * Maske speichert sich selbst (Feature `projekt_autosave`, nur bestehende
+   * Projekte). Ändert die Projektleiter-Rückfrage (§3.5) und rechnet die
+   * Nachfrage «als Kunde anlegen» gegen den Stand beim Öffnen (§3.8).
+   */
+  autosave?: boolean
 }): UseProjectForm {
   const { project, customers, schedulingEnabled, focusDetails } = opts
+  const autosave = !!opts.autosave && !!project
   const isNew = !project
 
   // Vorbelegung aus der Einsatzplanung, einmalig beim Oeffnen abgeholt (der
@@ -200,6 +248,14 @@ export function useProjectForm(opts: {
   const [prefill] = useState<NewProjectPrefill | null>(() => (project ? null : takeNewProjectPrefill()))
 
   const [baseline, setBaseline] = useState<ProjectFormValues>(() => initialProjectForm(project, prefill))
+  // Stand beim Öffnen — wandert NICHT mit. Der Autosave schiebt `baseline` nach
+  // jedem Feld weiter; «in dieser Sitzung neu erfasst» (§3.8) braucht den
+  // festen Bezug.
+  const [openedWith] = useState<ProjectFormValues>(baseline)
+  // Autosave-Steuerung (§3.2). Refs, keine States: sie rendern nichts, sie
+  // sagen dem Autosave nur, WIE er auf die nächste Änderung reagiert.
+  const immediate = useRef(false)
+  const addressHold = useRef(false)
 
   const [parentProjectId, setParentProjectId] = useState(baseline.parentProjectId)
   // Beim Oeffnen eines bestehenden Reparatur-Projekts kennt die Maske nur die id;
@@ -431,13 +487,14 @@ export function useProjectForm(opts: {
     })
   }
 
-  const kontakteOhneKundenstammNow = () => kontakteOhneKundenstamm(baseline.kontakte, kontakte, customers)
+  const kontakteOhneKundenstammNow = () =>
+    kontakteOhneKundenstamm(autosave ? openedWith.kontakte : baseline.kontakte, kontakte, customers)
 
   function toggleMonteur(id: string) {
     setMonteurIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  function changeAppointments(next: AppointmentDraft[]) {
+  function changeAppointments(next: AppointmentDraft[] | ((prev: AppointmentDraft[]) => AppointmentDraft[])) {
     appointmentsTouched.current = true
     setAppointments(next)
   }
@@ -648,30 +705,237 @@ export function useProjectForm(opts: {
     }
   }
 
+  // ── Automatisches Speichern (docs/specs/projektmaske-autosave.md) ──────────
+
+  // Ein Klick ist eine fertige Entscheidung: der Autosave wartet nicht (§3.2).
+  // Eigene Funktionen statt eines Wrappers um die Setter — ein Wrapper, der
+  // beim Rendern gebaut wird, hielte der React Compiler für einen Ref-Zugriff
+  // während des Renderns.
+  function selectCustomerNow(id: string) { immediate.current = true; selectCustomer(id) }
+  function setBillingDiffersNow(v: boolean) { immediate.current = true; setBillingDiffers(v) }
+  function toggleArtNow(value: string) { immediate.current = true; toggleArt(value) }
+  function setGeruestfaecherNow(v: string[]) { immediate.current = true; setGeruestfaecher(v) }
+  function pickKontaktCustomerNow(i: number, cand: KontaktCandidate) { immediate.current = true; pickKontaktCustomer(i, cand) }
+  function removeKontaktNow(i: number) { immediate.current = true; removeKontakt(i) }
+  function toggleSiteContactNow(i: number) { immediate.current = true; toggleSiteContact(i) }
+  function pickReferenceProjectNow(p: Project | null) { immediate.current = true; pickReferenceProject(p) }
+  function setIsWarrantyNow(v: boolean) { immediate.current = true; setIsWarranty(v) }
+  function setProjektleiterIdNow(v: string) { void changeProjektleiter(v) }
+  function releaseAddressHold() { addressHold.current = false }
+
+  function takeImmediate(): boolean {
+    const v = immediate.current
+    immediate.current = false
+    return v
+  }
+
+  // Getippte Adresse: erst mit, wenn das Feld verlassen wird — jeder
+  // Zwischenstand kostete einen Geocoding- und Distanz-Aufruf (§3.2, Klasse A).
+  function typeObjectAddress(v: string) {
+    addressHold.current = true
+    setObjectAddress(v)
+  }
+
+  function pickObjectAddressNow(label: string, lat?: number, lon?: number) {
+    addressHold.current = false
+    immediate.current = true
+    pickObjectAddress(label, lat, lon)
+  }
+
+  /**
+   * Projektleiter ändern. In der selbst speichernden Maske fragt nur noch das
+   * ENTFERNEN eines gesetzten Projektleiters nach (§3.5) — sonst käme die Frage
+   * bei jedem gespeicherten Feld eines Projekts ohne Projektleiter.
+   */
+  async function changeProjektleiter(v: string) {
+    if (autosave && !v && baseline.projektleiterId) {
+      const answer = await new Promise<ProjektleiterAnswer>(resolve => {
+        projektleiterAnswer.current = resolve
+        setProjektleiterQuestion(true)
+      })
+      if (answer === 'cancel') return
+    }
+    immediate.current = true
+    setProjektleiterId(v)
+  }
+
+  async function persistAuto(): Promise<{ payload: Record<string, unknown> | null; error: string }> {
+    if (!project) return { payload: null, error: '' }
+    const fields = changedAutosaveFields(baseline, currentForm).filter(f => {
+      if (f === 'objectAddress' && addressHold.current) return false
+      // Leerer Name bzw. Eigentümer über der Grenze: dieses Feld wartet, die
+      // übrigen gehen trotzdem (§3.7). Die Meldung steht am Feld.
+      if (f === 'name' && !name.trim()) return false
+      if (f === 'eigentuemer' && eigentuemerFehler(eigentuemer)) return false
+      return true
+    })
+    if (fields.length === 0) return { payload: null, error: '' }
+    // Der Stand, der rausgeht — nach dem Request wird GENAU er Ausgangsstand,
+    // auch wenn inzwischen weitergetippt wurde (das geht im nächsten Durchlauf).
+    const sent = currentForm
+    const payload = autosavePatch(fields, sent, baseline, { pickedAddress })
+    try {
+      await saveProjectForm(payload, project.id)
+    } catch (err: unknown) {
+      return { payload: null, error: err instanceof Error && err.message ? err.message : 'Fehler beim Speichern' }
+    }
+    setBaseline(b => advanceBaseline(b, sent, fields))
+    return { payload, error: '' }
+  }
+
+  /** Termine neu vom Server holen; Offenes aus dem Formular bleibt darüber stehen. */
+  async function refreshAppointments(projectId: string, local: AppointmentDraft[], doneKey: string) {
+    const rows = await getProjectAppointments(projectId).catch(() => null)
+    if (!rows) return
+    const server = rows.map(apptToDraft)
+    setAppointments(mergeAfterSync(server, local, baseline.appointments, doneKey))
+    setBaseline(b => ({ ...b, appointments: server }))
+  }
+
+  /**
+   * Team übernehmen (§3.3) — derselbe Weg wie im Knopf-Speichern, nur für das
+   * Team allein: Rückfrage, wenn gespeicherte Termine dem Projekt-Team folgen,
+   * dann ein PATCH mit `monteur_ids`. Ein Push je bewusster Änderung.
+   */
+  async function commitTeam(): Promise<string> {
+    if (!project) return ''
+    const kind = project.kind ?? 'project'
+    const followers = schedulingEnabled && baseline.monteurIds.length > 0
+      && teamsDiffer(baseline.monteurIds, monteurIds)
+      ? appointmentsFollowingProjectTeam(baseline.appointments)
+      : []
+    let local = appointments
+    if (followers.length > 0) {
+      const answer = await new Promise<TeamAnswer>(resolve => {
+        teamAnswer.current = resolve
+        setTeamQuestion({ count: followers.length })
+      })
+      if (answer === 'cancel') return ''
+      if (answer === 'apply' && monteurIds.length === 0 && kind === 'project') {
+        return teamlessFollowersError(followers.length)
+      }
+      if (answer === 'keep') {
+        try {
+          // VOR dem Projekt-Write, aus demselben Grund wie in `persist`.
+          for (const d of followers) {
+            await updateAppointment(d.id!, { monteur_ids: baseline.monteurIds })
+          }
+        } catch {
+          return 'Das bisherige Team konnte nicht auf den bestehenden Terminen festgehalten werden. Bitte erneut versuchen.'
+        }
+        const keys = new Set(followers.map(d => d.key))
+        local = pinProjectTeam(appointments, keys, baseline.monteurIds)
+      }
+    }
+    const sentTeam = monteurIds
+    setSaving(true)
+    try {
+      await saveProjectForm({ name: baseline.name, monteur_ids: sentTeam }, project.id)
+    } catch (err: unknown) {
+      return err instanceof Error && err.message ? err.message : 'Team konnte nicht gespeichert werden.'
+    } finally {
+      setSaving(false)
+    }
+    setBaseline(b => ({ ...b, monteurIds: sentTeam }))
+    if (schedulingEnabled) await refreshAppointments(project.id, local, '')
+    return ''
+  }
+
+  function resetTeam() {
+    setMonteurIds(baseline.monteurIds)
+  }
+
+  function isAppointmentDirty(d: AppointmentDraft): boolean {
+    return isDraftDirty(d, baseline.appointments)
+  }
+
+  /** Einen Termin speichern (§3.4) — nur diesen, nicht den Diff der Liste. */
+  async function commitAppointment(key: string): Promise<string> {
+    const d = appointments.find(x => x.key === key)
+    if (!project || !d || !isDraftDirty(d, baseline.appointments)) return ''
+    const err = validateDraft(d)
+      ?? ((project.kind ?? 'project') === 'project'
+        ? validateDraftTeams([d], baseline.appointments, baseline.monteurIds)?.replace(/^1\. Termin: /, '') ?? null
+        : null)
+    if (err) return err
+    try {
+      if (d.id) await updateAppointment(d.id, draftPayload(d))
+      else await createAppointment(project.id, draftPayload(d))
+    } catch (e: unknown) {
+      return e instanceof Error && e.message ? e.message : 'Termin konnte nicht gespeichert werden.'
+    }
+    await refreshAppointments(project.id, appointments, key)
+    return ''
+  }
+
+  async function removeAppointmentNow(key: string): Promise<string> {
+    const d = appointments.find(x => x.key === key)
+    if (!project || !d) return ''
+    const local = appointments.filter(x => x.key !== key)
+    if (!d.id) {
+      setAppointments(local)
+      return ''
+    }
+    try {
+      await deleteAppointment(d.id)
+    } catch (e: unknown) {
+      return e instanceof Error && e.message ? e.message : 'Termin konnte nicht entfernt werden.'
+    }
+    await refreshAppointments(project.id, local, key)
+    return ''
+  }
+
+  /**
+   * Kunden aus Kontaktzeilen angelegt (§3.8): Zeilen verknüpfen und — hat das
+   * Projekt noch keinen Kunden — den neuen als Projektkunden setzen. Der
+   * Autosave schreibt beides; Adresse und Ansprechperson werden dabei NICHT
+   * aus dem neuen Kunden vorbelegt, er stammt ja aus genau dieser Zeile.
+   */
+  function linkCreatedCustomers(created: { id: string; name: string }[]) {
+    const linked = linkKontakteToCustomers(kontakte, created)
+    const link = customerToLink(customerId || null, linked, created)
+    immediate.current = true
+    setKontakte(linked)
+    if (link) setCustomerId(link)
+  }
+
   return {
     name, setName,
-    customerId, selectCustomer, selectedCustomer, billingRecipient, billingAddress,
-    objectName, setObjectName, objectAddress, setObjectAddress, setObjectAddressTouched,
-    pickObjectAddress,
-    billingDiffers, setBillingDiffers,
+    customerId, selectCustomer: selectCustomerNow, selectedCustomer, billingRecipient, billingAddress,
+    objectName, setObjectName, objectAddress, setObjectAddress: typeObjectAddress, setObjectAddressTouched,
+    pickObjectAddress: pickObjectAddressNow,
+    billingDiffers, setBillingDiffers: setBillingDiffersNow,
     projBillingName, setProjBillingName, projBillingAddress, setProjBillingAddress,
-    artDerArbeit, toggleArt, entsorgungsart,
-    bemerkung, setBemerkung, geruestfaecher, setGeruestfaecher,
-    projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
+    artDerArbeit, toggleArt: toggleArtNow, entsorgungsart,
+    bemerkung, setBemerkung, geruestfaecher, setGeruestfaecher: setGeruestfaecherNow,
+    projektleiterId, setProjektleiterId: setProjektleiterIdNow,
+    monteurIds, toggleMonteur,
     appointments, changeAppointments, loadAppointments,
     teamQuestion, answerTeamQuestion,
     projektleiterQuestion, answerProjektleiterQuestion,
-    kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
+    kontakte, addKontakt, updateKontakt,
+    pickKontaktCustomer: pickKontaktCustomerNow, removeKontakt: removeKontaktNow,
+    toggleSiteContact: toggleSiteContactNow,
     kontakteOhneKundenstamm: kontakteOhneKundenstammNow,
     eigentuemer, updateEigentuemer, disposal, updateDisposal,
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,
     wartungNextDueAt, setWartungNextDueAt,
-    parentProjectId, parentProjectLabel, pickReferenceProject,
+    parentProjectId, parentProjectLabel, pickReferenceProject: pickReferenceProjectNow,
     completedAt, setCompletedAt,
-    isWarranty, setIsWarranty,
+    isWarranty, setIsWarranty: setIsWarrantyNow,
     saving, error, setError,
     isDirty: isProjectFormDirty(baseline, currentForm),
     persist,
+    autosaveSignature: autosaveSignature(currentForm),
+    autosaveDirtyFields: changedAutosaveFields(baseline, currentForm),
+    teamDirty: teamDirty(baseline, currentForm),
+    savedMonteurIds: baseline.monteurIds,
+    appointmentsDirty: appointmentsDirty(baseline, currentForm),
+    takeImmediate,
+    releaseAddressHold,
+    persistAuto, commitTeam, resetTeam,
+    commitAppointment, removeAppointmentNow, isAppointmentDirty,
+    linkCreatedCustomers,
   }
 }

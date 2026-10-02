@@ -127,6 +127,15 @@ export default defineConfig(({ command }) => ({
         // Import registriert sie auch keinen Handler, der nie etwas bekommt.
         importScripts: IS_ADMIN ? [] : ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Der Default (2 MiB) ist eine stille Grenze: Ein Asset darüber wird
+        // NICHT vorgecacht, Workbox bricht den Build ab — und liesse man es
+        // durch, startete die App offline nicht mehr (das Haupt-Bundle fehlte
+        // im Precache, docs/specs/offline-modus.md). Am 20261002 lag
+        // index-*.js bei 2'094 kB, 2 kB unter der Grenze; der Autosave der
+        // Projektmaske schob es darüber. 3 MiB ist Luft, kein Ziel — die
+        // eigentliche Abhilfe ist Code-Splitting (Admin-Screens per lazy()),
+        // dann sinkt das Bundle wieder deutlich unter 2 MiB.
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // `public/` wird in BEIDE Builds kopiert, also läge der Push-Handler
         // auch im Admin-Precache — eine Datei, die dort nie ausgeführt wird
         // (kein importScripts, siehe oben). Ebenso das Manifest der jeweils

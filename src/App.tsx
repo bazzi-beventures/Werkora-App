@@ -156,7 +156,6 @@ export default function App() {
   // heissen), und mit ihm allein band der Rapport gar nicht.
   const [rapportInitialProjectId, setRapportInitialProjectId] = useState<string | null>(null)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
-  const [swUpdateReady, setSwUpdateReady] = useState(false)
   const [pushMsg, setPushMsg] = useState<{ title: string; body: string } | null>(null)
   // Sprung in eine bestimmte Zählung (Push oder Kaltstart über #/inventur/<id>).
   const [inventurCountId, setInventurCountId] = useState<string | null>(null)
@@ -199,12 +198,6 @@ export default function App() {
       window.removeEventListener('online', goOnline)
       window.removeEventListener('offline', goOffline)
     }
-  }, [])
-
-  useEffect(() => {
-    const onUpdate = () => setSwUpdateReady(true)
-    window.addEventListener('sw-update-ready', onUpdate)
-    return () => window.removeEventListener('sw-update-ready', onUpdate)
   }, [])
 
   // Push-Nachricht vom Service Worker → In-App-Banner (App war offen oder im
@@ -529,32 +522,6 @@ export default function App() {
       boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
     }}>
       Sitzung abgelaufen – bitte erneut anmelden.
-    </div>
-  ) : null
-
-  const updateBanner = swUpdateReady ? (
-    <div style={{
-      position: 'fixed',
-      bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
-      left: '50%', transform: 'translateX(-50%)',
-      width: 'calc(100% - 32px)', maxWidth: 448, zIndex: 9998,
-      background: '#1e3a5f', color: '#fff',
-      borderRadius: 'var(--radius-md)', padding: '10px 16px',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-      fontSize: '0.875rem',
-    }}>
-      <span>Neue Version verfügbar</span>
-      <button
-        onClick={() => window.location.reload()}
-        style={{
-          background: 'var(--accent-green)', color: '#fff', border: 'none',
-          borderRadius: 'var(--radius-xs)', padding: '5px 12px', cursor: 'pointer',
-          fontWeight: 600, fontSize: '0.85rem',
-        }}
-      >
-        Aktualisieren
-      </button>
     </div>
   ) : null
 
@@ -909,7 +876,6 @@ export default function App() {
       {offlineBanner}
       {authExpiredBanner}
       {pushBanner}
-      {updateBanner}
       {inner}
       {showHelpBubble && (
         <HelpBubble
@@ -922,6 +888,10 @@ export default function App() {
           tenantName={tenantName}
           route={screen}
           appContext="pwa"
+          user={user}
+          // Die Schlüssel hält shared/helpTargets.ts; der Ratchet
+          // tests/unit/test_help_targets.py prüft sie gegen `type Screen`.
+          onNavigate={target => go(target.screen as Screen)}
         />
       )}
     </>

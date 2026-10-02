@@ -8,6 +8,7 @@
 
 import { useState } from 'react'
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS } from '../../../api/admin'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateTimeInput } from '../../components/DateTimeInput'
 import {
   AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, effectiveTeamIds, fmtDraftWhen,
@@ -16,17 +17,68 @@ import {
 
 interface Props {
   appointments: AppointmentDraft[]
-  onChange: (next: AppointmentDraft[]) => void
+  // Funktionsform nur im Autosave-Pfad: nach dem Speichern eines Termins hat
+  // die Maske die Liste vom Server neu — ein Array aus dem alten Render
+  // überschriebe sie.
+  onChange: (next: AppointmentDraft[] | ((prev: AppointmentDraft[]) => AppointmentDraft[])) => void
   staff: { id: string; name: string }[]
   // Projekt-Team aus der Einsatzplanungs-Kachel — gilt für jeden Termin ohne
   // eigenes Team.
   projectTeam: string[]
+  /**
+   * Selbst speichernde Maske (docs/specs/projektmaske-autosave.md §3.4): ein
+   * Termin wird beim Zuklappen bzw. über «Termin speichern» gespeichert, ein
+   * gespeicherter nach Rückfrage sofort entfernt. Fehlt das Objekt, gilt der
+   * Knopf «Speichern» der Maske wie bisher.
+   */
+  autosave?: {
+    commit: (key: string) => Promise<string>
+    remove: (key: string) => Promise<string>
+    isDirty: (d: AppointmentDraft) => boolean
+  }
 }
 
-export default function AppointmentsCard({ appointments, onChange, staff, projectTeam }: Props) {
+export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave }: Props) {
   // Nur ein Termin ist gleichzeitig aufgeklappt — sonst wird die Kachel bei
   // vier Terminen unübersichtlich lang.
   const [openKey, setOpenKey] = useState<string | null>(null)
+  // Autosave: Fehler je Termin (stehen im Termin, nicht über der Maske), der
+  // Termin, der gerade gespeichert wird, und die offene Entfernen-Rückfrage.
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<AppointmentDraft | null>(null)
+
+  /** Den offenen Termin speichern, falls geändert. false = ungültig/fehlgeschlagen, er bleibt offen. */
+  async function commitOpen(): Promise<boolean> {
+    if (!autosave || !openKey) return true
+    const cur = appointments.find(x => x.key === openKey)
+    if (!cur || !autosave.isDirty(cur)) return true
+    const key = openKey
+    setBusyKey(key)
+    const err = await autosave.commit(key)
+    setBusyKey(null)
+    setErrors(e => ({ ...e, [key]: err }))
+    return !err
+  }
+
+  // Ohne Autosave synchron wie bisher — der Knopf «Speichern» der Maske übernimmt.
+  function toggle(key: string) {
+    if (!autosave) { setOpenKey(openKey === key ? null : key); return }
+    void commitOpen().then(ok => { if (ok) setOpenKey(openKey === key ? null : key) })
+  }
+
+  async function saveOpen() {
+    if (await commitOpen()) setOpenKey(null)
+  }
+
+  async function confirmRemoveNow() {
+    const d = confirmRemove
+    setConfirmRemove(null)
+    if (!d || !autosave) return
+    const err = await autosave.remove(d.key)
+    if (err) setErrors(e => ({ ...e, [d.key]: err }))
+    else if (openKey === d.key) setOpenKey(null)
+  }
 
   const next = nextAppointment(appointments, todayISO())
 
@@ -35,8 +87,14 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
   }
 
   function addAppointment() {
+    if (!autosave) { appendDraft(); return }
+    void commitOpen().then(ok => { if (ok) appendDraft() })
+  }
+
+  function appendDraft() {
     const draft = newAppointmentDraft('montage')
-    onChange([...appointments, draft])
+    if (autosave) onChange(prev => [...prev, draft])
+    else onChange([...appointments, draft])
     setOpenKey(draft.key)
   }
 
@@ -59,7 +117,9 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
         Beliebig viele Termine je Projekt (z.B. Ausmass vorab, Montage später). Ohne eigene
         Auswahl gilt beim Termin das Projekt-Team aus der Einsatzplanung. Termine erscheinen
-        im Einsatz-Kalender und werden mit «Speichern» übernommen.
+        im Einsatz-Kalender und werden {autosave
+          ? <>beim Zuklappen gespeichert — erst dann erfahren die Monteure davon.</>
+          : <>mit «Speichern» übernommen.</>}
       </div>
 
       <div className="project-appt-next">
@@ -91,7 +151,7 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                 <button
                   type="button"
                   className="project-appt-summary"
-                  onClick={() => setOpenKey(open ? null : d.key)}
+                  onClick={() => toggle(d.key)}
                   aria-expanded={open}
                 >
                   <span className="project-appt-kind">{draftTitle(d)}</span>
@@ -110,7 +170,10 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                   className="admin-btn-icon danger"
                   title="Termin entfernen"
                   aria-label="Termin entfernen"
-                  onClick={() => removeAppointment(d.key)}
+                  onClick={() => {
+                    if (autosave && d.id) setConfirmRemove(d)
+                    else removeAppointment(d.key)
+                  }}
                 >
                   ✕
                 </button>
@@ -246,7 +309,25 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                       </div>
                     )}
                   </div>
+                  {autosave && (
+                    <div className="project-appt-save">
+                      {errors[d.key] && (
+                        <div className="admin-form-error" role="alert">{errors[d.key]}</div>
+                      )}
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-sm admin-btn-primary"
+                        disabled={busyKey === d.key || !autosave.isDirty(d)}
+                        onClick={() => { void saveOpen() }}
+                      >
+                        {busyKey === d.key ? 'Speichern…' : autosave.isDirty(d) ? 'Termin speichern' : 'Gespeichert'}
+                      </button>
+                    </div>
+                  )}
                 </div>
+              )}
+              {autosave && !open && errors[d.key] && (
+                <div className="admin-form-error" role="alert">{errors[d.key]}</div>
               )}
             </div>
           )
@@ -261,6 +342,20 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
       >
         + Termin hinzufügen
       </button>
+
+      {confirmRemove && (
+        <ConfirmDialog
+          title="Termin entfernen?"
+          message={<>
+            {draftTitle(confirmRemove)} · {fmtDraftWhen(confirmRemove)} wird sofort entfernt.
+            Betroffene Monteure werden benachrichtigt.
+          </>}
+          confirmLabel="Entfernen"
+          variant="danger"
+          onCancel={() => setConfirmRemove(null)}
+          onConfirm={() => { void confirmRemoveNow() }}
+        />
+      )}
     </div>
   )
 }

@@ -19,7 +19,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { WerkoraMark } from '../brand/WerkoraMark'
 import { useIsMobile } from '../admin/useIsMobile'
 import {
-  IconBuilding, IconPulse, IconAlert, IconLifebuoy, IconBulb, IconBell, IconMail,
+  IconBuilding, IconPulse, IconAlert, IconLifebuoy, IconBulb, IconBell, IconMail, IconAftersales,
   IconSettings, IconCash, IconChart, IconBox, IconPercent,
   IconReceipt, IconUpload, IconAddressBook, IconUsers,
 } from '../admin/AdminIcons'
@@ -40,6 +40,7 @@ export const SCREEN_TITEL: Record<AdminSiteScreen, string> = {
   'feature-anfragen': 'Feature-Anfragen',
   'push-test': 'Push-Test',
   newsletter: 'Newsletter',
+  rueckmeldung: 'Kunden-Rückmeldung',
   konfiguration: 'Konfiguration',
   konten: 'Konten',
   'llm-kosten': 'LLM-Kosten',
@@ -74,6 +75,9 @@ const SCREEN_ICON: Record<AdminSiteScreen, () => React.ReactElement> = {
   'feature-anfragen': IconBulb,
   'push-test': IconBell,
   newsletter: IconMail,
+  // Dasselbe Symbol wie «Aftersales» in der Mandanten-App: beides ist ein
+  // Nachfassen beim Kunden.
+  rueckmeldung: IconAftersales,
   konfiguration: IconSettings,
   konten: IconUsers,
   'llm-kosten': IconCash,
@@ -108,7 +112,7 @@ const UMGEBUNG = IST_STAGING ? 'Staging' : 'Produktion'
  * das Fehlerprotokoll (übernimmt ihn als Vorauswahl seines Filters).
  */
 const WAEHLER_OHNE_WIRKUNG: readonly AdminSiteScreen[] = [
-  'service-status', 'support', 'push-test', 'newsletter',
+  'service-status', 'support', 'push-test', 'newsletter', 'rueckmeldung',
 ]
 
 interface Props {

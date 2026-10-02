@@ -9,6 +9,9 @@ import type { Customer } from '../../../api/admin/customers'
 import { KontaktNameInput } from './KontaktNameInput'
 import GeruestfaecherInput from './GeruestfaecherInput'
 import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
+import type { Kontakt } from '../../../api/admin/projects'
+import { BetaBadge } from '../../../shared/BetaBadge'
+import type { ProjectAutosave } from './useProjectAutosave'
 
 // Der Reiter «Projekt Details» (Charge H, H3) — die eigentliche Projektmaske.
 // Reines JSX: jeder Wert und jeder Setter kommt aus useProjectForm, damit hier
@@ -23,6 +26,7 @@ export interface StaffMember {
 
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
+  autosave, onCreateCustomerFromKontakt,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -42,6 +46,14 @@ export function DetailsForm({
   showAbnahme: boolean
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
+  /**
+   * Gesetzt = die Maske speichert sich selbst (Feature `projekt_autosave`,
+   * docs/specs/projektmaske-autosave.md): Statuszeile statt Knopf, Team und
+   * Termine mit eigener Übernahme, «Als Kunde anlegen» an der Kontaktzeile.
+   */
+  autosave?: ProjectAutosave | null
+  /** §3.8 — öffnet den Dialog «als Kunde anlegen» für genau diese Zeile. */
+  onCreateCustomerFromKontakt?: (k: Kontakt) => void
 }) {
   // Verbatim aus dem Screen uebernommen: die Felder heissen hier wie dort, damit
   // der Umzug am JSX nichts geaendert hat und im Diff nachvollziehbar bleibt.
@@ -65,10 +77,22 @@ export function DetailsForm({
     isWarranty, setIsWarranty,
     saving, error,
   } = form
+  // Kontaktzeilen, die in dieser Sitzung neu sind und keinen Stammkunden
+  // haben — sie bekommen den Link «+ Als Kunde anlegen» (§3.8).
+  const ohneStamm = autosave && onCreateCustomerFromKontakt ? new Set(form.kontakteOhneKundenstamm()) : null
+  const staffName = (id: string) => staff.find(s => s.id === id)?.name ?? '?'
 
   return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 20, alignItems: 'start' }}>
-        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <form
+          onSubmit={onSubmit}
+          // Ein Feld verlassen = fertig getippt: sofort speichern statt die Pause
+          // abzuwarten (§3.2). onBlur bubbelt in React (focusout).
+          onBlur={autosave ? () => { void autosave.flush() } : undefined}
+          style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+        >
+
+          {autosave && <AutosaveStatusLine a={autosave} />}
 
           {error && <div className="admin-form-error">{error}</div>}
 
@@ -79,6 +103,9 @@ export function DetailsForm({
               <div className="admin-form-group">
                 <label className="admin-form-label" htmlFor="project-name">Projektname *</label>
                 <input id="project-name" className="admin-form-input" value={name} onChange={e => setName(e.target.value)} required />
+                {autosave && !name.trim() && (
+                  <div className="admin-form-error" role="alert">Ohne Namen wird die Bezeichnung nicht gespeichert.</div>
+                )}
               </div>
               <div className="admin-form-group">
                 <label className="admin-form-label">Art der Arbeit <span style={{ fontWeight: 400, color: 'var(--muted)' }}>(Mehrfachauswahl)</span></label>
@@ -315,6 +342,16 @@ export function DetailsForm({
                     onChange={v => updateKontakt(i, 'name', v)}
                     onPick={cand => pickKontaktCustomer(i, cand)}
                   />
+                  {ohneStamm?.has(k) && (
+                    <button
+                      type="button"
+                      className="admin-link-btn"
+                      style={{ fontSize: 12, marginTop: 4, padding: 0, background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer' }}
+                      onClick={() => onCreateCustomerFromKontakt?.(k)}
+                    >
+                      + Als Kunde anlegen
+                    </button>
+                  )}
                 </div>
                 <div className="admin-form-group" style={{ margin: 0 }}>
                   <label className="admin-form-label">Kommentar</label>
@@ -460,6 +497,13 @@ export function DetailsForm({
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
+                {/* Statt der Rückfrage bei jedem Speichern (§3.5). */}
+                {autosave && !projektleiterId && (
+                  <div className="project-pl-hint">
+                    Kein Projektleiter zugewiesen — Rückfragen aus der Mitarbeiter-App finden dann
+                    niemanden, und das Projekt fehlt in den Auswertungen je Projektleiter.
+                  </div>
+                )}
               </div>
               <div className="admin-form-group">
                 <label className="admin-form-label">Monteure</label>
@@ -495,6 +539,35 @@ export function DetailsForm({
                     Rot = Lead-Monteur (der zuerst gewählte). Abwählen und neu wählen ändert ihn.
                   </div>
                 )}
+                {/* Team sammeln, dann übernehmen (§3.3): jeder Wechsel meldet sich
+                    per Push bei den Monteuren — nicht für jeden Zwischenklick. */}
+                {autosave && form.teamDirty && (
+                  <div className="project-team-pending" role="status">
+                    <span className="project-team-pending-text">
+                      Team geändert
+                      {(() => {
+                        const plus = monteurIds.filter(id => !form.savedMonteurIds.includes(id))
+                        const minus = form.savedMonteurIds.filter(id => !monteurIds.includes(id))
+                        const teile = [
+                          ...plus.map(id => `+ ${staffName(id)}`),
+                          ...minus.map(id => `− ${staffName(id)}`),
+                        ]
+                        return teile.length ? ` (${teile.join(', ')})` : ' (Reihenfolge / Lead)'
+                      })()}
+                    </span>
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-primary"
+                      disabled={autosave.busy}
+                      onClick={() => { void autosave.run(f => f.commitTeam()) }}
+                    >
+                      Team übernehmen
+                    </button>
+                    <button type="button" className="admin-btn admin-btn-sm admin-btn-secondary" onClick={form.resetTeam}>
+                      Verwerfen
+                    </button>
+                  </div>
+                )}
               </div>
 
               {schedulingEnabled && (
@@ -512,16 +585,50 @@ export function DetailsForm({
               onChange={handleAppointmentsChange}
               staff={staff}
               projectTeam={monteurIds}
+              autosave={autosave ? {
+                commit: key => autosave.run(f => f.commitAppointment(key)),
+                remove: key => autosave.run(f => f.removeAppointmentNow(key)),
+                isDirty: form.isAppointmentDirty,
+              } : undefined}
             />
           )}
 
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button type="button" className="admin-btn admin-btn-secondary" onClick={onCancel}>Abbrechen</button>
-            <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || !name.trim()}>
-              {saving ? 'Speichern…' : 'Speichern'}
-            </button>
-          </div>
+          {!autosave && (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button type="button" className="admin-btn admin-btn-secondary" onClick={onCancel}>Abbrechen</button>
+              <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || !name.trim()}>
+                {saving ? 'Speichern…' : 'Speichern'}
+              </button>
+            </div>
+          )}
         </form>
       </div>
+  )
+}
+
+/**
+ * «Speichert… / Gespeichert ✓ 14:32 / Nicht gespeichert» (§3.7). Kein
+ * automatischer Neuversuch: «Erneut versuchen» stösst ihn an, ebenso die
+ * nächste Änderung.
+ */
+function AutosaveStatusLine({ a }: { a: ProjectAutosave }) {
+  const zeit = a.savedAt
+    ? a.savedAt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })
+    : ''
+  return (
+    <div className={`project-autosave-status ${a.status}`} role="status" aria-live="polite">
+      {a.status === 'saving' && <span>Speichert…</span>}
+      {a.status === 'saved' && <span>Gespeichert ✓ {zeit}</span>}
+      {a.status === 'idle' && <span>Änderungen werden automatisch gespeichert</span>}
+      {a.status === 'error' && (
+        <>
+          <span>Nicht gespeichert{a.error ? ` — ${a.error}` : ''}</span>
+          <button type="button" className="admin-btn admin-btn-sm admin-btn-secondary" onClick={() => { void a.flush() }}>
+            Erneut versuchen
+          </button>
+        </>
+      )}
+      <BetaBadge />
+    </div>
   )
 }

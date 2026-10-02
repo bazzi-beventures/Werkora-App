@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import HelpBot from './HelpBot'
+import type { HelpMessage } from './helpChat'
+import type { HelpTarget } from './helpTargets'
+import type { UserInfo } from '../api/auth'
 import SupportForm from './SupportForm'
 import WikiBot from './WikiBot'
 import WishPanel from './WishPanel'
@@ -32,8 +35,14 @@ interface Props {
   tenantName?: string
   /** Aktueller Screen — wandert als `route` in eine Support-Meldung. */
   route?: string
-  /** In welcher App die Blase sitzt (fürs Ticket). */
-  appContext?: 'pwa' | 'admin' 
+  /** In welcher App die Blase sitzt (fürs Ticket und für die Masken-Links
+   *  des Hilfe-Bots). */
+  appContext?: 'pwa' | 'admin'
+  /** Angemeldeter Nutzer — der Hilfe-Bot prüft damit, ob ein Masken-Link
+   *  zum Knopf werden darf (Spec docs/specs/hilfe-bot-masken-und-ablaeufe.md). */
+  user?: UserInfo | null
+  /** Öffnet eine Maske aus einer Bot-Antwort (Admin: guardedNav, Monteur: go). */
+  onNavigate?: (target: HelpTarget) => void
   /** Wenn gesetzt: FAB/Panel werden auf eine zentrierte Spalte dieser Breite
    *  ausgerichtet (Mitarbeiter-PWA, max-width 480). Ohne Wert: echte Ecke
    *  unten rechts (Admin-Layout über volle Breite). */
@@ -56,6 +65,8 @@ const GAP_ABOVE_NAV = 16   // Luft zwischen Blase und Nav-Leiste
 const BOTTOM_RESERVE = 72
 // Die Leisten, über denen die Blase bleiben muss: Monteur-App und Admin-Handy.
 const NAV_SELECTOR = '.nav-bar, .admin-mobile-tabbar'
+// Unter dieser Breite schliesst ein Sprung aus dem Hilfe-Chat das Panel.
+const NARROW_VIEWPORT = 768
 const POS_KEY = 'helpbubble-pos'  // persistierte Drag-Position (siehe storageMigrations isKnownKey)
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi)
@@ -166,9 +177,14 @@ function loadRawPos(): Pos | null {
 export default function HelpBubble({
   suggestions, columnMaxWidth,
   showHelp = true, showSupport = false, showWiki = false, showWishes = false,
-  onOpenRoadmap, tenantName = '', route = '', appContext = 'pwa',
+  onOpenRoadmap, tenantName = '', route = '', appContext = 'pwa', user, onNavigate,
 }: Props) {
   const [open, setOpen] = useState(false)
+  // Der Hilfe-Chat-Verlauf sitzt HIER, nicht im HelpBot: das Panel rendert
+  // seinen Inhalt nur, solange es offen ist, und nach einem Sprung in eine
+  // Maske schliesst es sich auf dem Handy. Die Anschlussfrage («und dann?»)
+  // braucht den Verlauf danach noch.
+  const helpConversation = useState<HelpMessage[]>([])
   // Eigene Meldungen samt Antworten des Betreibers
   // (docs/specs/support-antwort.md §4.2). Der Hook sitzt HIER und nicht im
   // Formular: das Abzeichen am FAB muss auch dann stimmen, wenn das Panel zu
@@ -441,7 +457,22 @@ export default function HelpBubble({
               />
             )}
             {active === 'wiki' && <WikiBot tenantName={tenantName} />}
-            {active === 'help' && <HelpBot suggestions={suggestions} />}
+            {active === 'help' && (
+              <HelpBot
+                suggestions={suggestions}
+                app={appContext}
+                route={route}
+                user={user}
+                conversation={helpConversation}
+                onNavigate={onNavigate ? target => {
+                  // Auf schmalen Bildschirmen verdeckt das Panel die Maske —
+                  // dort schliesst es sich. Auf dem Desktop bleibt es offen,
+                  // damit man die Schritte daneben abarbeiten kann.
+                  if (window.innerWidth < NARROW_VIEWPORT) setOpen(false)
+                  onNavigate(target)
+                } : undefined}
+              />
+            )}
           </div>
         </div>
       )}

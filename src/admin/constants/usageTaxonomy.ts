@@ -44,7 +44,10 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   { test: /^(report_|log_report)|rapport|aggregate_report/, module: 'rapport' },
   // Mandanten-Einstellungen und Superadmin-Werkzeuge. Vor /schedul/, sonst
   // zählt `admin_update_tenant_scheduling` als Einsatzplanung.
-  { test: /tenant_|superadmin_push|support_ticket|feature_request|newsletter/, module: 'konfiguration' },
+  // `rueckmeldung_` (mit Unterstrich) sind die Superadmin-Aktionen der
+  // Kunden-Rückmeldung; die Kundenantwort selbst (`public_rueckmeldung`) fällt
+  // hier durch und landet unten bei den Projekten.
+  { test: /tenant_|superadmin_push|support_ticket|feature_request|newsletter|rueckmeldung_/, module: 'konfiguration' },
   { test: /aftersales/,                          module: 'aftersales' },
   // Offerten-Umfeld: 'variant' (Offerten-Variante), 'special_position' und
   // 'installation_template' tragen das Wort "quote" nicht im Namen.
@@ -68,7 +71,10 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // `beta_tester` steht ausdrücklich da: die Aktion heisst `admin_set_beta_tester`
   // und trägt weder "user" noch "staff" im Namen, gehört aber zur Benutzerverwaltung
   // wie `admin_update_user` (docs/specs/beta-tester.md §5.7).
-  { test: /project|customer|staff|user|pin|beta_tester/, module: 'grundfunktion' },
+  // `public_rueckmeldung`: die Antwort eines Kunden auf die Umfrage
+  // (docs/specs/kunden-rueckmeldung-kampagne.md) — sie schreibt Bemerkung und
+  // Fotos ins Projekt, trägt das Wort aber nicht im Namen.
+  { test: /project|customer|staff|user|pin|beta_tester|public_rueckmeldung/, module: 'grundfunktion' },
 ]
 
 /**
@@ -275,6 +281,8 @@ const ACTION_LABELS: Record<string, string> = {
   public_create_project_draft: 'Projektentwurf über Anfrageformular',
   admin_convert_project_draft: 'Projektentwurf übernommen',
   admin_reject_project_draft: 'Projektentwurf abgelehnt',
+  // Kein Konto dahinter: der Kunde antwortet über den Link aus der Umfrage-Mail.
+  public_rueckmeldung: 'Kunden-Rückmeldung eingegangen',
   admin_set_project_beschaffung: 'Beschaffungsstatus gesetzt',
   admin_create_project_task_template: 'Aufgaben-Vorlage angelegt',
   admin_update_project_task_template: 'Aufgaben-Vorlage geändert',
@@ -312,6 +320,11 @@ const ACTION_LABELS: Record<string, string> = {
   feature_request_aus_support: 'Support-Meldung als Feature-Anfrage übernommen',
   feature_request_triage: 'Feature-Anfrage triagiert',
   newsletter_send: 'Newsletter versendet',
+  // Kunden-Rückmeldung (docs/specs/kunden-rueckmeldung-kampagne.md §8) — im
+  // Mandanten des Betreibers protokolliert, nicht in dem der Kunden.
+  rueckmeldung_testmail: 'Kunden-Rückmeldung: Testmail',
+  rueckmeldung_versand: 'Kunden-Rückmeldung: Versand gestartet',
+  rueckmeldung_stopp: 'Kunden-Rückmeldung: Versand angehalten',
 
   // ── Roher DSGVO-Audit-Trail aus db/ ──
   INSERT: 'Datensatz angelegt (Audit)',

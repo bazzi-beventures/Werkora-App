@@ -2,6 +2,9 @@ import { apiStreamFetch } from './client'
 
 export type HelpSource = {
   section: string
+  /** Anzeigename ohne Dateipräfix («6.6 Rechnungen › Rechnung generieren»).
+   *  Fehlt bei Antworten aus dem Cache von vor der Umstellung. */
+  label?: string
   source_file?: string
   similarity?: number
 }
@@ -12,8 +15,21 @@ export type HelpEvent =
   | { type: 'done' }
   | { type: 'error'; message: string }
 
-export async function* askHelp(question: string): AsyncGenerator<HelpEvent, void, void> {
-  for await (const ev of apiStreamFetch('/pwa/help/ask', { question })) {
+export type HelpHistoryItem = { role: 'user' | 'assistant'; text: string }
+
+/** Kontext der Frage (Spec docs/specs/hilfe-bot-masken-und-ablaeufe.md §4.1):
+ *  in welcher App, in welcher Maske, und die letzten Wortwechsel. Alles
+ *  optional — ohne Kontext antwortet der Bot wie bisher, nur ohne Links. */
+export type HelpAskContext = {
+  app?: 'admin' | 'pwa'
+  route?: string
+  history?: HelpHistoryItem[]
+}
+
+export async function* askHelp(
+  question: string, context: HelpAskContext = {},
+): AsyncGenerator<HelpEvent, void, void> {
+  for await (const ev of apiStreamFetch('/pwa/help/ask', { question, ...context })) {
     yield ev as HelpEvent
   }
 }

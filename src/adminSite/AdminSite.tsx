@@ -31,6 +31,7 @@ import MaterialCleanupScreen from './screens/MaterialCleanupScreen'
 import WerkoraBonusScreen from './screens/WerkoraBonusScreen'
 import TenantsOverviewScreen from './screens/TenantsOverviewScreen'
 import NewsletterScreen from './screens/NewsletterScreen'
+import RueckmeldungScreen from './screens/RueckmeldungScreen'
 import FeatureRequestsScreen from './screens/FeatureRequestsScreen'
 import { fetchNewRequestCount } from '../api/featureRequests'
 
@@ -166,6 +167,8 @@ export default function AdminSite() {
       case 'service-status': return <ServiceStatusScreen />
       case 'push-test':      return <PushTestScreen />
       case 'newsletter':     return <NewsletterScreen tenants={scope.tenants} />
+      // Der Mandant steht in der Kampagne, nicht im Wähler (Spec §8).
+      case 'rueckmeldung':   return <RueckmeldungScreen />
       // Error-Logs und Support übernehmen den Wähler als VORAUSWAHL ihres
       // bestehenden «Alle Mandanten»-Filters — nicht als Skopierung (§4.1).
       case 'fehler':         return <ErrorLogsScreen initialTenantId={scope.tenantId ?? undefined} />

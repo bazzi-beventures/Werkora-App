@@ -22,6 +22,7 @@ import { useProjectTasks } from './projectDetail/useProjectTasks'
 import { useProjectDocuments } from './projectDetail/useProjectDocuments'
 import { useProjectBilling } from './projectDetail/useProjectBilling'
 import { useProjectForm } from './projectDetail/useProjectForm'
+import { useProjectAutosave } from './projectDetail/useProjectAutosave'
 import { useProjectBeschaffung } from './projectDetail/useProjectBeschaffung'
 import { useProjectFeatures } from './projectDetail/useProjectFeatures'
 import { DetailsForm, StaffMember } from './projectDetail/DetailsForm'
@@ -51,6 +52,13 @@ interface Props {
    */
   onSaved: (saved?: Project | null) => void
   /**
+   * Die selbst speichernde Maske hat geschrieben (Feature `projekt_autosave`).
+   * `patch` ist die geschickte Nutzlast (Spaltennamen) — der Aufrufer zieht
+   * damit seine Zeile nach, damit Kopfzeile und Übersicht den neuen Stand
+   * zeigen. Die Maske bleibt dabei offen.
+   */
+  onProjectUpdated?: (patch: Partial<Project>) => void
+  /**
    * Sprung in ein anderes Projekt — Ursprungsprojekt einer Reparatur oder
    * umgekehrt eine Nacharbeit (Spec docs/specs/garantiefall.md §3.9). Ein
    * `<a href="#/…">` taete es nicht: der Hash-Sprung wird nur beim App-Start
@@ -66,7 +74,7 @@ interface Props {
 }
 
 export default function ProjectDetailScreen({
-  project, onClose, onSaved, onOpenProject, initialTab,
+  project, onClose, onSaved, onOpenProject, initialTab, onProjectUpdated,
 }: Props) {
   const isNew = !project
 
@@ -89,12 +97,19 @@ export default function ProjectDetailScreen({
   // Die Projektmaske selbst (Charge H, H3). `focusDetails`, weil die
   // Fehlermeldung im Detail-Reiter steht: wer aus einem anderen Reiter heraus
   // speichert (Abfrage beim Verlassen), saehe sie sonst nie.
+  // Selbst speichernde Maske (docs/specs/projektmaske-autosave.md) — nur für
+  // bestehende Projekte; ein neues entsteht weiter mit «Projekt anlegen» (§3.1).
+  const autosaveOn = features.autosave && !isNew
   const form = useProjectForm({
     project,
     customers,
     schedulingEnabled: features.scheduling,
     focusDetails: () => setActiveTab('details'),
+    autosave: autosaveOn,
   })
+  const autosave = useProjectAutosave(
+    form, autosaveOn, payload => onProjectUpdated?.(payload as Partial<Project>),
+  )
 
   // Garantie-Angaben zum Projekt: Frist und die Nacharbeiten, die auf dieses
   // Projekt verweisen (Spec docs/specs/garantiefall.md).
@@ -299,9 +314,13 @@ export default function ProjectDetailScreen({
   // nicht beim «Speichern und verlassen» der Abfrage: wer weg will, will weg.
   // Hält `saved` fest, damit der Absprung nach dem Dialog derselbe ist wie ohne.
   const [customerPrompt, setCustomerPrompt] = useState<{ kontakte: Kontakt[]; saved: Project | null } | null>(null)
+  // Selbst speichernde Maske: «+ Als Kunde anlegen» an einer Kontaktzeile (§3.8).
+  const [kontaktCustomer, setKontaktCustomer] = useState<Kontakt | null>(null)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
+    // Enter in einem Feld der selbst speichernden Maske: jetzt speichern, offen bleiben.
+    if (autosaveOn) { void autosave.flush(); return }
     // Vor `persist`: danach gilt der aktuelle Stand als Ausgangsstand, und die
     // frei erfassten Personen wären nicht mehr «neu».
     const unlinked = form.kontakteOhneKundenstamm()
@@ -336,8 +355,38 @@ export default function ProjectDetailScreen({
     onSaved(updated)
   }
 
+  // Selbst speichernde Maske: Verlassen wartet erst die Schlange ab (eben
+  // Getipptes geht noch raus) und fragt nur, wenn danach noch etwas offen ist —
+  // Team-Leiste, ungespeicherter Termin, Fehler (§3.7). Entschieden wird im
+  // Effekt unten, weil erst nach dem Rendern feststeht, was gespeichert ist.
+  const [leaveIntent, setLeaveIntent] = useState<{ jumpTo: string | null } | null>(null)
+  useEffect(() => {
+    if (!leaveIntent || autosave.busy) return
+    const intent = leaveIntent
+    setLeaveIntent(null)
+    if (autosaveOffen()) setPendingLeave(intent)
+    else leaveTo(intent.jumpTo)
+    // leaveTo/form lesen den aktuellen Render; neu entschieden wird, sobald die Schlange leer ist.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaveIntent, autosave.busy])
+
+  /**
+   * Was in der selbst speichernden Maske nach dem Abwarten der Schlange noch
+   * offen ist. Nicht `form.isDirty`: eine leere Kontaktzeile ist dort eine
+   * Änderung, gespeichert wird sie aber nie — die Abfrage käme jedes Mal.
+   */
+  function autosaveOffen(): boolean {
+    return form.autosaveDirtyFields.length > 0 || form.teamDirty || form.appointmentsDirty
+      || autosave.status === 'error'
+  }
+
   // Verlassen der Maske (Zurück/Abbrechen) — bei ungespeicherten Änderungen erst fragen.
   function requestClose() {
+    if (autosaveOn) {
+      setLeaveIntent({ jumpTo: null })
+      void autosave.flush()
+      return
+    }
     if (form.isDirty) setPendingLeave({ jumpTo: null })
     else onClose()
   }
@@ -351,6 +400,11 @@ export default function ProjectDetailScreen({
    */
   function requestOpenProject(id: string) {
     if (!onOpenProject) return
+    if (autosaveOn) {
+      setLeaveIntent({ jumpTo: id })
+      void autosave.flush()
+      return
+    }
     if (form.isDirty) setPendingLeave({ jumpTo: id })
     else onOpenProject(id)
   }
@@ -358,6 +412,9 @@ export default function ProjectDetailScreen({
   function leaveTo(jumpTo: string | null) {
     setPendingLeave(null)
     if (jumpTo) onOpenProject?.(jumpTo)
+    // Wurde in der Sitzung gespeichert, lädt die Übersicht neu (onSaved), sonst
+    // zeigte sie den Stand vom Öffnen.
+    else if (autosave.savedSomething) onSaved(null)
     else onClose()
   }
 
@@ -391,7 +448,15 @@ export default function ProjectDetailScreen({
   // Navigation über Sidebar/MobileNav: die Maske speichert nur, das Wegnavigieren
   // übernimmt der Aufrufer (AdminApp).
   useUnsavedChangesGuard(
-    () => form.isDirty || reportMaskDirty.current,
+    () => {
+      if (reportMaskDirty.current) return true
+      if (!autosaveOn) return form.isDirty
+      // Selbst speichernde Maske: was sich selbst speichert, geht jetzt noch
+      // raus (der Request überlebt das Wegnavigieren) — gefragt wird nur noch,
+      // wenn Team oder Termine offen sind oder das letzte Speichern scheiterte.
+      void autosave.flush()
+      return form.teamDirty || form.appointmentsDirty || autosave.status === 'error'
+    },
     async () => (await form.persist()) !== false,
     // Bei offener Rapport-Maske bietet die Abfrage kein «Speichern» an: sie würde
     // das Projektformular darunter speichern, nicht den Rapport — und einen halb
@@ -504,6 +569,8 @@ export default function ProjectDetailScreen({
           showAbnahme={features.garantiefall && !isNew}
           onSubmit={handleSave}
           onCancel={requestClose}
+          autosave={autosaveOn ? autosave : null}
+          onCreateCustomerFromKontakt={autosaveOn ? k => setKontaktCustomer(k) : undefined}
         />
       )}
 
@@ -718,6 +785,19 @@ export default function ProjectDetailScreen({
             // Dateiliste muss mit, sonst taucht es erst nach einem Reload auf.
             await Promise.all([billing.reloadQuotes(), documents.reload()])
           }}
+        />
+      )}
+
+      {kontaktCustomer && (
+        <CustomerFromKontaktDialog
+          kontakte={[kontaktCustomer]}
+          projectHasCustomer={!!form.customerId}
+          onCreated={async created => {
+            form.linkCreatedCustomers(created)
+            setCustomers(prev => [...prev, ...created])
+            setKontaktCustomer(null)
+          }}
+          onSkip={() => setKontaktCustomer(null)}
         />
       )}
 

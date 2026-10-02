@@ -338,3 +338,63 @@
 .adminsite-login-link:hover {
   color: var(--text);
 }
+
+/* Kunden-Rückmeldung (docs/specs/kunden-rueckmeldung-kampagne.md §8).
+   Kennzahlen als ruhige Kacheln statt `.admin-kpi-card`: die ist klickbar
+   (Zeiger, Hover-Hub), hier fuehrt keine Zahl irgendwohin. */
+.adminsite-rm-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--s-3);
+  margin: var(--s-3) 0;
+}
+.adminsite-rm-stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--s-3) var(--s-4);
+}
+.adminsite-rm-stat.betont { border-color: var(--primary); }
+.adminsite-rm-stat.warnung { border-color: var(--warning); background: var(--warning-soft); }
+.adminsite-rm-stat-wert { font-size: 1.5rem; font-weight: 700; color: var(--text-strong); }
+.adminsite-rm-stat-label { font-size: 0.8rem; color: var(--text-muted); }
+.adminsite-rm-def {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s-2) var(--s-4);
+  margin: var(--s-3) 0;
+}
+.adminsite-rm-def dt { font-weight: 600; color: var(--text-muted); }
+.adminsite-rm-def dd { margin: 0; overflow-wrap: anywhere; }
+.adminsite-rm-liste { margin: 0; padding-left: 1.1em; }
+.adminsite-rm-details { margin: var(--s-4) 0; }
+.adminsite-rm-details summary { cursor: pointer; font-weight: 600; margin-bottom: var(--s-2); }
+.adminsite-rm-tabs { display: flex; gap: var(--s-2); margin: var(--s-2) 0; }
+.adminsite-rm-lauf { margin-top: var(--s-3); }
+
+@media (max-width: 767px) {
+  .adminsite-rm-def { grid-template-columns: 1fr; }
+}
+
+/* Projektauswahl der Kunden-Rückmeldung: Filterleiste, Zählerzeile, Tabelle
+   mit eigener Höhe — 500 Zeilen sollen die Seite nicht endlos lang machen. */
+.adminsite-rm-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: flex-end;
+  margin: var(--s-3) 0;
+}
+.adminsite-rm-filter .admin-search { flex: 1 1 280px; min-width: 0; }
+.adminsite-rm-filter .admin-form-group { margin: 0; }
+.adminsite-rm-check { display: flex; gap: var(--s-2); align-items: center; font-size: 0.9rem; }
+.adminsite-rm-auswahlzeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  justify-content: space-between;
+  align-items: center;
+  margin: var(--s-2) 0;
+}
+.adminsite-rm-knoepfe { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.adminsite-rm-tabelle { max-height: 560px; overflow-y: auto; margin-bottom: var(--s-3); }

@@ -2382,6 +2382,55 @@ button.admin-list-item {
   background: var(--surface-2);
 }
 
+/* Autosave der Projektmaske (docs/specs/projektmaske-autosave.md): der Knopf
+   «Termin speichern» unten im aufgeklappten Termin. */
+.project-appt-save {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Statuszeile oben in der selbst speichernden Maske — an der Stelle, wo
+   vorher nichts stand, und klebend, damit sie beim Scrollen sichtbar bleibt. */
+.project-autosave-status {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 28px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.project-autosave-status.error { color: var(--danger); }
+.project-autosave-status.saved { color: var(--accent-green-ink); }
+
+/* Leiste «Team geändert — übernehmen?» unter den Monteur-Chips (§3.3). */
+.project-team-pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber-ink);
+  font-size: 13px;
+}
+.project-team-pending-text { flex: 1 1 200px; min-width: 0; }
+
+/* Dauerhafter Hinweis bei fehlendem Projektleiter (§3.5) — statt einer Rückfrage. */
+.project-pl-hint {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--accent-amber-ink);
+}
+
 .project-appt-own-team {
   display: flex;
   align-items: center;

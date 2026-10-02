@@ -52,6 +52,11 @@ export interface ProjectFeatures {
    * Unabhängig vom Flag — ohne Flag gibt es Fälle, aber keine Fristen.
    */
   warranty: boolean
+  /**
+   * Feature «projekt_autosave» (Beta): bestehende Projekte speichern sich
+   * selbst (docs/specs/projektmaske-autosave.md). Ohne Flag der Speichern-Knopf.
+   */
+  autosave: boolean
   /** Der angemeldete Benutzer — entscheidet, wer eine Freigabe visieren darf. */
   currentUserId: string | null
 }
@@ -67,6 +72,7 @@ const NONE: ProjectFeatures = {
   verlauf: false,
   garantiefall: false,
   warranty: false,
+  autosave: false,
   currentUserId: null,
 }
 
@@ -92,6 +98,7 @@ export function useProjectFeatures(): ProjectFeatures {
         // Modul, nicht Feature-Flag: die Fälle. `hasModule` liest die Liste aus
         // /pwa/me, und die ist für ein Modul im Betatest schon pro Konto gefiltert.
         warranty: hasModule(me, 'warranty'),
+        autosave: isFeatureEnabled(me, 'projekt_autosave'),
         currentUserId: me.authorized_user_id,
       })
     }).catch(() => {})

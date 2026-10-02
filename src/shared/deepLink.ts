@@ -40,10 +40,12 @@ export interface CountDeepLink {
 export type DeepLink = ProjectDeepLink | CountDeepLink
 
 // Muss zu PROJECT_TABS in services/app_links.py passen; ein Python-Test hält
-// beide Listen gegen ProjectTabBar.tsx.
+// beide Listen gegen ProjectTabBar.tsx UND gegen diese Liste
+// (tests/unit/test_app_links.py). Bis 20260930 fehlte hier `nachkalkulation`:
+// ein Mail-Knopf auf die Nachkalkulation landete auf «Details».
 const TABS: readonly ProjectTab[] = [
   'details', 'tasks', 'documents', 'supplier', 'quotes',
-  'reports', 'invoices', 'approvals', 'warranty', 'status',
+  'reports', 'invoices', 'approvals', 'nachkalkulation', 'warranty', 'status',
 ]
 
 // #/admin/projects/<id>[/<tab>]

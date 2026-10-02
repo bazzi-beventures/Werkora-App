@@ -73,9 +73,10 @@ import { join, relative } from 'node:path'
 // die Hilfe-Blase schreibt ihr Symbol in `--on-accent` statt in festem `#fff`.
 // 2026-09-16: der Service-Status der Betreiber-Seite gab elf Inline-Hexwerte ab
 // — die Statuspillen und der Punkt der Karte stehen jetzt in --*-soft/--*-ink
-// und sind damit in beiden Themes richtig statt nur im hellen.
+// und sind damit in beiden Themes richtig statt nur im hellen. 2026-10-02: das
+// «Neue Version verfügbar»-Banner ist weg und mit ihm drei Inline-Hexwerte.
 // Nur senken.
-const HEX_BUDGET = 110
+const HEX_BUDGET = 107
 
 // Bestand am 2026-08-27, nach dem Aufräumen der Phantom-Tokens: nur noch die
 // 11 Stellen mit echtem Laufzeit-Token (siehe 3 oben). Nur senken.

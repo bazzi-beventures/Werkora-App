@@ -184,6 +184,157 @@ export function isProjectFormDirty(baseline: ProjectFormValues, current: Project
   return stabil(normalizeForm(baseline)) !== stabil(normalizeForm(current))
 }
 
+// ─── Automatisches Speichern (docs/specs/projektmaske-autosave.md) ───────────
+//
+// Die automatisch speichernde Maske schickt nur, was sich gegenüber dem
+// Ausgangsstand geändert hat (§3.6). Team und Termine gehören NICHT dazu: sie
+// lösen Pushes an Monteure aus und werden ausdrücklich übernommen (§3.3/§3.4).
+
+/** Felder, die sich selbst speichern. `billing` fasst Häkchen, Empfänger und Adresse zusammen. */
+export type AutosaveField =
+  | 'name' | 'customerId' | 'objectName' | 'objectAddress' | 'billing'
+  | 'artDerArbeit' | 'bemerkung' | 'geruestfaecher' | 'projektleiterId'
+  | 'kontakte' | 'eigentuemer' | 'disposal'
+  | 'wartungInterval' | 'wartungLastAt' | 'wartungNextDueAt'
+  | 'parentProjectId' | 'completedAt' | 'isWarranty'
+
+export const AUTOSAVE_FIELDS: readonly AutosaveField[] = [
+  'name', 'customerId', 'objectName', 'objectAddress', 'billing',
+  'artDerArbeit', 'bemerkung', 'geruestfaecher', 'projektleiterId',
+  'kontakte', 'eigentuemer', 'disposal',
+  'wartungInterval', 'wartungLastAt', 'wartungNextDueAt',
+  'parentProjectId', 'completedAt', 'isWarranty',
+]
+
+/** Eine Kontaktzeile ohne jede Angabe — «+ Kontakt hinzufügen», noch nichts getippt. */
+export function isKontaktLeer(k: Kontakt): boolean {
+  return !(k.name?.trim() || k.telefon?.trim() || k.email?.trim() || k.kommentar?.trim())
+}
+
+function autosaveValue(v: ProjectFormValues, f: AutosaveField): unknown {
+  const n = normalizeForm(v)
+  switch (f) {
+    case 'billing':
+      // Ohne Häkchen zählen die (versteckten) Felder nicht.
+      return n.billingDiffers ? [true, n.billingName, n.billingAddress] : [false]
+    case 'kontakte':
+      // Leerzeilen sind keine Änderung — sonst speicherte schon der Knopfdruck.
+      return n.kontakte.filter(k => !isKontaktLeer(k))
+    default:
+      return n[f]
+  }
+}
+
+/**
+ * Fingerabdruck aller selbst speichernden Werte. Ändert er sich, plant der
+ * Autosave neu — auch wenn ein Feld auf seinen Ausgangswert zurückkehrt.
+ */
+export function autosaveSignature(v: ProjectFormValues): string {
+  return stabil(AUTOSAVE_FIELDS.map(f => autosaveValue(v, f)))
+}
+
+/** Welche selbst speichernden Felder weichen vom Ausgangsstand ab? */
+export function changedAutosaveFields(
+  baseline: ProjectFormValues, current: ProjectFormValues,
+): AutosaveField[] {
+  return AUTOSAVE_FIELDS.filter(
+    f => stabil(autosaveValue(baseline, f)) !== stabil(autosaveValue(current, f)),
+  )
+}
+
+/** Weichen Team oder Termine ab — die Teile, die ausdrücklich übernommen werden? */
+export function teamDirty(baseline: ProjectFormValues, current: ProjectFormValues): boolean {
+  return stabil([...baseline.monteurIds]) !== stabil([...current.monteurIds])
+}
+
+export function appointmentsDirty(baseline: ProjectFormValues, current: ProjectFormValues): boolean {
+  return stabil(normalizeDrafts(baseline.appointments)) !== stabil(normalizeDrafts(current.appointments))
+}
+
+export interface AutosavePatchContext {
+  /** Koordinaten aus dem Adress-Vorschlag, samt der Adresse, zu der sie gehören. */
+  pickedAddress: { label: string; lat: number; lon: number } | null
+}
+
+/**
+ * PATCH-Nutzlast für genau diese Felder (§3.6).
+ *
+ * Leeren geht über `''` (bzw. `0` beim Wartungsintervall): `null` filtert der
+ * PATCH weg, und «Gespeichert ✓» über einem Feld, das auf dem Server stehen
+ * bleibt, wäre schlimmer als gar kein Autosave. Das Backend macht aus diesen
+ * Leerwerten `NULL` (admin_projects.py, `_LEERBAR`).
+ *
+ * `name` geht immer mit — das Modell verlangt ihn. Ist er leer (der Anwender
+ * tippt ihn gerade neu), steht der gespeicherte da; der Aufrufer nimmt `name`
+ * dann aus den Feldern heraus.
+ */
+export function autosavePatch(
+  fields: readonly AutosaveField[],
+  current: ProjectFormValues,
+  baseline: ProjectFormValues,
+  ctx: AutosavePatchContext,
+): Record<string, unknown> {
+  const p: Record<string, unknown> = { name: current.name.trim() || baseline.name }
+  for (const f of fields) {
+    switch (f) {
+      case 'name': break
+      case 'customerId': p.customer_id = current.customerId; break
+      case 'objectName': p.object_name = current.objectName.trim(); break
+      case 'objectAddress': {
+        p.object_address = current.objectAddress
+        const picked = ctx.pickedAddress
+        if (picked && picked.label === current.objectAddress) {
+          p.object_lat = picked.lat
+          p.object_lon = picked.lon
+        }
+        break
+      }
+      case 'billing':
+        p.billing_name = current.billingDiffers ? current.billingName.trim() : ''
+        p.billing_address = current.billingDiffers ? current.billingAddress : ''
+        break
+      case 'artDerArbeit': p.art_der_arbeit = current.artDerArbeit; break
+      case 'bemerkung': p.bemerkung = current.bemerkung; break
+      case 'geruestfaecher': p.geruestfaecher = current.geruestfaecher; break
+      case 'projektleiterId': p.projektleiter_id = current.projektleiterId; break
+      case 'kontakte': p.kontakte = current.kontakte.filter(k => !isKontaktLeer(k)); break
+      case 'eigentuemer': p.eigentuemer = current.eigentuemer; break
+      case 'disposal': p.disposal_details = current.disposal; break
+      case 'wartungInterval': {
+        const n = parseInt(current.wartungInterval, 10)
+        p.wartung_interval_months = Number.isFinite(n) && n > 0 ? n : 0
+        break
+      }
+      case 'wartungLastAt': p.wartung_last_at = current.wartungLastAt; break
+      case 'wartungNextDueAt': p.wartung_next_due_at = current.wartungNextDueAt; break
+      case 'parentProjectId': p.parent_project_id = current.parentProjectId || null; break
+      case 'completedAt': p.completed_at = current.completedAt || null; break
+      case 'isWarranty': p.is_warranty = current.isWarranty; break
+    }
+  }
+  return p
+}
+
+/** Ausgangsstand nach einem Autosave: nur die geschickten Felder rücken nach. */
+export function advanceBaseline(
+  baseline: ProjectFormValues,
+  sent: ProjectFormValues,
+  fields: readonly AutosaveField[],
+): ProjectFormValues {
+  const next = { ...baseline }
+  for (const f of fields) {
+    if (f === 'billing') {
+      next.billingDiffers = sent.billingDiffers
+      next.billingName = sent.billingName
+      next.billingAddress = sent.billingAddress
+    } else {
+      // Jedes übrige AutosaveField heisst wie sein Formularfeld.
+      (next as Record<string, unknown>)[f] = sent[f]
+    }
+  }
+  return next
+}
+
 /**
  * Naechster Wartungstermin = letzte Wartung + Intervall. Leer, solange eines von
  * beiden fehlt — ein geratenes Datum waere schlimmer als gar keines.

@@ -19,14 +19,6 @@ trackViewportHeight()
 // neues sw.js prüfen (behebt die "Deploy erst nach Cache-Reset sichtbar"-Falle).
 registerPwaUpdates()
 
-// Fallback-Banner: Falls ein neuer SW die Kontrolle übernimmt, ohne dass
-// vite-plugin-pwa (autoUpdate) die Seite bereits selbst neu geladen hat.
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    window.dispatchEvent(new CustomEvent('sw-update-ready'))
-  })
-}
-
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

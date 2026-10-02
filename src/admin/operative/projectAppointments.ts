@@ -283,6 +283,38 @@ export function diffAppointments(
   }
 }
 
+// ─── Einzeln speichern (Autosave-Maske) ──────────────────────────────────
+
+/** Weicht der Entwurf vom gespeicherten Stand ab (oder ist er noch gar nicht gespeichert)? */
+export function isDraftDirty(d: AppointmentDraft, baseline: AppointmentDraft[]): boolean {
+  if (!d.id) return true
+  const before = baseline.find(b => b.id === d.id)
+  return !before || !sameDraft(before, d)
+}
+
+/**
+ * Terminliste nach dem Speichern EINES Termins (docs/specs/projektmaske-autosave.md §3.4).
+ *
+ * Der Serverstand ist die Grundlage; was im Formular sonst noch offen war
+ * (ein anderer, noch nicht gespeicherter oder geänderter Termin), bleibt
+ * darüber stehen — der Anwender hat es ja noch nicht übernommen. `doneKey`
+ * ist der eben gespeicherte bzw. entfernte Entwurf: ihn ersetzt der Server.
+ */
+export function mergeAfterSync(
+  server: AppointmentDraft[],
+  local: AppointmentDraft[],
+  baselineBefore: AppointmentDraft[],
+  doneKey: string,
+): AppointmentDraft[] {
+  const offen = local.filter(d => d.key !== doneKey && isDraftDirty(d, baselineBefore))
+  const offenIds = new Set(offen.map(d => d.id).filter((id): id is string => !!id))
+  return [
+    ...server.map(s => (offenIds.has(s.id as string) ? offen.find(d => d.id === s.id)! : s)),
+    // Neue Entwürfe hinten an; geänderte, deren Termin serverseitig weg ist, fallen weg.
+    ...offen.filter(d => !d.id),
+  ]
+}
+
 // ─── Anzeige ─────────────────────────────────────────────────────────────
 
 // 'YYYY-MM-DD' → "Di, 18.08.2026". Aus dem ISO-String gebaut (mit T00:00:00),
