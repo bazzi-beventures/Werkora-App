@@ -4644,3 +4644,87 @@ button.admin-list-item {
   line-height: 1;
   padding: 0 4px;
 }
+
+/* ─── Mein Profil (system/AdminProfileScreen.tsx) ─────────── */
+.admin-profile { max-width: 640px; }
+.admin-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: var(--s-5);
+}
+.admin-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.admin-profile-name { font-size: 17px; font-weight: 700; color: var(--text); }
+.admin-profile-muted { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.admin-profile-list {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+.admin-profile-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.admin-profile-row:first-child { border-top: none; }
+.admin-profile-label { font-size: 12px; color: var(--text-muted); }
+.admin-profile-value { font-size: 14px; font-weight: 600; color: var(--text); margin-top: 2px; overflow-wrap: anywhere; }
+.admin-profile-error { font-size: 12px; color: var(--danger); margin-top: 6px; }
+.admin-profile-row .admin-form-hint { margin-top: 8px; }
+.admin-profile-logout { margin-top: var(--s-5); }
+
+/* Kippschalter: role="switch", der Zustand steht in aria-checked. */
+.admin-profile-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.admin-profile-switch.is-on { background: var(--primary); border-color: var(--primary); }
+.admin-profile-switch:disabled { opacity: 0.5; cursor: default; }
+.admin-profile-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s;
+}
+.admin-profile-switch.is-on .admin-profile-switch-knob { transform: translateX(18px); }
+
+/* Name in der Leiste führt ins Profil */
+button.admin-user-row {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.admin-user-row:hover,
+button.admin-user-row.active { background: var(--surface-2); }

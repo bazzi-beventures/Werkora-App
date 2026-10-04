@@ -54,6 +54,7 @@ import './mobile.css'
 // offline). Ein eigener Chunk landet trotzdem im Precache (globPatterns), offline
 // ändert sich also nichts. Vorbild: ProjectScheduleMap.
 const CustomersScreen = lazy(() => import('./operative/CustomersScreen'))
+const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -299,6 +300,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'kpis':         return guard('kpis', <KpiScreen />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
       case 'settings':     return <SettingsScreen />
+      case 'profile':      return (
+        <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}
+                            onToggleTheme={toggleTheme} onLoggedOut={onLoggedOut} />
+      )
       default:             return <ComingSoon title={SCREEN_TITLES[screen]} />
     }
   }

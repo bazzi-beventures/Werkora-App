@@ -295,13 +295,15 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
               {/* Beschriftete Pille unter dem Namen — gleiche Anordnung wie in der
                   Desktop-Sidebar, siehe AdminSidebar.tsx. */}
               <div className="admin-mobile-user-block">
-                <div className="admin-mobile-user-row">
+                {/* Klick auf den Namen öffnet «Mein Profil» — wie in der Desktop-Leiste. */}
+                <button type="button" className="admin-mobile-user-row" onClick={() => navigate('profile')}
+                        title="Mein Profil">
                   <div className="admin-mobile-avatar">{initials}</div>
                   <div className="admin-mobile-user-info">
                     <div className="admin-mobile-user-name">{displayName}</div>
                     <div className="admin-mobile-user-role">{role}</div>
                   </div>
-                </div>
+                </button>
                 <button className="admin-mobile-logout-pill" onClick={handleLogout} title="Abmelden">
                   <IconLogout />
                   <span>Logout</span>

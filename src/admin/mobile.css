@@ -730,3 +730,14 @@
     animation: none;
   }
 }
+
+/* Name im Drawer führt ins Profil (MobileNav.tsx) */
+button.admin-mobile-user-row {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}

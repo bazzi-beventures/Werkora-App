@@ -172,13 +172,15 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
             wurde uebersehen. Jetzt eine beschriftete Pille unter dem Namen — in der
             schmalen Sidebar (<=1024px) bleibt davon wieder nur das Symbol. */}
         <div className="admin-user-block">
-          <div className="admin-user-row">
+          {/* Klick auf den Namen öffnet «Mein Profil» (Push-Schalter, Darstellung). */}
+          <button type="button" className={`admin-user-row${screen === 'profile' ? ' active' : ''}`}
+                  onClick={() => onNav('profile')} title="Mein Profil">
             <div className="admin-avatar">{initials}</div>
             <div className="admin-user-info">
               <div className="admin-user-name">{displayName}</div>
               <div className="admin-user-role">{role}</div>
             </div>
-          </div>
+          </button>
           <button className="admin-logout-pill" onClick={handleLogout} title="Abmelden">
             <IconLogout />
             <span>Logout</span>

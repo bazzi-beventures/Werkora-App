@@ -56,6 +56,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'admin', screen: 'users' },
   { app: 'admin', screen: 'roadmap', module: 'feature_requests' },
   { app: 'admin', screen: 'document-backup', module: 'document_backup', managementOnly: true },
+  { app: 'admin', screen: 'profile' },
   { app: 'pwa', screen: 'home' },
   { app: 'pwa', screen: 'arbeitszeit', module: 'timekeeping' },
   { app: 'pwa', screen: 'absenzen', module: 'hr' },

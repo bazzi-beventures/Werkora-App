@@ -35,4 +35,5 @@ export const SCREEN_TITLES: Record<AdminScreen, string> = {
   'kpis': 'Kennzahlen',
   'document-backup': 'Datensicherung',
   'settings': 'Einstellungen',
+  'profile': 'Mein Profil',
 }
