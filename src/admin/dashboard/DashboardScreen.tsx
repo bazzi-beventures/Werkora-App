@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { Suspense, lazy, useState, useEffect } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import {
   AdminDashboard,
@@ -13,10 +13,16 @@ import { apiUrl } from '../../api/client'
 import { useToast, ToastHost } from '../components/useToast'
 import { DateTimeInput } from '../components/DateTimeInput'
 
+// Nachgeladen: nur mit Modul `reminders` gebraucht, und der Haupt-Chunk der
+// Mandanten-App steht an der 2-MiB-Grenze des Precache (siehe AdminApp).
+const MyReminders = lazy(() => import('../reminders/MyReminders').then(m => ({ default: m.MyReminders })))
+
 interface Props {
   dashboard: AdminDashboard | null
   onNav: (screen: AdminScreen, detailId?: string) => void
   onBadgeChange?: () => void
+  /** Modul `reminders` für dieses Konto an → «Meine Erinnerungen» zuoberst. */
+  showReminders?: boolean
 }
 
 interface KpiCardProps {
@@ -696,7 +702,7 @@ function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps)
 
 // ─── Dashboard ───────────────────────────────────────────────
 
-export default function DashboardScreen({ dashboard, onNav, onBadgeChange }: Props) {
+export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showReminders }: Props) {
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMahnungModal, setShowMahnungModal] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
@@ -710,6 +716,15 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange }: Pro
           <div className="admin-page-subtitle">Übersicht offener Aufgaben</div>
         </div>
       </div>
+
+      {showReminders && (
+        <Suspense fallback={null}>
+          <MyReminders
+            onOpenProject={id => onNav('projects', id)}
+            onOpenCustomer={id => onNav('customers', id)}
+          />
+        </Suspense>
+      )}
 
       <section className="admin-kpi-section">
         <h3 className="admin-kpi-group-title">Personal & Zeit</h3>

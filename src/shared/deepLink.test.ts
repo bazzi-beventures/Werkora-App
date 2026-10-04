@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
   captureDeepLink, parseDeepLink, rememberDeepLink, takeCountDeepLink,
-  takeDeepLink, takeProjectDeepLink,
+  takeCustomerDeepLink, takeDeepLink, takeProjectDeepLink,
 } from './deepLink'
 
 /** Schmalere Sicht auf die Union, damit die Projekt-Zusicherungen kurz bleiben. */
@@ -113,5 +113,28 @@ describe('Inventur-Deep-Link', () => {
   it('lässt eine Push ohne Sprungziel unangetastet', () => {
     expect(rememberDeepLink('/')).toBe(false)
     expect(takeDeepLink()).toBeNull()
+  })
+})
+
+describe('Kunden-Deep-Link (Erinnerung an einem Kunden)', () => {
+  beforeEach(() => {
+    takeDeepLink()
+    history.replaceState(null, '', '/')
+  })
+
+  it('liest den Kunden', () => {
+    expect(parseDeepLink('#/admin/customers/cust-1')).toEqual({ kind: 'customer', customerId: 'cust-1' })
+    expect(parseDeepLink('#/admin/customers/')).toBeNull()
+  })
+
+  it('verwechselt Kunde und Projekt nicht', () => {
+    captureDeepLink('#/admin/customers/cust-1')
+    expect(takeProjectDeepLink()).toBeNull()
+    expect(takeCustomerDeepLink()).toEqual({ kind: 'customer', customerId: 'cust-1' })
+    expect(takeCustomerDeepLink()).toBeNull()
+
+    captureDeepLink('#/admin/projects/p1')
+    expect(takeCustomerDeepLink()).toBeNull()
+    expect(takeProjectDeepLink()?.projectId).toBe('p1')
   })
 })

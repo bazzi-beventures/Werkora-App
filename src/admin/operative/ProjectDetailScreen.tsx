@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { getProject, reopenProject, saveProjectForm, setProjectStatus } from '../../api/admin/projects'
 import type { RepairCaseRef, RepairProjectRef, WarrantyInfo } from '../../api/admin/projects'
 import { getAdminStaff } from '../../api/admin/staff'
@@ -39,6 +39,10 @@ import {
   DocumentsTab, SupplierDocumentsTab, QuotesTab, ReportsTab, InvoicesTab, ApprovalsTab, TasksTab,
   ProjectQuote,
 } from './projectDetail/tabs'
+
+// Nachgeladen: nur mit Modul `reminders` gebraucht, und der Haupt-Chunk der
+// Mandanten-App steht an der 2-MiB-Grenze des Precache (siehe AdminApp).
+const ReminderPanel = lazy(() => import('../reminders/ReminderPanel').then(m => ({ default: m.ReminderPanel })))
 
 // Kommentare sind nach 10 Minuten gesperrt (kein Bearbeiten/Löschen mehr) —
 // muss zur Backend-Sperre in db/project_comments.py (COMMENT_LOCK_SECONDS) passen.
@@ -648,7 +652,20 @@ export default function ProjectDetailScreen({
       </div>{/* /project-detail-main */}
 
       {/* ── Kommentare: immer rechts, unabhängig vom aktiven Tab ── */}
-      {!isNew && <CommentsPanel c={comments} now={now} />}
+      {!isNew && (
+        <CommentsPanel
+          c={comments}
+          now={now}
+          above={features.reminders && project && features.currentUserId ? (
+            <Suspense fallback={null}>
+              <ReminderPanel
+                target={{ projectId: project.id }}
+                me={{ authorized_user_id: features.currentUserId, role: features.currentUserRole ?? '' }}
+              />
+            </Suspense>
+          ) : undefined}
+        />
+      )}
 
       </div>{/* /project-detail-body */}
 

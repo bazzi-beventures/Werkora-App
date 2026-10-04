@@ -82,13 +82,15 @@ export function TargetField({ value, onChange }: {
  * «Nicht geplant» ist der Grund Pflicht, weil er öffentlich auf der Karte steht.
  *
  * Benachrichtigt wird nur mit dem Häkchen (Spec F11). Vorbelegt ist es bei
- * den Phasen, auf die ein Einreicher wartet — und es fehlt ganz, wo es
- * niemanden gäbe: ein internes Feature steht auf keinem Board, eines ohne
- * Anfragen hat keinen Empfänger.
+ * JEDEM Phasenwechsel (§5.9: Einreicher und Abonnenten erfahren jede neue
+ * Phase) — abwählen lässt es sich für Korrekturen und nachgetragenen Bestand.
+ * Eine reine Zielverschiebung ist keine neue Phase: dort startet es leer. Es
+ * fehlt ganz, wo es niemanden gäbe: ein internes Feature steht auf keinem
+ * Board, eines ohne Einreicher und Abonnenten hat keinen Empfänger.
  */
 export function PhaseDialog({
   title, currentPhase, initialPhase, currentTarget, requestCount = 0, tenantCount = 0,
-  isPublic = true, onSubmit, onClose,
+  subscriberCount = 0, isPublic = true, onSubmit, onClose,
 }: {
   title: string
   currentPhase: Phase
@@ -96,6 +98,7 @@ export function PhaseDialog({
   currentTarget: TargetInput | null
   requestCount?: number
   tenantCount?: number
+  subscriberCount?: number
   isPublic?: boolean
   onSubmit: (body: {
     phase?: Phase; on: string; text?: string; target?: TargetInput | null; notify?: boolean
@@ -103,8 +106,9 @@ export function PhaseDialog({
   onClose: () => void
 }) {
   const [phase, setPhase] = useState<Phase>(initialPhase)
-  const canNotify = isPublic && requestCount > 0
-  const [notify, setNotify] = useState(() => NOTIFY_DEFAULT_PHASES.includes(initialPhase))
+  const canNotify = isPublic && (requestCount > 0 || subscriberCount > 0)
+  const notifyDefault = (p: Phase) => p !== currentPhase && NOTIFY_DEFAULT_PHASES.includes(p)
+  const [notify, setNotify] = useState(() => notifyDefault(initialPhase))
   const [notifyTouched, setNotifyTouched] = useState(false)
   const [on, setOn] = useState(() => todayIso())
   const [text, setText] = useState('')
@@ -149,7 +153,7 @@ export function PhaseDialog({
               const next = e.target.value as Phase
               setPhase(next)
               // Die Vorbelegung folgt der Phase, bis jemand das Häkchen selbst setzt.
-              if (!notifyTouched) setNotify(NOTIFY_DEFAULT_PHASES.includes(next))
+              if (!notifyTouched) setNotify(notifyDefault(next))
             }}>
               {(Object.keys(PHASE_LABEL) as Phase[]).map(p => (
                 <option key={p} value={p}>{PHASE_LABEL[p]}{p === currentPhase ? ' (aktuell)' : ''}</option>
@@ -181,8 +185,15 @@ export function PhaseDialog({
             <label className="fr-check">
               <input type="checkbox" checked={notify}
                      onChange={e => { setNotify(e.target.checked); setNotifyTouched(true) }} />
-              {requestCount} {requestCount === 1 ? 'Anfragende(n)' : 'Anfragende'} in {tenantCount}{' '}
-              {tenantCount === 1 ? 'Betrieb' : 'Betrieben'} benachrichtigen
+              {requestCount > 0 && <>
+                {requestCount} {requestCount === 1 ? 'Anfragende(n)' : 'Anfragende'} in {tenantCount}{' '}
+                {tenantCount === 1 ? 'Betrieb' : 'Betrieben'}{' '}
+              </>}
+              {subscriberCount > 0 && <>
+                {requestCount > 0 ? 'und ' : ''}{subscriberCount}{' '}
+                {subscriberCount === 1 ? 'Abonnent(in)' : 'Abonnenten'}{' '}
+              </>}
+              benachrichtigen
             </label>
           )}
           {error && <div role="alert" className="fr-error">{error}</div>}

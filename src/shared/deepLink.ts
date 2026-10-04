@@ -37,7 +37,17 @@ export interface CountDeepLink {
   countId: string
 }
 
-export type DeepLink = ProjectDeepLink | CountDeepLink
+/**
+ * Die Kundenstammseite eines Kunden (`#/admin/customers/<id>`) — der Knopf in
+ * der Mail einer Erinnerung, die an einem Kunden statt an einem Projekt hängt
+ * (docs/specs/erinnerungen.md). Gebaut von `services/app_links.customer_url`.
+ */
+export interface CustomerDeepLink {
+  kind: 'customer'
+  customerId: string
+}
+
+export type DeepLink = ProjectDeepLink | CountDeepLink | CustomerDeepLink
 
 // Muss zu PROJECT_TABS in services/app_links.py passen; ein Python-Test hält
 // beide Listen gegen ProjectTabBar.tsx UND gegen diese Liste
@@ -53,6 +63,9 @@ const PATTERN = /^#\/admin\/projects\/([^/?#]+)(?:\/([a-z]+))?/
 
 // #/inventur/<count_id>
 const COUNT_PATTERN = /^#\/inventur\/([^/?#]+)/
+
+// #/admin/customers/<id>
+const CUSTOMER_PATTERN = /^#\/admin\/customers\/([^/?#]+)/
 
 /** Ein Pfadstück aus dem Hash — oder null, wenn es kaputt kodiert oder leer
  *  ist. Ein abgeschnittener %-Escape aus einem Mailclient soll keinen Sprung
@@ -78,6 +91,11 @@ export function parseDeepLink(hash: string): DeepLink | null {
   if (c) {
     const countId = idAus(c[1])
     return countId ? { kind: 'count', countId } : null
+  }
+  const k = CUSTOMER_PATTERN.exec(hash || '')
+  if (k) {
+    const customerId = idAus(k[1])
+    return customerId ? { kind: 'customer', customerId } : null
   }
   const m = PATTERN.exec(hash || '')
   if (!m) return null
@@ -139,6 +157,14 @@ export function takeCountDeepLink(): CountDeepLink | null {
  *  — den führt `App.tsx` aus, weil er die Zählmaske beider Rollen öffnet. */
 export function takeProjectDeepLink(): ProjectDeepLink | null {
   if (pending?.kind !== 'project') return null
+  const link = pending
+  pending = null
+  return link
+}
+
+/** Nur den Kunden-Sprung holen (Admin-App). Die anderen Arten bleiben liegen. */
+export function takeCustomerDeepLink(): CustomerDeepLink | null {
+  if (pending?.kind !== 'customer') return null
   const link = pending
   pending = null
   return link

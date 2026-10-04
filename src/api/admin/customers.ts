@@ -67,7 +67,16 @@ export function availableSalutations(
 // print_notes) — aufgeführt ist, was die PWA verwendet.
 export interface Customer {
   id: string
+  /** Anzeigename. Bei aufgeteilten Kunden «Vorname Nachname», gesetzt vom Server. */
   name: string
+  /**
+   * Vor- und Nachname getrennt (Migration 20261004, Feature-Anfrage WF-5).
+   * Beide null = Altbestand, nicht aufgeteilt — `name` trägt dann alles, in
+   * der Reihenfolge, die der Erfasser gewählt hat. Optional, weil ältere
+   * Antworten (und Test-Fixtures) die Felder nicht kennen.
+   */
+  first_name?: string | null
+  last_name?: string | null
   /** 'herr' | 'frau' | null — Schlüssel, nicht Druckform (siehe salutationLabel). */
   salutation: string | null
   company: string | null
@@ -99,7 +108,12 @@ export interface CustomersListResponse {
 // formular schickt trotzdem alles, damit Leeren wirklich leert; die
 // Entwurfs-Umwandlung legt einen Kunden mit vier Feldern an.
 export interface CustomerInput {
+  // Schickt das Formular Vor- und Nachname mit, baut der Server `name` selbst
+  // daraus; `name` ist dann nur Echo. Mitgeschickt wird er trotzdem: ein
+  // Backend ohne die Felder speichert so wenigstens den zusammengesetzten Namen.
   name: string
+  first_name?: string | null
+  last_name?: string | null
   // null leert die Anrede wieder (dreiwertige PATCH-Semantik im Backend).
   salutation?: string | null
   company?: string | null
@@ -208,4 +222,26 @@ export async function updateCustomerComment(
 
 export async function deleteCustomerComment(customerId: string, commentId: string): Promise<void> {
   await apiFetch(`/pwa/admin/customers/${customerId}/comments/${commentId}`, { method: 'DELETE' })
+}
+
+/** Ein Kunde per id — für den Sprung aus einer Erinnerung auf die Kundenstammseite. */
+export async function getCustomer(id: string): Promise<Customer> {
+  return apiFetch<Customer>(`/pwa/admin/customers/${encodeURIComponent(id)}`)
+}
+
+// Projekt eines Kunden, wie es die Kundenstammseite zeigt (Feature-Anfrage WF-3).
+export interface CustomerProject {
+  id: string
+  project_id_text: string | null
+  name: string
+  status: 'offen' | 'abgeschlossen' | 'archiviert' | string
+  workflow_status: string | null
+  object_name: string | null
+  object_address: string | null
+  created_at: string
+}
+
+/** Alle Projekte dieses Kunden (über `customer_id`, nicht den Namen), jüngste zuerst. */
+export async function getCustomerProjects(customerId: string): Promise<CustomerProject[]> {
+  return apiFetch<CustomerProject[]>(`/pwa/admin/customers/${encodeURIComponent(customerId)}/projects`)
 }

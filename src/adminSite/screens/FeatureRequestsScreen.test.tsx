@@ -117,6 +117,25 @@ describe('FeatureRequestsScreen — Eingang', () => {
       'r-1', { aktion: 'zuordnen', feature_id: 'f-1' }))
   })
 
+  it('zeigt Screenshots; ohne signierte URL den Dateinamen', async () => {
+    api.fetchFeatureRequest.mockResolvedValue({
+      ...REQUEST, description: 'Auf der ersten Maske', similar: [], allowed_actions: ['zuordnen'],
+      attachments: [
+        { path: 't-1/r-1/1.png', url: 'https://signed/1.png' },
+        { path: 't-1/r-1/2.heic', url: null },
+      ],
+    })
+    const dialog = await oeffneAnfrage()
+    expect(within(dialog).getByText('Screenshots')).toBeTruthy()
+    expect(within(dialog).getByAltText('Screenshot zum Wunsch').getAttribute('src')).toBe('https://signed/1.png')
+    expect(within(dialog).getByText(/2\.heic \(nicht anzeigbar\)/)).toBeTruthy()
+  })
+
+  it('ohne Screenshots kein leerer Abschnitt', async () => {
+    const dialog = await oeffneAnfrage()
+    expect(within(dialog).queryByText('Screenshots')).toBeNull()
+  })
+
   it('ohne Konto gibt es keinen Weg zum Support', async () => {
     api.fetchFeatureRequest.mockResolvedValue({
       ...REQUEST, created_by: null, description: 'x', similar: [],
@@ -148,14 +167,30 @@ describe('FeatureRequestsScreen — Board', () => {
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText('WF-12 → In Umsetzung')).toBeTruthy()
     expect(api.changeFeaturePhase).not.toHaveBeenCalled()
-    // «In Umsetzung» ist keine Phase, auf die ein Einreicher wartet — das
-    // Häkchen steht, ist aber nicht vorbelegt (F11).
+    // Jede neue Phase ist eine Nachricht wert (§5.9) — vorbelegt, aber
+    // abwählbar: eine Korrektur soll still gespeichert werden können.
     const haken = within(dialog).getByLabelText(/3 Anfragende in 2 Betrieben benachrichtigen/) as HTMLInputElement
-    expect(haken.checked).toBe(false)
+    expect(haken.checked).toBe(true)
+    fireEvent.click(haken)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Übernehmen' }))
     await waitFor(() => expect(api.changeFeaturePhase).toHaveBeenCalledWith(
       'f-1', expect.objectContaining({ phase: 'umsetzung' })))
     expect(api.changeFeaturePhase.mock.calls[0][1]).not.toHaveProperty('notify')
+  })
+
+  it('Abonnenten zählen mit — auch ein Feature ohne Anfragen bekommt das Häkchen', async () => {
+    api.fetchFeatures.mockResolvedValue({ features: [{ ...FEATURE, request_count: 0, tenant_count: 0,
+                                                        subscriber_count: 2 }] })
+    render(<FeatureRequestsScreen />)
+    fireEvent.click(await screen.findByRole('tab', { name: /Board/ }))
+    await screen.findByText('Offerten als Vorlage speichern')
+    zieheNach('In Umsetzung')
+    const dialog = await screen.findByRole('dialog')
+    const haken = within(dialog).getByLabelText(/2 Abonnenten benachrichtigen/) as HTMLInputElement
+    expect(haken.checked).toBe(true)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Übernehmen' }))
+    await waitFor(() => expect(api.changeFeaturePhase).toHaveBeenCalledWith(
+      'f-1', expect.objectContaining({ phase: 'umsetzung', notify: true })))
   })
 
   it('«Im Test» belegt das Häkchen vor; ein internes Feature hat keins', async () => {

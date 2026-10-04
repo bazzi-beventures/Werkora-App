@@ -15,7 +15,8 @@ vi.mock('../../api/auth', () => ({ getMe: vi.fn().mockResolvedValue({}) }))
 const { mockIsFeatureEnabled } = vi.hoisted(() => ({
   mockIsFeatureEnabled: vi.fn((_user: unknown, _key: string) => false),
 }))
-vi.mock('../../api/modules', () => ({ isFeatureEnabled: mockIsFeatureEnabled }))
+// hasModule: Erinnerungen (Modul `reminders`) sind hier aus — ihr Panel hat eigene Tests.
+vi.mock('../../api/modules', () => ({ isFeatureEnabled: mockIsFeatureEnabled, hasModule: () => false }))
 
 function enableFeature(key: string) {
   mockIsFeatureEnabled.mockImplementation((_user: unknown, k: string) => k === key)
@@ -60,7 +61,7 @@ function nameCheckCalls(): string[] {
 async function openNewCustomerForm() {
   render(<CustomersScreen />)
   fireEvent.click(await screen.findByText('+ Neuer Kunde'))
-  return screen.getByLabelText('Name *', { selector: 'input' })
+  return screen.getByLabelText('Nachname / Bezeichnung *', { selector: 'input' })
 }
 
 describe('CustomersScreen — Dubletten-Hinweis', () => {
@@ -220,6 +221,7 @@ describe('CustomersScreen — Anrede', () => {
         return { ...EMPTY_LIST, rows: [{ ...MUELLER, salutation: 'frau_und_herr' }], total: 1 }
       }
       if (path.endsWith('/comments')) return []
+      if (path.endsWith('/projects')) return []
       return { id: 'cust-1' }
     })
     render(<CustomersScreen />)
@@ -227,5 +229,140 @@ describe('CustomersScreen — Anrede', () => {
 
     await waitFor(() => expect(salutationOptions()).toContain('Frau und Herr'))
     expect((screen.getByLabelText('Anrede') as HTMLSelectElement).value).toBe('frau_und_herr')
+  })
+})
+
+// Vor- und Nachname getrennt (Feature-Anfrage WF-5, Migration 20261004).
+describe('CustomersScreen — Vor- und Nachname', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+    mockIsFeatureEnabled.mockImplementation(() => false)
+  })
+
+  function postedPayload() {
+    const call = mockFetch.mock.calls.find(
+      c => (c[0] as string) === '/pwa/admin/customers' && (c[1] as RequestInit)?.method === 'POST',
+    )
+    return JSON.parse((call![1] as RequestInit).body as string)
+  }
+
+  it('schickt beide Teile und den zusammengesetzten Namen', async () => {
+    routeFetch([])
+    const last = await openNewCustomerForm()
+    fireEvent.change(screen.getByLabelText('Vorname'), { target: { value: ' Peter ' } })
+    fireEvent.change(last, { target: { value: 'Muster' } })
+    fireEvent.click(screen.getByText('Speichern'))
+
+    await waitFor(() => expect(postedPayload()).toMatchObject({
+      first_name: 'Peter', last_name: 'Muster', name: 'Peter Muster',
+    }))
+  })
+
+  it('prüft Dubletten gegen den zusammengesetzten Namen', async () => {
+    routeFetch([])
+    const last = await openNewCustomerForm()
+    fireEvent.change(screen.getByLabelText('Vorname'), { target: { value: 'Hans' } })
+    fireEvent.change(last, { target: { value: 'Müller' } })
+
+    const needle = new URLSearchParams({ name: 'Hans Müller' }).toString()
+    await waitFor(() => expect(nameCheckCalls().some(p => p.includes(needle))).toBe(true), { timeout: 3000 })
+  })
+
+  function routeEdit(customer: Record<string, unknown>, projects: unknown[] = []) {
+    mockFetch.mockImplementation(async (path: string) => {
+      if (path.startsWith('/pwa/admin/customers/name-check')) return { matches: [] }
+      if (path.startsWith('/pwa/admin/customers/list')) {
+        return { ...EMPTY_LIST, rows: [customer], total: 1 }
+      }
+      if (path.endsWith('/comments')) return []
+      if (path.endsWith('/projects')) return projects
+      return customer
+    })
+  }
+
+  it('Altbestand: ganzer Name im Nachnamen, Aufteilung als Vorschlag', async () => {
+    routeEdit({ ...MUELLER, name: 'Muster Peter', first_name: null, last_name: null })
+    render(<CustomersScreen />)
+    fireEvent.click(await screen.findByText('Muster Peter'))
+
+    const last = await screen.findByLabelText('Nachname / Bezeichnung *', { selector: 'input' })
+    expect((last as HTMLInputElement).value).toBe('Muster Peter')
+    expect(screen.getByTestId('customer-name-unsplit')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Vorname «Peter», Nachname «Muster»'))
+    expect((screen.getByLabelText('Vorname') as HTMLInputElement).value).toBe('Peter')
+    expect((last as HTMLInputElement).value).toBe('Muster')
+    // Hinweis verschwindet, sobald aufgeteilt ist.
+    expect(screen.queryByTestId('customer-name-unsplit')).toBeNull()
+  })
+
+  it('aufgeteilter Kunde: Teile so, wie gespeichert, ohne Hinweis', async () => {
+    routeEdit({ ...MUELLER, name: 'Peter Muster', first_name: 'Peter', last_name: 'Muster' })
+    render(<CustomersScreen />)
+    fireEvent.click(await screen.findByText('Peter Muster'))
+
+    expect((await screen.findByLabelText('Vorname') as HTMLInputElement).value).toBe('Peter')
+    expect(screen.queryByTestId('customer-name-unsplit')).toBeNull()
+  })
+})
+
+// Projekte auf der Kundenstammseite (Feature-Anfrage WF-3).
+describe('CustomersScreen — Projekte des Kunden', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+    mockIsFeatureEnabled.mockImplementation(() => false)
+  })
+
+  const PROJEKTE = [
+    { id: 'p-alt', project_id_text: '250101', name: 'Altbau', status: 'abgeschlossen',
+      workflow_status: null, object_name: null, object_address: null,
+      created_at: '2025-01-01T10:00:00Z' },
+    { id: 'p-neu', project_id_text: '261301', name: 'Leerwhg. Tösstalstr.', status: 'offen',
+      workflow_status: null, object_name: null, object_address: 'Tösstalstr. 134, Winterthur',
+      created_at: '2026-09-30T10:00:00Z' },
+  ]
+
+  function routeWithProjects(projects: unknown[]) {
+    mockFetch.mockImplementation(async (path: string) => {
+      if (path.startsWith('/pwa/admin/customers/name-check')) return { matches: [] }
+      if (path.startsWith('/pwa/admin/customers/list')) return { ...EMPTY_LIST, rows: [MUELLER], total: 1 }
+      if (path.endsWith('/comments')) return []
+      if (path === '/pwa/admin/customers/cust-1/projects') return projects
+      return MUELLER
+    })
+  }
+
+  it('listet die Projekte, offene zuerst, und springt per Klick in die Projektmaske', async () => {
+    routeWithProjects(PROJEKTE)
+    const onOpenProject = vi.fn()
+    render(<CustomersScreen onOpenProject={onOpenProject} />)
+    fireEvent.click(await screen.findByText('Hans Müller'))
+
+    const box = await screen.findByTestId('customer-projects')
+    await waitFor(() => expect(box).toHaveTextContent('2 Projekte, davon 1 offen'))
+    const links = box.querySelectorAll('a')
+    expect(links[0]).toHaveTextContent('Leerwhg. Tösstalstr.')
+    expect(links[0].getAttribute('href')).toBe('#/admin/projects/p-neu')
+
+    fireEvent.click(links[0])
+    expect(onOpenProject).toHaveBeenCalledWith('p-neu')
+  })
+
+  it('sagt es, wenn es noch kein Projekt gibt', async () => {
+    routeWithProjects([])
+    render(<CustomersScreen />)
+    fireEvent.click(await screen.findByText('Hans Müller'))
+    expect(await screen.findByText('Für diesen Kunden gibt es noch kein Projekt.')).toBeInTheDocument()
+  })
+
+  it('öffnet einen Kunden direkt per id (Sprung aus einer Erinnerung)', async () => {
+    routeWithProjects([])
+    const consumed = vi.fn()
+    render(<CustomersScreen openCustomerId="cust-1" onConsumedCustomerId={consumed} />)
+    expect(await screen.findByText('Kunde bearbeiten')).toBeInTheDocument()
+    expect(consumed).toHaveBeenCalled()
+    expect(mockFetch.mock.calls.some(c => c[0] === '/pwa/admin/customers/cust-1')).toBe(true)
   })
 })

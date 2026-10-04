@@ -110,7 +110,7 @@ export default function ConsentScreen({ logoUrl, displayName, user = null, onAcc
             Hat dein Betrieb eine <strong>automatische Pausenregelung</strong> aktiviert, wird dir
             an Tagen mit zu wenig gestempelter Pause die fehlende Pause abgezogen — in der Regel
             die gesetzliche Mindestpause (15 Min ab 5.5 Std., 30 Min ab 7 Std., 60 Min ab 9 Std.
-            Anwesenheit). Der Abzug ist in der App als <strong>«automatisch»</strong> gekennzeichnet.
+            Arbeitszeit, Pausen nicht mitgerechnet). Der Abzug ist in der App als <strong>«automatisch»</strong> gekennzeichnet.
           </li>
           <li>
             <strong>Hast du keine Pause gemacht, korrigierst du das selbst:</strong> Arbeitszeit →

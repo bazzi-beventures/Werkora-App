@@ -12,7 +12,9 @@ import {
   fmtDay,
   formatTarget,
   sinceLabel,
+  subscribeFeature,
   supportFeatureWish,
+  unsubscribeFeature,
   withdrawFeatureSupport,
   type BoardCard,
   type HistoryEntry,
@@ -30,7 +32,8 @@ import './wishes.css'
  *
  * Läuft in beiden Apps; der Rahmen (Kopfzeile, Zurück) gehört dem Aufrufer.
  * Nutzer LESEN hier nur: kein Drag & Drop, keine Phase. Was sie tun können:
- * unterstützen, zurückziehen, ihre Wünsche sehen.
+ * liken (= unterstützen, «Brauchen wir auch»), abonnieren, zurückziehen,
+ * ihre Wünsche sehen (§5.9).
  *
  * «Neu seit letztem Besuch» merkt sich der Browser (`roadmap-seen:<userId>`) —
  * eine Komfortfunktion: fehlt der Wert oder ist der Speicher gesperrt, gibt es
@@ -66,6 +69,84 @@ function demandLine(c: BoardCard): string {
   return parts.join(' ') || 'noch niemand'
 }
 
+// ── Like & Abo (Spec §5.9) ──────────────────────────────────────────────────
+
+/**
+ * Like und Abo — auf der Karte kompakt, im Detail ausgeschrieben.
+ *
+ * Der Like IST die Unterstützung (F6): er zählt als Nachfrage, abonniert aber
+ * nicht. Das Abo bringt die Push bei jedem Phasenwechsel, ohne Nachfrage zu
+ * sein. Wer selbst angefragt hat, hat beides schon — beide Knöpfe stehen dann
+ * gedrückt und gesperrt da, statt zu verschwinden.
+ */
+function Reactions({ card, appContext, variant, likeText = '', onChanged, onLiked }: {
+  card: BoardCard
+  appContext: 'pwa' | 'admin'
+  variant: 'card' | 'sheet'
+  likeText?: string
+  onChanged: () => void
+  /** Nach einem gelungenen Like — das Detail leert dort sein «wofür»-Feld. */
+  onLiked?: () => void
+}) {
+  const online = useOnline()
+  const [busy, setBusy] = useState(false)
+  const ownRequest = card.mine === 'anfrage'
+  const liked = card.mine === 'unterstuetzung'
+  const subscribed = !!card.subscribed || !!card.notified_anyway
+
+  async function run(action: () => Promise<unknown>) {
+    setBusy(true)
+    try {
+      await action()
+    } catch {
+      /* bleibt, wie es war — der Knopf ist erneut drückbar */
+    } finally {
+      setBusy(false)
+      onChanged()
+    }
+  }
+
+  const toggleLike = () => run(async () => {
+    if (liked) {
+      await withdrawFeatureSupport(card.id)
+      return
+    }
+    await supportFeatureWish(card.id, { ...(likeText.trim() ? { text: likeText.trim() } : {}), app_context: appContext })
+    onLiked?.()
+  })
+  const toggleAbo = () => run(() => card.subscribed ? unsubscribeFeature(card.id) : subscribeFeature(card.id))
+
+  const likeLabel = variant === 'card'
+    ? `👍 ${card.request_count}`
+    : ownRequest ? '✓ Von dir angefragt' : liked ? '👍 Gefällt dir — zurücknehmen' : '👍 Brauchen wir auch'
+  const aboLabel = card.notified_anyway
+    ? (variant === 'card' ? '🔔' : '🔔 Du wirst benachrichtigt')
+    : card.subscribed
+      ? (variant === 'card' ? '🔔 Abonniert' : '🔔 Abonniert — beenden')
+      : '🔔 Abonnieren'
+
+  return (
+    <div className={`roadmap-reactions is-${variant}`}>
+      <button type="button" className="roadmap-reaction" aria-pressed={liked || ownRequest}
+              aria-label={variant === 'card'
+                ? `Gefällt mir (${card.request_count})${liked ? ' — zurücknehmen' : ''}`
+                : undefined}
+              title={ownRequest ? 'Von dir angefragt' : liked ? 'Like zurücknehmen' : 'Gefällt mir — brauchen wir auch'}
+              disabled={busy || !online || ownRequest} onClick={toggleLike}>
+        {likeLabel}
+      </button>
+      <button type="button" className="roadmap-reaction" aria-pressed={subscribed}
+              aria-label={variant === 'card' && card.notified_anyway ? 'Du wirst benachrichtigt' : undefined}
+              title={card.notified_anyway
+                ? 'Deine Anfrage — du bekommst ohnehin bei jedem Phasenwechsel eine Nachricht'
+                : 'Push bei jedem Phasenwechsel'}
+              disabled={busy || !online || !!card.notified_anyway} onClick={toggleAbo}>
+        {aboLabel}
+      </button>
+    </div>
+  )
+}
+
 // ── Detail ──────────────────────────────────────────────────────────────────
 
 function FeatureSheet({ featureId, isAdminRole, appContext, onClose, onChanged }: {
@@ -75,11 +156,9 @@ function FeatureSheet({ featureId, isAdminRole, appContext, onClose, onChanged }
   onClose: () => void
   onChanged: () => void
 }) {
-  const online = useOnline()
   const [detail, setDetail] = useState<PublicFeatureDetail | null>(null)
   const [failed, setFailed] = useState(false)
   const [text, setText] = useState('')
-  const [busy, setBusy] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -91,22 +170,6 @@ function FeatureSheet({ featureId, isAdminRole, appContext, onClose, onChanged }
   }, [featureId])
 
   useEffect(() => { void load() }, [load])
-
-  async function toggleSupport() {
-    if (!detail) return
-    setBusy(true)
-    try {
-      if (detail.mine === 'unterstuetzung') await withdrawFeatureSupport(detail.id)
-      else await supportFeatureWish(detail.id, { ...(text.trim() ? { text: text.trim() } : {}), app_context: appContext })
-      setText('')
-      await load()
-      onChanged()
-    } catch {
-      /* bleibt, wie es war — der Knopf ist erneut drückbar */
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const history = [...(detail?.history ?? [])].reverse()
 
@@ -156,7 +219,7 @@ function FeatureSheet({ featureId, isAdminRole, appContext, onClose, onChanged }
                     <li key={i}>
                       {p.is_me ? 'dir' : p.created_by_name ?? 'jemandem'} · {fmtDay(p.created_on)}
                       {' · '}{IMPORTANCE_LABEL[p.importance]}
-                      {p.origin === 'unterstuetzung' ? ' (Unterstützung)' : ''}
+                      {p.origin === 'unterstuetzung' ? ' (👍 gefällt)' : ''}
                       {isAdminRole && (p.problem || p.description) && (
                         <div className="wish-quote">{p.problem || p.description}</div>
                       )}
@@ -171,21 +234,14 @@ function FeatureSheet({ featureId, isAdminRole, appContext, onClose, onChanged }
               )}
             </div>
 
-            {detail.mine === 'anfrage' ? (
-              <div className="wish-accent">✓ Von dir angefragt</div>
-            ) : (
-              <>
-                {detail.mine !== 'unterstuetzung' && (
-                  <textarea className="wish-input" rows={2} maxLength={500} value={text}
-                            placeholder="Wofür braucht ihr das? (optional)"
-                            onChange={e => setText(e.target.value)} />
-                )}
-                <button type="button" className={detail.mine === 'unterstuetzung' ? 'wish-btn-ghost' : 'wish-btn'}
-                        disabled={busy || !online} onClick={toggleSupport}>
-                  {detail.mine === 'unterstuetzung' ? '✓ Unterstützt — zurückziehen' : 'Brauchen wir auch'}
-                </button>
-              </>
+            {detail.mine === null && (
+              <textarea className="wish-input" rows={2} maxLength={500} value={text}
+                        placeholder="Wofür braucht ihr das? (optional)"
+                        onChange={e => setText(e.target.value)} />
             )}
+            <Reactions card={detail} appContext={appContext} variant="sheet" likeText={text}
+                       onLiked={() => setText('')}
+                       onChanged={() => { void load(); onChanged() }} />
           </>
         )}
       </div>
@@ -273,17 +329,22 @@ export default function Roadmap({ userId, role, appContext, initialFeatureId, co
 
   function card(c: BoardCard) {
     const isNew = !!seenBefore && !!c.updated_at && c.updated_at > seenBefore
+    // Kein <button> um die ganze Karte: Like und Abo sind eigene Knöpfe, und
+    // Knöpfe dürfen nicht ineinander stecken.
     return (
-      <button key={c.id} type="button" className="wish-card" onClick={() => setOpenId(c.id)} title="Details">
+      <div key={c.id} className="wish-card roadmap-card">
         {isNew && <span className="wish-card-new" aria-label="Geändert seit deinem letzten Besuch" />}
-        <span className="wish-muted">{c.reference} · {AREA_LABEL[c.area] ?? c.area}</span>
-        <span className="wish-card-title">{c.title}</span>
-        <span className="wish-muted">Ziel: {c.target_label} · {sinceLabel(c.phase_since)}</span>
-        <span className="wish-muted">
-          👥 {demandLine(c)}
-          {c.mine === 'anfrage' ? ' · von dir' : c.mine === 'unterstuetzung' ? ' · unterstützt' : ''}
-        </span>
-      </button>
+        <button type="button" className="roadmap-card-open" onClick={() => setOpenId(c.id)} title="Details">
+          <span className="wish-muted">{c.reference} · {AREA_LABEL[c.area] ?? c.area}</span>
+          <span className="wish-card-title">{c.title}</span>
+          <span className="wish-muted">Ziel: {c.target_label} · {sinceLabel(c.phase_since)}</span>
+          <span className="wish-muted">
+            👥 {demandLine(c)}
+            {c.mine === 'anfrage' ? ' · von dir' : c.mine === 'unterstuetzung' ? ' · gefällt dir' : ''}
+          </span>
+        </button>
+        <Reactions card={c} appContext={appContext} variant="card" onChanged={() => void load()} />
+      </div>
     )
   }
 
@@ -368,7 +429,8 @@ export default function Roadmap({ userId, role, appContext, initialFeatureId, co
       )}
 
       {tab === 'meine' && (
-        <MyWishes wishes={mine.wishes} loading={mine.loading} failed={mine.failed}
+        <MyWishes wishes={mine.wishes} subscriptions={mine.subscriptions}
+                  loading={mine.loading} failed={mine.failed}
                   onChanged={() => { void mine.reload(); void load() }}
                   onOpenFeature={id => { setTab('roadmap'); setOpenId(id) }} />
       )}

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   addCustomerComment, availableSalutations, checkCustomerName, deleteCustomer,
-  deleteCustomerComment, getCustomerComments, listCustomers, salutationLabel, saveCustomer,
-  updateCustomerComment,
+  deleteCustomerComment, getCustomer, getCustomerComments, listCustomers,
+  salutationLabel, saveCustomer, updateCustomerComment,
 } from '../../api/admin/customers'
 import type {
   AdditionalEmail, Customer, CustomerComment, CustomerNameMatch, CustomersListResponse,
 } from '../../api/admin/customers'
 import { getMe } from '../../api/auth'
 import type { UserInfo } from '../../api/auth'
-import { isFeatureEnabled } from '../../api/modules'
+import { hasModule, isFeatureEnabled } from '../../api/modules'
 import { AddressAutocomplete } from '../../shared/AddressAutocomplete'
 import { CompanySearch } from '../../shared/CompanySearch'
 import { ConfirmDialog } from '../components/ConfirmDialog'
@@ -17,6 +17,11 @@ import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 import { formatDateTime } from '../utils/format'
 import { useToast, ToastHost } from '../components/useToast'
+import {
+  composeCustomerName, initialNameParts, isUnsplitCustomer, suggestNameSplits,
+} from './customerNameParts'
+import { CustomerProjects } from './CustomerProjects'
+import { ReminderPanel } from '../reminders/ReminderPanel'
 
 function CustomerComments({ customerId }: { customerId: string }) {
   const [comments, setComments] = useState<CustomerComment[]>([])
@@ -206,13 +211,25 @@ function CustomerForm({
   initial,
   onSave,
   onCancel,
+  onOpenProject,
 }: {
   initial: Customer | null
   onSave: () => void
   onCancel: () => void
+  onOpenProject?: (projectId: string) => void
 }) {
   const isNew = !initial
-  const [name, setName] = useState(initial?.name ?? '')
+  // Vor- und Nachname getrennt (WF-5). `name` ist nur noch die Vorschau dessen,
+  // was der Server daraus baut — er setzt ihn beim Speichern selbst.
+  const initialParts = initialNameParts(initial)
+  const [firstName, setFirstName] = useState(initialParts.first)
+  const [lastName, setLastName] = useState(initialParts.last)
+  const name = composeCustomerName(firstName, lastName)
+  // Altbestand mit nur einem Namensfeld: Hinweis + Aufteil-Vorschlag, solange
+  // der Erfasser die Felder noch nicht selbst angefasst hat.
+  const unsplit = !!initial && isUnsplitCustomer(initial)
+    && !firstName.trim() && lastName.trim() === initial.name.trim()
+  const splits = unsplit ? suggestNameSplits(initial.name) : []
   // Anrede: '' = keine (Firmen, Verwaltungen). Gehalten wird der Schlüssel
   // ('herr'/'frau'/'frau_und_herr'), nicht die Druckform — die baut das PDF selbst.
   const [salutation, setSalutation] = useState(initial?.salutation ?? '')
@@ -281,12 +298,14 @@ function CustomerForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!lastName.trim()) return
     setError('')
     setSaving(true)
     try {
       await saveCustomer({
-        name: name.trim(),
+        name,
+        first_name: firstName.trim() || null,
+        last_name: lastName.trim(),
         // null statt '' — der Server macht daraus ein echtes Leeren des Feldes,
         // '' verstiesse gegen den CHECK auf der Spalte.
         salutation: salutation || null,
@@ -334,6 +353,14 @@ function CustomerForm({
         </div>
       </div>
       {error && <div className="admin-form-error">{error}</div>}
+      {/* Gibt es für diesen Kunden schon ein Projekt? (WF-3) — oben, weil es
+          meist die erste Frage ist, mit der man die Seite öffnet. */}
+      {!isNew && initial && (
+        <CustomerProjects customerId={initial.id} onOpenProject={onOpenProject} />
+      )}
+      {!isNew && initial && hasModule(me, 'reminders') && (
+        <ReminderPanel target={{ customerId: initial.id }} me={me} />
+      )}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
         <div className="admin-form-group">
           <label className="admin-form-label">Firma suchen via search.ch</label>
@@ -346,70 +373,102 @@ function CustomerForm({
             }}
           />
         </div>
-        <div className="admin-form-row">
-          <div className="admin-form-group">
-            {/* Anrede und Name in EINER Zeile: die Anrede gehört zum Namen und
-                steht im Empfängerblock von Offerte und Rechnung direkt über ihm.
-                Flex statt einer eigenen admin-form-row, damit der Dubletten-
-                Hinweis unten am Namensfeld hängen bleibt und die Anrede nicht
-                die halbe Zeilenbreite bekommt. */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              {/* 150px statt 110: «Frau und Herr» (Flag anrede_frau_und_herr) wird
-                  im geschlossenen Select sonst abgeschnitten. */}
-              <div style={{ flex: '0 0 150px' }}>
-                <label className="admin-form-label" htmlFor="customer-salutation">Anrede</label>
-                <select
-                  id="customer-salutation"
-                  className="admin-form-input"
-                  value={salutation}
-                  onChange={e => setSalutation(e.target.value)}
-                >
-                  <option value="">—</option>
-                  {salutations.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
+        <div className="admin-form-group">
+          {/* Anrede, Vorname und Nachname in EINER Zeile: die Anrede gehört zum
+              Namen und steht im Empfängerblock von Offerte und Rechnung direkt
+              über ihm. Flex statt admin-form-row, damit der Dubletten-Hinweis
+              unten am Namen hängen bleibt. Vor- und Nachname sind getrennt, seit
+              jeder Erfasser seine eigene Reihenfolge hatte (WF-5); gedruckt
+              wird immer «Vorname Nachname». */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {/* 150px statt 110: «Frau und Herr» (Flag anrede_frau_und_herr) wird
+                im geschlossenen Select sonst abgeschnitten. */}
+            <div style={{ flex: '0 0 150px' }}>
+              <label className="admin-form-label" htmlFor="customer-salutation">Anrede</label>
+              <select
+                id="customer-salutation"
+                className="admin-form-input"
+                value={salutation}
+                onChange={e => setSalutation(e.target.value)}
+              >
+                <option value="">—</option>
+                {salutations.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ flex: '1 1 160px', minWidth: 0 }}>
+              <label className="admin-form-label" htmlFor="customer-first-name">Vorname</label>
+              <input
+                id="customer-first-name"
+                className="admin-form-input"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                autoComplete="off"
+              />
+            </div>
+            <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+              <label className="admin-form-label" htmlFor="customer-last-name">Nachname / Bezeichnung *</label>
+              <input
+                id="customer-last-name"
+                className="admin-form-input"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                required
+                autoComplete="off"
+                aria-describedby={nameMatches.length > 0 ? 'customer-name-duplicates' : undefined}
+              />
+            </div>
+          </div>
+          {unsplit && (
+            <div className="admin-form-hint" role="note" data-testid="customer-name-unsplit">
+              Dieser Kunde wurde noch mit einem einzigen Namensfeld erfasst
+              («{initial!.name}»). Steht darin auch ein Vorname, gehört er ins Feld «Vorname».
+              {splits.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                  {splits.map(sp => (
+                    <button
+                      key={`${sp.first}|${sp.last}`}
+                      type="button"
+                      className="admin-btn admin-btn-secondary admin-btn-sm"
+                      onClick={() => { setFirstName(sp.first); setLastName(sp.last) }}
+                    >
+                      Vorname «{sp.first}», Nachname «{sp.last}»
+                    </button>
                   ))}
-                </select>
+                </div>
+              )}
+            </div>
+          )}
+          {nameMatches.length > 0 && (
+            <div className="admin-form-hint-warn" role="status" id="customer-name-duplicates">
+              <div className="admin-form-hint-lead">
+                {nameMatches.length === 1
+                  ? 'Es gibt bereits einen Kunden mit diesem Namen:'
+                  : `Es gibt bereits ${nameMatches.length} Kunden mit diesem Namen:`}
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <label className="admin-form-label" htmlFor="customer-name">Name *</label>
-                <input
-                  id="customer-name"
-                  className="admin-form-input"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  required
-                  aria-describedby={nameMatches.length > 0 ? 'customer-name-duplicates' : undefined}
-                />
+              <ul>
+                {nameMatches.map(m => (
+                  <li key={m.id}>
+                    {[m.company, m.billing_address ?? m.address].filter(Boolean).join(' · ') || 'ohne weitere Angaben'}
+                  </li>
+                ))}
+              </ul>
+              <div className="admin-form-hint-foot">
+                Gleiche Namen sind erlaubt — speichern legt einen weiteren Kunden an.
               </div>
             </div>
-            {nameMatches.length > 0 && (
-              <div className="admin-form-hint-warn" role="status" id="customer-name-duplicates">
-                <div className="admin-form-hint-lead">
-                  {nameMatches.length === 1
-                    ? 'Es gibt bereits einen Kunden mit diesem Namen:'
-                    : `Es gibt bereits ${nameMatches.length} Kunden mit diesem Namen:`}
-                </div>
-                <ul>
-                  {nameMatches.map(m => (
-                    <li key={m.id}>
-                      {[m.company, m.billing_address ?? m.address].filter(Boolean).join(' · ') || 'ohne weitere Angaben'}
-                    </li>
-                  ))}
-                </ul>
-                <div className="admin-form-hint-foot">
-                  Gleiche Namen sind erlaubt — speichern legt einen weiteren Kunden an.
-                </div>
-              </div>
-            )}
-          </div>
+          )}
+        </div>
+        <div className="admin-form-row">
           <div className="admin-form-group">
             <label className="admin-form-label">Firma</label>
             <input className="admin-form-input" value={company} onChange={e => setCompany(e.target.value)} />
           </div>
-        </div>
-        <div className="admin-form-group">
-          <label className="admin-form-label">E-Mail</label>
-          <input className="admin-form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <div className="admin-form-group">
+            <label className="admin-form-label">E-Mail</label>
+            <input className="admin-form-input" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </div>
         </div>
         {/* Zusatzadressen: reine Stammdaten (erfassen/anzeigen) — der Versand nutzt
             weiterhin die Hauptadresse; bei Bedarf kopiert man eine Zusatzadresse
@@ -537,7 +596,7 @@ function CustomerForm({
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button type="button" className="admin-btn admin-btn-secondary" onClick={onCancel}>Abbrechen</button>
-          <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || !name.trim()}>
+          <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || !lastName.trim()}>
             {saving ? 'Speichern…' : 'Speichern'}
           </button>
         </div>
@@ -548,7 +607,17 @@ function CustomerForm({
 
 const PAGE_SIZE = 50
 
-export default function CustomersScreen() {
+interface CustomersScreenProps {
+  /** Klick auf ein Projekt der Kundenstammseite → Projektmaske (WF-3). */
+  onOpenProject?: (projectId: string) => void
+  /** Direkt diesen Kunden öffnen (Deep-Link aus einer Erinnerung). */
+  openCustomerId?: string
+  onConsumedCustomerId?: () => void
+}
+
+export default function CustomersScreen({
+  onOpenProject, openCustomerId, onConsumedCustomerId,
+}: CustomersScreenProps = {}) {
   const isMobile = useIsMobile()
   const [data, setData] = useState<CustomersListResponse>({ rows: [], total: 0, page: 1, page_size: PAGE_SIZE })
   const [loading, setLoading] = useState(true)
@@ -582,6 +651,18 @@ export default function CustomersScreen() {
   useEffect(() => { load() }, [load])
 
   const { toast, showToast } = useToast()
+
+  // Sprung auf einen bestimmten Kunden (Mail/Push einer Erinnerung). Der Kunde
+  // wird einzeln geholt: er steht nicht zwingend auf der ersten Listenseite.
+  // Verbraucht wird der Sprung sofort, damit ein späteres Zurück nicht erneut
+  // auf denselben Kunden springt.
+  useEffect(() => {
+    if (!openCustomerId) return
+    onConsumedCustomerId?.()
+    getCustomer(openCustomerId)
+      .then(c => setEditing(c))
+      .catch(() => showToast('Kunde nicht gefunden', 'error'))
+  }, [openCustomerId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleDelete() {
     if (!confirmDelete) return
@@ -628,6 +709,7 @@ export default function CustomersScreen() {
           initial={editing}
           onSave={() => { setEditing(null); load(); showToast('Kunde aktualisiert') }}
           onCancel={() => setEditing(null)}
+          onOpenProject={onOpenProject}
         />
       )}
 

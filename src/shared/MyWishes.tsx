@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { AREA_LABEL, fmtDay, withdrawWish, type MyWish } from '../api/featureRequests'
+import {
+  AREA_LABEL, fmtDay, unsubscribeFeature, withdrawWish, type MySubscription, type MyWish,
+} from '../api/featureRequests'
 
 /**
  * «Meine Wünsche» bzw. «Unsere Wünsche» — Spec docs/specs/feature-anfragen.md §5.5.
@@ -7,10 +9,14 @@ import { AREA_LABEL, fmtDay, withdrawWish, type MyWish } from '../api/featureReq
  * Je Wunsch: Nummer, Datum, Titel und der STAND — bei einem zugeordneten
  * Wunsch die Phase des Features, sonst der Zustand der Triage samt dem Satz
  * des Betreibers. Nie eine Uhrzeit (F13).
+ *
+ * Darunter «Abonniert» (§5.9): Features, zu denen man ohne eigene Anfrage
+ * Post bekommt — mit «Abo beenden» an derselben Stelle, an der man sie sieht.
  */
 
 interface Props {
   wishes: MyWish[]
+  subscriptions?: MySubscription[]
   loading?: boolean
   failed?: boolean
   /** «Unsere Wünsche»: Person je Zeile zeigen, kein Zurückziehen. */
@@ -21,10 +27,51 @@ interface Props {
 }
 
 export default function MyWishes({
-  wishes, loading, failed, showPerson = false, onOpenFeature, onChanged,
+  wishes, subscriptions = [], loading, failed, showPerson = false, onOpenFeature, onChanged,
   emptyText = 'Du hast noch keinen Wunsch geäussert.',
 }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  async function unsubscribe(featureId: string) {
+    setBusyId(featureId)
+    try {
+      await unsubscribeFeature(featureId)
+    } catch {
+      /* bleibt abonniert — der Knopf ist erneut drückbar */
+    } finally {
+      setBusyId(null)
+      onChanged?.()
+    }
+  }
+
+  const subscriptionList = subscriptions.length > 0 && (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="wish-muted">Abonniert</div>
+      {subscriptions.map(sub => sub.feature && (
+        <div key={sub.feature_id} className="wish-card">
+          {sub.unread && <span className="wish-card-new" aria-label="Neu" />}
+          <div className="wish-muted">{sub.feature.reference} · 🔔 abonniert</div>
+          <div className="wish-card-title">{sub.feature.title}</div>
+          <div>
+            <span className="wish-phase wish-accent">{sub.feature.phase_label}</span>
+            <span className="wish-muted"> Ziel: {sub.feature.target_label}</span>
+          </div>
+          <div className="wish-row" style={{ gap: 12 }}>
+            {onOpenFeature && (
+              <button type="button" className="wish-link" style={{ flex: '0 0 auto' }}
+                      onClick={() => onOpenFeature(sub.feature_id)}>
+                auf der Roadmap
+              </button>
+            )}
+            <button type="button" className="wish-link" style={{ flex: '0 0 auto' }}
+                    disabled={busyId === sub.feature_id} onClick={() => unsubscribe(sub.feature_id)}>
+              Abo beenden
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 
   async function withdraw(id: string) {
     setBusyId(id)
@@ -43,7 +90,12 @@ export default function MyWishes({
     return <div className="wish-muted">Deine Wünsche liegen online — gerade nicht erreichbar.</div>
   }
   if (!loading && wishes.length === 0) {
-    return <div className="wish-muted">{emptyText}</div>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="wish-muted">{emptyText}</div>
+        {subscriptionList}
+      </div>
+    )
   }
 
   return (
@@ -91,6 +143,7 @@ export default function MyWishes({
           </div>
         )
       })}
+      {subscriptionList}
     </div>
   )
 }

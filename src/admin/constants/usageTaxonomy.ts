@@ -61,6 +61,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // Garantiefälle vor /project/: `admin_create_warranty_case` hängt am Projekt,
   // gehört aber zum Modul `warranty` (docs/specs/garantiefall.md Phase 2).
   { test: /warranty/,                            module: 'warranty' },
+  // Erinnerungen (docs/specs/erinnerungen.md). Exakt statt /reminder/: die
+  // Offerten-Erinnerung `admin_send_quote_reminder` gehört zu den Offerten.
+  { test: /^admin_(create|update|delete)_reminder$/, module: 'reminders' },
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
@@ -239,6 +242,9 @@ const ACTION_LABELS: Record<string, string> = {
   // Der Monteur trägt die Adresse vom Einsatz aus nach — der einzige Schreibzugriff
   // der Mitarbeiter-PWA auf den Kundenstamm (Spec kunden-email-erfassen.md).
   user_set_customer_email: 'Kunden-E-Mail erfasst',
+  admin_create_reminder: 'Erinnerung gesetzt',
+  admin_update_reminder: 'Erinnerung geändert oder abgehakt',
+  admin_delete_reminder: 'Erinnerung gelöscht',
 
   // ── Benutzer & Stammdaten ──
   admin_create_staff: 'Mitarbeiter angelegt',

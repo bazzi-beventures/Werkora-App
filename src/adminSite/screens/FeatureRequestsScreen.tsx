@@ -231,6 +231,24 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                 <div className="fr-quote">{req.problem}</div>
               </>
             )}
+            {req.attachments && req.attachments.length > 0 && (
+              <>
+                <div className="fr-section-title">Screenshots</div>
+                <div className="support-shots">
+                  {req.attachments.map(att => (
+                    att.url
+                      ? <a key={att.path} href={att.url} target="_blank" rel="noreferrer">
+                          <img src={att.url} alt="Screenshot zum Wunsch" className="support-shot" />
+                        </a>
+                      // Signieren gescheitert oder HEIC, das der Browser nicht
+                      // zeigt — dann der Dateiname statt eines kaputten Bildes.
+                      : <span key={att.path} className="support-shot-missing">
+                          {att.path.split('/').pop()} (nicht anzeigbar)
+                        </span>
+                  ))}
+                </div>
+              </>
+            )}
             {req.answer && (
               <>
                 <div className="fr-section-title">Antwort an den Einreicher</div>
@@ -869,6 +887,7 @@ export default function FeatureRequestsScreen({ initialTenantId, onCountChange }
           initialPhase={move.phase}
           requestCount={move.f.request_count}
           tenantCount={move.f.tenant_count}
+          subscriberCount={move.f.subscriber_count ?? 0}
           isPublic={move.f.visibility !== 'intern'}
           currentTarget={move.f.target_from && move.f.target_precision
             ? { from: move.f.target_from, to: move.f.target_to ?? undefined, precision: move.f.target_precision }

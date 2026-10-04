@@ -6,6 +6,7 @@ import type { HelpTarget } from './helpTargets'
 import type { UserInfo } from '../api/auth'
 import SupportForm from './SupportForm'
 import WikiBot from './WikiBot'
+import WishNewsNotice from './WishNewsNotice'
 import WishPanel from './WishPanel'
 import { useMySupportTickets } from './useMySupportTickets'
 import { useMyWishes } from './useMyWishes'
@@ -194,6 +195,10 @@ export default function HelpBubble({
   // das Abzeichen muss auch bei geschlossenem Panel stimmen.
   const wishes = useMyWishes(showWishes)
   const unreadTotal = mine.unread + wishes.unread
+  // «Neues zu deinen Wünschen» (feature-anfragen.md §5.9): der Hinweis beim
+  // Start der App. Er hängt HIER, weil die Blase den Hook schon hat und in
+  // beiden Apps nach der Anmeldung steht; der Zähler rendert nach «Später» neu.
+  const [, setNoticeClosed] = useState(0)
   // Die Blase trägt die Mandantenfarbe — und zwar über das Token, das die App
   // um sie herum führt. Beide Token halten nach `applyTenantBranding()`
   // denselben abgeleiteten Ton (brand/palette.ts schreibt `--accent` und
@@ -527,6 +532,15 @@ export default function HelpBubble({
           <span aria-hidden="true" className="help-bubble-badge">{unreadTotal}</span>
         )}
       </button>
+      {showWishes && !open && (
+        <WishNewsNotice
+          news={wishes.news}
+          appContext={appContext}
+          onAcknowledge={() => void wishes.markRead()}
+          onOpenRoadmap={onOpenRoadmap}
+          onDismiss={() => setNoticeClosed(n => n + 1)}
+        />
+      )}
     </>,
     document.body,
   )

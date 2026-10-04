@@ -33,7 +33,7 @@ export function autoBreakConfig(user: UserInfo | null): AutoBreakConfig | null {
 export function autoBreakRuleText(cfg: AutoBreakConfig | null): string {
   if (!cfg) return ''
   const basis = cfg.soll === 'gesetzlich'
-    ? 'die gesetzliche Mindestpause (15 Min ab 5.5 Std., 30 Min ab 7 Std., 60 Min ab 9 Std. Anwesenheit)'
+    ? 'die gesetzliche Mindestpause (15 Min ab 5.5 Std., 30 Min ab 7 Std., 60 Min ab 9 Std. Arbeitszeit, Pausen nicht mitgerechnet)'
     : `${cfg.minuten} Min ab ${cfg.ab_stunden} Std. Anwesenheit`
   const modus = cfg.modus === 'nur_ohne_pause'
     ? 'Der Abzug greift nur an Tagen ganz ohne erfasste Pause.'

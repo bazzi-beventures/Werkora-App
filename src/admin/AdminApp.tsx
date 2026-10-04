@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState, type JSX } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useState, type JSX } from 'react'
 import { UserInfo } from '../api/auth'
 import { getAdminDashboard, AdminDashboard } from '../api/admin'
 import AdminSidebar from './AdminSidebar'
@@ -21,7 +21,6 @@ import VacationOverviewScreen from './personal/VacationOverviewScreen'
 import ProjectsScreen from './operative/ProjectsScreen'
 import ProjectDraftsScreen from './operative/ProjectDraftsScreen'
 import ProjectScheduleScreen from './operative/ProjectScheduleScreen'
-import CustomersScreen from './operative/CustomersScreen'
 import MaterialsScreen from './operative/MaterialsScreen'
 import QuotesScreen from './operative/QuotesScreen'
 import InvoicesScreen from './operative/InvoicesScreen'
@@ -41,13 +40,20 @@ import { SCREEN_TITLES } from './screenTitles'
 import Roadmap from '../shared/Roadmap'
 import EasterEggs from './eastereggs/EasterEggs'
 import { trackNav } from '../shared/breadcrumbs'
-import { takeProjectDeepLink } from '../shared/deepLink'
+import { takeCustomerDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
 import './tokens.css'
 import './admin.css'
 import './mobile.css'
+
+// Nachgeladen statt im Haupt-Bundle: die Mandanten-App enthält die Admin-App,
+// und ihr Haupt-Chunk stand am 20261004 bei 2'095 kB — knapp unter den 2 MiB,
+// ab denen Workbox eine Datei nicht mehr precacht (dann fehlte die App
+// offline). Ein eigener Chunk landet trotzdem im Precache (globPatterns), offline
+// ändert sich also nichts. Vorbild: ProjectScheduleMap.
+const CustomersScreen = lazy(() => import('./operative/CustomersScreen'))
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -106,6 +112,11 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // überschreiben.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    const customer = takeCustomerDeepLink()
+    if (customer) {
+      nav('customers', customer.customerId)
+      return
+    }
     const link = takeProjectDeepLink()
     if (!link) return
     setDeepLinkTab(link.tab)
@@ -207,7 +218,14 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       return <ComingSoon title="Kein Zugriff" />
     }
     switch (screen) {
-      case 'dashboard':    return <DashboardScreen dashboard={dashboard} onNav={guardedNav} onBadgeChange={loadDashboard} />
+      case 'dashboard':    return (
+        <DashboardScreen
+          dashboard={dashboard}
+          onNav={guardedNav}
+          onBadgeChange={loadDashboard}
+          showReminders={hasModule(user, 'reminders')}
+        />
+      )
       case 'tasks':        return showTaskBoard
         ? <TaskBoardScreen
             onNav={(next, id, tab) => {
@@ -239,7 +257,14 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'project-drafts': return <ProjectDraftsScreen user={user} onBadgeChange={loadDashboard} />
       case 'project-schedule': return guard('scheduling', <ProjectScheduleScreen canton={canton} onNav={guardedNav} />)
-      case 'customers':    return <CustomersScreen />
+      // detailId = Kunden-id aus einer Erinnerung (Dashboard, Mail-Knopf).
+      case 'customers':    return (
+        <CustomersScreen
+          onOpenProject={id => guardedNav('projects', id)}
+          openCustomerId={detailId ?? undefined}
+          onConsumedCustomerId={clearDetail}
+        />
+      )
       case 'quotes':       return guard('quotes', <QuotesScreen initialStatus={detailId} onConsumed={clearDetail} />)
       case 'invoices':     return guard('invoicing', <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav} />)
       case 'aftersales':   return guard('aftersales', <AftersalesScreen />)
@@ -333,7 +358,11 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
               />
             )}
           </div>
-          <Fragment key={`${screen}:${resetTick}`}>{renderScreen()}</Fragment>
+          <Fragment key={`${screen}:${resetTick}`}>
+            <Suspense fallback={<div className="admin-loading"><div className="admin-spinner" /> Laden…</div>}>
+              {renderScreen()}
+            </Suspense>
+          </Fragment>
         </div>
       </main>
       {isMobile && (

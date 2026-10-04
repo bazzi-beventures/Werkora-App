@@ -324,10 +324,11 @@ export default function FeatureDetailDialog({ featureId, features = [], onClose,
                   <input type="checkbox" checked={updateIntern} onChange={e => setUpdateIntern(e.target.checked)} />
                   intern
                 </label>
-                {!updateIntern && feature.visibility !== 'intern' && feature.request_count > 0 && (
+                {!updateIntern && feature.visibility !== 'intern'
+                  && (feature.request_count > 0 || (feature.subscriber_count ?? 0) > 0) && (
                   <label className="fr-check">
                     <input type="checkbox" checked={updateNotify} onChange={e => setUpdateNotify(e.target.checked)} />
-                    Anfragende benachrichtigen
+                    Anfragende und Abonnenten benachrichtigen
                   </label>
                 )}
                 <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={postUpdate}
@@ -446,6 +447,7 @@ export default function FeatureDetailDialog({ featureId, features = [], onClose,
           initialPhase={feature.phase}
           requestCount={feature.request_count}
           tenantCount={feature.tenant_count}
+          subscriberCount={feature.subscriber_count ?? 0}
           isPublic={feature.visibility !== 'intern'}
           currentTarget={feature.target_from && feature.target_precision
             ? { from: feature.target_from, to: feature.target_to ?? undefined, precision: feature.target_precision }

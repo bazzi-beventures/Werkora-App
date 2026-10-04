@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/client'
 import {
   AREA_LABEL,
   IMPORTANCE_LABEL,
+  MAX_WISH_FILE_BYTES,
+  MAX_WISH_FILES,
   areaForRoute,
   searchSimilarFeatures,
   submitWish,
   supportFeatureWish,
   transcribeWishAudio,
+  uploadWishScreenshots,
   type BoardCard,
   type Importance,
 } from '../api/featureRequests'
@@ -23,8 +26,14 @@ import { useOnline } from './useOnline'
  * 1. **Vor dem Absenden steht, was es schon gibt.** Ab drei Zeichen im Titel
  *    fragt es die Roadmap ab; «Brauchen wir auch» ersetzt dann das Absenden.
  *    Die billigste Deduplizierung ist die, die der Nutzer selbst macht (F5).
- * 2. **Kein Snapshot, keine Screenshots.** Ein Wunsch hat keinen
- *    Fehlerzustand, den man rekonstruieren müsste.
+ * 2. **Kein Snapshot.** Ein Wunsch hat keinen Fehlerzustand, den man
+ *    rekonstruieren müsste.
+ *
+ * Screenshots dagegen ja (Nachtrag 2026-10-02): «auf der ersten Maske» sagt
+ * dem Betreiber nichts, ein Bild der Maske alles. Wie beim Support hängt der
+ * Nutzer sie EXPLIZIT an — er sieht, was er mitschickt. Hochgeladen wird erst
+ * nach dem Einreichen; scheitert es, steht der Wunsch trotzdem, und die
+ * Quittung sagt, dass das Bild fehlt.
  */
 
 const ERROR_TEXT: Record<string, string> = {
@@ -33,6 +42,8 @@ const ERROR_TEXT: Record<string, string> = {
   invalid_area: 'Bitte wähle einen Bereich.',
   rate_limited: 'Du hast gerade mehrere Wünsche geschickt. Bitte in einer Stunde erneut.',
   module_disabled: 'Wünsche sind für deinen Betrieb nicht aktiviert.',
+  too_many_files: `Maximal ${MAX_WISH_FILES} Bilder.`,
+  file_too_large: 'Ein Bild ist zu gross (max. 10 MB).',
 }
 
 const VOICE_ERROR_TEXT: Record<string, string> = {
@@ -124,6 +135,9 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
   const [reference, setReference] = useState('')
   const [transcribing, setTranscribing] = useState(false)
   const [voiceSupported] = useState(isVoiceRecordingSupported)
+  const [files, setFiles] = useState<File[]>([])
+  const [lostFiles, setLostFiles] = useState(0)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   // Duplikat-Hinweis: entprellt, erst ab drei Zeichen. Kein Treffer ist
   // kein Fehler — dann ist der Wunsch eben neu.
@@ -156,6 +170,38 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
   const { isRecording, seconds, startRecording, sendRecording, discardRecording } =
     useVoiceRecorder(handleAudio, reason => setError(VOICE_ERROR_TEXT[reason] ?? ''))
 
+  function addFiles(selected: ArrayLike<File> | null) {
+    if (!selected) return
+    const next: File[] = []
+    let localError = ''
+    for (const file of Array.from(selected)) {
+      if (file.size > MAX_WISH_FILE_BYTES) { localError = ERROR_TEXT.file_too_large; continue }
+      next.push(file)
+    }
+    if (files.length + next.length > MAX_WISH_FILES) localError = ERROR_TEXT.too_many_files
+    setFiles([...files, ...next].slice(0, MAX_WISH_FILES))
+    setError(localError)
+    // Input leeren, damit dieselbe Datei erneut gewählt werden kann.
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  /** Strg+V mit einem Bild in der Zwischenablage (Win+Shift+S) — wie im
+   *  Support-Formular. Text wird weiterhin normal eingefügt. */
+  function handlePaste(e: React.ClipboardEvent) {
+    const images: File[] = []
+    for (const item of Array.from(e.clipboardData?.items ?? [])) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue
+      const file = item.getAsFile()
+      if (!file) continue
+      const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+      images.push(new File([file], `Eingefügtes Bild ${files.length + images.length + 1}.${ext}`,
+                           { type: file.type }))
+    }
+    if (images.length === 0) return
+    e.preventDefault()
+    addFiles(images)
+  }
+
   async function submit() {
     setBusy(true)
     setError('')
@@ -169,6 +215,18 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
         route,
         app_context: appContext,
       })
+      // Ab hier steht der Wunsch. Ein Bild, das nicht ankommt, ist ein
+      // Hinweis in der Quittung — kein Fehler, der den Wunsch zurücknimmt.
+      let stored = 0
+      if (files.length > 0) {
+        try {
+          stored = (await uploadWishScreenshots(res.id, files)).attachment_count ?? 0
+        } catch {
+          stored = 0
+        }
+      }
+      setLostFiles(Math.max(0, files.length - stored))
+      setFiles([])
       setReference(res.reference)
       onSubmitted?.()
     } catch (e) {
@@ -182,6 +240,7 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
   function reset() {
     setTitle(''); setDescription(''); setProblem(''); setSimilar([])
     setImportance('wichtig'); setArea(areaForRoute(route)); setReference(''); setError('')
+    setFiles([]); setLostFiles(0)
   }
 
   if (reference) {
@@ -191,6 +250,12 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
           Dein Wunsch <b>{reference}</b> ist eingegangen. Unter <i>Meine Wünsche</i> siehst
           du, wie es weitergeht.
         </p>
+        {lostFiles > 0 && (
+          <p className="wish-error">
+            {lostFiles === 1 ? 'Ein Bild konnte' : `${lostFiles} Bilder konnten`} nicht gespeichert
+            werden — der Text ist angekommen.
+          </p>
+        )}
         <div className="wish-row">
           <button type="button" className="wish-btn-ghost" onClick={reset}>Weiteren Wunsch</button>
           {onOpenRoadmap && (
@@ -208,7 +273,8 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
     <>
       <label className="wish-field">
         <span>Was wünschst du dir, in einem Satz?</span>
-        <input className="wish-input" maxLength={120} value={title} onChange={e => setTitle(e.target.value)} />
+        <input className="wish-input" maxLength={120} value={title} onChange={e => setTitle(e.target.value)}
+               onPaste={handlePaste} />
       </label>
 
       {shownSimilar.length > 0 && (
@@ -223,7 +289,7 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
       <label className="wish-field">
         <span>Wie soll es funktionieren?</span>
         <textarea className="wish-input" rows={4} maxLength={2000} value={description}
-                  onChange={e => setDescription(e.target.value)} />
+                  onChange={e => setDescription(e.target.value)} onPaste={handlePaste} />
       </label>
       {voiceSupported && (
         <div className="wish-row">
@@ -245,8 +311,34 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
       <label className="wish-field">
         <span>Wofür brauchst du das? Was klemmt heute? (optional)</span>
         <textarea className="wish-input" rows={2} maxLength={1000} value={problem}
-                  onChange={e => setProblem(e.target.value)} />
+                  onChange={e => setProblem(e.target.value)} onPaste={handlePaste} />
       </label>
+
+      <div className="wish-field">
+        <input ref={fileInputRef} type="file" accept="image/*" multiple hidden
+               aria-label="Screenshot wählen" onChange={e => addFiles(e.target.files)} />
+        <div className="wish-row">
+          <button type="button" className="wish-btn-ghost" disabled={files.length >= MAX_WISH_FILES}
+                  onClick={() => fileInputRef.current?.click()}>
+            📷 Screenshot anhängen ({files.length}/{MAX_WISH_FILES})
+          </button>
+        </div>
+        <span className="wish-muted">
+          Zeig uns, wo — ein Bild der Maske, die du meinst, sagt oft mehr als ein Satz.
+          Am Computer auch mit Strg+V.
+        </span>
+        {files.length > 0 && (
+          <ul className="wish-files">
+            {files.map((file, index) => (
+              <li key={`${file.name}-${index}`}>
+                <span>{file.name}</span>
+                <button type="button" className="wish-file-remove" aria-label={`${file.name} entfernen`}
+                        onClick={() => setFiles(files.filter((_, i) => i !== index))}>✕</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <div className="wish-row">
         <label className="wish-field">
@@ -278,6 +370,7 @@ export default function WishForm({ route, appContext, onSubmitted, onOpenRoadmap
         Dein Wunsch geht an das Werkora-Team. Andere Betriebe sehen deinen Namen und
         deinen Text nicht — nur, dass es den Wunsch gibt, sobald er auf der Roadmap
         steht. Deine Kolleginnen und Kollegen sehen, dass du ihn angefragt hast.
+        Screenshots sieht nur das Werkora-Team.
         {voiceSupported && ' Eine Aufnahme geht zur Umwandlung in Text an Mistral (Frankreich) und wird nicht gespeichert.'}
       </p>
     </>

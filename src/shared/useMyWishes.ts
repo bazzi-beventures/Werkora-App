@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { fetchMyWishes, markWishesRead, type MyWish } from '../api/featureRequests'
+import {
+  fetchMyWishes, markWishesRead, type MySubscription, type MyWish, type WishNews,
+} from '../api/featureRequests'
 
 /**
  * Die eigenen Wünsche samt Stand — Spec docs/specs/feature-anfragen.md §5.5.
@@ -12,6 +14,11 @@ import { fetchMyWishes, markWishesRead, type MyWish } from '../api/featureReques
 
 export interface MyWishesState {
   wishes: MyWish[]
+  /** Abonnierte Features (Spec §5.9). */
+  subscriptions: MySubscription[]
+  /** Was seit dem letzten Öffnen passiert ist — je Feature einmal. Grundlage
+   *  für den Hinweis beim Start der App (`WishNewsNotice`). */
+  news: WishNews[]
   /** Benachrichtigt, aber noch nicht gelesen — vom Server gezählt. */
   unread: number
   loading: boolean
@@ -22,6 +29,8 @@ export interface MyWishesState {
 
 export function useMyWishes(enabled: boolean): MyWishesState {
   const [wishes, setWishes] = useState<MyWish[]>([])
+  const [subscriptions, setSubscriptions] = useState<MySubscription[]>([])
+  const [news, setNews] = useState<WishNews[]>([])
   const [unread, setUnread] = useState(0)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -32,6 +41,8 @@ export function useMyWishes(enabled: boolean): MyWishesState {
     try {
       const res = await fetchMyWishes()
       setWishes(res?.requests ?? [])
+      setSubscriptions(res?.subscriptions ?? [])
+      setNews(res?.news ?? [])
       setUnread(res?.unread ?? 0)
       setFailed(false)
     } catch {
@@ -49,6 +60,7 @@ export function useMyWishes(enabled: boolean): MyWishesState {
     // Lokal sofort, serverseitig danach: das Abzeichen soll im selben
     // Augenblick weg sein, in dem der Nutzer die Nachricht sieht.
     setUnread(0)
+    setNews([])
     try {
       await markWishesRead()
     } catch {
@@ -56,5 +68,5 @@ export function useMyWishes(enabled: boolean): MyWishesState {
     }
   }, [])
 
-  return { wishes, unread, loading, failed, reload, markRead }
+  return { wishes, subscriptions, news, unread, loading, failed, reload, markRead }
 }

@@ -8,11 +8,16 @@ interface Props {
   c: UseProjectComments
   // Tickt im Minutentakt im Screen, damit die 10-Minuten-Sperre ohne Reload greift.
   now: number
+  /** Über den Kommentaren in derselben Seitenleiste — die Erinnerungen am
+   *  Projekt (Modul `reminders`). Ein eigener Kasten daneben bräche das
+   *  zweispaltige Grid, und die Leiste klebt als Ganzes. */
+  above?: React.ReactNode
 }
 
-export function CommentsPanel({ c, now }: Props) {
+export function CommentsPanel({ c, now, above }: Props) {
   return (
     <div className="admin-table-wrap project-detail-comments" style={{ padding: 24 }}>
+      {above && <div style={{ marginBottom: 18 }}>{above}</div>}
       <div className="admin-section-title" style={{ marginBottom: 14 }}>Kommentare</div>
       {c.comments.length === 0 && (
         <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>Noch keine Kommentare.</div>

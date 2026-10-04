@@ -38,10 +38,13 @@ export const PHASE_LABEL: Record<Phase, string> = {
   abgelehnt: 'Nicht geplant',
 }
 
-/** Bei diesen Phasen wartet der Nutzer auf Nachricht — das Häkchen
- *  «Anfragende benachrichtigen» ist dort vorbelegt (Spec F11). Gleiche Liste
- *  wie `NOTIFY_DEFAULT_PHASES` in services/feature_requests.py. */
-export const NOTIFY_DEFAULT_PHASES: Phase[] = ['geplant', 'test', 'verfuegbar', 'abgelehnt']
+/** Bei diesen Phasen ist das Häkchen «… benachrichtigen» vorbelegt (Spec
+ *  F11) — seit §5.9 bei jeder: wer anfragt oder abonniert, erfährt jeden
+ *  Phasenwechsel. Gleiche Liste wie `NOTIFY_DEFAULT_PHASES` in
+ *  services/feature_requests.py. */
+export const NOTIFY_DEFAULT_PHASES: Phase[] = [
+  'pruefung', 'geplant', 'entwurf', 'umsetzung', 'test', 'verfuegbar', 'zurueckgestellt', 'abgelehnt',
+]
 
 /** Endzustände verlangen einen öffentlichen Grund (Spec §7.4). */
 export const REASON_REQUIRED: Phase[] = ['zurueckgestellt', 'abgelehnt']
@@ -181,6 +184,8 @@ export interface FeatureCard {
   request_count: number
   tenant_count: number
   last_request_on?: string | null
+  /** Abos (Spec §5.9) — zählen nicht als Nachfrage, bekommen aber die Push. */
+  subscriber_count?: number
   updated_at?: string
 }
 
@@ -227,6 +232,9 @@ export interface FeatureDetail extends FeatureCard {
 }
 
 export interface FeatureRequestDetail extends FeatureRequestRow {
+  /** Nur im Betreiber-Detail; `url` signiert (15 Minuten), `null`, wenn das
+   *  Signieren scheiterte. */
+  attachments?: { path: string; size?: number; content_type?: string; url: string | null }[]
   allowed_actions: TriageAction[]
   similar: FeatureCard[]
   feature?: Pick<FeatureCard, 'id' | 'feature_no' | 'title' | 'phase' | 'reference' | 'phase_label'> | null
@@ -490,8 +498,12 @@ export interface BoardCard {
   own_count: number
   /** Andere Betriebe — nur als Zahl. */
   other_tenants: number
-  /** Was dieses Konto beigetragen hat. */
+  /** Was dieses Konto beigetragen hat — `unterstuetzung` ist der Like. */
   mine: 'anfrage' | 'unterstuetzung' | null
+  /** Dieses Konto hat das Feature abonniert (Push bei jedem Phasenwechsel). */
+  subscribed?: boolean
+  /** Eigene Anfrage — wird ohnehin benachrichtigt, ein Abo wäre doppelt. */
+  notified_anyway?: boolean
 }
 
 export interface PeerRow {
@@ -568,6 +580,24 @@ export function submitWish(body: {
   return apiFetch('/pwa/features/requests', { method: 'POST', body: JSON.stringify(body) })
 }
 
+/** Deckel wie bei der Support-Meldung — derselbe Wert im Router
+ *  (`agents/routers/features.py` übernimmt `MAX_FILES`/`MAX_FILE_BYTES`). */
+export const MAX_WISH_FILES = 3
+export const MAX_WISH_FILE_BYTES = 10 * 1024 * 1024
+
+/**
+ * Screenshots an einen eben eingereichten Wunsch hängen (Spec §5.2).
+ *
+ * Ein zweiter Request nach `submitWish`, kein Multipart beim Einreichen: der
+ * Wunsch steht dann schon, ein gescheiterter Upload kostet nie den Text.
+ * `attachment_count` ist das, was wirklich im Storage liegt.
+ */
+export function uploadWishScreenshots(id: string, files: File[]): Promise<{ attachment_count: number }> {
+  const form = new FormData()
+  for (const file of files.slice(0, MAX_WISH_FILES)) form.append('files', file)
+  return apiFormFetch(`/pwa/features/requests/${id}/screenshots`, form)
+}
+
 export function withdrawWish(id: string): Promise<{ ok: boolean }> {
   return apiFetch(`/pwa/features/requests/${id}`, { method: 'DELETE' })
 }
@@ -584,8 +614,45 @@ export function withdrawFeatureSupport(id: string): Promise<{ ok: boolean; remov
   return apiFetch(`/pwa/features/${id}/support`, { method: 'DELETE' })
 }
 
-export function fetchMyWishes(): Promise<{ requests: MyWish[]; unread: number }> {
+/** Eine Nachricht seit dem letzten Öffnen (Spec §5.9) — je Feature einmal,
+ *  egal ob man es angefragt oder abonniert hat. */
+export interface WishNews {
+  kind: 'feature' | 'antwort'
+  source: 'anfrage' | 'abo'
+  feature_id?: string | null
+  request_id?: string
+  reference: string
+  title?: string | null
+  phase?: Phase
+  phase_label?: string
+  target_label?: string
+  triage_label?: string
+  answer?: string | null
+  notified_on?: string | null
+}
+
+export interface MySubscription {
+  feature_id: string
+  feature: MyWish['feature']
+  /** Seit dem letzten Öffnen benachrichtigt. */
+  unread?: boolean
+}
+
+export function fetchMyWishes(): Promise<{
+  requests: MyWish[]
+  unread: number
+  news?: WishNews[]
+  subscriptions?: MySubscription[]
+}> {
   return apiFetch('/pwa/features/requests/mine')
+}
+
+export function subscribeFeature(id: string): Promise<{ ok: boolean; subscribed: boolean }> {
+  return apiFetch(`/pwa/features/${id}/subscribe`, { method: 'POST', body: '{}' })
+}
+
+export function unsubscribeFeature(id: string): Promise<{ ok: boolean; subscribed: boolean }> {
+  return apiFetch(`/pwa/features/${id}/subscribe`, { method: 'DELETE' })
 }
 
 export function markWishesRead(): Promise<{ ok: boolean }> {

@@ -16,6 +16,8 @@ const api = {
   markWishesRead: vi.fn(),
   supportFeatureWish: vi.fn(),
   withdrawFeatureSupport: vi.fn(),
+  subscribeFeature: vi.fn(),
+  unsubscribeFeature: vi.fn(),
 }
 
 vi.mock('../api/featureRequests', async () => {
@@ -29,6 +31,8 @@ vi.mock('../api/featureRequests', async () => {
     markWishesRead: () => api.markWishesRead(),
     supportFeatureWish: (id: string, b: unknown) => api.supportFeatureWish(id, b),
     withdrawFeatureSupport: (id: string) => api.withdrawFeatureSupport(id),
+    subscribeFeature: (id: string) => api.subscribeFeature(id),
+    unsubscribeFeature: (id: string) => api.unsubscribeFeature(id),
   }
 })
 
@@ -49,6 +53,9 @@ beforeEach(() => {
   api.fetchTenantWishes.mockResolvedValue({ requests: [] })
   api.markWishesRead.mockResolvedValue({ ok: true })
   api.supportFeatureWish.mockResolvedValue({ ok: true, already: false })
+  api.withdrawFeatureSupport.mockResolvedValue({ ok: true, removed: 1 })
+  api.subscribeFeature.mockResolvedValue({ ok: true, subscribed: true })
+  api.unsubscribeFeature.mockResolvedValue({ ok: true, subscribed: false })
   api.fetchRoadmapFeature.mockResolvedValue({
     ...CARD, description: 'Positionen als Vorlage', history: [
       { art: 'phase', on: '2026-08-12', phase: 'pruefung' },
@@ -84,8 +91,61 @@ describe('Roadmap', () => {
     expect(within(sheet).queryByText(/\d{1,2}:\d{2}/)).toBeNull()
     expect(within(sheet).getByText(/Anna/)).toBeTruthy()
     expect(within(sheet).getByText(/\+ 3 weitere Betriebe/)).toBeTruthy()
-    fireEvent.click(within(sheet).getByRole('button', { name: 'Brauchen wir auch' }))
+    fireEvent.change(within(sheet).getByPlaceholderText(/Wofür braucht ihr das/), { target: { value: 'Für Bäder' } })
+    fireEvent.click(within(sheet).getByRole('button', { name: '👍 Brauchen wir auch' }))
+    await waitFor(() => expect(api.supportFeatureWish).toHaveBeenCalledWith(
+      'f-1', { text: 'Für Bäder', app_context: 'pwa' }))
+  })
+
+  it('Like direkt auf der Karte — mit Zahl, ohne das Detail zu öffnen', async () => {
+    render(<Roadmap userId="u-1" role="user" appContext="pwa" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Gefällt mir (5)' }))
     await waitFor(() => expect(api.supportFeatureWish).toHaveBeenCalledWith('f-1', { app_context: 'pwa' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    // Danach wird das Board neu geladen.
+    await waitFor(() => expect(api.fetchRoadmap).toHaveBeenCalledTimes(2))
+  })
+
+  it('Like zurücknehmen', async () => {
+    api.fetchRoadmap.mockResolvedValue({ features: [{ ...CARD, mine: 'unterstuetzung' }] })
+    render(<Roadmap userId="u-1" role="user" appContext="pwa" />)
+    const like = await screen.findByRole('button', { name: /Gefällt mir \(5\) — zurücknehmen/ })
+    expect(like.getAttribute('aria-pressed')).toBe('true')
+    fireEvent.click(like)
+    await waitFor(() => expect(api.withdrawFeatureSupport).toHaveBeenCalledWith('f-1'))
+  })
+
+  it('Abonnieren und Abo beenden auf der Karte', async () => {
+    api.fetchRoadmap
+      .mockResolvedValueOnce({ features: [CARD] })
+      .mockResolvedValue({ features: [{ ...CARD, subscribed: true }] })
+    render(<Roadmap userId="u-1" role="user" appContext="pwa" />)
+    fireEvent.click(await screen.findByRole('button', { name: '🔔 Abonnieren' }))
+    await waitFor(() => expect(api.subscribeFeature).toHaveBeenCalledWith('f-1'))
+    fireEvent.click(await screen.findByRole('button', { name: '🔔 Abonniert' }))
+    await waitFor(() => expect(api.unsubscribeFeature).toHaveBeenCalledWith('f-1'))
+  })
+
+  it('eigene Anfrage: Like und Abo stehen gedrückt und gesperrt', async () => {
+    api.fetchRoadmap.mockResolvedValue({ features: [{ ...CARD, mine: 'anfrage', notified_anyway: true }] })
+    render(<Roadmap userId="u-1" role="user" appContext="pwa" />)
+    const abo = await screen.findByRole('button', { name: 'Du wirst benachrichtigt' })
+    expect((abo as HTMLButtonElement).disabled).toBe(true)
+    expect(abo.getAttribute('aria-pressed')).toBe('true')
+    expect((screen.getByRole('button', { name: /Gefällt mir/ }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('«Meine Wünsche» zeigt abonnierte Features mit «Abo beenden»', async () => {
+    api.fetchMyWishes.mockResolvedValue({
+      requests: [], unread: 0,
+      subscriptions: [{ feature_id: 'f-1', feature: { id: 'f-1', reference: 'WF-12', title: 'Offerten als Vorlage speichern',
+                                                    phase: 'geplant', phase_label: 'Geplant', target_label: 'Q4 2026' } }],
+    })
+    render(<Roadmap userId="u-1" role="user" appContext="pwa" />)
+    fireEvent.click(await screen.findByRole('tab', { name: /Meine Wünsche/ }))
+    expect(await screen.findByText('Abonniert')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Abo beenden' }))
+    await waitFor(() => expect(api.unsubscribeFeature).toHaveBeenCalledWith('f-1'))
   })
 
   it('Punkt «geändert» nur nach einem früheren Besuch', async () => {
