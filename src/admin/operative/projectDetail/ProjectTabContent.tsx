@@ -72,7 +72,7 @@ export function ProjectTabContent({
   useAcceptedQuote: boolean
   onUseAcceptedQuoteChange: (v: boolean) => void
   defaultInvoiceEmail: string
-  /** Feature «allgemeine_abzuege» (Beta); null = kein Häkchen im Generieren-Dialog. */
+  /** Feature «allgemeine_abzuege»; null = kein Häkchen im Generieren-Dialog. */
   allgAbzuege?: GeneralDeductionConfig | null
   currentUserId: string | null
   onShowQuoteForm: () => void

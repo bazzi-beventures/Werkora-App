@@ -84,6 +84,9 @@ interface ProjectsScreenProps {
   // Reiter, auf dem die Maske aufgehen soll (Deep-Link aus einer Info-Mail:
   // «Rapport eingereicht» → 'reports'). Gilt nur fuer den Sprung oben.
   openProjectTab?: ProjectTab
+  // Sprung aus der Projektmaske auf die Kundenstammseite (WW-9). Läuft über
+  // AdminApp, weil er den Screen wechselt — samt Verlassen-Abfrage.
+  onOpenCustomer?: (customerId: string) => void
 }
 
 const PAGE_SIZE = 50
@@ -170,7 +173,7 @@ function formatDay(iso: string): string {
 }
 
 export default function ProjectsScreen({
-  openNew, onConsumedNew, openProjectId, onConsumedProjectId, openProjectTab,
+  openNew, onConsumedNew, openProjectId, onConsumedProjectId, openProjectTab, onOpenCustomer,
 }: ProjectsScreenProps = {}) {
   const { state, patch, reset } = useListState<ProjectsListState>('admin-projects', DEFAULT_STATE, reviveState)
   const {
@@ -551,6 +554,7 @@ export default function ProjectsScreen({
             .then(p => { setInitialTab(null); setShowNew(false); setSelected(p) })
             .catch(() => {})
         }}
+        onOpenCustomer={onOpenCustomer}
       />
     )
   }

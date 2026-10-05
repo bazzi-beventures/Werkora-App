@@ -52,7 +52,7 @@ export interface GenerateInvoiceInput {
   // Weglassen = automatische Auflösung wie bisher; das Backend validiert die
   // Auswahl hart (409 statt stiller Korrektur).
   quote_ids?: number[]
-  // «Allg. Abzüge» (Feature allgemeine_abzuege, Beta): Prozentsatz und Basis.
+  // «Allg. Abzüge» (Feature allgemeine_abzuege): Prozentsatz und Basis.
   // Weglassen = kein Abzug. Gesetzt ohne Freischaltung antwortet das Backend 403.
   general_deduction_pct?: number
   general_deduction_sections?: GeneralDeductionSection[]

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getCustomerProjects } from '../../api/admin/customers'
 import type { CustomerProject } from '../../api/admin/customers'
 import { fmtDate } from '../utils/format'
+import { isPlainClick } from '../components/CustomerLink'
 
 // Projekte auf der Kundenstammseite (Feature-Anfrage WF-3).
 //
@@ -27,10 +28,6 @@ export function sortCustomerProjects(rows: CustomerProject[]): CustomerProject[]
     .map((p, i) => ({ p, i }))
     .sort((a, b) => rank(a.p) - rank(b.p) || a.i - b.i)
     .map(x => x.p)
-}
-
-function isPlainClick(e: React.MouseEvent): boolean {
-  return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey
 }
 
 export function CustomerProjects({

@@ -1,10 +1,9 @@
 // «Allg. Abzüge» im Rechnung-Erstellen-Dialog (Projektdetail UND Rechnungen-Screen),
-// Feature allgemeine_abzuege (Beta). Ein Häkchen; ist es gesetzt, erscheinen der
+// Feature allgemeine_abzuege. Ein Häkchen; ist es gesetzt, erscheinen der
 // Prozentsatz und die Basis (Arbeitszeit, Material inkl. weitere Produkte,
 // Fahrtkosten). Die Logik (Vorbelegung, Validierung, Payload) liegt in
 // utils/generalDeduction.ts, hier ist nur die Darstellung.
 
-import { BetaBadge } from '../../shared/BetaBadge'
 import {
   GENERAL_DEDUCTION_SECTIONS,
   generalDeductionError,
@@ -41,7 +40,6 @@ export function GeneralDeductionFields({ label, value, onChange, disabled, idPre
           onChange={e => onChange({ ...value, enabled: e.target.checked })}
         />
         <span style={{ fontWeight: 600 }}>{label}</span>
-        <BetaBadge />
       </label>
       {value.enabled && (
         <div style={{ margin: '8px 0 0 24px' }}>

@@ -35,6 +35,8 @@ function setup(over: {
   repairProjects?: RepairProjectRef[]
   repairCase?: RepairCaseRef | null
   onOpenProject?: (id: string) => void
+  customer?: { id: string; name: string } | null
+  onOpenCustomer?: (id: string) => void
 } = {}) {
   render(
     <ProjectDetailHeader
@@ -49,6 +51,8 @@ function setup(over: {
       repairProjects={over.repairProjects ?? []}
       repairCase={over.repairCase ?? null}
       onOpenProject={over.onOpenProject ?? vi.fn()}
+      customer={over.customer ?? null}
+      onOpenCustomer={over.onOpenCustomer}
       onBack={vi.fn()}
     />,
   )
@@ -119,5 +123,46 @@ describe('Rueckverweise', () => {
   it('ohne Nacharbeiten keine leere Zeile', () => {
     setup()
     expect(screen.queryByText(/Nacharbeiten/)).toBeNull()
+  })
+})
+
+// Feature-Anfrage WW-9: vom Projekt auf die Kundenstammseite (Gegenstück zu
+// WF-3, docs/specs/kunden-projekte-verlinkung.md §5).
+describe('Kundenname im Projektkopf', () => {
+  const kunde = { id: 'c-meier', name: 'Hans Meier' }
+
+  it('ist ein echter Link auf die Kundenstammseite', () => {
+    setup({ customer: kunde, onOpenCustomer: vi.fn() })
+    const link = screen.getByRole('link', { name: 'Hans Meier' })
+    expect(link.getAttribute('href')).toBe('#/admin/customers/c-meier')
+  })
+
+  it('springt beim normalen Klick in der App', () => {
+    const onOpenCustomer = vi.fn()
+    setup({ customer: kunde, onOpenCustomer })
+    const ok = fireEvent.click(screen.getByRole('link', { name: 'Hans Meier' }))
+    expect(onOpenCustomer).toHaveBeenCalledWith('c-meier')
+    // preventDefault: sonst setzte der Browser zusätzlich den Hash.
+    expect(ok).toBe(false)
+  })
+
+  it('überlässt Ctrl-/Cmd-Klick dem Browser (neuer Tab, Projekt bleibt offen)', () => {
+    const onOpenCustomer = vi.fn()
+    setup({ customer: kunde, onOpenCustomer })
+    const link = screen.getByRole('link', { name: 'Hans Meier' })
+    expect(fireEvent.click(link, { ctrlKey: true })).toBe(true)
+    expect(fireEvent.click(link, { metaKey: true })).toBe(true)
+    expect(onOpenCustomer).not.toHaveBeenCalled()
+  })
+
+  it('ohne Sprungziel bleibt der Name reiner Text', () => {
+    setup({ customer: kunde })
+    expect(screen.getByText('Hans Meier')).toBeTruthy()
+    expect(screen.queryByRole('link', { name: 'Hans Meier' })).toBeNull()
+  })
+
+  it('ohne Kunden keine Kunden-Angabe', () => {
+    setup({ onOpenCustomer: vi.fn() })
+    expect(screen.queryByText(/^Kunde/)).toBeNull()
   })
 })

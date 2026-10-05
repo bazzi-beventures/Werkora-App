@@ -71,6 +71,13 @@ interface Props {
    */
   onOpenProject?: (id: string) => void
   /**
+   * Sprung auf die Kundenstammseite (Feature-Anfrage WW-9) — z. B. um eine
+   * fehlende E-Mail nachzutragen. Wechselt den Screen über AdminApp
+   * (`guardedNav`); die Verlassen-Abfrage kommt dort aus dem
+   * `useUnsavedChangesGuard` unten, wie bei einem Klick in die Sidebar.
+   */
+  onOpenCustomer?: (customerId: string) => void
+  /**
    * Reiter, auf dem die Maske aufgeht. Nur beim Direktsprung gesetzt (Button in
    * einer Info-Mail, siehe shared/deepLink.ts) — gelesen wird er ausschliesslich
    * beim Mount, wie `project` auch.
@@ -79,7 +86,7 @@ interface Props {
 }
 
 export default function ProjectDetailScreen({
-  project, onClose, onSaved, onOpenProject, initialTab, onProjectUpdated,
+  project, onClose, onSaved, onOpenProject, onOpenCustomer, initialTab, onProjectUpdated,
 }: Props) {
   const isNew = !project
 
@@ -544,6 +551,10 @@ export default function ProjectDetailScreen({
         // Ueber `requestOpenProject`, nicht direkt: der Sprung baut die Maske
         // neu auf und muss durch dieselbe Verlassen-Abfrage wie der Zurueck-Pfeil.
         onOpenProject={onOpenProject ? requestOpenProject : undefined}
+        // Der Kunde aus der Maske, nicht `project.customer`: nach einem
+        // Kundenwechsel (selbst speichernde Maske) trüge das Embed noch den alten.
+        customer={form.selectedCustomer}
+        onOpenCustomer={onOpenCustomer}
         onBack={requestClose}
       />
 
@@ -578,6 +589,7 @@ export default function ProjectDetailScreen({
           onCancel={requestClose}
           autosave={autosaveOn ? autosave : null}
           onCreateCustomerFromKontakt={autosaveOn ? k => setKontaktCustomer(k) : undefined}
+          onOpenCustomer={onOpenCustomer}
         />
       )}
 

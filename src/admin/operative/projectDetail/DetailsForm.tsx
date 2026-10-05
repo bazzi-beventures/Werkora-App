@@ -12,6 +12,7 @@ import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
 import type { Kontakt } from '../../../api/admin/projects'
 import { BetaBadge } from '../../../shared/BetaBadge'
 import type { ProjectAutosave } from './useProjectAutosave'
+import { CustomerLink } from '../../components/CustomerLink'
 
 // Der Reiter «Projekt Details» (Charge H, H3) — die eigentliche Projektmaske.
 // Reines JSX: jeder Wert und jeder Setter kommt aus useProjectForm, damit hier
@@ -26,7 +27,7 @@ export interface StaffMember {
 
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
-  autosave, onCreateCustomerFromKontakt,
+  autosave, onCreateCustomerFromKontakt, onOpenCustomer,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -54,6 +55,8 @@ export function DetailsForm({
   autosave?: ProjectAutosave | null
   /** §3.8 — öffnet den Dialog «als Kunde anlegen» für genau diese Zeile. */
   onCreateCustomerFromKontakt?: (k: Kontakt) => void
+  /** Sprung auf die Kundenstammseite des gewählten Kunden (WW-9). */
+  onOpenCustomer?: (customerId: string) => void
 }) {
   // Verbatim aus dem Screen uebernommen: die Felder heissen hier wie dort, damit
   // der Umzug am JSX nichts geaendert hat und im Diff nachvollziehbar bleibt.
@@ -205,7 +208,16 @@ export function DetailsForm({
             <div className="admin-section-title">Kunde & Adressen</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div className="admin-form-group">
-                <label className="admin-form-label">Kunde (Rechnungsempfänger)</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                  <label className="admin-form-label">Kunde (Rechnungsempfänger)</label>
+                  {/* Das Feld selbst ist eine Suche — ein Klick darauf öffnet die
+                      Vorschlagsliste. Der Weg in den Kundenstamm steht deshalb daneben. */}
+                  {selectedCustomer && onOpenCustomer && (
+                    <CustomerLink customerId={selectedCustomer.id} onOpen={onOpenCustomer} style={{ fontSize: 12 }}>
+                      Im Kundenstamm öffnen →
+                    </CustomerLink>
+                  )}
+                </div>
                 <CustomerCombobox
                   customers={customers}
                   value={customerId}

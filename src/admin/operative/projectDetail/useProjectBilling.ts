@@ -290,7 +290,7 @@ export function useProjectBilling(
         // JEDER Rechnung aus dem Projektdetail, während der Rechnungen-Screen (mit
         // Textarea) ihn immer zeigte.
         remark,
-        // Allg. Abzüge (Beta): leer, solange das Häkchen aus ist.
+        // Allg. Abzüge: leer, solange das Häkchen aus ist.
         ...deduction,
       })
       cb.onToast(

@@ -259,6 +259,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           openProjectId={detailId && detailId !== 'new' ? detailId : undefined}
           openProjectTab={deepLinkTab ?? undefined}
           onConsumedProjectId={() => { clearDetail(); setDeepLinkTab(null) }}
+          onOpenCustomer={id => guardedNav('customers', id)}
         />
       )
       case 'project-drafts': return <ProjectDraftsScreen user={user} onBadgeChange={loadDashboard} />

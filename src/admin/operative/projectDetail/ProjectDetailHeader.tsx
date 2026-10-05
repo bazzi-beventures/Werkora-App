@@ -3,6 +3,7 @@ import { ProjectStatus, PROJECT_STATUS_LABELS, PROJECT_STATUS_BADGE } from '../.
 import { fmtDate } from '../../utils/format'
 import type { Project, RepairCaseRef, RepairProjectRef, WarrantyInfo } from '../../../api/admin/projects'
 import { parseIsoDate, warrantyBadge } from '../../../shared/warranty'
+import { CustomerLink } from '../../components/CustomerLink'
 
 // Kopfzeile des Projekt-Details (Charge H, H3): Name, Projektnummer, Status und
 // — falls das Feature laeuft — der Beschaffungsschritt. Der klebt bewusst oben
@@ -23,7 +24,7 @@ const BADGE_CLASS: Record<'ok' | 'warn' | 'muted', string> = {
 
 export function ProjectDetailHeader({
   project, isNew, status, beschaffungSteps, beschaffung, beschaffungAt, beschaffungSource,
-  warranty, repairProjects, repairCase = null, onOpenProject, onBack,
+  warranty, repairProjects, repairCase = null, onOpenProject, customer = null, onOpenCustomer, onBack,
 }: {
   project: Project | null
   isNew: boolean
@@ -42,6 +43,9 @@ export function ProjectDetailHeader({
   repairCase?: RepairCaseRef | null
   /** Sprung in ein anderes Projekt (Referenz oder Nacharbeit). */
   onOpenProject?: (id: string) => void
+  /** Kunde (Rechnungsempfänger) des Projekts — sein Name verlinkt auf den Kundenstamm (WW-9). */
+  customer?: { id: string; name: string } | null
+  onOpenCustomer?: (customerId: string) => void
   onBack: () => void
 }) {
   // `parseIsoDate` und nicht `new Date(...)`: der Server schickt 'YYYY-MM-DD',
@@ -76,6 +80,17 @@ export function ProjectDetailHeader({
                 {project?.project_id_text && (
                   <span style={{ fontSize: 12, color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
                     Projekt-Nr. {project.project_id_text}
+                  </span>
+                )}
+                {/* Der Kundenname führt auf die Kundenstammseite (WW-9) — im Kopf,
+                    weil er aus jedem Reiter erreichbar sein soll, nicht nur aus
+                    «Projekt Details». */}
+                {customer && (
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    Kunde{' '}
+                    <CustomerLink customerId={customer.id} onOpen={onOpenCustomer}>
+                      {customer.name}
+                    </CustomerLink>
                   </span>
                 )}
                 <span className={`admin-badge ${PROJECT_STATUS_BADGE[status]}`} style={{ fontSize: 12 }}>

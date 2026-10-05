@@ -22,7 +22,7 @@ interface InvoicesTabProps {
   generatingInvoice: boolean
   defaultEmail: string
   hasSignedReport: boolean
-  // Feature «allgemeine_abzuege» (Beta): null = kein Häkchen im Dialog.
+  // Feature «allgemeine_abzuege»: null = kein Häkchen im Dialog.
   generalDeduction?: GeneralDeductionConfig | null
   onUseAcceptedQuoteChange: (v: boolean) => void
   // Erzeugt die Rechnung; `remark` ist die Bemerkung fuers PDF (leer = kein Block),

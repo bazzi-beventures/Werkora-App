@@ -1,4 +1,4 @@
-// «Allg. Abzüge» im Rechnung-Erstellen-Dialog (Feature allgemeine_abzuege, Beta):
+// «Allg. Abzüge» im Rechnung-Erstellen-Dialog (Feature allgemeine_abzuege):
 // reine Logik, getrennt von der UI (GeneralDeductionFields) — Geld-nahe Regeln
 // gehören unit-getestet (generalDeduction.test.ts), nicht in JSX.
 // Spec: docs/specs/allgemeine-abzuege.md

@@ -80,7 +80,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [freieKunden, setFreieKunden] = useState<Customer[]>([])
   const [freierDialog, setFreierDialog] = useState(false)
   const freieRechnung = isFeatureEnabled(me, 'freie_rechnung')
-  // «Allg. Abzüge» (Beta): null = Feature für dieses Konto aus, dann kein Häkchen.
+  // «Allg. Abzüge»: null = Feature beim Mandanten aus, dann kein Häkchen.
   const abzugCfg = isFeatureEnabled(me, 'allgemeine_abzuege')
     ? getFeature<GeneralDeductionConfig>(me, 'allgemeine_abzuege')
     : null

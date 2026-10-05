@@ -63,7 +63,7 @@ export interface ProjectFeatures {
    */
   autosave: boolean
   /**
-   * Feature «allgemeine_abzuege» (Beta): Häkchen «Allg. Abzüge» im Dialog
+   * Feature «allgemeine_abzuege»: Häkchen «Allg. Abzüge» im Dialog
    * «Rechnung generieren». null = aus; sonst die Vorbelegung des Mandanten.
    */
   allgAbzuege: GeneralDeductionConfig | null
