@@ -73,6 +73,7 @@ export default function StaffScreen({ onNav, actingRole }: Props) {
     return (
       <StaffDetailScreen
         member={selected}
+        actingRole={actingRole}
         onClose={() => setSelected(null)}
         onSaved={() => { setSelected(null); load() }}
       />

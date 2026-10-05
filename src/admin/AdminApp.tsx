@@ -43,6 +43,7 @@ import { trackNav } from '../shared/breadcrumbs'
 import { takeCustomerDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
+import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
 import './tokens.css'
 import './admin.css'
@@ -188,7 +189,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     tasks: dashboard?.my_open_tasks ?? 0,
   }
 
-  const isManagement = user.role === 'management' || user.role === 'superadmin'
+  const isManagement = isManagementRole(user.role)
+  const mayViewKpis = hasKpiAccess(user.role)
 
   const enabledModules = user.enabled_modules ?? []
   const guard = (mod: Parameters<typeof RequireModule>[0]['module'], el: JSX.Element) => (
@@ -215,7 +217,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     // 'users' fehlt hier bewusst: die Benutzerverwaltung steht auch dem Admin offen
     // (Mitarbeiter anlegen, Passwort/PIN setzen). Was er dort darf, regelt die
     // Rollen-Matrix im Backend (agents/routers/admin_users.py) und UsersScreen.
-    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'kpis' || screen === 'bulk-clockin' || screen === 'document-backup' || screen === 'settings') && !isManagement) {
+    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'bulk-clockin' || screen === 'document-backup' || screen === 'settings') && !isManagement) {
+      return <ComingSoon title="Kein Zugriff" />
+    }
+    if (screen === 'kpis' && !mayViewKpis) {
       return <ComingSoon title="Kein Zugriff" />
     }
     switch (screen) {

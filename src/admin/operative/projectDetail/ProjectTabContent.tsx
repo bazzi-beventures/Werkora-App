@@ -17,6 +17,7 @@ import type { UseProjectApprovals } from './useProjectApprovals'
 import type { UseProjectBilling } from './useProjectBilling'
 import type { UseProjectDocuments } from './useProjectDocuments'
 import type { UseProjectTasks } from './useProjectTasks'
+import type { GeneralDeductionConfig, GeneralDeductionPayload } from '../../utils/generalDeduction'
 
 // Welcher Reiter was zeigt (Charge H, H3) — ohne den Detail-Reiter, der als
 // eigene Maske in DetailsForm liegt.
@@ -33,7 +34,7 @@ export function ProjectTabContent({
   quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
   verlaufEnabled, warrantyEnabled, warranty, onToast, onOpenProject,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
-  currentUserId,
+  allgAbzuege, currentUserId,
   onShowQuoteForm, onShowReportForm, onAddNextEinsatz, onEditReport, onEditQuote,
   onSendQuote, onSendThankyou, onSendOrderConfirmation, onGenerateInvoice, onShowApprovalForm,
   status, settingStatus, reopening, onStatusAction,
@@ -71,6 +72,8 @@ export function ProjectTabContent({
   useAcceptedQuote: boolean
   onUseAcceptedQuoteChange: (v: boolean) => void
   defaultInvoiceEmail: string
+  /** Feature «allgemeine_abzuege» (Beta); null = kein Häkchen im Generieren-Dialog. */
+  allgAbzuege?: GeneralDeductionConfig | null
   currentUserId: string | null
   onShowQuoteForm: () => void
   onShowReportForm: () => void
@@ -83,7 +86,9 @@ export function ProjectTabContent({
   onSendQuote: (q: ProjectQuote) => void
   onSendThankyou: (q: ProjectQuote) => void
   onSendOrderConfirmation: (q: ProjectQuote) => void
-  onGenerateInvoice: (remark: string, quoteIds?: number[]) => Promise<boolean>
+  onGenerateInvoice: (
+    remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
+  ) => Promise<boolean>
   onShowApprovalForm: () => void
   status: ProjectStatus
   settingStatus: boolean
@@ -180,6 +185,7 @@ export function ProjectTabContent({
           generatingInvoice={billing.generatingInvoice}
           defaultEmail={defaultInvoiceEmail}
           hasSignedReport={hasBillableReport(billing.reports)}
+          generalDeduction={allgAbzuege ?? null}
           onUseAcceptedQuoteChange={onUseAcceptedQuoteChange}
           onGenerateInvoice={onGenerateInvoice}
           loadQuoteCoverage={billing.loadQuoteCoverage}

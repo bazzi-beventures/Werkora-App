@@ -18,6 +18,7 @@ import {
 import type { ProjectInvoice, ProjectQuote, ProjectReport } from './types'
 import { hasBillableReport } from './billingRules'
 import { invoiceWarningHint, sammelrechnungHint } from '../../utils/invoiceHints'
+import type { GeneralDeductionPayload } from '../../utils/generalDeduction'
 
 // Belege eines Projekts (Charge H, H3): Offerten, Rechnungen, Rapporte — Listen
 // und die Aktionen darauf. Der grösste Block des Projekt-Details und der einzige,
@@ -55,7 +56,10 @@ export interface UseProjectBilling {
   sendRejection: (quoteId: number) => Promise<void>
   /** Offerte ohne E-Mail als versendet erfassen (Postversand). false = Backend hat abgelehnt. */
   markQuoteSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
-  generate: (remark: string, useAcceptedQuote: boolean, quoteIds?: number[]) => Promise<boolean>
+  generate: (
+    remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
+    deduction?: GeneralDeductionPayload,
+  ) => Promise<boolean>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
   loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
   markPaid: (invoiceId: number, paidDate: string) => Promise<boolean>
@@ -261,7 +265,10 @@ export function useProjectBilling(
     }
   }
 
-  async function generate(remark: string, useAcceptedQuote: boolean, quoteIds?: number[]): Promise<boolean> {
+  async function generate(
+    remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
+    deduction?: GeneralDeductionPayload,
+  ): Promise<boolean> {
     if (!project) return false
     // Fehlt ein verrechenbarer Rapport (unterschrieben ODER manuell erfasst,
     // siehe hasBillableReport), wird zwingend aus der Offerte gerechnet — das
@@ -283,6 +290,8 @@ export function useProjectBilling(
         // JEDER Rechnung aus dem Projektdetail, während der Rechnungen-Screen (mit
         // Textarea) ihn immer zeigte.
         remark,
+        // Allg. Abzüge (Beta): leer, solange das Häkchen aus ist.
+        ...deduction,
       })
       cb.onToast(
         'Rechnung erstellt'

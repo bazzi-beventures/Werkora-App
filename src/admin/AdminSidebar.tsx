@@ -1,6 +1,7 @@
 import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
 import { ModuleName } from '../api/modules'
+import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import {
   IconDashboard, IconUsers, IconCalendar, IconClock, IconDocument, IconBox,
   IconFolder, IconReceipt, IconCash, IconTag, IconKey, IconChart,
@@ -53,7 +54,8 @@ function NavItem({ label, target, current, onNav, badge, icon }: NavItemProps) {
 
 export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, badges }: Props) {
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  const isManagement = role === 'management' || role === 'superadmin'
+  const isManagement = isManagementRole(role)
+  const mayViewKpis = hasKpiAccess(role)
   const has = (m: ModuleName) => enabledModules.includes(m)
 
   async function handleLogout() {
@@ -140,7 +142,7 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
           <NavItem label="Vorlagen" target="quote-templates" current={screen} onNav={onNav} icon={<IconReceipt />} />
         )}
 
-        {isManagement && has('kpis') && (
+        {mayViewKpis && has('kpis') && (
           <>
             <div className="admin-nav-group-label">Analyse</div>
             <NavItem label="Kennzahlen" target="kpis" current={screen} onNav={onNav} icon={<IconChart />} />

@@ -52,7 +52,14 @@ export interface GenerateInvoiceInput {
   // Weglassen = automatische Auflösung wie bisher; das Backend validiert die
   // Auswahl hart (409 statt stiller Korrektur).
   quote_ids?: number[]
+  // «Allg. Abzüge» (Feature allgemeine_abzuege, Beta): Prozentsatz und Basis.
+  // Weglassen = kein Abzug. Gesetzt ohne Freischaltung antwortet das Backend 403.
+  general_deduction_pct?: number
+  general_deduction_sections?: GeneralDeductionSection[]
 }
+
+/** Basis der Allg. Abzüge; `material` umfasst die weiteren Produkte. */
+export type GeneralDeductionSection = 'labor' | 'material' | 'travel'
 
 export interface GenerateInvoiceResult {
   invoice_number: string
@@ -60,6 +67,8 @@ export interface GenerateInvoiceResult {
   // Sammelrechnung: bei mehreren angenommenen Offerten eines Projekts deckt EINE
   // Rechnung alle noch unverrechneten ab — hier stehen deren Nummern.
   quote_numbers?: string[]
+  // Allg. Abzüge: abgezogener Betrag (netto) oder null.
+  general_deduction_amount?: number | null
   // Hinweise, die den Erfolg nicht in Frage stellen (z.B. ein Rapport ohne Preis).
   warnings?: unknown
 }

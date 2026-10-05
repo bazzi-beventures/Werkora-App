@@ -13,6 +13,7 @@
  */
 import type { UserInfo } from '../api/auth'
 import { hasModule, type ModuleName } from '../api/modules'
+import { hasKpiAccess, isManagementRole } from './roles'
 
 export type HelpApp = 'admin' | 'pwa'
 
@@ -21,6 +22,8 @@ export interface HelpTarget {
   screen: string
   module?: ModuleName
   managementOnly?: boolean
+  /** Kennzahlen: Management, Superadmin und Manager light. */
+  kpiOnly?: boolean
   /** Für Rolle user_light gesperrt (Monteur-App). */
   noLight?: boolean
 }
@@ -52,7 +55,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'admin', screen: 'staff-roles', managementOnly: true },
   { app: 'admin', screen: 'pricing-rules', managementOnly: true },
   { app: 'admin', screen: 'quote-templates', module: 'quotes', managementOnly: true },
-  { app: 'admin', screen: 'kpis', module: 'kpis', managementOnly: true },
+  { app: 'admin', screen: 'kpis', module: 'kpis', kpiOnly: true },
   { app: 'admin', screen: 'users' },
   { app: 'admin', screen: 'roadmap', module: 'feature_requests' },
   { app: 'admin', screen: 'document-backup', module: 'document_backup', managementOnly: true },
@@ -75,7 +78,8 @@ export function targetAllowed(t: HelpTarget, user: UserInfo | null): boolean {
   if (!user) return false
   const role = (user.role || '').toLowerCase()
   if (t.module && !hasModule(user, t.module)) return false
-  if (t.managementOnly && role !== 'management' && role !== 'superadmin') return false
+  if (t.managementOnly && !isManagementRole(role)) return false
+  if (t.kpiOnly && !hasKpiAccess(role)) return false
   if (t.noLight && role === 'user_light') return false
   return true
 }

@@ -19,12 +19,17 @@ import { AdminCardList } from '../components/AdminCardList'
 import { AutoGrowTextarea } from '../components/AutoGrowTextarea'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { QuoteCoverageSelect } from '../components/QuoteCoverageSelect'
+import { GeneralDeductionFields } from '../components/GeneralDeductionFields'
 import { defaultCheckedIds, selectionPayload, showQuoteSelection } from '../utils/quoteSelection'
+import {
+  generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
+  type GeneralDeductionConfig, type GeneralDeductionState,
+} from '../utils/generalDeduction'
 import { useIsMobile } from '../useIsMobile'
 import { isInvoiceOpen, openInvoicesHint } from '../utils/openInvoices'
 import type { AdminScreen } from '../useAdminNav'
 import { useToast, ToastHost } from '../components/useToast'
-import { isFeatureEnabled } from '../../api/modules'
+import { getFeature, isFeatureEnabled } from '../../api/modules'
 import { getMe, type UserInfo } from '../../api/auth'
 import { getAllCustomers } from '../../api/admin/customers'
 import type { Customer } from '../../api/admin/customers'
@@ -75,6 +80,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [freieKunden, setFreieKunden] = useState<Customer[]>([])
   const [freierDialog, setFreierDialog] = useState(false)
   const freieRechnung = isFeatureEnabled(me, 'freie_rechnung')
+  // «Allg. Abzüge» (Beta): null = Feature für dieses Konto aus, dann kein Häkchen.
+  const abzugCfg = isFeatureEnabled(me, 'allgemeine_abzuege')
+    ? getFeature<GeneralDeductionConfig>(me, 'allgemeine_abzuege')
+    : null
 
   useEffect(() => {
     let weg = false
@@ -97,6 +106,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // Bemerkung auf der Rechnung (z.B. Referenz/Projekt-Nr. des Kunden) — reiner
   // Freitext, leer = kein Block auf dem PDF.
   const [genRemark, setGenRemark] = useState('')
+  const [genAbzug, setGenAbzug] = useState<GeneralDeductionState>(() => initialGeneralDeduction(null))
   // Offerten-Auswahl: null solange nicht geladen oder Laden gescheitert —
   // dann verhält sich der Dialog exakt wie bisher (Automatik).
   const [genCoverage, setGenCoverage] = useState<InvoiceQuoteCoverage | null>(null)
@@ -142,6 +152,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setHasAcceptedQuote(false)
     setGenWorkDesc('')
     setGenRemark('')
+    setGenAbzug(initialGeneralDeduction(abzugCfg))
     setShowGenerate(true)
   }
 
@@ -183,6 +194,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
         use_quote: genUseQuote,
         work_description: genWorkDesc,
         remark: genRemark,
+        ...(abzugCfg ? generalDeductionPayload(genAbzug) : {}),
         // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
         // sonst läuft die bewährte automatische Auflösung (selectionPayload).
         quote_ids: genCoverage && showQuoteSelection(genCoverage)
@@ -712,7 +724,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           busyLabel="Wird erstellt…"
           busy={generating}
           confirmDisabled={!genProject
-            || (showQuoteSelection(genCoverage) && genCheckedQuotes.length === 0)}
+            || (showQuoteSelection(genCoverage) && genCheckedQuotes.length === 0)
+            || (abzugCfg !== null && generalDeductionError(genAbzug) !== null)}
           maxWidth={440}
           // Arbeitsbeschrieb und Bemerkung wachsen mit dem Text — ohne Scrollen
           // schöben sie auf kleinen Bildschirmen die Knöpfe aus dem Bild.
@@ -790,6 +803,15 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                   Erscheint als eigener Block «Bemerkung» auf der Rechnung, über den Positionen.
                 </div>
               </div>
+            )}
+            {genProject && abzugCfg && (
+              <GeneralDeductionFields
+                idPrefix="gen"
+                label={abzugCfg.bezeichnung || 'Allg. Abzüge'}
+                value={genAbzug}
+                onChange={setGenAbzug}
+                disabled={generating}
+              />
             )}
         </ConfirmDialog>
       )}

@@ -9,8 +9,15 @@ describe('assignableRoles', () => {
     expect(assignableRoles('admin')).toEqual(['user_light', 'user'])
   })
 
-  it('lässt Management bis Admin vergeben', () => {
-    expect(assignableRoles('management')).toEqual(['user_light', 'user', 'admin'])
+  it('lässt Management bis Admin und Manager light vergeben', () => {
+    expect(assignableRoles('management')).toEqual(['user_light', 'user', 'admin', 'management_light'])
+  })
+
+  it('Manager light vergibt wie ein Admin, nicht die eigene Rolle', () => {
+    expect(assignableRoles('management_light')).toEqual(['user_light', 'user'])
+    expect(mayEditTarget('management_light', 'management_light')).toBe(false)
+    expect(mayEditTarget('admin', 'management_light')).toBe(false)
+    expect(mayEditTarget('management', 'management_light')).toBe(true)
   })
 
   it('gibt für unbekannte/fehlende Rollen nichts frei', () => {

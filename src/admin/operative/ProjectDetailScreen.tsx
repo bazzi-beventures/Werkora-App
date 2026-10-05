@@ -32,6 +32,7 @@ import { ProjectDetailHeader } from './projectDetail/ProjectDetailHeader'
 import { ProjectStatusDialog, ProjectStatusDialogs, ReopenReason } from './projectDetail/ProjectStatusDialogs'
 import { ProjectMaskDialogs } from './projectDetail/ProjectMaskDialogs'
 import { ProjectTabContent } from './projectDetail/ProjectTabContent'
+import type { GeneralDeductionPayload } from '../utils/generalDeduction'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { useUnsavedChangesGuard } from '../unsavedChanges'
 import { SCREEN_BACK_DEPTH, useScreenBack } from '../../shared/backButton'
@@ -256,8 +257,10 @@ export default function ProjectDetailScreen({
 
   // `useAcceptedQuote` ist die Checkbox der Rechnungs-Maske, kein Belegzustand —
   // deshalb bleibt sie im Screen und geht hier an den Hook.
-  function handleGenerateInvoice(remark: string, quoteIds?: number[]): Promise<boolean> {
-    return billing.generate(remark, useAcceptedQuote, quoteIds)
+  function handleGenerateInvoice(
+    remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
+  ): Promise<boolean> {
+    return billing.generate(remark, useAcceptedQuote, quoteIds, deduction)
   }
 
   // Abfrage offen, weil „Zurück"/„Abbrechen" bei ungespeicherten Änderungen gedrückt wurde.
@@ -605,6 +608,7 @@ export default function ProjectDetailScreen({
           useAcceptedQuote={useAcceptedQuote}
           onUseAcceptedQuoteChange={setUseAcceptedQuote}
           defaultInvoiceEmail={form.selectedCustomer?.email ?? project.customer?.email ?? ''}
+          allgAbzuege={features.allgAbzuege}
           currentUserId={features.currentUserId}
           onShowQuoteForm={() => setShowQuoteForm(true)}
           onShowReportForm={() => setShowReportForm(true)}

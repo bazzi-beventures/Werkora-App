@@ -27,6 +27,7 @@ import { PasswordDialog } from '../PasswordDialog'
 
 const ROLLE_LABEL: Record<string, string> = {
   superadmin: 'Superadmin',
+  management_light: 'Manager light',
   management: 'Geschäftsleitung',
   admin: 'Admin',
   user: 'Mitarbeiter',

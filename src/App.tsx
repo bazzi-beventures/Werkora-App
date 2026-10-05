@@ -34,6 +34,7 @@ import { applyTheme, loadTheme, useTheme } from './theme'
 import { clearDraft, loadDraft } from './chat/rapportDraft'
 import { confirmLeaveRapport, discardPrompt, planRapportStart } from './chat/rapportStart'
 import { cancelReport } from './api/chat'
+import { isAdminRole } from './shared/roles'
 
 // Vom Inline-Boot-Skript in index.html gesetzt (siehe vite.config.ts,
 // BOOT_BACK_GUARD). Optional, weil es im Vitest-DOM und in Dev-Sonderfällen
@@ -123,7 +124,7 @@ export function TenantLogo({ logoUrl }: { logoUrl: string }) {
 
 function nextScreenAfterLogin(u: UserInfo): Screen {
   if (u.consent_required) return 'consent'
-  if (u.role === 'admin' || u.role === 'management' || u.role === 'superadmin') return 'admin'
+  if (isAdminRole(u.role)) return 'admin'
   return 'home'
 }
 
@@ -634,7 +635,7 @@ export default function App() {
         onNavProjektEntwurf={() => go('projektEntwurf')}
         onNavProfile={() => go('profile')}
         onLoggedOut={goToAuth}
-        onSwitchToAdmin={(user.role === 'admin' || user.role === 'management' || user.role === 'superadmin') ? () => go('admin') : undefined}
+        onSwitchToAdmin={isAdminRole(user.role) ? () => go('admin') : undefined}
         inventur={user.inventur_offen ?? null}
         onNavInventur={() => go('inventur')}
       />

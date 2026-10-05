@@ -15,7 +15,13 @@ import DeckungsbeitragTab from './tabs/DeckungsbeitragTab'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { getMe } from '../../api/auth'
 import { hasModule } from '../../api/modules'
+import { isManagementRole } from '../../shared/roles'
 import './kpi-dashboard.css'
+
+// Manager light (`management_light`) sieht NUR diese Reiter. Spiegel von
+// agents/routers/kpi.py (Pipeline-Route + MANAGER_LIGHT_VIEWS = vw_kpi_projekt):
+// jeder andere Reiter liefe in ein 403.
+const MANAGER_LIGHT_TABS: ReadonlySet<string> = new Set(['pipeline', 'projekte'])
 
 type Tab = 'uebersicht' | 'pipeline' | 'projekte' | 'kunden' | 'finanzen' | 'deckungsbeitrag' | 'arbeitszeit' | 'material' | 'lieferanten' | 'pricing' | 'wartung' | 'garantie' | 'leistungsart'
 
@@ -39,18 +45,33 @@ const TABS: { id: Tab; label: string; color: string }[] = [
 ]
 
 export default function KpiScreen() {
-  const [activeTab, setActiveTab] = useState<Tab>('uebersicht')
-  const tabsRef = useTabStrip(activeTab)
+  const [activeTab, setActiveTab] = useState<Tab | null>(null)
+  const tabsRef = useTabStrip(activeTab ?? '')
   // /pwa/me filtert Module pro Konto (Beta-Häkchen): ohne «warranty» kein Tab —
   // die View antwortete ohnehin mit 403.
   const [showGarantie, setShowGarantie] = useState(false)
+  // Bis /pwa/me da ist, steht kein Reiter: sonst lüde «Übersicht» schon los und
+  // liefe für Manager light in ein 403, bevor die Rolle bekannt ist.
+  const [fullAccess, setFullAccess] = useState<boolean | null>(null)
   useEffect(() => {
-    getMe().then(me => setShowGarantie(hasModule(me, 'warranty'))).catch(() => {})
+    getMe().then(me => {
+      const voll = isManagementRole(me.role)
+      setShowGarantie(hasModule(me, 'warranty'))
+      setFullAccess(voll)
+      setActiveTab(voll ? 'uebersicht' : 'pipeline')
+    }).catch(() => {
+      // Ohne /pwa/me: wie bisher die volle Sicht — das Backend sperrt ohnehin.
+      setFullAccess(true)
+      setActiveTab('uebersicht')
+    })
   }, [])
-  const visible = TABS.filter(t => t.id !== 'garantie' || showGarantie)
+  const visible = fullAccess === null ? [] : TABS.filter(t =>
+    (t.id !== 'garantie' || showGarantie) && (fullAccess || MANAGER_LIGHT_TABS.has(t.id)),
+  )
 
   function renderTab() {
     switch (activeTab) {
+      case null:          return null
       case 'uebersicht':  return <UebersichtTab />
       case 'pipeline':    return <PipelineTab />
       case 'projekte':    return <ProjekteTab />

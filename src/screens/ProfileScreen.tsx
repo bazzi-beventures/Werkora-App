@@ -16,7 +16,7 @@ interface Props {
   onOpenRoadmap?: () => void
 }
 
-// Anzeigenamen der fünf Rollen (agents/routers/admin_users.py ALL_ROLES,
+// Anzeigenamen der sechs Rollen (agents/routers/admin_users.py ALL_ROLES,
 // Bedeutung in docs/Admin_Handbuch.md §12). Vorher fehlten drei davon und
 // 'manager' stand für eine Rolle, die es nie gab: `user_light`, `management` und
 // `superadmin` sahen im eigenen Profil den technischen Schlüssel.
@@ -24,6 +24,7 @@ const ROLE_LABELS: Record<string, string> = {
   user_light: 'Mitarbeiter (Zeiterfassung)',
   user: 'Mitarbeiter',
   admin: 'Administrator',
+  management_light: 'Manager light',
   management: 'Geschäftsleitung',
   superadmin: 'Superadmin',
 }

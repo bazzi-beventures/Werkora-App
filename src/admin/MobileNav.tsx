@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
 import { ModuleName } from '../api/modules'
+import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import {
   IconDashboard, IconFolder, IconClock, IconCash,
   IconUsers, IconAddressBook, IconReceipt, IconCalendar,
@@ -61,7 +62,8 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  const isManagement = role === 'management' || role === 'superadmin'
+  const isManagement = isManagementRole(role)
+  const mayViewKpis = hasKpiAccess(role)
   const has = (m: ModuleName) => enabledModules.includes(m)
   const isMoreActive = !PRIMARY_TABS.includes(screen)
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
@@ -256,7 +258,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     <IconReceipt /><span>Vorlagen</span>
                   </button>
                 )}
-                {isManagement && has('kpis') && (
+                {mayViewKpis && has('kpis') && (
                   <button className={`admin-mobile-drawer-item${screen === 'kpis' ? ' active' : ''}`} onClick={() => navigate('kpis')}>
                     <IconChart /><span>Kennzahlen</span>
                   </button>

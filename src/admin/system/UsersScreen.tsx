@@ -6,6 +6,7 @@ import NewPersonScreen from '../personal/NewPersonScreen'
 import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 import { mayEditTarget } from './userRoles'
+import { isAdminRole } from '../../shared/roles'
 import { consentBadge } from './consentStatus'
 import { BetaBadge } from '../../shared/BetaBadge'
 
@@ -130,7 +131,7 @@ export default function UsersScreen({ actingRole }: Props) {
               <>
                 <div className="admin-card-head">
                   <span className="admin-card-title">{u.display_name || '—'}</span>
-                  <span className={`admin-badge ${u.role === 'admin' || u.role === 'management' || u.role === 'superadmin' ? 'admin-badge-admin' : 'admin-badge-active'}`}>
+                  <span className={`admin-badge ${isAdminRole(u.role) ? 'admin-badge-admin' : 'admin-badge-active'}`}>
                     {u.role}
                   </span>
                 </div>
@@ -174,7 +175,7 @@ export default function UsersScreen({ actingRole }: Props) {
                   <td style={{ color: 'var(--muted)', fontFamily: 'var(--mono)' }}>{u.username || '—'}</td>
                   <td style={{ color: 'var(--muted)' }}>{u.email || '—'}</td>
                   <td>
-                    <span className={`admin-badge ${u.role === 'admin' || u.role === 'management' || u.role === 'superadmin' ? 'admin-badge-admin' : 'admin-badge-active'}`}>
+                    <span className={`admin-badge ${isAdminRole(u.role) ? 'admin-badge-admin' : 'admin-badge-active'}`}>
                       {u.role}
                     </span>
                   </td>

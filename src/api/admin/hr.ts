@@ -8,7 +8,7 @@ import { apiFetch } from '../client'
 // Rolle des Kontos hinter einem Mitarbeiter — steuert im Timesheet, ob die Zeile
 // zur Verwaltung gehört (ausblendbar). NICHT zu verwechseln mit `StaffRole` in
 // staff.ts, das ist der Funktionssatz (Stundenansatz).
-export type StaffRoleName = 'management' | 'superadmin' | 'admin' | 'user' | 'user_light' | null
+export type StaffRoleName = 'management' | 'management_light' | 'superadmin' | 'admin' | 'user' | 'user_light' | null
 
 export interface HrSession {
   id: string

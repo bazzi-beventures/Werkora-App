@@ -25,6 +25,7 @@ import {
 import MyWishes from './MyWishes'
 import { useMyWishes } from './useMyWishes'
 import { useOnline } from './useOnline'
+import { isAdminRole as isAdminRoleName } from './roles'
 import './wishes.css'
 
 /**
@@ -264,7 +265,7 @@ interface Props {
 }
 
 export default function Roadmap({ userId, role, appContext, initialFeatureId, compact = false }: Props) {
-  const isAdminRole = ['admin', 'management', 'superadmin'].includes(role)
+  const isAdminRole = isAdminRoleName(role)
   const [tab, setTab] = useState<Tab>('roadmap')
   const [cards, setCards] = useState<BoardCard[]>([])
   const [loading, setLoading] = useState(true)

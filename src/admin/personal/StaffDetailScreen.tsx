@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react'
 import { StaffMember, StaffRole, upsertStaff, getStaffRoles } from '../../api/admin'
+import { isManagementRole } from '../../shared/roles'
 
 interface Props {
   // Nur zum Bearbeiten. Angelegt wird über NewPersonScreen — dort gehören Konto,
   // Personaldaten und Zugang in eine Maske.
   member: StaffMember
+  // Rolle des eingeloggten Kontos: Stunden- und Monatslohn sieht nur die
+  // Geschäftsleitung (das Backend liefert sie den anderen gar nicht erst aus).
+  actingRole: string
   onClose: () => void
   onSaved: () => void
 }
 
-export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
+export default function StaffDetailScreen({ member, actingRole, onClose, onSaved }: Props) {
+  const showWages = isManagementRole(actingRole)
   const [name, setName] = useState(member.name)
   const [kuerzel, setKuerzel] = useState(member.kuerzel ?? '')
   const [funktion, setFunktion] = useState(member.funktion ?? '')
@@ -39,8 +44,9 @@ export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
         name: name.trim(),
         kuerzel: kuerzel || undefined,
         funktion: funktion || undefined,
-        hourly_rate: hourlyRate ? parseFloat(hourlyRate) : undefined,
-        monthly_salary: monthlySalary ? parseFloat(monthlySalary) : undefined,
+        // Ohne Lohn-Recht gar nicht mitschicken — das Backend lehnt es ab.
+        hourly_rate: showWages && hourlyRate ? parseFloat(hourlyRate) : undefined,
+        monthly_salary: showWages && monthlySalary ? parseFloat(monthlySalary) : undefined,
         rapportpflicht: rapportpflicht,
         projektleiter: projektleiter,
         vacation_days_per_year: vacationDays ? parseInt(vacationDays) : undefined,
@@ -136,6 +142,7 @@ export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
                   Beschäftigungsgrad. 100% = Vollzeit (Tenant-Soll). Bei 80% und 40h-Woche = 32h Soll (6.4h/Tag).
                 </div>
               </div>
+              {showWages && (
               <div className="admin-form-row">
                 <div className="admin-form-group">
                   <label className="admin-form-label">Stundenlohn (CHF)</label>
@@ -146,6 +153,7 @@ export default function StaffDetailScreen({ member, onClose, onSaved }: Props) {
                   <input className="admin-form-input" inputMode="decimal" value={monthlySalary} onChange={e => setMonthlySalary(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="5500.00" />
                 </div>
               </div>
+              )}
               <div className="admin-form-group">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <input

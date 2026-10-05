@@ -7,6 +7,11 @@ import { ActionRow } from '../../components/ActionRow'
 import { AutoGrowTextarea } from '../../components/AutoGrowTextarea'
 import { QuoteCoverageSelect } from '../../components/QuoteCoverageSelect'
 import { defaultCheckedIds, selectionPayload, showQuoteSelection } from '../../utils/quoteSelection'
+import { GeneralDeductionFields } from '../../components/GeneralDeductionFields'
+import {
+  generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
+  type GeneralDeductionConfig, type GeneralDeductionPayload, type GeneralDeductionState,
+} from '../../utils/generalDeduction'
 import type { InvoiceQuoteCoverage } from '../../../api/admin/invoices'
 import { groupByParent } from './types'
 import type { ProjectInvoice } from './types'
@@ -17,11 +22,16 @@ interface InvoicesTabProps {
   generatingInvoice: boolean
   defaultEmail: string
   hasSignedReport: boolean
+  // Feature «allgemeine_abzuege» (Beta): null = kein Häkchen im Dialog.
+  generalDeduction?: GeneralDeductionConfig | null
   onUseAcceptedQuoteChange: (v: boolean) => void
   // Erzeugt die Rechnung; `remark` ist die Bemerkung fuers PDF (leer = kein Block),
-  // `quoteIds` die explizite Offerten-Auswahl (undefined = Automatik wie bisher).
-  // Liefert true bei Erfolg — der Dialog schliesst nur dann.
-  onGenerateInvoice: (remark: string, quoteIds?: number[]) => Promise<boolean>
+  // `quoteIds` die explizite Offerten-Auswahl (undefined = Automatik wie bisher),
+  // `deduction` die Allg. Abzüge (leer = keine). Liefert true bei Erfolg — der
+  // Dialog schliesst nur dann.
+  onGenerateInvoice: (
+    remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
+  ) => Promise<boolean>
   // Offerten-Auswahl fuer den Erstellen-Dialog; null = keine Auswahl anzeigen
   // (Laden gescheitert oder nur eine Offerte) — der Dialog bleibt wie bisher.
   loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
@@ -37,7 +47,7 @@ interface InvoicesTabProps {
   onMarkSentByPost: (invoiceId: number, sentDate: string) => Promise<boolean>
 }
 
-export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost }: InvoicesTabProps) {
+export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost }: InvoicesTabProps) {
   const [sendInvoice, setSendInvoice] = useState<ProjectInvoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -49,6 +59,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Rapport) den frueheren Bestaetigungs-Hinweis — ein Dialog statt zwei.
   const [showGenerate, setShowGenerate] = useState(false)
   const [genRemark, setGenRemark] = useState('')
+  const [genAbzug, setGenAbzug] = useState<GeneralDeductionState>(() => initialGeneralDeduction(null))
   // Offerten-Auswahl im Generieren-Dialog: null solange nicht geladen (oder das
   // Laden scheiterte) — dann verhaelt sich der Dialog exakt wie bisher.
   const [genCoverage, setGenCoverage] = useState<InvoiceQuoteCoverage | null>(null)
@@ -113,6 +124,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
 
   function handleGenerateClick() {
     setGenRemark('')
+    setGenAbzug(initialGeneralDeduction(generalDeduction))
     setGenCoverage(null)
     setShowGenerate(true)
     // Auswahl nachladen, nicht blockierend: der Dialog steht sofort, die
@@ -132,7 +144,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
     const quoteIds = genCoverage && genSelectionVisible
       ? selectionPayload(genCoverage, genCheckedQuotes)
       : undefined
-    const ok = await onGenerateInvoice(genRemark, quoteIds)
+    const deduction = generalDeduction ? generalDeductionPayload(genAbzug) : undefined
+    const ok = await onGenerateInvoice(genRemark, quoteIds, deduction)
     if (ok) setShowGenerate(false)
   }
 
@@ -286,7 +299,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           confirmLabel={hasSignedReport ? 'Rechnung generieren' : 'Ohne Rapport erstellen'}
           busyLabel="Wird erstellt…"
           busy={generatingInvoice}
-          confirmDisabled={genSelectionVisible && genCheckedQuotes.length === 0}
+          confirmDisabled={(genSelectionVisible && genCheckedQuotes.length === 0)
+            || (generalDeduction !== null && generalDeductionError(genAbzug) !== null)}
           maxWidth={440}
           // Die Bemerkung wächst mit dem Text bis ~10 Zeilen — ohne Scrollen
           // schöbe sie auf kleinen Bildschirmen die Knöpfe aus dem Bild.
@@ -320,6 +334,15 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
               Erscheint als eigener Block «Bemerkung» auf der Rechnung, über den Positionen.
             </div>
           </div>
+          {generalDeduction && (
+            <GeneralDeductionFields
+              idPrefix="proj-gen"
+              label={generalDeduction.bezeichnung || 'Allg. Abzüge'}
+              value={genAbzug}
+              onChange={setGenAbzug}
+              disabled={generatingInvoice}
+            />
+          )}
         </ConfirmDialog>
       )}
 

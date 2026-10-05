@@ -29,7 +29,7 @@ import type { PlatformTenant } from '../../api/platform'
 import { useToast, ToastHost } from '../../admin/components/useToast'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
 
-const ROLLEN = ['user', 'user_light', 'admin', 'management', 'superadmin']
+const ROLLEN = ['user', 'user_light', 'admin', 'management_light', 'management', 'superadmin']
 
 export default function NewsletterScreen({ tenants }: { tenants: PlatformTenant[] }) {
   const [ausgaben, setAusgaben] = useState<NewsletterEdition[]>([])

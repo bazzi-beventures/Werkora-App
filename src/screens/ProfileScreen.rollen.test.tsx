@@ -31,6 +31,7 @@ describe('ProfileScreen — Rollen-Anzeige', () => {
     ['user_light', 'Mitarbeiter (Zeiterfassung)'],
     ['user', 'Mitarbeiter'],
     ['admin', 'Administrator'],
+    ['management_light', 'Manager light'],
     ['management', 'Geschäftsleitung'],
     ['superadmin', 'Superadmin'],
   ])('zeigt für %s den Klartext «%s»', (role, label) => {

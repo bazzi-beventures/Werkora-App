@@ -18,6 +18,7 @@ import type { CreateUserResult, StaffProfileInput } from '../../api/admin/users'
 import { getStaffRoles, upsertStaff, upsertStaffRole } from '../../api/admin/staff'
 import type { StaffRole } from '../../api/admin/staff'
 import { assignableRoles } from '../system/userRoles'
+import { isManagementRole } from '../../shared/roles'
 
 // Spiegelt services/password_policy.py — verbindlich prüft das Backend.
 const MIN_PASSWORD_LENGTH = 12
@@ -29,6 +30,7 @@ const ROLE_LABELS: Record<string, string> = {
   user_light: 'Monteur (eingeschränkt) — nur Stempeln und eigene Rapporte',
   user: 'Monteur — Stempeln, Rapporte, Projekte lesen',
   admin: 'Büro — Projekte, Offerten, Rechnungen, Benutzer anlegen',
+  management_light: 'Manager light — wie Büro, zusätzlich Kennzahlen Projekt-Pipeline, Projekte & Reports und Nachkalkulation',
   management: 'Geschäftsleitung — zusätzlich Löhne, KPI und Stammdaten',
   superadmin: 'Superadmin — mandantenübergreifend',
 }
@@ -49,7 +51,9 @@ const NEW_FUNCTION = '__new__'
 
 export default function NewPersonScreen({ actingRole, origin = 'users', onClose, onSaved }: Props) {
   const roleOptions = useMemo(() => assignableRoles(actingRole), [actingRole])
-  const mayCreateFunction = actingRole === 'management' || actingRole === 'superadmin'
+  const mayCreateFunction = isManagementRole(actingRole)
+  // Stunden- und Monatslohn: nur Geschäftsleitung (Backend lehnt sie sonst ab).
+  const showWages = isManagementRole(actingRole)
 
   // Person
   const [name, setName] = useState('')
@@ -95,8 +99,8 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
     return {
       kuerzel: kuerzel.trim() || null,
       funktion: resolvedFunktion || null,
-      hourly_rate: hourlyRate ? parseFloat(hourlyRate) : null,
-      monthly_salary: monthlySalary ? parseFloat(monthlySalary) : null,
+      hourly_rate: showWages && hourlyRate ? parseFloat(hourlyRate) : null,
+      monthly_salary: showWages && monthlySalary ? parseFloat(monthlySalary) : null,
       rapportpflicht,
       projektleiter,
       vacation_days_per_year: vacationDays ? parseInt(vacationDays, 10) : null,
@@ -345,6 +349,7 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
               </div>
             </div>
 
+            {showWages && (
             <div className="admin-form-row">
               <div className="admin-form-group">
                 <label className="admin-form-label" htmlFor="np-hourly">Stundenlohn (CHF)</label>
@@ -370,6 +375,7 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                 />
               </div>
             </div>
+            )}
 
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={rapportpflicht} onChange={e => setRapportpflicht(e.target.checked)} />

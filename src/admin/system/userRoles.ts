@@ -7,20 +7,26 @@
 // heben und kein Admin-/Management-Konto anfassen — sonst wäre 'admin' faktisch
 // 'management'.
 
-export type UserRole = 'user_light' | 'user' | 'admin' | 'management' | 'superadmin'
+import { isManagementRole } from '../../shared/roles'
 
-export const ALL_ROLES: UserRole[] = ['user_light', 'user', 'admin', 'management', 'superadmin']
+export type UserRole = 'user_light' | 'user' | 'admin' | 'management_light' | 'management' | 'superadmin'
 
+export const ALL_ROLES: UserRole[] = ['user_light', 'user', 'admin', 'management_light', 'management', 'superadmin']
+
+// 'management_light' (Manager light) vergeben nur Management und Superadmin; in
+// der Benutzerverwaltung selbst darf er so viel wie ein Admin.
 const ASSIGNABLE: Record<string, UserRole[]> = {
   superadmin: ALL_ROLES,
-  management: ['user_light', 'user', 'admin'],
+  management: ['user_light', 'user', 'admin', 'management_light'],
+  management_light: ['user_light', 'user'],
   admin: ['user_light', 'user'],
 }
 
 const EDITABLE_TARGETS: Record<string, UserRole[]> = {
   superadmin: ALL_ROLES,
   // Management verwaltet sich untereinander, darf die Rolle 'management' aber nicht neu vergeben.
-  management: ['user_light', 'user', 'admin', 'management'],
+  management: ['user_light', 'user', 'admin', 'management_light', 'management'],
+  management_light: ['user_light', 'user'],
   admin: ['user_light', 'user'],
 }
 
@@ -37,7 +43,7 @@ export function mayEditTarget(actingRole: string | null | undefined, targetRole:
 
 /** Anonymisieren (DSGVO, irreversibel) bleibt Management/Superadmin vorbehalten. */
 export function mayAnonymize(actingRole: string | null | undefined): boolean {
-  return actingRole === 'management' || actingRole === 'superadmin'
+  return isManagementRole(actingRole)
 }
 
 /**

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { getMe } from '../../../api/auth'
 import { getFeature, hasModule, isFeatureEnabled } from '../../../api/modules'
+import { hasKpiAccess } from '../../../shared/roles'
 import { BeschaffungStep, enabledBeschaffungSteps } from '../../constants/beschaffungSteps'
+import type { GeneralDeductionConfig } from '../../utils/generalDeduction'
 
 // Was der Mandant im Projekt-Detail ueberhaupt sieht (Charge H, H3) — ein
 // einziger /me-Aufruf statt sechs verstreuter Flag-States im Screen.
@@ -24,7 +26,8 @@ export interface ProjectFeatures {
   /** Leer = Feature «beschaffungsstatus» aus; sonst die konfigurierten Schritte. */
   beschaffungSteps: BeschaffungStep[]
   /**
-   * Reiter «Nachkalkulation»: Modul «kpis» UND Management-Rolle — dieselben zwei
+   * Reiter «Nachkalkulation»: Modul «kpis» UND Kennzahlen-Rolle (Management,
+   * Superadmin, Manager light) — dieselben zwei
    * Gates wie der Kennzahlen-Screen. Der Reiter zeigt Eigenkosten und Gewinn des
    * Projekts; das ist keine Zahl für den Projektleiter-Alltag, sondern dieselbe
    * Auswertung, nur an dem Ort, an dem man sie braucht.
@@ -59,6 +62,11 @@ export interface ProjectFeatures {
    * selbst (docs/specs/projektmaske-autosave.md). Ohne Flag der Speichern-Knopf.
    */
   autosave: boolean
+  /**
+   * Feature «allgemeine_abzuege» (Beta): Häkchen «Allg. Abzüge» im Dialog
+   * «Rechnung generieren». null = aus; sonst die Vorbelegung des Mandanten.
+   */
+  allgAbzuege: GeneralDeductionConfig | null
   /** Der angemeldete Benutzer — entscheidet, wer eine Freigabe visieren darf. */
   currentUserId: string | null
   /** Seine Rolle — Management darf fremde Erinnerungen ändern. */
@@ -78,6 +86,7 @@ const NONE: ProjectFeatures = {
   warranty: false,
   reminders: false,
   autosave: false,
+  allgAbzuege: null,
   currentUserId: null,
   currentUserRole: null,
 }
@@ -98,7 +107,7 @@ export function useProjectFeatures(): ProjectFeatures {
           : [],
         nachkalkulation:
           hasModule(me, 'kpis')
-          && (me.role === 'management' || me.role === 'superadmin'),
+          && hasKpiAccess(me.role),
         verlauf: isFeatureEnabled(me, 'projekt_verlauf'),
         garantiefall: isFeatureEnabled(me, 'garantiefall'),
         // Modul, nicht Feature-Flag: die Fälle. `hasModule` liest die Liste aus
@@ -106,6 +115,9 @@ export function useProjectFeatures(): ProjectFeatures {
         warranty: hasModule(me, 'warranty'),
         reminders: hasModule(me, 'reminders'),
         autosave: isFeatureEnabled(me, 'projekt_autosave'),
+        allgAbzuege: isFeatureEnabled(me, 'allgemeine_abzuege')
+          ? getFeature<GeneralDeductionConfig>(me, 'allgemeine_abzuege')
+          : null,
         currentUserId: me.authorized_user_id,
         currentUserRole: me.role,
       })

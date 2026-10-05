@@ -26,7 +26,7 @@ const PERIODE_LABEL: Record<CountPeriod, string> = {
 // Rollen, die zählen dürfen. `user_light` fehlt: Das Konto hat keinen vollen
 // Mitarbeiter-Zugriff, und eine Inventur mit CHF-Wirkung ist das Letzte, was
 // man ihm als Erstes gibt.
-const ZAEHLBERECHTIGT = new Set(['user', 'admin', 'management'])
+const ZAEHLBERECHTIGT = new Set(['user', 'admin', 'management_light', 'management'])
 
 interface Props {
   plan: CountPlan | null
