@@ -14,6 +14,33 @@
   padding: var(--s-6) var(--s-4);
 }
 
+/* ── Nachträge des Melders (Spec docs/specs/support-antwort.md §13) ──────────
+   Gehören zum Text der Meldung, nicht zur Antwort: deshalb in der Randfarbe
+   der Meldung statt in der Primärfarbe des Antwortblocks. */
+.support-addenda {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.support-addendum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 10px;
+  border-left: 3px solid var(--warning, #9A6716);
+}
+
+/* Push-Empfang auf diesem Gerät (§13) — eine schmale Zeile über dem Eingang. */
+.support-push {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
 /* ── Antwort an den Melder (Spec docs/specs/support-antwort.md §5) ──────────
    Optisch abgesetzt vom Rest des Dialogs: was hier steht, verlässt das Haus.
    Die interne Notiz darunter bleibt ein schlichtes Eingabefeld — der

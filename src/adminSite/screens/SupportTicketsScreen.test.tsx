@@ -238,3 +238,21 @@ describe('SupportTicketsScreen — Posteingang', () => {
     expect(screen.getAllByText('zu wenig Daten').length).toBe(2)
   })
 })
+
+describe('SupportTicketsScreen — Nachtrag des Melders (support-antwort.md §13)', () => {
+  it('markiert die Zeile und zeigt den Nachtrag unter dem Text', async () => {
+    fetchSupportTickets.mockResolvedValue({
+      tickets: [{ ...TICKET, last_addendum_at: '2026-10-05T16:00:00Z', seen_at: null }],
+      tenants: [], capped: false,
+    })
+    fetchSupportTicket.mockResolvedValue({
+      ...DETAIL,
+      addenda: [{ text: 'Hat sich erledigt.', at: '2026-10-05T16:00:00Z', resolved: true }],
+    })
+    render(<SupportTicketsScreen />)
+    expect(await screen.findByText('✎ Nachtrag')).not.toBeNull()
+    fireEvent.click(await screen.findByTitle('Meldung öffnen'))
+    expect(await screen.findByText(/Melder: hat sich erledigt/)).not.toBeNull()
+    expect(screen.getByText('Hat sich erledigt.')).not.toBeNull()
+  })
+})

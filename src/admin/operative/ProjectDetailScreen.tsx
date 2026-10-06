@@ -57,7 +57,7 @@ interface Props {
    */
   onSaved: (saved?: Project | null) => void
   /**
-   * Die selbst speichernde Maske hat geschrieben (Feature `projekt_autosave`).
+   * Die selbst speichernde Maske (bestehende Projekte) hat geschrieben.
    * `patch` ist die geschickte Nutzlast (Spaltennamen) — der Aufrufer zieht
    * damit seine Zeile nach, damit Kopfzeile und Übersicht den neuen Stand
    * zeigen. Die Maske bleibt dabei offen.
@@ -109,9 +109,10 @@ export default function ProjectDetailScreen({
   // Die Projektmaske selbst (Charge H, H3). `focusDetails`, weil die
   // Fehlermeldung im Detail-Reiter steht: wer aus einem anderen Reiter heraus
   // speichert (Abfrage beim Verlassen), saehe sie sonst nie.
-  // Selbst speichernde Maske (docs/specs/projektmaske-autosave.md) — nur für
-  // bestehende Projekte; ein neues entsteht weiter mit «Projekt anlegen» (§3.1).
-  const autosaveOn = features.autosave && !isNew
+  // Selbst speichernde Maske (docs/specs/projektmaske-autosave.md) — für jedes
+  // bestehende Projekt, ohne Schalter (seit 2026-10-06; vorher Feature
+  // `projekt_autosave`). Ein neues entsteht weiter mit «Projekt anlegen» (§3.1).
+  const autosaveOn = !isNew
   const form = useProjectForm({
     project,
     customers,

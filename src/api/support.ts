@@ -90,6 +90,16 @@ export type SupportReply = {
   by?: string
 }
 
+/** Nachtrag des Melders zur offenen Meldung (Spec support-antwort.md §13).
+ *  Append-only wie die Antworten. */
+export type SupportAddendum = {
+  text: string
+  /** Zeitpunkt des Nachtrags (ISO). */
+  at: string
+  /** Mit diesem Nachtrag hat der Melder die Meldung selbst abgeschlossen. */
+  resolved?: boolean
+}
+
 /**
  * Die eigene Meldung, wie der Melder sie sieht.
  *
@@ -109,6 +119,8 @@ export type MySupportTicket = {
   replies?: SupportReply[] | null
   last_reply_at?: string | null
   reply_read_at?: string | null
+  /** Eigene Nachträge (Spec §13) — fehlt bei einem Server vor der Migration. */
+  addenda?: SupportAddendum[] | null
 }
 
 export type MySupportTickets = {
@@ -136,6 +148,27 @@ export async function markSupportRepliesRead(): Promise<{ ok: boolean }> {
  */
 export function bezugPrefix(reference: string): string {
   return `[Bezug: ${reference}] `
+}
+
+/** Noch nicht erledigt — die Meldungen, die der Melder ergänzen kann. */
+export function isOpenTicket(ticket: Pick<MySupportTicket, 'status'>): boolean {
+  return ticket.status === 'offen' || ticket.status === 'in_arbeit'
+}
+
+/**
+ * Nachtrag zur eigenen, noch offenen Meldung (Spec support-antwort.md §13).
+ *
+ * `resolved: true` schliesst sie («Hat sich erledigt») — dafür braucht es
+ * keine zweite Meldung mehr. Eine erledigte Meldung nimmt keinen Nachtrag
+ * (409 `ticket_closed`): dort bleibt «Passt nicht» → neue Meldung.
+ */
+export async function sendSupportAddendum(
+  id: string, body: { text?: string; resolved?: boolean },
+): Promise<{ ok: boolean; addenda: SupportAddendum[]; status: SupportStatus; closed_at?: string | null }> {
+  return apiFetch(`/pwa/support/my-tickets/${id}/addendum`, {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -166,8 +199,11 @@ export type SupportTicket = {
   /** Quittung des Melders: gelesen, wenn `reply_read_at >= last_reply_at`. */
   reply_read_at?: string | null
   /** Erstes Öffnen durch den Betreiber; `null` = ungelesen im Eingang
-   *  (Spec docs/specs/support-uebersicht.md §5). */
+   *  (Spec docs/specs/support-uebersicht.md §5). Ein Nachtrag des Melders
+   *  leert es wieder. */
   seen_at?: string | null
+  /** Letzter Nachtrag des Melders (Spec support-antwort.md §13). */
+  last_addendum_at?: string | null
   snapshot_error_count: number
   snapshot_top_source?: string | null
   attachment_count: number
@@ -203,6 +239,8 @@ export type SupportTicketDetail = SupportTicket & {
   /** Was der Melder zu sehen bekommt (Spec A2 — im Unterschied zu
    *  `superadmin_note`, die intern bleibt). */
   replies?: SupportReply[] | null
+  /** Nachträge des Melders, älteste zuerst (Spec support-antwort.md §13). */
+  addenda?: SupportAddendum[] | null
 }
 
 export type SupportListResponse = {

@@ -232,9 +232,10 @@ export function useProjectForm(opts: {
   /** Fehler stehen im Detail-Reiter; wer aus einem anderen heraus speichert, muss dorthin. */
   focusDetails: () => void
   /**
-   * Maske speichert sich selbst (Feature `projekt_autosave`, nur bestehende
-   * Projekte). Ändert die Projektleiter-Rückfrage (§3.5) und rechnet die
-   * Nachfrage «als Kunde anlegen» gegen den Stand beim Öffnen (§3.8).
+   * Maske speichert sich selbst (jedes bestehende Projekt; neue Projekte
+   * entstehen mit «Projekt anlegen»). Ändert die Projektleiter-Rückfrage
+   * (§3.5) und rechnet die Nachfrage «als Kunde anlegen» gegen den Stand beim
+   * Öffnen (§3.8).
    */
   autosave?: boolean
 }): UseProjectForm {

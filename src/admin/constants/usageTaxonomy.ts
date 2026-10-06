@@ -320,6 +320,7 @@ const ACTION_LABELS: Record<string, string> = {
   superadmin_push_send: 'Test-Push versendet',
   support_ticket_update: 'Support-Meldung bearbeitet',
   support_ticket_reply: 'Support-Meldung beantwortet',
+  support_ticket_addendum: 'Support-Meldung ergänzt (Melder)',
   // Feature-Anfragen (docs/specs/feature-anfragen.md §10.5) — Triage durch den
   // Betreiber, im Mandanten der Anfrage protokolliert.
   feature_request_erfasst: 'Feature-Anfrage im Auftrag erfasst',

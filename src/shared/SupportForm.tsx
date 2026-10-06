@@ -5,6 +5,7 @@ import {
   MAX_SUPPORT_FILES,
   MAX_SUPPORT_MESSAGE_CHARS,
   appendTranscript,
+  isOpenTicket,
   sendSupportTicket,
   transcribeSupportAudio,
 } from '../api/support'
@@ -187,6 +188,8 @@ export default function SupportForm({ route, appContext, mine }: Props) {
     void mine.markRead()
   }, [view, mine])
 
+  const offene = mine.tickets.filter(isOpenTicket)
+
   /** «Passt nicht» — zurück ins Formular, vorbelegt mit dem Bezug (Spec A8). */
   function neueMeldungMitBezug(prefill: string) {
     setMessage(current => (current.trim() ? current : prefill))
@@ -259,7 +262,11 @@ export default function SupportForm({ route, appContext, mine }: Props) {
         >
           {id === 'melden'
             ? 'Problem melden'
-            : `Meine Meldungen${mine.unread > 0 ? ` (${mine.unread})` : ''}`}
+            : mine.unread > 0
+              ? `Meine Meldungen (${mine.unread})`
+              // Ohne ungelesene Antwort zählt der Reiter die offenen: der
+              // Melder soll sehen, dass da noch etwas läuft (§13).
+              : `Meine Meldungen${offene.length > 0 ? ` · ${offene.length} offen` : ''}`}
         </button>
       ))}
     </div>
@@ -277,6 +284,7 @@ export default function SupportForm({ route, appContext, mine }: Props) {
             loading={mine.loading}
             failed={mine.failed}
             onNewWithReference={neueMeldungMitBezug}
+            onChanged={() => void mine.reload()}
           />
         </div>
       </div>
@@ -319,6 +327,28 @@ export default function SupportForm({ route, appContext, mine }: Props) {
           {mine.unread === 1
             ? 'Es gibt eine Antwort auf deine Meldung — ansehen'
             : `Es gibt ${mine.unread} Antworten auf deine Meldungen — ansehen`}
+        </button>
+      )}
+
+      {/* Offene Meldungen sichtbar machen, BEVOR jemand eine neue schreibt
+          (docs/specs/support-antwort.md §13): «Hat sich erledigt» oder eine
+          Korrektur gehört als Nachtrag an die bestehende Meldung, nicht als
+          zweite Meldung ohne Bezug in den Eingang. Hinter dem Antwort-Hinweis,
+          damit nie zwei Banner übereinander stehen. */}
+      {mine.unread === 0 && offene.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setView('meine')}
+          style={{
+            textAlign: 'left', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border, #e5e7eb)', background: 'transparent',
+            color: 'inherit', cursor: 'pointer', fontSize: '0.85rem',
+          }}
+        >
+          {offene.length === 1
+            ? `Deine Meldung ${offene[0].reference} ist noch offen.`
+            : `${offene.length} deiner Meldungen sind noch offen.`}
+          {' '}Etwas ergänzen oder hat es sich erledigt? — ansehen
         </button>
       )}
 

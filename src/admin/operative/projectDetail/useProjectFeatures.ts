@@ -58,11 +58,6 @@ export interface ProjectFeatures {
   /** Modul «reminders»: «Erinnerung setzen» in der Seitenleiste (WF-6). */
   reminders: boolean
   /**
-   * Feature «projekt_autosave» (Beta): bestehende Projekte speichern sich
-   * selbst (docs/specs/projektmaske-autosave.md). Ohne Flag der Speichern-Knopf.
-   */
-  autosave: boolean
-  /**
    * Feature «allgemeine_abzuege»: Häkchen «Allg. Abzüge» im Dialog
    * «Rechnung generieren». null = aus; sonst die Vorbelegung des Mandanten.
    */
@@ -85,7 +80,6 @@ const NONE: ProjectFeatures = {
   garantiefall: false,
   warranty: false,
   reminders: false,
-  autosave: false,
   allgAbzuege: null,
   currentUserId: null,
   currentUserRole: null,
@@ -114,7 +108,6 @@ export function useProjectFeatures(): ProjectFeatures {
         // /pwa/me, und die ist für ein Modul im Betatest schon pro Konto gefiltert.
         warranty: hasModule(me, 'warranty'),
         reminders: hasModule(me, 'reminders'),
-        autosave: isFeatureEnabled(me, 'projekt_autosave'),
         allgAbzuege: isFeatureEnabled(me, 'allgemeine_abzuege')
           ? getFeature<GeneralDeductionConfig>(me, 'allgemeine_abzuege')
           : null,

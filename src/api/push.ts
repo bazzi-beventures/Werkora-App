@@ -46,7 +46,11 @@ export async function getPushState(): Promise<PushState> {
   }
 }
 
-export async function enablePush(): Promise<void> {
+/** Welche App das Gerät anmeldet: die Mandanten-App oder die Betreiber-Seite
+ *  (admin.werkora.ch, nur Support-Pushes — docs/specs/support-antwort.md §13). */
+export type PushApp = 'pwa' | 'admin'
+
+export async function enablePush(app: PushApp = 'pwa'): Promise<void> {
   if (!pushSupported()) {
     throw new Error('Push wird auf diesem Gerät nicht unterstützt.')
   }
@@ -87,7 +91,11 @@ export async function enablePush(): Promise<void> {
   const json = sub.toJSON()
   await apiFetch('/pwa/push/subscribe', {
     method: 'POST',
-    body: JSON.stringify({ endpoint: sub.endpoint, keys: json.keys }),
+    // `app` nur für die Betreiber-Seite: die Mandanten-App schickt denselben
+    // Body wie immer.
+    body: JSON.stringify({
+      endpoint: sub.endpoint, keys: json.keys, ...(app === 'admin' ? { app } : {}),
+    }),
   })
 }
 
@@ -114,7 +122,8 @@ export type TestPushResult = {
   queued: boolean
 }
 
-export async function sendTestPush(): Promise<TestPushResult> {
-  const res = (await apiFetch('/pwa/push/test', { method: 'POST' })) as TestPushResult
+export async function sendTestPush(app: PushApp = 'pwa'): Promise<TestPushResult> {
+  const path = app === 'admin' ? '/pwa/push/test?app=admin' : '/pwa/push/test'
+  const res = (await apiFetch(path, { method: 'POST' })) as TestPushResult
   return { sent: res.sent ?? 0, queued: Boolean(res.queued) }
 }

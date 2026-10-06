@@ -542,7 +542,7 @@ export default function ProjectsScreen({
           setSelected(saved ?? null)
           load()
         }}
-        // Selbst speichernde Maske (Feature projekt_autosave): Zeile nachziehen,
+        // Selbst speichernde Maske (bestehende Projekte): Zeile nachziehen,
         // damit die Kopfzeile den neuen Namen zeigt. Der `key` bleibt gleich —
         // kein Neuaufbau, die Maske liest ihren Stand nur beim Mount.
         onProjectUpdated={patch => setSelected(prev => (prev ? { ...prev, ...patch } : prev))}

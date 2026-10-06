@@ -130,7 +130,11 @@ describe('ProjectsScreen — neues Projekt', () => {
   })
 })
 
-describe('ProjectsScreen — ungespeicherte Änderungen', () => {
+// Bestehende Projekte speichern sich selbst (docs/specs/projektmaske-autosave.md,
+// seit 2026-10-06 für alle Mandanten): «Zurück» schickt das eben Getippte noch
+// los und fragt nur, wenn danach etwas offen bleibt — hier ein gescheitertes
+// Speichern. Der Knopf-Pfad mit Abfrage gilt nur noch für neue Projekte.
+describe('ProjectsScreen — bestehendes Projekt speichert selbst', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     resetUnsavedChangesGuard()
@@ -138,7 +142,6 @@ describe('ProjectsScreen — ungespeicherte Änderungen', () => {
 
   async function openDetailAndEdit() {
     const user = userEvent.setup()
-    routeApi([EXISTING])
     render(<ProjectsScreen />)
     await user.click(await screen.findByText('Fassade Seehalde'))
     const nameInput = await screen.findByLabelText('Projektname *')
@@ -146,66 +149,92 @@ describe('ProjectsScreen — ungespeicherte Änderungen', () => {
     return user
   }
 
+  function patches() {
+    return mockFetch.mock.calls.filter(([, opt]) => opt?.method === 'PATCH')
+  }
+
+  /** Lässt jeden PATCH scheitern — die Maske zeigt «Nicht gespeichert». */
+  function patchScheitert() {
+    const ok = mockFetch.getMockImplementation()!
+    mockFetch.mockImplementation(async (path, options) => {
+      if (options?.method === 'PATCH') throw new Error('Server nicht erreichbar')
+      return ok(path, options)
+    })
+  }
+
   /** Die Abfrage teilt sich die Beschriftungen mit dem Formular — gezielt darin suchen. */
   async function leaveDialog() {
     return within(await screen.findByRole('dialog', { name: 'Ungespeicherte Änderungen' }))
   }
 
-  it('fragt beim Zurück nach, statt die Änderungen stillschweigend zu verwerfen', async () => {
-    const user = await openDetailAndEdit()
-    await user.click(screen.getByRole('button', { name: '← Zurück' }))
-    expect(await screen.findByRole('dialog', { name: 'Ungespeicherte Änderungen' })).toBeInTheDocument()
+  it('hat keinen Speichern-Knopf, sondern die Statuszeile', async () => {
+    routeApi([EXISTING])
+    const user = userEvent.setup()
+    render(<ProjectsScreen />)
+    await user.click(await screen.findByText('Fassade Seehalde'))
+    await screen.findByLabelText('Projektname *')
+
+    expect(screen.getByRole('status')).toHaveTextContent('Änderungen werden automatisch gespeichert')
+    // Nur der Formular-Knopf zählt — die Kommentar-Seitenleiste hat ihren eigenen «Speichern».
+    const submit = screen.queryAllByRole('button', { name: 'Speichern' }).filter(b => b.getAttribute('type') === 'submit')
+    expect(submit).toHaveLength(0)
   })
 
-  it('bleibt nach «Abbrechen» in der Maske — mit den Eingaben', async () => {
+  it('speichert beim Zurück das eben Getippte und verlässt die Maske ohne Nachfrage', async () => {
+    routeApi([EXISTING])
+    const user = await openDetailAndEdit()
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+
+    expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Ungespeicherte Änderungen' })).not.toBeInTheDocument()
+    // Kein «Kein Projektleiter»-Dialog: bei bestehenden Projekten steht nur ein Hinweis (§3.5).
+    expect(screen.queryByRole('dialog', { name: 'Kein Projektleiter zugewiesen' })).not.toBeInTheDocument()
+    const sent = patches()
+    expect(sent.length).toBeGreaterThan(0)
+    expect(JSON.parse(String(sent[sent.length - 1][1]!.body)).name).toBe('Fassade Seehalde Etappe 2')
+  })
+
+  // Der Audit-Eintrag nennt die geschickten Feldnamen, und daraus baut der
+  // Projekt-Verlauf seinen Satz «Geändert: …». Fahren unberührte Felder mit,
+  // meldet er Änderungen, die niemand gemacht hat (§3.6).
+  it('schickt nur die geänderten Felder', async () => {
+    routeApi([EXISTING])
+    const user = await openDetailAndEdit()
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+    await screen.findByRole('button', { name: /Neues Projekt/ })
+
+    for (const [, opt] of patches()) {
+      const body = JSON.parse(String(opt!.body))
+      expect('is_warranty' in body).toBe(false)
+      expect('parent_project_id' in body).toBe(false)
+      expect('completed_at' in body).toBe(false)
+      expect('monteur_ids' in body).toBe(false)
+    }
+  })
+
+  it('fragt beim Zurück nach, wenn das Speichern scheitert — «Abbrechen» bleibt mit den Eingaben', async () => {
+    routeApi([EXISTING])
+    patchScheitert()
     const user = await openDetailAndEdit()
     await user.click(screen.getByRole('button', { name: '← Zurück' }))
     await user.click((await leaveDialog()).getByRole('button', { name: 'Abbrechen' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ungespeicherte Änderungen' })).not.toBeInTheDocument())
     expect(screen.getByDisplayValue('Fassade Seehalde Etappe 2')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Nicht gespeichert')
   })
 
-  it('verlässt die Maske nach «Verwerfen», ohne zu speichern', async () => {
+  it('verlässt die Maske nach «Verwerfen», wenn das Speichern scheitert', async () => {
+    routeApi([EXISTING])
+    patchScheitert()
     const user = await openDetailAndEdit()
     await user.click(screen.getByRole('button', { name: '← Zurück' }))
     await user.click((await leaveDialog()).getByRole('button', { name: 'Verwerfen' }))
 
     expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
-    expect(mockFetch.mock.calls.some(([, opt]) => opt?.method === 'PATCH')).toBe(false)
   })
 
-  it('speichert nach «Speichern» und verlässt die Maske', async () => {
-    const user = await openDetailAndEdit()
-    await user.click(screen.getByRole('button', { name: '← Zurück' }))
-    await user.click((await leaveDialog()).getByRole('button', { name: 'Speichern' }))
-    await bestaetigeOhneProjektleiter(user)
-
-    expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
-    const patch = mockFetch.mock.calls.find(([, opt]) => opt?.method === 'PATCH')
-    expect(patch).toBeDefined()
-    expect(JSON.parse(String(patch![1]!.body)).name).toBe('Fassade Seehalde Etappe 2')
-  })
-
-  // Der Audit-Eintrag nennt die geschickten Feldnamen, und daraus baut der
-  // Projekt-Verlauf seinen Satz «Geändert: …». Fahren die Garantie-Felder bei
-  // jedem Speichern mit, meldet er «Garantiefall geändert», obwohl niemand das
-  // Häkchen angefasst hat.
-  it('schickt die Garantie-Felder nur mit, wenn sie sich geändert haben', async () => {
-    const user = await openDetailAndEdit()
-    await user.click(screen.getByRole('button', { name: '← Zurück' }))
-    await user.click((await leaveDialog()).getByRole('button', { name: 'Speichern' }))
-    await bestaetigeOhneProjektleiter(user)
-
-    const patch = mockFetch.mock.calls.find(([, opt]) => opt?.method === 'PATCH')
-    const body = JSON.parse(String(patch![1]!.body))
-    expect(body.name).toBe('Fassade Seehalde Etappe 2')
-    expect('is_warranty' in body).toBe(false)
-    expect('parent_project_id' in body).toBe(false)
-    expect('completed_at' in body).toBe(false)
-  })
-
-  it('fragt nicht nach, wenn nichts geändert wurde', async () => {
+  it('fragt nicht nach und speichert nichts, wenn nichts geändert wurde', async () => {
     const user = userEvent.setup()
     routeApi([EXISTING])
     render(<ProjectsScreen />)
@@ -214,5 +243,6 @@ describe('ProjectsScreen — ungespeicherte Änderungen', () => {
     await user.click(screen.getByRole('button', { name: '← Zurück' }))
 
     expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
+    expect(patches()).toHaveLength(0)
   })
 })

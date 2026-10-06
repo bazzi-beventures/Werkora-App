@@ -15,6 +15,7 @@ import {
   type SupportTicket,
   type SupportTicketDetail,
 } from '../../api/support'
+import AdminPushToggle from '../AdminPushToggle'
 import { supportTicketToFeatureRequest } from '../../api/featureRequests'
 import HorizontalBarChart from '../../admin/components/HorizontalBarChart'
 import { useChartTheme } from '../../admin/components/useChartTheme'
@@ -232,6 +233,22 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
 
       <div className="elog-detail-message">{ticket.message}</div>
 
+      {/* Nachträge des Melders (docs/specs/support-antwort.md §13) — direkt
+          unter seinem Text, weil sie ihn ergänzen oder korrigieren. */}
+      {(ticket.addenda ?? []).length > 0 && (
+        <div className="support-addenda">
+          {(ticket.addenda ?? []).map((a, index) => (
+            <div key={`${a.at}-${index}`} className="support-addendum">
+              <div className="support-reply-meta">
+                {a.resolved ? 'Melder: hat sich erledigt' : 'Nachtrag des Melders'}
+                {' · '}{fmtDateTime(a.at)}
+              </div>
+              <div className="support-reply-text">{a.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {ticket.attachments?.length > 0 && (
         <div className="support-shots">
           {ticket.attachments.map(att => (
@@ -380,6 +397,9 @@ function TicketRow({ ticket: t, now, selected, onOpen }: {
   const replyMark = t.last_reply_at
     ? (t.reply_read_at && t.reply_read_at >= t.last_reply_at ? '↩ gelesen' : '↩ beantwortet')
     : null
+  // Nachtrag des Melders (§13) — sonst sähe eine ergänzte Meldung in der Liste
+  // aus wie vorher, nur mit wieder gesetztem Ungelesen-Punkt.
+  const addendumMark = t.last_addendum_at ? '✎ Nachtrag' : null
   return (
     <button
       type="button"
@@ -401,13 +421,14 @@ function TicketRow({ ticket: t, now, selected, onOpen }: {
         {t.status === 'in_arbeit' && ' · in Arbeit'}
       </span>
       <span className="support-row-msg">{t.message}</span>
-      {(t.attachment_count > 0 || t.snapshot_error_count > 0 || replyMark) && (
+      {(t.attachment_count > 0 || t.snapshot_error_count > 0 || replyMark || addendumMark) && (
         <span className="support-row-marks">
           {t.attachment_count > 0 && <span className="support-mark">📎 {t.attachment_count}</span>}
           {t.snapshot_error_count > 0 && (
             <span className="support-mark support-mark--error">⚠ {t.snapshot_error_count} Fehler</span>
           )}
           {replyMark && <span className="support-mark">{replyMark}</span>}
+          {addendumMark && <span className="support-mark">{addendumMark}</span>}
         </span>
       )}
     </button>
@@ -557,6 +578,14 @@ export default function SupportTicketsScreen({ initialTicketId }: { initialTicke
   const [cluster, setCluster] = useState<SupportCluster | null>(null)
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState<string | null>(initialTicketId ?? null)
+  // Klick auf eine Push, während der Eingang schon offen ist: die Adresse
+  // wechselt auf `#/support/<id>`, der Screen bleibt montiert. Ohne diesen
+  // Abgleich bliebe das Detail der vorigen Auswahl stehen.
+  const [shownInitial, setShownInitial] = useState(initialTicketId)
+  if (initialTicketId !== shownInitial) {
+    setShownInitial(initialTicketId)
+    if (initialTicketId) setSelectedId(initialTicketId)
+  }
   const [detail, setDetail] = useState<SupportTicketDetail | null>(null)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const [now, setNow] = useState(() => Date.now())
@@ -640,6 +669,7 @@ export default function SupportTicketsScreen({ initialTicketId }: { initialTicke
         <div>
           <div className="admin-page-title">Support</div>
           {statusLine}
+          <AdminPushToggle />
         </div>
         <div className="elog-header-actions">
           <button className={`admin-btn admin-btn-secondary${showAnalysis ? ' is-active' : ''}`}

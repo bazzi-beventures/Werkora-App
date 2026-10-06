@@ -121,11 +121,13 @@ export default defineConfig(({ command }) => ({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
-        // Eigener Push-Handler (public/push-sw.js) — wird in den generierten
-        // Workbox-SW eingebunden, ohne die Caching-Strategie unten zu ersetzen.
-        // Die Admin-Seite empfängt bewusst KEINE Pushes (Spec §11); ohne den
-        // Import registriert sie auch keinen Handler, der nie etwas bekommt.
-        importScripts: IS_ADMIN ? [] : ['push-sw.js'],
+        // Eigener Push-Handler je App — wird in den generierten Workbox-SW
+        // eingebunden, ohne die Caching-Strategie unten zu ersetzen. Die
+        // Betreiber-Seite empfängt seit 2026-10 die Support-Pushes
+        // (docs/specs/support-antwort.md §13) und hat dafür einen eigenen
+        // Handler: ihr Klick öffnet die Meldung, der der Mandanten-App zeigt
+        // ein Banner.
+        importScripts: IS_ADMIN ? ['admin-push-sw.js'] : ['push-sw.js'],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // Der Default (2 MiB) ist eine stille Grenze: Ein Asset darüber wird
         // NICHT vorgecacht, Workbox bricht den Build ab — und liesse man es
@@ -137,11 +139,13 @@ export default defineConfig(({ command }) => ({
         // dann sinkt das Bundle wieder deutlich unter 2 MiB.
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // `public/` wird in BEIDE Builds kopiert, also läge der Push-Handler
-        // auch im Admin-Precache — eine Datei, die dort nie ausgeführt wird
-        // (kein importScripts, siehe oben). Ebenso das Manifest der jeweils
+        // der jeweils anderen App im Precache — eine Datei, die dort nie
+        // ausgeführt wird (siehe importScripts oben). Ebenso das Manifest der
         // anderen App. Nicht falsch, aber toter Ballast und beim Nachlesen
         // irreführend.
-        globIgnores: IS_ADMIN ? ['push-sw.js', 'manifest.json'] : ['admin-manifest.json'],
+        globIgnores: IS_ADMIN
+          ? ['push-sw.js', 'manifest.json']
+          : ['admin-manifest.json', 'admin-push-sw.js'],
         // Kein API-Cache auf der Admin-Seite: sie zeigt Fehlerbestand,
         // Dienst-Status und die Konfiguration eines Mandanten — Antworten, bei
         // denen «vorhin» und «jetzt» nicht dasselbe sind. Die Mandanten-App

@@ -10,7 +10,6 @@ import { KontaktNameInput } from './KontaktNameInput'
 import GeruestfaecherInput from './GeruestfaecherInput'
 import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
 import type { Kontakt } from '../../../api/admin/projects'
-import { BetaBadge } from '../../../shared/BetaBadge'
 import type { ProjectAutosave } from './useProjectAutosave'
 import { CustomerLink } from '../../components/CustomerLink'
 
@@ -48,7 +47,7 @@ export function DetailsForm({
   onSubmit: (e: React.FormEvent) => void
   onCancel: () => void
   /**
-   * Gesetzt = die Maske speichert sich selbst (Feature `projekt_autosave`,
+   * Gesetzt = die Maske speichert sich selbst (jedes bestehende Projekt,
    * docs/specs/projektmaske-autosave.md): Statuszeile statt Knopf, Team und
    * Termine mit eigener Übernahme, «Als Kunde anlegen» an der Kontaktzeile.
    */
@@ -640,7 +639,6 @@ function AutosaveStatusLine({ a }: { a: ProjectAutosave }) {
           </button>
         </>
       )}
-      <BetaBadge />
     </div>
   )
 }

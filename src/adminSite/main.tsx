@@ -11,9 +11,10 @@
  *   läuft auch hier, aber eine Admin-Seite hinter dem Schreibtisch braucht
  *   keine zweite Stufe.
  *
- * Der Service Worker bleibt: er macht die Seite installierbar und liefert den
- * App-Rahmen aus dem Precache. Was er NICHT tut, steht in vite.config.ts —
- * kein Push-Handler, kein API-Cache.
+ * Der Service Worker bleibt: er macht die Seite installierbar, liefert den
+ * App-Rahmen aus dem Precache und empfängt seit 2026-10 die Support-Pushes
+ * (public/admin-push-sw.js, docs/specs/support-antwort.md §13). Was er NICHT
+ * tut, steht in vite.config.ts — kein API-Cache.
  */
 import React from 'react'
 import ReactDOM from 'react-dom/client'
@@ -42,6 +43,19 @@ applyWerkoraBranding()
 applyTheme(loadTheme())
 
 registerPwaUpdates()
+
+// Klick auf eine Support-Push bei offenem Fenster: der Service Worker
+// fokussiert es und schickt den Pfad der Meldung. Nur der Hash wird übernommen —
+// die Navigation der Seite hängt an `hashchange` (useAdminSiteNav), und eine
+// fremde Adresse aus einer Nachricht darf hier nie die Seite verlassen.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+    const data = event.data as { type?: string; url?: string } | null
+    if (data?.type !== 'admin-push-open' || typeof data.url !== 'string') return
+    const hash = data.url.startsWith('/#') ? data.url.slice(1) : ''
+    if (hash.startsWith('#/')) window.location.hash = hash
+  })
+}
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

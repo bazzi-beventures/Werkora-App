@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SupportForm from './SupportForm'
 import HelpBubble from './HelpBubble'
+import MyTickets from './MyTickets'
 import { leereMeldungen } from './supportTestFixtures'
 import type { MySupportTicket } from '../api/support'
 
@@ -9,6 +10,7 @@ import type { MySupportTicket } from '../api/support'
 
 const fetchMySupportTickets = vi.fn()
 const markSupportRepliesRead = vi.fn()
+const sendSupportAddendum = vi.fn()
 
 vi.mock('../api/support', async () => {
   const actual = await vi.importActual<typeof import('../api/support')>('../api/support')
@@ -17,6 +19,7 @@ vi.mock('../api/support', async () => {
     sendSupportTicket: vi.fn(),
     fetchMySupportTickets: (...args: unknown[]) => fetchMySupportTickets(...args),
     markSupportRepliesRead: (...args: unknown[]) => markSupportRepliesRead(...args),
+    sendSupportAddendum: (...args: unknown[]) => sendSupportAddendum(...args),
   }
 })
 
@@ -38,6 +41,7 @@ const BEANTWORTET: MySupportTicket = {
 beforeEach(() => {
   fetchMySupportTickets.mockReset()
   markSupportRepliesRead.mockReset()
+  sendSupportAddendum.mockReset()
   fetchMySupportTickets.mockResolvedValue({ tickets: [], unread: 0 })
   markSupportRepliesRead.mockResolvedValue({ ok: true })
   localStorage.clear()
@@ -188,5 +192,113 @@ describe('HelpBubble — Abzeichen', () => {
     render(<HelpBubble showHelp showSupport={false} />)
     await waitFor(() => expect(screen.queryByRole('button', { expanded: false })).not.toBeNull())
     expect(fetchMySupportTickets).not.toHaveBeenCalled()
+  })
+})
+
+// ── Offene Meldungen ergänzen (Spec support-antwort.md §13) ──────────────────
+
+const OFFEN: MySupportTicket = {
+  id: 't2',
+  ticket_no: 14,
+  reference: 'WS-14',
+  message: 'Absenzen lassen sich nicht erfassen',
+  status: 'offen',
+  created_at: '2026-10-03T08:00:00Z',
+  replies: [],
+  last_reply_at: null,
+  reply_read_at: null,
+  addenda: [],
+}
+
+describe('MyTickets — offene Meldungen', () => {
+  it('stellt offene Meldungen vor erledigte und beschriftet die Gruppen', () => {
+    // Server liefert neueste zuerst — hier die erledigte vorne.
+    const erledigtNeu = { ...BEANTWORTET, created_at: '2026-10-04T08:00:00Z' }
+    render(
+      <MyTickets tickets={[erledigtNeu, OFFEN]} loading={false} failed={false}
+                 onNewWithReference={() => {}} />,
+    )
+    const refs = screen.getAllByText(/^WS-\d+$/).map(e => e.textContent)
+    expect(refs).toEqual(['WS-14', 'WS-1042'])
+    expect(screen.queryByText('Offen (1)')).not.toBeNull()
+    expect(screen.queryByText('Erledigt (1)')).not.toBeNull()
+  })
+
+  it('erlaubt einen Nachtrag zur offenen Meldung', async () => {
+    const onChanged = vi.fn()
+    sendSupportAddendum.mockResolvedValue({
+      ok: true, status: 'offen',
+      addenda: [{ text: 'Nur bei Ferien.', at: '2026-10-05T16:00:00Z' }],
+    })
+    render(
+      <MyTickets tickets={[OFFEN]} loading={false} failed={false}
+                 onNewWithReference={() => {}} onChanged={onChanged} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Ergänzen' }))
+    fireEvent.change(screen.getByLabelText('Nachtrag zu WS-14'), {
+      target: { value: 'Nur bei Ferien.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Nachtrag senden' }))
+    await waitFor(() => expect(sendSupportAddendum).toHaveBeenCalledWith('t2', { text: 'Nur bei Ferien.' }))
+    // Steht sofort da, ohne auf das Neuladen zu warten.
+    expect(await screen.findByText('Nur bei Ferien.')).not.toBeNull()
+    expect(onChanged).toHaveBeenCalled()
+  })
+
+  it('«Hat sich erledigt» schliesst die Meldung — Text freiwillig', async () => {
+    sendSupportAddendum.mockResolvedValue({
+      ok: true, status: 'erledigt',
+      addenda: [{ text: 'Hat sich erledigt.', at: '2026-10-05T16:00:00Z', resolved: true }],
+    })
+    render(
+      <MyTickets tickets={[OFFEN]} loading={false} failed={false}
+                 onNewWithReference={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Hat sich erledigt' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Als erledigt melden' }))
+    await waitFor(() =>
+      expect(sendSupportAddendum).toHaveBeenCalledWith('t2', { text: '', resolved: true }))
+    expect(await screen.findByText('Von dir als erledigt gemeldet', { exact: false })).not.toBeNull()
+    // Erledigt: keine Ergänzen-Knöpfe mehr.
+    expect(screen.queryByRole('button', { name: 'Ergänzen' })).toBeNull()
+  })
+
+  it('ein leerer Nachtrag geht nicht raus', () => {
+    render(
+      <MyTickets tickets={[OFFEN]} loading={false} failed={false}
+                 onNewWithReference={() => {}} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Ergänzen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Nachtrag senden' }))
+    expect(sendSupportAddendum).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toMatch(/was du ergänzen/)
+  })
+
+  it('erledigte Meldungen bekommen keinen Nachtrag-Knopf', () => {
+    render(
+      <MyTickets tickets={[BEANTWORTET]} loading={false} failed={false}
+                 onNewWithReference={() => {}} />,
+    )
+    expect(screen.queryByRole('button', { name: 'Ergänzen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Passt nicht' })).not.toBeNull()
+  })
+})
+
+describe('SupportForm — Hinweis auf offene Meldungen', () => {
+  it('nennt die offene Meldung, bevor eine neue geschrieben wird', () => {
+    render(
+      <SupportForm mine={leereMeldungen({ tickets: [OFFEN] })} route="d" appContext="admin" />,
+    )
+    const hinweis = screen.getByRole('button', { name: /WS-14 ist noch offen/ })
+    expect(screen.getByRole('tab', { name: /1 offen/ })).not.toBeNull()
+    fireEvent.click(hinweis)
+    expect(screen.getByRole('button', { name: 'Ergänzen' })).not.toBeNull()
+  })
+
+  it('kein Hinweis ohne offene Meldung', () => {
+    render(
+      <SupportForm mine={leereMeldungen({ tickets: [BEANTWORTET] })} route="d" appContext="pwa" />,
+    )
+    expect(screen.queryByRole('button', { name: /noch offen/ })).toBeNull()
   })
 })
