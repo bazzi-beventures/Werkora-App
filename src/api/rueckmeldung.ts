@@ -57,6 +57,10 @@ export interface Plan {
   mails: number
   offene_projekte: number
   bereits_gesendet: number
+  /** Übersprungen: Projekt hat schon eine Offerte. */
+  mit_offerte: number
+  /** Übersprungen: Adresse hat schon eine Mail (anderes Projekt). */
+  adresse_angeschrieben: number
   ohne_email: PlanEintrag[]
   gruppen: { email: string; kunde_name: string; projekte: PlanEintrag[] }[]
 }
@@ -107,6 +111,8 @@ export interface AuswahlProjekt {
   offerten: string[]
   /** '' = noch nicht angeschrieben. */
   umfrage: '' | 'gesendet' | 'beantwortet' | 'fehler'
+  /** Die Adresse hat in dieser Kampagne schon eine Mail — für ein anderes Projekt. */
+  adresse_angeschrieben: boolean
 }
 
 export async function listProjekte(key: string): Promise<AuswahlProjekt[]> {

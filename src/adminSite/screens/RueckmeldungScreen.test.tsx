@@ -35,7 +35,7 @@ vi.mock('../../api/rueckmeldung', () => ({
 }))
 
 import RueckmeldungScreen from './RueckmeldungScreen'
-import { filtere, FILTER_START, auswaehlbar } from './rueckmeldungFilter'
+import { filtere, FILTER_START, auswaehlbar, sperrGrund } from './rueckmeldungFilter'
 import type { AuswahlProjekt } from '../../api/rueckmeldung'
 
 const KAMPAGNE = {
@@ -60,7 +60,7 @@ const KAMPAGNE = {
 
 const projekt = (p: Partial<AuswahlProjekt>): AuswahlProjekt => ({
   project_id: 'x', projekt_nr: '1', projekt_name: 'X', kunde_name: '', email: '',
-  objekt_adresse: '', passt_regel: true, offerte: 'keine', offerten: [], umfrage: '', ...p,
+  objekt_adresse: '', passt_regel: true, offerte: 'keine', offerten: [], umfrage: '', adresse_angeschrieben: false, ...p,
 })
 
 const PROJEKTE: AuswahlProjekt[] = [
@@ -72,10 +72,17 @@ const PROJEKTE: AuswahlProjekt[] = [
             kunde_name: 'Keller', email: '' }),
   projekt({ project_id: 'p4', projekt_nr: '2601552', projekt_name: 'Brunner Elsau',
             kunde_name: 'Brunner', email: 'b@example.ch', passt_regel: false }),
+  projekt({ project_id: 'p5', projekt_nr: '2601553', projekt_name: 'Huber Wiesendangen HS',
+            kunde_name: 'Huber', email: 'huber@example.ch' }),
+  projekt({ project_id: 'p6', projekt_nr: '2601554', projekt_name: 'Graf Hettlingen HS',
+            kunde_name: 'Graf', email: 'graf@example.ch' }),
+  projekt({ project_id: 'p7', projekt_nr: '2601555', projekt_name: 'Vogel Rickenbach HS',
+            kunde_name: 'Verwaltung', email: 'verwaltung@example.ch', adresse_angeschrieben: true }),
 ]
 
 const PLAN = {
-  treffer: 2, mails: 2, offene_projekte: 2, bereits_gesendet: 0, ohne_email: [], gruppen: [],
+  treffer: 2, mails: 2, offene_projekte: 2, bereits_gesendet: 0, mit_offerte: 0,
+  adresse_angeschrieben: 0, ohne_email: [], gruppen: [],
 }
 
 beforeEach(() => {
@@ -91,21 +98,25 @@ beforeEach(() => {
 
 describe('rueckmeldungFilter', () => {
   it('filtert nach Regel, Offerte, E-Mail und Suche', () => {
-    expect(filtere(PROJEKTE, FILTER_START).map((p) => p.project_id)).toEqual(['p1', 'p2', 'p3'])
-    expect(filtere(PROJEKTE, { ...FILTER_START, nurRegel: false })).toHaveLength(4)
+    expect(filtere(PROJEKTE, FILTER_START).map((p) => p.project_id)).toEqual(['p1', 'p2', 'p3', 'p5', 'p6', 'p7'])
+    expect(filtere(PROJEKTE, { ...FILTER_START, nurRegel: false })).toHaveLength(7)
     expect(filtere(PROJEKTE, { ...FILTER_START, offerte: 'versendet' }).map((p) => p.project_id)).toEqual(['p1'])
-    expect(filtere(PROJEKTE, { ...FILTER_START, offerte: 'nicht_versendet' }).map((p) => p.project_id)).toEqual(['p2', 'p3'])
+    expect(filtere(PROJEKTE, { ...FILTER_START, offerte: 'nicht_versendet' }).map((p) => p.project_id)).toEqual(['p2', 'p3', 'p5', 'p6', 'p7'])
     expect(filtere(PROJEKTE, { ...FILTER_START, email: 'ohne' }).map((p) => p.project_id)).toEqual(['p3'])
     expect(filtere(PROJEKTE, { ...FILTER_START, suche: 'seuzach' }).map((p) => p.project_id)).toEqual(['p2'])
     expect(filtere(PROJEKTE, { ...FILTER_START, suche: 'off-1' }).map((p) => p.project_id)).toEqual(['p1'])
   })
 
-  it('ohne Adresse oder schon angeschrieben ist nicht anhakbar', () => {
-    expect(auswaehlbar(PROJEKTE[0])).toBe(true)
-    expect(auswaehlbar(PROJEKTE[2])).toBe(false)
-    expect(auswaehlbar({ ...PROJEKTE[0], umfrage: 'gesendet' })).toBe(false)
+  it('nur ohne Offerte und ohne Mail anhakbar', () => {
+    expect(auswaehlbar(PROJEKTE[4])).toBe(true)
+    expect(auswaehlbar(PROJEKTE[2])).toBe(false)                       // keine Adresse
+    expect(auswaehlbar(PROJEKTE[0])).toBe(false)                       // Offerte versendet
+    expect(auswaehlbar(PROJEKTE[1])).toBe(false)                       // Offerte als Entwurf
+    expect(auswaehlbar(PROJEKTE[6])).toBe(false)                       // Adresse schon angeschrieben
+    expect(sperrGrund(PROJEKTE[1])).toBe('Hat schon eine Offerte')
+    expect(auswaehlbar({ ...PROJEKTE[4], umfrage: 'gesendet' })).toBe(false)
     // Ein fehlgeschlagener Versand darf erneut angehakt werden.
-    expect(auswaehlbar({ ...PROJEKTE[0], umfrage: 'fehler' })).toBe(true)
+    expect(auswaehlbar({ ...PROJEKTE[4], umfrage: 'fehler' })).toBe(true)
   })
 })
 
@@ -128,6 +139,14 @@ describe('RueckmeldungScreen', () => {
     expect((box as HTMLInputElement).disabled).toBe(true)
   })
 
+  it('Projekte mit Offerte oder schon angeschriebener Adresse lassen sich nicht anhaken', async () => {
+    render(<RueckmeldungScreen />)
+    for (const name of ['Stahel Neftenbach HS', 'Meier Seuzach HS', 'Vogel Rickenbach HS']) {
+      const box = await screen.findByLabelText(`${name} auswählen`)
+      expect((box as HTMLInputElement).disabled).toBe(true)
+    }
+  })
+
   it('bietet keinen Editor für den Inhalt an', async () => {
     render(<RueckmeldungScreen />)
     await screen.findByText('Stahel Neftenbach HS')
@@ -141,16 +160,16 @@ describe('RueckmeldungScreen', () => {
     const knopf = await screen.findByText(/Versand vorbereiten \(0 Projekte ausgewählt\)/)
     expect((knopf as HTMLButtonElement).disabled).toBe(true)
 
-    fireEvent.click(await screen.findByLabelText('Stahel Neftenbach HS auswählen'))
-    fireEvent.click(screen.getByLabelText('Meier Seuzach HS auswählen'))
+    fireEvent.click(await screen.findByLabelText('Huber Wiesendangen HS auswählen'))
+    fireEvent.click(screen.getByLabelText('Graf Hettlingen HS auswählen'))
     fireEvent.click(screen.getByText(/Versand vorbereiten \(2 Projekte ausgewählt\)/))
 
-    await waitFor(() => expect(probelauf).toHaveBeenCalledWith(KAMPAGNE.key, ['p1', 'p2']))
+    await waitFor(() => expect(probelauf).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6']))
     expect(starteVersand).not.toHaveBeenCalled()
     // Mandant und Anzahl stehen im Dialog — die Verwechslung ist der teuerste Fehler.
     expect(await screen.findByText(/2 Mails \(2 Projekte\) an Kunden von Gehlhaar GmbH/)).toBeTruthy()
     fireEvent.click(screen.getByText('2 Mails versenden'))
-    await waitFor(() => expect(starteVersand).toHaveBeenCalledWith(KAMPAGNE.key, ['p1', 'p2'], 2))
+    await waitFor(() => expect(starteVersand).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6'], 2))
   })
 
   it('«Sichtbare auswählen» nimmt nur anhakbare Zeilen', async () => {

@@ -7,7 +7,8 @@
  * («HS» als Wort) ist ein Filter, der vorbelegt ist — kein Automatismus. Der
  * Server prüft die Auswahl beim Versand noch einmal (Kundenprojekt, Status,
  * Mandant); eine veraltete Liste kann also niemanden anschreiben, der nicht
- * ohnehin in Frage kam.
+ * ohnehin in Frage kam. Anhakbar ist nur, wer noch keine Offerte und keine
+ * Mail hat (`auswaehlbar`) — auch das prüft der Server noch einmal.
  *
  * Gefiltert wird im Browser: gut 500 Zeilen, und jeder Klick auf einen Filter
  * soll sofort wirken statt eine Runde zum Server zu drehen.

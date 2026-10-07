@@ -8,16 +8,20 @@ export type OfferteFilter = 'alle' | 'versendet' | 'nicht_versendet' | 'keine'
 export type EmailFilter = 'alle' | 'mit' | 'ohne'
 export type UmfrageFilter = 'alle' | 'offen' | 'angeschrieben' | 'beantwortet'
 
-/** Darf die Zeile angehakt werden? Ohne Adresse geht keine Mail raus, und wer
- *  schon angeschrieben ist, bekäme dieselbe Mail nicht ein zweites Mal. */
+/** Darf die Zeile angehakt werden? Angeschrieben wird nur, wer noch **keine
+ *  Offerte und keine Mail** hat: ohne Adresse geht keine Mail raus, ein Projekt
+ *  mit Offerte (auch Entwurf) ist schon in Arbeit, und eine Adresse, die schon
+ *  angeschrieben ist, bekommt keine zweite Mail. Der Server prüft dasselbe. */
 export function auswaehlbar(p: AuswahlProjekt): boolean {
-  return !!p.email && p.umfrage !== 'gesendet' && p.umfrage !== 'beantwortet'
+  return sperrGrund(p) === ''
 }
 
 export function sperrGrund(p: AuswahlProjekt): string {
-  if (!p.email) return 'Keine E-Mail-Adresse — telefonisch nachfassen'
   if (p.umfrage === 'beantwortet') return 'Hat bereits geantwortet'
   if (p.umfrage === 'gesendet') return 'Ist bereits angeschrieben'
+  if (p.offerte !== 'keine') return 'Hat schon eine Offerte'
+  if (!p.email) return 'Keine E-Mail-Adresse — telefonisch nachfassen'
+  if (p.adresse_angeschrieben) return 'Adresse hat schon eine Mail (anderes Projekt)'
   return ''
 }
 

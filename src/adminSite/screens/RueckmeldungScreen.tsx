@@ -367,7 +367,8 @@ export default function RueckmeldungScreen() {
           warning={
             plan.treffer !== plan.offene_projekte
               ? `Von ${auswahl.size} ausgewählten Projekten werden ${plan.treffer - plan.offene_projekte} übersprungen `
-                + `(${plan.ohne_email.length} ohne E-Mail, ${plan.bereits_gesendet} bereits angeschrieben).`
+                + `(${plan.mit_offerte} mit Offerte, ${plan.ohne_email.length} ohne E-Mail, `
+                + `${plan.bereits_gesendet} bereits angeschrieben, ${plan.adresse_angeschrieben} Adresse schon angeschrieben).`
               : undefined
           }
           confirmDisabled={plan.mails === 0}
