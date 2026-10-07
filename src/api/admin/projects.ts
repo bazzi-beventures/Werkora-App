@@ -284,7 +284,16 @@ export async function saveProjectForm(
 ): Promise<{ project?: Project | null } | null> {
   return apiFetch<{ project?: Project | null } | null>(
     id ? `/pwa/admin/projects/${id}` : '/pwa/admin/projects',
-    { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) },
+    {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify(payload),
+      // Zeitlimit nur fürs Ändern: ein hängender Request liess die Abfrage beim
+      // Verlassen sonst ewig auf «Speichern…» stehen (Support-Meldung 2026-10-07).
+      // Ein PATCH ist wiederholbar. Das Anlegen (POST) bewusst nicht — bricht der
+      // Client ab, während der Server schon schreibt, legte der zweite Versuch
+      // dasselbe Projekt doppelt an.
+      ...(id ? { timeoutMs: 30_000 } : {}),
+    },
   )
 }
 

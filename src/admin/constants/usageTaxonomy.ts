@@ -147,6 +147,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_send_quote_thankyou: 'Offerte: Dankesmail versendet',
   admin_send_quote_rejection: 'Offerte: Absage versendet',
   admin_send_quote_order_confirmation: 'Auftragsbestätigung versendet',
+  admin_create_quote_order_confirmation_pdf: 'Auftragsbestätigung als PDF erstellt',
   admin_update_quote_skonto_defaults: 'Skonto-Vorgaben geändert',
   admin_update_quote_validity: 'Gültigkeitsdauer der Offerten geändert',
   admin_create_quote_attachment_template: 'Offerten-Anhang angelegt',

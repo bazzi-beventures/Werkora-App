@@ -234,6 +234,44 @@ describe('ProjectsScreen — bestehendes Projekt speichert selbst', () => {
     expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
   })
 
+  // Support-Meldung 2026-10-07 (Gehlhaar): «Speichern» in der Abfrage blieb auf
+  // «Speichern…» stehen. Das Speichern stellt unterwegs die Rückfrage «Kein
+  // Projektleiter» — gezeichnet unter der Abfrage, also verdeckt und nie
+  // beantwortbar. Die Abfrage muss deshalb weg sein, bevor gespeichert wird.
+  it('zeigt die Projektleiter-Rückfrage beim Speichern aus der Abfrage, statt darunter zu hängen', async () => {
+    routeApi([EXISTING])
+    const ok = mockFetch.getMockImplementation()!
+    let failPatch = true
+    mockFetch.mockImplementation(async (path, options) => {
+      if (options?.method === 'PATCH' && failPatch) throw new Error('Server nicht erreichbar')
+      return ok(path, options)
+    })
+    const user = await openDetailAndEdit()
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+    failPatch = false
+    await user.click((await leaveDialog()).getByRole('button', { name: 'Speichern' }))
+
+    const question = await screen.findByRole('dialog', { name: 'Kein Projektleiter zugewiesen' })
+    expect(screen.queryByRole('dialog', { name: 'Ungespeicherte Änderungen' })).not.toBeInTheDocument()
+    await user.click(within(question).getByRole('button', { name: 'Trotzdem speichern' }))
+
+    expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
+  })
+
+  it('bleibt in der Maske, wenn die Projektleiter-Rückfrage abgebrochen wird', async () => {
+    routeApi([EXISTING])
+    patchScheitert()
+    const user = await openDetailAndEdit()
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+    await user.click((await leaveDialog()).getByRole('button', { name: 'Speichern' }))
+
+    const question = await screen.findByRole('dialog', { name: 'Kein Projektleiter zugewiesen' })
+    await user.click(within(question).getByRole('button', { name: 'Projektleiter wählen' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByDisplayValue('Fassade Seehalde Etappe 2')).toBeInTheDocument()
+  })
+
   it('fragt nicht nach und speichert nichts, wenn nichts geändert wurde', async () => {
     const user = userEvent.setup()
     routeApi([EXISTING])

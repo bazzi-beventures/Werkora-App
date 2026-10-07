@@ -7,7 +7,7 @@ import RequireModule from './RequireModule'
 import { useAdminNav, AdminScreen } from './useAdminNav'
 import { useScreenBack } from '../shared/backButton'
 import { useIsMobile } from './useIsMobile'
-import { dirtyGuard } from './unsavedChanges'
+import { useGuardedNav } from './useGuardedNav'
 import { UnsavedChangesDialog } from './components/UnsavedChangesDialog'
 import DashboardScreen from './dashboard/DashboardScreen'
 import TaskBoardScreen from './tasks/TaskBoardScreen'
@@ -92,9 +92,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null)
   const [logoError, setLogoError] = useState(false)
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
-  // Screen-Wechsel, der noch an der „ungespeicherte Änderungen"-Abfrage hängt.
-  const [pendingNav, setPendingNav] = useState<{ screen: AdminScreen; detailId?: string } | null>(null)
-  const [savingPendingNav, setSavingPendingNav] = useState(false)
+  // Jede Navigation läuft über `guardedNav`: hat die offene Detailmaske
+  // ungespeicherte Änderungen, wird erst gefragt (Speichern / Verwerfen / Abbrechen).
+  const { pending: pendingNav, guardedNav, save: savePendingNav, discard: commitPendingNav, cancel: cancelPendingNav } =
+    useGuardedNav(nav)
   // Reiter aus einem Deep-Link (Button in einer Info-Mail). Nur gesetzt, solange
   // der Sprung noch nicht verbraucht ist — er gilt für genau eine Projektmaske.
   const [deepLinkTab, setDeepLinkTab] = useState<ProjectTab | null>(null)
@@ -127,16 +128,6 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
 
   const toggleTheme = () => setTheme(flipTheme)
 
-  // Jede Navigation läuft hierüber: hat die offene Detailmaske ungespeicherte
-  // Änderungen, wird erst gefragt (Speichern / Verwerfen / Abbrechen).
-  function guardedNav(nextScreen: AdminScreen, nextDetailId?: string) {
-    if (dirtyGuard()) {
-      setPendingNav({ screen: nextScreen, detailId: nextDetailId })
-      return
-    }
-    nav(nextScreen, nextDetailId)
-  }
-
   // Hardware-/Browser-Zurück im Admin-Bereich. Der Bereich navigiert über
   // `useAdminNav` und hat damit einen eigenen Verlauf — App.tsx kann ihn nicht
   // abtragen, also meldet sich AdminApp hier selbst an.
@@ -152,27 +143,6 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     guardedNav(previous.screen, previous.detailId ?? undefined)
     return true
   })
-
-  function commitPendingNav() {
-    const target = pendingNav
-    setPendingNav(null)
-    if (target) nav(target.screen, target.detailId)
-  }
-
-  async function savePendingNav() {
-    const guard = dirtyGuard()
-    if (!guard) { commitPendingNav(); return }
-    setSavingPendingNav(true)
-    try {
-      const ok = await guard.save()
-      // Fehlgeschlagen: Abfrage schliessen, damit die Fehlermeldung der Maske
-      // sichtbar wird — der Anwender bleibt auf dem Screen.
-      if (!ok) { setPendingNav(null); return }
-      commitPendingNav()
-    } finally {
-      setSavingPendingNav(false)
-    }
-  }
 
   async function loadDashboard() {
     try { setDashboard(await getAdminDashboard()) } catch { /* ignore */ }
@@ -410,14 +380,13 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )}
       {pendingNav && (
         <UnsavedChangesDialog
-          saving={savingPendingNav}
           message="Auf dieser Seite gibt es Änderungen, die noch nicht gespeichert sind."
           // Manche Masken lassen sich von hier aus nicht sinnvoll speichern (offene
           // Rapport-Maske über dem Projekt-Detail) — dann bleiben Verwerfen/Zurück.
-          allowSave={dirtyGuard()?.canSave?.() !== false}
+          allowSave={pendingNav.allowSave}
           onSave={savePendingNav}
           onDiscard={commitPendingNav}
-          onCancel={() => { setPendingNav(null); setDeepLinkTab(null) }}
+          onCancel={() => { cancelPendingNav(); setDeepLinkTab(null) }}
         />
       )}
     </div>

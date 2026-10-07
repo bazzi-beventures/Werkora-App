@@ -2,14 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SendOrderConfirmationDialog, SendThankyouDialog } from './SendQuoteMailDialog'
-import { apiFetch } from '../../api/client'
+import { apiBlobFetch, apiFetch } from '../../api/client'
 
 vi.mock('../../api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/client')>()
-  return { ...actual, apiFetch: vi.fn() }
+  return { ...actual, apiFetch: vi.fn(), apiBlobFetch: vi.fn() }
 })
 
 const mockFetch = vi.mocked(apiFetch)
+const mockBlobFetch = vi.mocked(apiBlobFetch)
 
 // Kunden-Mail-Dialoge zu einer Offerte (Danke-Mail, Auftragsbestätigung): fragen
 // analog zum Offerten-Versand zuerst die Empfänger-Adresse ab (vorbelegt mit der
@@ -155,5 +156,41 @@ describe('SendOrderConfirmationDialog', () => {
       const call = mockFetch.mock.calls.find(c => c[0] === '/pwa/admin/quotes/7/send-order-confirmation')!
       expect(JSON.parse((call[1] as RequestInit).body as string).resend).toBe(false)
     })
+  })
+
+  // «Nur PDF erstellen»: dasselbe Dokument ohne Mail. Braucht keine Adresse und darf
+  // den Versand-Endpoint nicht berühren — sonst wäre die AB als «versendet» gestempelt.
+  it('erstellt nur das PDF, ohne zu senden — auch ohne E-Mail-Adresse', async () => {
+    const user = userEvent.setup()
+    mockBlobFetch.mockResolvedValue({
+      blob: new Blob(['%PDF']), filename: 'Auftragsbestaetigung_OF-2026-042.pdf', headers: new Headers(),
+    })
+    const createUrl = vi.fn(() => 'blob:x')
+    const revokeUrl = vi.fn()
+    vi.stubGlobal('URL', { ...URL, createObjectURL: createUrl, revokeObjectURL: revokeUrl })
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const onSent = renderOrderConfirmation()
+
+    await user.clear(screen.getByRole('textbox'))
+    await user.click(screen.getByRole('button', { name: 'Nur PDF erstellen' }))
+
+    await waitFor(() => expect(onSent).toHaveBeenCalledWith(
+      'Auftragsbestätigung als PDF erstellt'))
+    expect(mockBlobFetch).toHaveBeenCalledWith('/pwa/admin/quotes/7/order-confirmation-pdf')
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(click).toHaveBeenCalled()
+    click.mockRestore()
+    vi.unstubAllGlobals()
+  })
+
+  it('zeigt einen Fehler beim PDF-Erstellen an und bleibt offen', async () => {
+    const user = userEvent.setup()
+    mockBlobFetch.mockRejectedValue(new Error('Auftragsbestätigung nur für angenommene Offerten möglich.'))
+    const onSent = renderOrderConfirmation()
+
+    await user.click(screen.getByRole('button', { name: 'Nur PDF erstellen' }))
+
+    expect(await screen.findByText('Auftragsbestätigung nur für angenommene Offerten möglich.')).toBeInTheDocument()
+    expect(onSent).not.toHaveBeenCalled()
   })
 })

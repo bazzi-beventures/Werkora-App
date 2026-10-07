@@ -445,9 +445,14 @@ export default function ProjectDetailScreen({
 
   async function saveAndLeave() {
     const jumpTo = pendingLeave?.jumpTo ?? null
-    const saved = await form.persist()
-    if (saved === false) { setPendingLeave(null); return }
+    // Abfrage ZUERST schliessen: `persist` kann unterwegs nachfragen («Kein
+    // Projektleiter», «Projekt-Team geändert»), und diese Rückfragen zeichnet der
+    // Screen weiter oben im Baum — unter der Abfrage. Blieb sie offen, lag die
+    // Rückfrage verdeckt darunter, `persist` wartete für immer auf eine Antwort und
+    // die Abfrage stand auf «Speichern…» (Support-Meldung 2026-10-07).
     setPendingLeave(null)
+    const saved = await form.persist()
+    if (saved === false) return
     if (jumpTo) { onOpenProject?.(jumpTo); return }
     // Gespeichert und trotzdem raus: zurück in die Übersicht (dort neu laden),
     // auch beim frisch angelegten Projekt — der Anwender wollte ja weg.
@@ -846,7 +851,6 @@ export default function ProjectDetailScreen({
 
       {pendingLeave && (
         <UnsavedChangesDialog
-          saving={form.saving}
           message={
             isNew
               ? 'Das neue Projekt ist noch nicht angelegt. Jetzt speichern oder verwerfen?'

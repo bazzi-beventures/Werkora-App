@@ -7,7 +7,7 @@
 // In den Screens steht kein roher `/pwa/admin/…`-Aufruf mehr (Wächter:
 // rawAdminFetch.guard.test.ts).
 
-import { apiFetch, apiFormFetch } from '../client'
+import { apiBlobFetch, apiFetch, apiFormFetch } from '../client'
 import type { ConfirmedPosition, PdfExtractionResponse } from '../../admin/operative/PdfExtractionReviewModal'
 
 // Teilmenge der Listen-Antwort: was für die Frage «gibt es zu diesem Projekt eine
@@ -67,6 +67,28 @@ export async function sendQuoteOrderConfirmation(
     method: 'POST',
     body: JSON.stringify({ recipient_email: recipientEmail, resend }),
   })
+}
+
+/**
+ * Auftragsbestätigung nur als PDF erzeugen und herunterladen — ohne Mail an den
+ * Kunden (Post, persönliche Übergabe, eigenes Mailprogramm, oder erst ansehen).
+ *
+ * Gleiches Dokument wie beim Versand, gleiche Ablage beim Projekt unter «Offerten».
+ * Der Versand-Stempel (`order_confirmation_sent_at`) bleibt dagegen unberührt:
+ * heruntergeladen ist nicht versendet.
+ */
+export async function downloadQuoteOrderConfirmationPdf(quoteId: number | string): Promise<void> {
+  const { blob, filename } = await apiBlobFetch(
+    `/pwa/admin/quotes/${quoteId}/order-confirmation-pdf`,
+  )
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }
 
 /** Vollständige Offerte inklusive aller Positionen. */
