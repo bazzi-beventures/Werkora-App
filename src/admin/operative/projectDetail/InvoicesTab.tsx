@@ -149,12 +149,14 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
     if (ok) setShowGenerate(false)
   }
 
+  // Layout in admin.css (.proj-doc-*), Handy-Umbau in mobile.css: dort
+  // stapeln sich Kopf und Rechnungszeile, statt die Karte zu sprengen.
   return (
-    <div className="admin-table-wrap" style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+    <div className="admin-table-wrap proj-doc-tab">
+      <div className="proj-doc-head">
         <div className="admin-section-title" style={{ margin: 0 }}>Rechnungen</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+        <div className="proj-doc-head-actions">
+          <label className="proj-doc-toggle">
             <input type="checkbox" checked={useAcceptedQuote} onChange={e => onUseAcceptedQuoteChange(e.target.checked)} />
             Aus aktueller Offerte
           </label>
@@ -196,45 +198,49 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
             return (
               <div key={latest.parent_id ?? latest.id} style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 12, background: 'var(--surface-2)' }}>
                 {group.map((inv, idx) => (
-                  <ActionRow key={inv.id} style={{ padding: '6px 4px', borderTop: idx > 0 ? '1px dashed var(--border)' : 'none' }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, color: idx === 0 ? 'var(--primary)' : 'var(--muted)' }}>V{inv.version}</span>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, minWidth: 150 }}>{inv.invoice_number}</span>
-                    <span className={`admin-badge ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{fmtDate(inv.created_at)}</span>
-                    <span style={{ flex: 1, textAlign: 'right', fontWeight: 600, fontSize: 13 }}>{fmtCHF(inv.total_amount)}</span>
-                    {inv.storage_path && (
-                      <a href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
-                    )}
-                    {idx === 0 && (inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
-                      <>
-                        <button
-                          className="admin-btn admin-btn-primary admin-btn-sm"
-                          onClick={() => { setSendEmail(defaultEmail); setSendInvoice(inv) }}
-                        >
-                          Senden
-                        </button>
-                        {/* Postversand nur, solange die Rechnung den Betrieb noch nicht
-                            verlassen hat, und nur mit vorliegendem PDF — genau die zwei
-                            Guards des Endpunkts. Ohne die Bedingungen wäre der Knopf
-                            sichtbar, aber jeder Klick ein 409. */}
-                        {(inv.status === 'ausstehend' || inv.status === 'offen') && inv.storage_path && (
-                          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => openPostal(inv)}>
-                            Per Post versendet
+                  <ActionRow key={inv.id} className="proj-doc-row proj-doc-row--grid" style={{ borderTop: idx > 0 ? '1px dashed var(--border)' : 'none' }}>
+                    <span className="proj-doc-version" style={{ color: idx === 0 ? 'var(--primary)' : 'var(--muted)' }}>V{inv.version}</span>
+                    <span className="proj-doc-number">{inv.invoice_number}</span>
+                    <span className={`admin-badge proj-doc-status ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
+                    <span className="proj-doc-date">{fmtDate(inv.created_at)}</span>
+                    <div className="proj-doc-tail">
+                      <span className="proj-doc-amount">{fmtCHF(inv.total_amount)}</span>
+                      <div className="proj-doc-actions">
+                        {inv.storage_path && (
+                          <a href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
+                        )}
+                        {idx === 0 && (inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
+                          <>
+                            <button
+                              className="admin-btn admin-btn-primary admin-btn-sm"
+                              onClick={() => { setSendEmail(defaultEmail); setSendInvoice(inv) }}
+                            >
+                              Senden
+                            </button>
+                            {/* Postversand nur, solange die Rechnung den Betrieb noch nicht
+                                verlassen hat, und nur mit vorliegendem PDF — genau die zwei
+                                Guards des Endpunkts. Ohne die Bedingungen wäre der Knopf
+                                sichtbar, aber jeder Klick ein 409. */}
+                            {(inv.status === 'ausstehend' || inv.status === 'offen') && inv.storage_path && (
+                              <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => openPostal(inv)}>
+                                Per Post versendet
+                              </button>
+                            )}
+                            <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => openPaid(inv)}>Bezahlt</button>
+                          </>
+                        )}
+                        {(inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
+                          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmArchive(inv)}>
+                            Archivieren
                           </button>
                         )}
-                        <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => openPaid(inv)}>Bezahlt</button>
-                      </>
-                    )}
-                    {(inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
-                      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmArchive(inv)}>
-                        Archivieren
-                      </button>
-                    )}
-                    {inv.status === 'bezahlt' && (
-                      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmUnpay(inv)}>
-                        Zahlung zurücksetzen
-                      </button>
-                    )}
+                        {inv.status === 'bezahlt' && (
+                          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmUnpay(inv)}>
+                            Zahlung zurücksetzen
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </ActionRow>
                 ))}
               </div>

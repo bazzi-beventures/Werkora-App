@@ -11,21 +11,25 @@ import type { CSSProperties, MouseEvent, ReactNode } from 'react'
  * Richtofferte …) automatisch umbrechen statt die Zeile zu verziehen.
  *
  * `style` überschreibt die Defaults (Escape-Hatch); `flexWrap` sollte man nur
- * mit gutem Grund wieder ausschalten.
+ * mit gutem Grund wieder ausschalten. `className` dient Media-Queries — die
+ * Defaults stehen inline, eine Klasse überschreibt sie also nur mit `!important`.
  */
 export function ActionRow({
   children,
+  className,
   style,
   onClick,
   title,
 }: {
   children: ReactNode
+  className?: string
   style?: CSSProperties
   onClick?: (e: MouseEvent<HTMLDivElement>) => void
   title?: string
 }) {
   return (
     <div
+      className={className}
       onClick={onClick}
       title={title}
       style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, ...style }}

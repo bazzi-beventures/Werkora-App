@@ -493,6 +493,77 @@
   box-shadow: var(--shadow-card);
 }
 
+/* ─── Projekt-Detail: Tabs Offerten / Rapporte / Rechnungen ── */
+/* Gemeinsames Gerüst der drei Dokument-Tabs; Handy-Umbau in mobile.css.
+   Kopf und Zeilen brechen schon hier um, damit nichts das overflow-x der
+   .admin-table-wrap anstösst — sonst scrollt die ganze Karte seitlich und
+   die Knöpfe stehen abgeschnitten am Rand. */
+.proj-doc-tab {
+  padding: 24px;
+}
+.proj-doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.proj-doc-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.proj-doc-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.proj-doc-row {
+  padding: 6px 4px;
+}
+.proj-doc-version {
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 32px;
+}
+.proj-doc-number {
+  font-family: var(--mono);
+  font-size: 12px;
+  min-width: 140px;
+}
+.proj-doc-date {
+  font-size: 12px;
+  color: var(--muted);
+}
+.proj-doc-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+/* Summe + Knöpfe als ein rechtsbündiger Block, der bei knappem Platz
+   (Kommentar-Seitenleiste) als Einheit umbricht. */
+.proj-doc-tail {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.proj-doc-amount {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+/* Am Desktop unsichtbar: die Knöpfe stehen direkt in der Zeile. */
+.proj-doc-actions {
+  display: contents;
+}
+
 .admin-filter-bar {
   display: flex;
   align-items: center;

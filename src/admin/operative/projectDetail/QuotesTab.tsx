@@ -120,11 +120,12 @@ export function QuotesTab({
     return base
   }
 
+  // Gerüst wie Rechnungen/Rapporte: .proj-doc-* in admin.css, Handy-Umbau in mobile.css.
   return (
-    <div className="admin-table-wrap" style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+    <div className="admin-table-wrap proj-doc-tab">
+      <div className="proj-doc-head">
         <div className="admin-section-title" style={{ margin: 0 }}>Offerten</div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div className="proj-doc-head-actions">
           {/* Nur sichtbar, wenn ein lokal gespeicherter, noch nicht abgeschickter
               Entwurf für dieses Projekt existiert (versehentlich geschlossen). */}
           {hasLocalDraft && (
@@ -180,146 +181,150 @@ export function QuotesTab({
                     key={q.id}
                     onClick={editable ? (e) => { if (!(e.target as HTMLElement).closest('button, a')) onEdit(q.id) } : undefined}
                     title={editable ? 'Klicken zum Bearbeiten (z.B. Vertipper korrigieren)' : undefined}
-                    style={{ padding: '6px 4px', borderTop: idx > 0 ? '1px dashed var(--border)' : 'none', cursor: editable ? 'pointer' : 'default' }}
+                    className="proj-doc-row proj-doc-row--grid"
+                    style={{ borderTop: idx > 0 ? '1px dashed var(--border)' : 'none', cursor: editable ? 'pointer' : 'default' }}
                   >
-                    <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, color: idx === 0 ? 'var(--primary)' : 'var(--muted)' }}>V{q.version}</span>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, minWidth: 130 }}>{q.quote_number}</span>
-                    <span className={`admin-badge ${QUOTE_STATUS_BADGE[q.status] || 'admin-badge-draft'}`}>{QUOTE_STATUS_LABELS[q.status] || q.status}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>{fmtDate(q.created_at)}</span>
-                    {editable && <span style={{ fontSize: 12, color: 'var(--muted)' }} title="Klicken zum Bearbeiten">✎ bearbeiten</span>}
+                    <span className="proj-doc-version" style={{ color: idx === 0 ? 'var(--primary)' : 'var(--muted)' }}>V{q.version}</span>
+                    <span className="proj-doc-number">{q.quote_number}</span>
+                    <span className={`admin-badge proj-doc-status ${QUOTE_STATUS_BADGE[q.status] || 'admin-badge-draft'}`}>{QUOTE_STATUS_LABELS[q.status] || q.status}</span>
+                    <span className="proj-doc-date">{fmtDate(q.created_at)}</span>
+                    {editable && <span className="proj-doc-meta" style={{ fontSize: 12 }} title="Klicken zum Bearbeiten">✎ bearbeiten</span>}
                     {dankEnabled && q.thankyou_sent_at && (
-                      <span style={{ fontSize: 11, color: 'var(--muted)' }} title="Danke-Mail an den Kunden wurde versendet">
+                      <span className="proj-doc-meta" title="Danke-Mail an den Kunden wurde versendet">
                         ✓ Danke-Mail {fmtDate(q.thankyou_sent_at)}
                       </span>
                     )}
                     {absageEnabled && q.rejection_mail_sent_at && (
-                      <span style={{ fontSize: 11, color: 'var(--muted)' }} title="Absage-Mail an den Kunden wurde versendet">
+                      <span className="proj-doc-meta" title="Absage-Mail an den Kunden wurde versendet">
                         ✓ Absage-Mail {fmtDate(q.rejection_mail_sent_at)}
                       </span>
                     )}
                     {/* Ohne Feature-Bedingung — die Auftragsbestätigung steht jedem Mandanten offen. */}
                     {q.order_confirmation_sent_at && (
-                      <span style={{ fontSize: 11, color: 'var(--muted)' }} title="Auftragsbestätigung an den Kunden wurde versendet">
+                      <span className="proj-doc-meta" title="Auftragsbestätigung an den Kunden wurde versendet">
                         ✓ Auftragsbestätigung {fmtDate(q.order_confirmation_sent_at)}
                       </span>
                     )}
                     {/* Summe + Aktionen als ein rechtsbündiger Block, der bei knappem
                         Platz (Kommentar-Seitenleiste) als Einheit umbricht – statt die
-                        Summe vom Button-Cluster zu trennen. */}
-                    <div style={{ marginLeft: 'auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{fmtCHF(q.total_amount)}</span>
-                      {q.storage_path && (
-                        <a href={apiUrl(`/pwa/admin/quotes/${q.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
-                      )}
-                      {q.xlsx_storage_path && (
-                        <a href={apiUrl(`/pwa/admin/quotes/${q.id}/xlsx`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">XLSX</a>
-                      )}
-                      {idx === 0 && (
-                        <>
-                          {['entwurf', 'gesendet'].includes(q.status) && (
-                            <button
-                              className="admin-btn admin-btn-primary admin-btn-sm"
-                              onClick={() => onSend(q)}
-                            >
-                              {q.status === 'gesendet' ? 'Erneut senden' : 'Senden'}
-                            </button>
-                          )}
-                          {/* Postversand — wie bei der Rechnung: nur solange die Offerte
-                              den Betrieb noch nicht verlassen hat, und nur mit
-                              vorliegendem Dokument. Genau die zwei Guards des Endpunkts;
-                              ohne sie wäre der Knopf sichtbar, aber jeder Klick ein 409. */}
-                          {q.status === 'entwurf' && (q.storage_path || q.xlsx_storage_path) && (
-                            <button
-                              className="admin-btn admin-btn-secondary admin-btn-sm"
-                              onClick={() => openPostal(q)}
-                              title="Ohne E-Mail als versendet erfassen (Post, persönlich übergeben)"
-                            >
-                              Per Post versendet
-                            </button>
-                          )}
-                          {/* Auch bei 'gesendet': nach dem Versand will man den Ausgang
-                              festhalten — genau dann meldet sich der Kunde ja. Vorher war
-                              nur 'entwurf' erlaubt, was den Normalfall aussperrte. */}
-                          {['entwurf', 'gesendet'].includes(q.status) && (
-                            <>
+                        Summe vom Button-Cluster zu trennen. Am Handy löst er sich auf:
+                        Summe neben das Datum, Knöpfe in eine eigene Zeile. */}
+                    <div className="proj-doc-tail">
+                      <span className="proj-doc-amount">{fmtCHF(q.total_amount)}</span>
+                      <div className="proj-doc-actions">
+                        {q.storage_path && (
+                          <a href={apiUrl(`/pwa/admin/quotes/${q.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
+                        )}
+                        {q.xlsx_storage_path && (
+                          <a href={apiUrl(`/pwa/admin/quotes/${q.id}/xlsx`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">XLSX</a>
+                        )}
+                        {idx === 0 && (
+                          <>
+                            {['entwurf', 'gesendet'].includes(q.status) && (
                               <button
-                                className="admin-btn admin-btn-success admin-btn-sm"
-                                onClick={() => onUpdateStatus(q.id, 'akzeptiert')}
-                                title="Kunde hat die Offerte angenommen"
+                                className="admin-btn admin-btn-primary admin-btn-sm"
+                                onClick={() => onSend(q)}
                               >
-                                Akzeptiert
+                                {q.status === 'gesendet' ? 'Erneut senden' : 'Senden'}
                               </button>
-                              <button
-                                className="admin-btn admin-btn-danger admin-btn-sm"
-                                onClick={() => onUpdateStatus(q.id, 'abgelehnt')}
-                                title="Kunde hat die Offerte abgelehnt"
-                              >
-                                Abgelehnt
-                              </button>
-                            </>
-                          )}
-                          {dankEnabled && q.status === 'akzeptiert' && !q.thankyou_sent_at && (
-                            <button
-                              className="admin-btn admin-btn-secondary admin-btn-sm"
-                              onClick={() => onSendThankyou(q)}
-                              title="Dankesmail an den Kunden senden"
-                            >
-                              Dankeschön senden
-                            </button>
-                          )}
-                          {/* Kein Feature-Flag, Knopf bleibt nach dem Versand stehen:
-                              siehe quotes/QuoteListParts.tsx */}
-                          {q.status === 'akzeptiert' && (
-                            <button
-                              className="admin-btn admin-btn-secondary admin-btn-sm"
-                              onClick={() => onSendOrderConfirmation(q)}
-                              title={q.order_confirmation_sent_at
-                                ? 'Auftragsbestätigung erneut an den Kunden senden'
-                                : 'Auftragsbestätigung an den Kunden senden'}
-                            >
-                              {q.order_confirmation_sent_at ? 'AB erneut senden' : 'Auftragsbestätigung'}
-                            </button>
-                          )}
-                          {absageEnabled && q.status === 'abgelehnt' && !q.rejection_mail_sent_at && (
-                            <button
-                              className="admin-btn admin-btn-secondary admin-btn-sm"
-                              disabled={sendingRejectionId === q.id}
-                              onClick={() => onSendRejection(q.id)}
-                              title="Absage-Mail an den Kunden senden"
-                            >
-                              {sendingRejectionId === q.id ? '…' : 'Absage senden'}
-                            </button>
-                          )}
-                          <button
-                            className="admin-btn admin-btn-secondary admin-btn-sm"
-                            disabled={regeneratingQuoteId === q.id}
-                            onClick={() => onRegenerate(q.id)}
-                            title="Neue Offerten-Nummer mit gleichen Positionen — Kunde und Objekt werden vom aktuellen Projektstand übernommen"
-                          >
-                            {regeneratingQuoteId === q.id ? '…' : 'Neue Version'}
-                          </button>
-                          {onAddVariant && (
-                            <>
+                            )}
+                            {/* Postversand — wie bei der Rechnung: nur solange die Offerte
+                                den Betrieb noch nicht verlassen hat, und nur mit
+                                vorliegendem Dokument. Genau die zwei Guards des Endpunkts;
+                                ohne sie wäre der Knopf sichtbar, aber jeder Klick ein 409. */}
+                            {q.status === 'entwurf' && (q.storage_path || q.xlsx_storage_path) && (
                               <button
                                 className="admin-btn admin-btn-secondary admin-btn-sm"
-                                disabled={addingVariantId === q.id}
-                                onClick={() => onAddVariant(q.id, 'variante')}
-                                title="Kopiert diese Offerte als Variante — der Kunde wählt in einem Mail GENAU EINE (Option A/B/C)"
+                                onClick={() => openPostal(q)}
+                                title="Ohne E-Mail als versendet erfassen (Post, persönlich übergeben)"
                               >
-                                {addingVariantId === q.id ? '…' : '+ Variante'}
+                                Per Post versendet
                               </button>
+                            )}
+                            {/* Auch bei 'gesendet': nach dem Versand will man den Ausgang
+                                festhalten — genau dann meldet sich der Kunde ja. Vorher war
+                                nur 'entwurf' erlaubt, was den Normalfall aussperrte. */}
+                            {['entwurf', 'gesendet'].includes(q.status) && (
+                              <>
+                                <button
+                                  className="admin-btn admin-btn-success admin-btn-sm"
+                                  onClick={() => onUpdateStatus(q.id, 'akzeptiert')}
+                                  title="Kunde hat die Offerte angenommen"
+                                >
+                                  Akzeptiert
+                                </button>
+                                <button
+                                  className="admin-btn admin-btn-danger admin-btn-sm"
+                                  onClick={() => onUpdateStatus(q.id, 'abgelehnt')}
+                                  title="Kunde hat die Offerte abgelehnt"
+                                >
+                                  Abgelehnt
+                                </button>
+                              </>
+                            )}
+                            {dankEnabled && q.status === 'akzeptiert' && !q.thankyou_sent_at && (
                               <button
                                 className="admin-btn admin-btn-secondary admin-btn-sm"
-                                disabled={addingVariantId === q.id}
-                                onClick={() => onAddVariant(q.id, 'mehrfach')}
-                                title="Eine eigenständige zusätzliche Offerte — der Kunde kann sie zusätzlich annehmen (Offerte 1/2)"
+                                onClick={() => onSendThankyou(q)}
+                                title="Dankesmail an den Kunden senden"
                               >
-                                {addingVariantId === q.id ? '…' : '+ Weitere Offerte'}
+                                Dankeschön senden
                               </button>
-                            </>
-                          )}
-                        </>
-                      )}
+                            )}
+                            {/* Kein Feature-Flag, Knopf bleibt nach dem Versand stehen:
+                                siehe quotes/QuoteListParts.tsx */}
+                            {q.status === 'akzeptiert' && (
+                              <button
+                                className="admin-btn admin-btn-secondary admin-btn-sm"
+                                onClick={() => onSendOrderConfirmation(q)}
+                                title={q.order_confirmation_sent_at
+                                  ? 'Auftragsbestätigung erneut an den Kunden senden'
+                                  : 'Auftragsbestätigung an den Kunden senden'}
+                              >
+                                {q.order_confirmation_sent_at ? 'AB erneut senden' : 'Auftragsbestätigung'}
+                              </button>
+                            )}
+                            {absageEnabled && q.status === 'abgelehnt' && !q.rejection_mail_sent_at && (
+                              <button
+                                className="admin-btn admin-btn-secondary admin-btn-sm"
+                                disabled={sendingRejectionId === q.id}
+                                onClick={() => onSendRejection(q.id)}
+                                title="Absage-Mail an den Kunden senden"
+                              >
+                                {sendingRejectionId === q.id ? '…' : 'Absage senden'}
+                              </button>
+                            )}
+                            <button
+                              className="admin-btn admin-btn-secondary admin-btn-sm"
+                              disabled={regeneratingQuoteId === q.id}
+                              onClick={() => onRegenerate(q.id)}
+                              title="Neue Offerten-Nummer mit gleichen Positionen — Kunde und Objekt werden vom aktuellen Projektstand übernommen"
+                            >
+                              {regeneratingQuoteId === q.id ? '…' : 'Neue Version'}
+                            </button>
+                            {onAddVariant && (
+                              <>
+                                <button
+                                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                                  disabled={addingVariantId === q.id}
+                                  onClick={() => onAddVariant(q.id, 'variante')}
+                                  title="Kopiert diese Offerte als Variante — der Kunde wählt in einem Mail GENAU EINE (Option A/B/C)"
+                                >
+                                  {addingVariantId === q.id ? '…' : '+ Variante'}
+                                </button>
+                                <button
+                                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                                  disabled={addingVariantId === q.id}
+                                  onClick={() => onAddVariant(q.id, 'mehrfach')}
+                                  title="Eine eigenständige zusätzliche Offerte — der Kunde kann sie zusätzlich annehmen (Offerte 1/2)"
+                                >
+                                  {addingVariantId === q.id ? '…' : '+ Weitere Offerte'}
+                                </button>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </ActionRow>
                   )

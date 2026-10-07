@@ -217,11 +217,13 @@ export function ReportsTab({
     }
   }
 
+  // Gerüst wie Offerten/Rechnungen: .proj-doc-* in admin.css, Handy-Umbau in
+  // mobile.css — dort rutschen die Knöpfe unter Datum und Monteur.
   return (
-    <div className="admin-table-wrap" style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+    <div className="admin-table-wrap proj-doc-tab">
+      <div className="proj-doc-head">
         <div className="admin-section-title" style={{ margin: 0 }}>Rapporte</div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div className="proj-doc-head-actions">
           <span style={{ fontSize: 12, color: 'var(--muted)' }}>
             {reports.length === 0 ? 'keine' : `${reports.length} Rapport${reports.length === 1 ? '' : 'e'}`}
           </span>
@@ -367,75 +369,77 @@ export function ReportsTab({
                     {r.description ? ` · ${r.description}` : ''}
                   </div>
                 </div>
-                {r.storage_path ? (
-                  <a href={apiUrl(`/pwa/admin/reports/${r.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">
-                    PDF
-                  </a>
-                ) : onRegeneratePdf ? (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                    onClick={() => void handleRegenerate(r.id)}
-                    disabled={regeneratingId === r.id}
-                    title="Zu diesem Rapport fehlt das PDF — aus den erfassten Stunden und Material neu erzeugen. Inhalt und Unterschrift bleiben unverändert."
-                  >
-                    {regeneratingId === r.id ? 'Erzeuge…' : 'PDF erzeugen'}
-                  </button>
-                ) : (
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>kein PDF</span>
-                )}
-                {canAccept && (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                    onClick={() => setConfirmAccept(r)}
-                    title="Ohne Kundenunterschrift abschliessen — wenn beim Kunden keine Unterschrift mehr zu holen ist. Danach sind die gebündelten Einsätze verrechenbar."
-                  >
-                    Ohne Unterschrift abschliessen
-                  </button>
-                )}
-                {canDissolve && (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                    onClick={() => setConfirmDissolve(r)}
-                    title="Die Bündelung auflösen — die Teilrapporte werden wieder frei und lassen sich neu zusammenstellen."
-                  >
-                    Auflösen
-                  </button>
-                )}
-                {canAddNext && (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                    onClick={() => setConfirmNextEinsatz(r)}
-                    title={r.is_partial
-                      ? 'Noch einen Einsatz auf dieser Baustelle erfassen'
-                      : 'Mehrtägige Baustelle: diesen Rapport in die Serie aufnehmen und den nächsten Einsatz erfassen'}
-                  >
-                    Weiterer Einsatz
-                  </button>
-                )}
-                {onEdit && manual && !billed && !signed && !merged && (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                    onClick={() => onEdit(r.id)}
-                    title="Datum, Stunden, Material und Beschrieb dieses Rapports korrigieren"
-                  >
-                    Bearbeiten
-                  </button>
-                )}
-                {onDelete && !billed && !merged && (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-danger"
-                    onClick={() => setConfirmDelete(r)}
-                    title="Rapport inkl. Stunden und Material löschen"
-                  >
-                    Löschen
-                  </button>
-                )}
+                <div className="proj-doc-actions">
+                  {r.storage_path ? (
+                    <a href={apiUrl(`/pwa/admin/reports/${r.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">
+                      PDF
+                    </a>
+                  ) : onRegeneratePdf ? (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-secondary"
+                      onClick={() => void handleRegenerate(r.id)}
+                      disabled={regeneratingId === r.id}
+                      title="Zu diesem Rapport fehlt das PDF — aus den erfassten Stunden und Material neu erzeugen. Inhalt und Unterschrift bleiben unverändert."
+                    >
+                      {regeneratingId === r.id ? 'Erzeuge…' : 'PDF erzeugen'}
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>kein PDF</span>
+                  )}
+                  {canAccept && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-secondary"
+                      onClick={() => setConfirmAccept(r)}
+                      title="Ohne Kundenunterschrift abschliessen — wenn beim Kunden keine Unterschrift mehr zu holen ist. Danach sind die gebündelten Einsätze verrechenbar."
+                    >
+                      Ohne Unterschrift abschliessen
+                    </button>
+                  )}
+                  {canDissolve && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-secondary"
+                      onClick={() => setConfirmDissolve(r)}
+                      title="Die Bündelung auflösen — die Teilrapporte werden wieder frei und lassen sich neu zusammenstellen."
+                    >
+                      Auflösen
+                    </button>
+                  )}
+                  {canAddNext && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-secondary"
+                      onClick={() => setConfirmNextEinsatz(r)}
+                      title={r.is_partial
+                        ? 'Noch einen Einsatz auf dieser Baustelle erfassen'
+                        : 'Mehrtägige Baustelle: diesen Rapport in die Serie aufnehmen und den nächsten Einsatz erfassen'}
+                    >
+                      Weiterer Einsatz
+                    </button>
+                  )}
+                  {onEdit && manual && !billed && !signed && !merged && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-secondary"
+                      onClick={() => onEdit(r.id)}
+                      title="Datum, Stunden, Material und Beschrieb dieses Rapports korrigieren"
+                    >
+                      Bearbeiten
+                    </button>
+                  )}
+                  {onDelete && !billed && !merged && (
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-danger"
+                      onClick={() => setConfirmDelete(r)}
+                      title="Rapport inkl. Stunden und Material löschen"
+                    >
+                      Löschen
+                    </button>
+                  )}
+                </div>
               </ActionRow>
             )
           })}

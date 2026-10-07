@@ -723,6 +723,64 @@
     max-width: none;
   }
 
+  /* Projekt-Detail, Tabs Offerten / Rapporte / Rechnungen: Kopf in zwei
+     Zeilen (Titel, darunter die Aktionen), jedes Dokument als kleine Karte
+     mit eigener Knopfzeile. Vorher lief alles in einer Flex-Zeile: der
+     Betrag brach auf zwei Zeilen um, der Kopf sprengte die Karte, und sie
+     liess sich seitlich verschieben. */
+  .proj-doc-tab {
+    padding: 14px;
+  }
+  .proj-doc-head-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  /* Offerten/Rechnungen: Version + Nummer + Status, darunter Datum + Betrag,
+     dann Hinweise (Danke-Mail …) und Knöpfe je auf voller Breite.
+     !important: ActionRow setzt `display: flex` inline. */
+  .proj-doc-row--grid {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "ver num status"
+      "date date amount";
+    padding: 8px 2px;
+  }
+  .proj-doc-row--grid .proj-doc-version { grid-area: ver; min-width: 0; }
+  .proj-doc-row--grid .proj-doc-number {
+    grid-area: num;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .proj-doc-row--grid .proj-doc-status { grid-area: status; justify-self: end; }
+  .proj-doc-row--grid .proj-doc-date { grid-area: date; }
+  .proj-doc-row--grid .proj-doc-tail { display: contents; }
+  .proj-doc-row--grid .proj-doc-amount {
+    grid-area: amount;
+    justify-self: end;
+    font-size: 15px;
+  }
+  .proj-doc-row--grid .proj-doc-meta { grid-column: 1 / -1; }
+  /* Knopfzeile: im Grid (order: nach den Hinweisen) wie in der Flex-Zeile
+     der Rapporte (flex-basis: eigene Zeile) volle Breite. */
+  .proj-doc-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex-basis: 100%;
+    grid-column: 1 / -1;
+    order: 1;
+  }
+  .proj-doc-actions:empty {
+    display: none;
+  }
+  .proj-doc-actions > .admin-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
   /* ─── Touch-Targets ──────────────────────────────────── */
   .admin-modal-close {
     padding: 10px;
