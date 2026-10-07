@@ -57,6 +57,14 @@ describe('Admin-Mobile-Shell', () => {
     expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/-webkit-overflow-scrolling/)
   })
 
+  it('laesst im Mehr-Sheet nur die Liste schrumpfen, nie die Fusszeile', () => {
+    // Mit dem Default `flex-shrink: 1` bekam die Fusszeile (Wechsel-Knopf,
+    // Name, Logout) anteilig den Platzmangel der langen Liste ab und war am
+    // Handy auf ~70px abgeschnitten, nur in einem Mini-Scrollbereich erreichbar.
+    expect(block('.admin-mobile-drawer-footer')).toMatch(/flex-shrink:\s*0/)
+    expect(block('.admin-mobile-drawer-divider')).toMatch(/flex-shrink:\s*0/)
+  })
+
   it('traegt den oberen Safe-Area-Inset an der klebenden Topbar, nicht am Scroll-Container', () => {
     // `sticky top: 0` klebt am Rand der Padding-Box: liegt der Inset am
     // Scroll-Container, rutscht die Topbar beim Scrollen unter die Uhr.

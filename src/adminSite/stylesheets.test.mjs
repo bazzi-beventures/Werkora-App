@@ -32,7 +32,28 @@ function quellen(dir) {
   })
 }
 
+/**
+ * Dazu alles, was von dort aus relativ importiert wird — transitiv. Etliche
+ * Fenster der Betreiber-Seite liegen weiter unter `src/admin/` (z.B.
+ * `FreeInvoiceDialog`, «Neue Rechnung»). Der war genau deshalb ungeprueft und
+ * kam mit vier erfundenen Klassen (`admin-modal-backdrop`, `-head`, `-foot`,
+ * `-lg`) als ungestylter Block mitten in die Seite statt als Panel.
+ */
+function aufloesen(von, spec) {
+  const basis = resolve(dirname(von), spec)
+  for (const k of [basis, basis + '.tsx', basis + '.ts', resolve(basis, 'index.tsx'), resolve(basis, 'index.ts')]) {
+    try { if (statSync(k).isFile()) return k } catch { /* naechster Kandidat */ }
+  }
+  return null
+}
 const dateien = quellen(WURZEL)
+for (let i = 0; i < dateien.length; i++) {
+  const src = readFileSync(dateien[i], 'utf8')
+  for (const m of src.matchAll(/^import\s+(?!type\b)[^'"]*?from\s+['"](\.[^'"]+)['"]/gm)) {
+    const ziel = aufloesen(dateien[i], m[1])
+    if (ziel && /\.tsx?$/.test(ziel) && !/\.test\.tsx?$/.test(ziel) && !dateien.includes(ziel)) dateien.push(ziel)
+  }
+}
 
 /** Jedes `import '….css'` einsammeln, relativ zur importierenden Datei aufgeloest,
  *  und danach den `@import`s darin folgen (index.css zieht so fonts.css nach). */
@@ -95,7 +116,9 @@ describe('Stylesheets der Betreiber-Seite', () => {
   })
 
   it('definiert jede benutzte admin-*-Klasse', () => {
-    const fehlend = [...benutzt].filter((k) => !css.includes('.' + k)).sort()
+    // Ganzes Token, nicht Teilstring: sonst galt `admin-modal-head` als
+    // definiert, weil `.admin-modal-header` es enthaelt.
+    const fehlend = [...benutzt].filter((k) => !new RegExp(`\\.${k}(?![\\w-])`).test(css)).sort()
     expect(fehlend, `nicht definiert: ${fehlend.join(', ')}`).toEqual([])
   })
 

@@ -713,6 +713,21 @@ select.admin-input {
   justify-content: flex-end;
 }
 
+/* Breite Variante für Fenster mit Tabelle (FreeInvoiceDialog: Positionen mit
+   sechs Spalten passen in 480px nur mit Querscrollen). */
+.admin-modal-lg {
+  width: 760px;
+}
+
+/* Anzeige-Summe unter einer Positionstabelle — rechtsbündig wie die Beträge. */
+.admin-modal-total {
+  align-self: flex-end;
+  font-size: var(--font-lg);
+  font-weight: 700;
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
 /* Confirmation Dialog (centered) */
 .admin-confirm-overlay {
   position: fixed;

@@ -241,7 +241,9 @@
   border-top: 1px solid var(--nav-edge, #1c3e60);
   z-index: 61;
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Gemessene Fensterhoehe statt dvh — gleiche Begruendung wie bei der Shell. */
   max-height: 70dvh;
+  max-height: calc(var(--app-vh, 100dvh) * 0.7);
   display: flex;
   flex-direction: column;
   animation: adminMobileDrawerUp 0.22s ease;
@@ -268,6 +270,8 @@
      Minimum schrumpfte sie bei zwei Beta-Features auf null, und das Sheet
      zeigte nur noch den Beta-Abschnitt — Admin-Tools waren unerreichbar. */
   min-height: 25dvh;
+  /* Am Ende der Liste nicht an die Seite dahinter weiterreichen. */
+  overscroll-behavior: contain;
 }
 
 .admin-mobile-drawer-group {
@@ -334,14 +338,23 @@
   height: 1px;
   background: var(--nav-edge, #1c3e60);
   margin: 8px 0;
+  flex-shrink: 0;
 }
 
 .admin-mobile-drawer-footer {
   padding: 4px 12px 8px;
-  /* Gegenstueck zum Minimum oben: die Fusszeile scrollt in sich, statt das
-     Sheet zu fuellen. */
+  /* Die Fusszeile schrumpft nie. Mit dem Default `flex-shrink: 1` (und
+     `overflow-y: auto`, das ihr Minimum auf 0 setzt) verteilte der Browser
+     den Platzmangel der langen Liste anteilig auch auf sie: am Handy blieben
+     von Wechsel-Knopf, Name und Logout rund 70px, abgeschnitten und nur in
+     einem winzigen zweiten Scrollbereich erreichbar. Schrumpfen muss allein
+     die Liste — die scrollt ohnehin. */
+  flex-shrink: 0;
+  /* Gegenstueck zum Minimum oben: wird die Fusszeile je wirklich lang, scrollt
+     sie in sich, statt das Sheet zu fuellen. */
   max-height: 40dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .admin-mobile-switch-btn {

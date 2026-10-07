@@ -7,12 +7,13 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-// Custom-Domain-Setup → App auf Root. Drei Ziele, jedes mit eigener Domain und
+// Custom-Domain-Setup → App auf Root. Jedes Ziel mit eigener Domain und
 // eigenem VITE_API_URL, gebaut im jeweiligen Pages-Repo:
-//   app.werkora.ch          (Repo Werkora-App)     — Prod, neu
-//   app.beventures.ch       (Repo Bau-App)         — Prod, alt; laeuft bis zur
-//                                                    Abschaltung der alten Origin
-//   app-staging.beventures.ch (Repo Bau-App-Staging)
+//   app.werkora.ch          (Repo Werkora-App)       — Prod
+//   admin.werkora.ch        (Repo Werkora-Admin)     — Betreiber-Seite
+//   app-staging.werkora.ch  (Repo Bau-App-Staging)
+// app.beventures.ch (Repo Bau-App) ist seit 2026-10-07 abgeschaltet und baut
+// nicht mehr — dort liegt nur noch scripts/old-origin-killer/.
 // Falls je wieder ein Build ohne Custom Domain gefahren wird, --base im CI-Workflow setzen.
 const BASE_PATH = '/'
 

@@ -21,6 +21,7 @@ import { useMemo, useState } from 'react'
 import { generateFreeInvoice, type FreePosition } from '../../api/admin'
 import type { Customer } from '../../api/admin'
 import { CustomerCombobox } from './CustomerCombobox'
+import { backdropCloseProps } from '../../shared/backdropClose'
 
 /** Wie `services/free_invoice.py`: mehr Zeilen nimmt der Server nicht an. */
 const MAX_POSITIONEN = 100
@@ -136,11 +137,17 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
     }
   }
 
+  // Ein Klick daneben wirft keine halb erfasste Rechnung weg — schliessen
+  // geht dann nur über «Abbrechen» bzw. das ×.
+  const angefangen =
+    customerId !== '' || remark.trim() !== '' ||
+    zeilen.some((z) => z.text.trim() !== '' || z.einzelpreis.trim() !== '')
+
   return (
-    <div className="admin-modal-backdrop" onClick={onClose}>
-      <div className="admin-modal admin-modal-lg" onClick={(e) => e.stopPropagation()}>
-        <div className="admin-modal-head">
-          <h2>Neue Rechnung</h2>
+    <div className="admin-modal-overlay" {...backdropCloseProps(onClose, { blockWhen: () => angefangen })}>
+      <div className="admin-modal admin-modal-lg" role="dialog" aria-modal="true" aria-label="Neue Rechnung">
+        <div className="admin-modal-header">
+          <h2 className="admin-modal-title">Neue Rechnung</h2>
           <button type="button" className="admin-modal-close" onClick={onClose} aria-label="Schliessen">×</button>
         </div>
 
@@ -227,6 +234,7 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
           <button
             type="button"
             className="admin-btn admin-btn-secondary admin-btn-sm"
+            style={{ alignSelf: 'flex-start' }}
             disabled={zeilen.length >= MAX_POSITIONEN}
             onClick={() => setZeilen((alt) => [...alt, { ...LEERE_ZEILE }])}
           >
@@ -261,7 +269,7 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
           {fehler && <div className="admin-error">{fehler}</div>}
         </div>
 
-        <div className="admin-modal-foot">
+        <div className="admin-modal-footer">
           <button type="button" className="admin-btn admin-btn-secondary" onClick={onClose}>
             Abbrechen
           </button>
