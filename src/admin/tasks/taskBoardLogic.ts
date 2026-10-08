@@ -1,6 +1,7 @@
 import { BoardColumn, BoardTask, TaskTypeInfo } from '../../api/admin'
 import type { AdminScreen } from '../useAdminNav'
 import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
+import { todayISO } from '../utils/format'
 
 export const COLUMN_LABELS: Record<BoardColumn, string> = {
   offen: 'Offen',
@@ -116,26 +117,130 @@ export function daysSince(iso: string | null): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
 }
 
-/** Überfällig = Fälligkeit vor heute und noch nicht erledigt. */
+/** Überfällig = Fälligkeit vor heute und noch nicht erledigt. Heute = lokaler
+ *  Kalendertag (todayISO), nicht toISOString — das rechnet nach UTC und hielt
+ *  zwischen Mitternacht und 02:00 noch den gestrigen Tag für «heute». */
 export function isOverdue(task: Pick<BoardTask, 'due_date' | 'status'>, today = new Date()): boolean {
   if (!task.due_date || task.status === 'erledigt') return false
-  const iso = today.toISOString().slice(0, 10)
-  return task.due_date < iso
+  return task.due_date < todayISO(today)
 }
 
-/** Deep-Link von der Karte zum Quell-Datensatz. */
+export type Urgency = 'overdue' | 'today' | 'soon' | null
+
+/** Dringlichkeit für den Farbstreifen der Karte: überfällig, heute fällig,
+ *  in den nächsten drei Tagen fällig — sonst nichts. Erledigtes ist nie dringend. */
+export function urgency(task: Pick<BoardTask, 'due_date' | 'status'>, today = new Date()): Urgency {
+  if (!task.due_date || task.status === 'erledigt') return null
+  const iso = todayISO(today)
+  if (task.due_date < iso) return 'overdue'
+  if (task.due_date === iso) return 'today'
+  const soon = todayISO(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 3))
+  return task.due_date <= soon ? 'soon' : null
+}
+
+/**
+ * Titel ohne das Typ-Präfix, das der Chip darüber schon nennt: aus
+ * «Projekt überfällig: Torti Seuzach» unter dem Chip «Projekt überfällig» wird
+ * «Torti Seuzach». Die Auto-Titel tragen das Präfix, weil sie auch ausserhalb
+ * des Boards (Detail, Dashboard) für sich stehen müssen; auf der Karte las sich
+ * jede zweite Zeile doppelt. Ohne passendes Präfix bleibt der Titel, wie er ist.
+ */
+export function displayTitle(title: string, typeLabel: string | null | undefined): string {
+  if (!typeLabel) return title
+  const prefix = `${typeLabel}:`
+  if (!title.startsWith(prefix)) return title
+  const rest = title.slice(prefix.length).trim()
+  return rest || title
+}
+
+/** Schnellsuche: jedes Wort muss in Titel, Projekt, Beschreibung oder Typ
+ *  vorkommen (ohne Gross-/Kleinschreibung). Leere Suche trifft alles. */
+export function matchesQuery(
+  task: Pick<BoardTask, 'title' | 'project_name' | 'description'>,
+  query: string,
+  typeLabel?: string | null,
+): boolean {
+  const words = query.toLocaleLowerCase('de-CH').split(/\s+/).filter(Boolean)
+  if (words.length === 0) return true
+  const hay = [task.title, task.project_name, task.description, typeLabel]
+    .filter(Boolean).join(' ').toLocaleLowerCase('de-CH')
+  return words.every(w => hay.includes(w))
+}
+
+/**
+ * Deep-Link von der Karte zum Quell-Datensatz.
+ *
+ * Offerten, Rechnungen und Bestellfreigaben mit Projekt öffnen das Projekt auf
+ * dem passenden Reiter — dort steht der Datensatz selbst. Die Listen-Screens
+ * kennen keinen Sprung auf einen einzelnen Eintrag; ohne Projekt bleibt es
+ * deshalb bei der Liste (Offerten wenigstens auf den passenden Status gefiltert).
+ */
 export function navTarget(task: BoardTask): { screen: AdminScreen; detailId?: string; tab?: ProjectTab } | null {
+  const inProject = (tab: ProjectTab) =>
+    task.project_id ? { screen: 'projects' as const, detailId: task.project_id, tab } : null
   switch (task.ref_kind) {
-    case 'quote': return { screen: 'quotes' }
-    case 'invoice': return { screen: 'invoices' }
+    case 'quote':
+      return inProject('quotes') ?? {
+        screen: 'quotes',
+        // QuotesScreen liest die detailId als Status-Vorfilter.
+        detailId: task.task_type === 'quote_draft_stale' ? 'entwurf'
+          : task.task_type === 'quote_followup' ? 'gesendet' : undefined,
+      }
+    case 'invoice': return inProject('invoices') ?? { screen: 'invoices' }
     case 'project': return task.project_id ? { screen: 'projects', detailId: task.project_id } : { screen: 'projects' }
     case 'draft': return { screen: 'project-drafts' }
-    case 'approval': return { screen: 'dashboard' }
+    case 'approval': return inProject('approvals') ?? { screen: 'dashboard' }
     case 'aftersales': return { screen: 'aftersales' }
     // Der Fall liegt im Projekt, Reiter «Garantie» (Spec garantiefall.md §6.2).
-    case 'warranty_case':
-      return task.project_id ? { screen: 'projects', detailId: task.project_id, tab: 'warranty' } : null
+    case 'warranty_case': return inProject('warranty')
     default:
       return task.project_id ? { screen: 'projects', detailId: task.project_id } : null
   }
+}
+
+/** Direktaktion auf der Karte — die Arbeit, für die man sonst erst «Öffnen» muss. */
+export interface CardAction {
+  kind: 'close_project' | 'quote_reminder'
+  /** Knopf auf der Karte (kurz). */
+  label: string
+  /** Knopf im Detail (ausgeschrieben). */
+  longLabel: string
+  /** Rückfrage vor dem Auslösen — beide Aktionen wirken nach aussen bzw. endgültig. */
+  confirm: string
+  success: string
+}
+
+/**
+ * Welche Direktaktion eine Karte trägt. Bewusst nur zwei, beide mit einem
+ * bestehenden Endpoint, und beide machen die Karte im nächsten Sync von selbst
+ * erledigt (Projekt nicht mehr offen bzw. reminder_sent_at gesetzt):
+ *
+ * - «Projekt überfällig» → Projekt abschliessen (wie das Dashboard-Modal).
+ * - «Offerte nachfassen» → Erinnerungsmail an den Kunden.
+ *
+ * Nicht dabei: «Rechnung mahnen». Ob Zahlungserinnerung oder Mahnung fällig
+ * ist, weiss die Karte nicht, und eine Mahnung per Ein-Klick vom Board aus
+ * ist zu viel für einen Knopf — dafür öffnet die Karte die Rechnung im Projekt.
+ */
+export function cardAction(task: Pick<BoardTask, 'source' | 'task_type' | 'status' | 'project_id' | 'ref_id' | 'title'>): CardAction | null {
+  if (task.source !== 'auto' || task.status === 'erledigt') return null
+  if (task.task_type === 'project_overdue' && task.project_id) {
+    return {
+      kind: 'close_project',
+      label: 'Abschliessen',
+      longLabel: 'Projekt abschliessen',
+      confirm: 'Projekt als abgeschlossen markieren? Danach erscheint es unter «Rechnung erstellen», falls noch keine Rechnung existiert.',
+      success: 'Projekt abgeschlossen',
+    }
+  }
+  if (task.task_type === 'quote_followup' && task.ref_id && /^\d+$/.test(task.ref_id)) {
+    return {
+      kind: 'quote_reminder',
+      label: 'Nachfassen',
+      longLabel: 'Erinnerung an Kunden senden',
+      confirm: 'Erinnerungsmail zu dieser Offerte jetzt an den Kunden senden?',
+      success: 'Erinnerung an den Kunden gesendet',
+    }
+  }
+  return null
 }

@@ -211,6 +211,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
               guardedNav(next, id)
             }}
             onBadgeChange={loadDashboard}
+            showReminders={hasModule(user, 'reminders')}
           />
         : <ComingSoon title="Kein Zugriff" />
       case 'my-time':      return guard('timekeeping', <MyTimeScreen user={user} onLoggedOut={onLoggedOut} />)

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BoardTask } from '../../api/admin'
-import { dropSortOrder, groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, navTarget, taskField } from './taskBoardLogic'
+import { cardAction, displayTitle, dropSortOrder, groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, matchesQuery, navTarget, taskField, urgency } from './taskBoardLogic'
 
 function task(over: Partial<BoardTask>): BoardTask {
   return {
@@ -131,5 +131,87 @@ describe('navTarget', () => {
   it('übrige Karten springen ohne Reiter', () => {
     expect(navTarget(task({ ref_kind: 'project', project_id: 'p-1' })))
       .toEqual({ screen: 'projects', detailId: 'p-1' })
+  })
+
+  it('Offerte, Rechnung, Freigabe mit Projekt: Projekt auf dem passenden Reiter', () => {
+    expect(navTarget(task({ ref_kind: 'quote', ref_id: '12', project_id: 'p-1' })))
+      .toEqual({ screen: 'projects', detailId: 'p-1', tab: 'quotes' })
+    expect(navTarget(task({ ref_kind: 'invoice', ref_id: '7', project_id: 'p-1' })))
+      .toEqual({ screen: 'projects', detailId: 'p-1', tab: 'invoices' })
+    expect(navTarget(task({ ref_kind: 'approval', ref_id: 'a', project_id: 'p-1' })))
+      .toEqual({ screen: 'projects', detailId: 'p-1', tab: 'approvals' })
+  })
+
+  it('freistehende Offerte: Liste, auf den Status der Aufgabe gefiltert', () => {
+    expect(navTarget(task({ ref_kind: 'quote', task_type: 'quote_draft_stale' })))
+      .toEqual({ screen: 'quotes', detailId: 'entwurf' })
+    expect(navTarget(task({ ref_kind: 'quote', task_type: 'quote_followup' })))
+      .toEqual({ screen: 'quotes', detailId: 'gesendet' })
+    expect(navTarget(task({ ref_kind: 'invoice' }))).toEqual({ screen: 'invoices' })
+  })
+})
+
+describe('cardAction', () => {
+  it('«Projekt überfällig» → abschliessen, «Offerte nachfassen» → Erinnerungsmail', () => {
+    expect(cardAction(task({ task_type: 'project_overdue', project_id: 'p-1' }))?.kind).toBe('close_project')
+    expect(cardAction(task({ task_type: 'quote_followup', ref_id: '42' }))?.kind).toBe('quote_reminder')
+  })
+
+  it('keine Aktion für erledigte, manuelle, übrige Typen oder kaputte Bezüge', () => {
+    expect(cardAction(task({ task_type: 'project_overdue', project_id: 'p-1', status: 'erledigt' }))).toBeNull()
+    expect(cardAction(task({ source: 'manuell', task_type: null, project_id: 'p-1' }))).toBeNull()
+    expect(cardAction(task({ task_type: 'invoice_overdue_action', ref_id: '7' }))).toBeNull()
+    expect(cardAction(task({ task_type: 'project_overdue', project_id: null }))).toBeNull()
+    expect(cardAction(task({ task_type: 'quote_followup', ref_id: 'abc' }))).toBeNull()
+  })
+})
+
+describe('displayTitle', () => {
+  it('lässt das Typ-Präfix weg, das der Chip schon nennt', () => {
+    expect(displayTitle('Projekt überfällig: Torti Seuzach', 'Projekt überfällig')).toBe('Torti Seuzach')
+    expect(displayTitle('Offerte fertigstellen: OFF-2026-070', 'Offerte fertigstellen')).toBe('OFF-2026-070')
+  })
+
+  it('lässt fremde, leere und präfixlose Titel stehen', () => {
+    expect(displayTitle('Garantiefall G-4 prüfen: Huber', 'Garantiefall prüfen')).toBe('Garantiefall G-4 prüfen: Huber')
+    expect(displayTitle('Projekt überfällig:', 'Projekt überfällig')).toBe('Projekt überfällig:')
+    expect(displayTitle('Kunde anrufen', null)).toBe('Kunde anrufen')
+  })
+})
+
+describe('matchesQuery', () => {
+  const t = task({ title: 'Rechnung erstellen: Huber Neftenbach', project_name: '261110 Suhner', description: null })
+
+  it('trifft jedes Wort in Titel, Projekt oder Typ — ohne Gross-/Kleinschreibung', () => {
+    expect(matchesQuery(t, '')).toBe(true)
+    expect(matchesQuery(t, 'huber')).toBe(true)
+    expect(matchesQuery(t, 'neftenbach 261110')).toBe(true)
+    expect(matchesQuery(t, 'mahnen', 'Rechnung mahnen')).toBe(true)
+  })
+
+  it('verlangt alle Wörter', () => {
+    expect(matchesQuery(t, 'huber seuzach')).toBe(false)
+  })
+})
+
+describe('urgency', () => {
+  const today = new Date(2026, 9, 8, 10, 0)
+
+  it('stuft nach Fälligkeit ab', () => {
+    expect(urgency(task({ due_date: '2026-10-07' }), today)).toBe('overdue')
+    expect(urgency(task({ due_date: '2026-10-08' }), today)).toBe('today')
+    expect(urgency(task({ due_date: '2026-10-11' }), today)).toBe('soon')
+    expect(urgency(task({ due_date: '2026-10-12' }), today)).toBeNull()
+    expect(urgency(task({ due_date: null }), today)).toBeNull()
+  })
+
+  it('Erledigtes ist nie dringend', () => {
+    expect(urgency(task({ due_date: '2026-10-01', status: 'erledigt' }), today)).toBeNull()
+  })
+
+  it('rechnet in lokalen Kalendertagen, nicht in UTC', () => {
+    // 00:30 Ortszeit am 8.10. ist in UTC noch der 7.10. — fällig am 7.10. ist trotzdem überfällig.
+    const shortlyAfterMidnight = new Date(2026, 9, 8, 0, 30)
+    expect(isOverdue(task({ due_date: '2026-10-07' }), shortlyAfterMidnight)).toBe(true)
   })
 })

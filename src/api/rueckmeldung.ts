@@ -172,11 +172,11 @@ export function stand(key: string): Promise<Stand> {
 }
 
 export async function downloadExport(key: string): Promise<void> {
-  const { blob, filename } = await apiBlobFetch(`${k(key)}/export.csv`)
+  const { blob, filename } = await apiBlobFetch(`${k(key)}/export.xlsx`)
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = filename.endsWith('.csv') ? filename : 'Rueckmeldungen.csv'
+  a.download = filename.endsWith('.xlsx') ? filename : 'Rueckmeldungen.xlsx'
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

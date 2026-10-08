@@ -366,10 +366,10 @@ export default function RueckmeldungScreen() {
             </div>
           )}
           <button type="button" className="admin-btn admin-btn-secondary" onClick={() => { void exportieren() }}>
-            CSV exportieren
+            Excel exportieren
           </button>
           <div className="admin-form-hint">
-            Alle Projekte der Kampagne, dringendste Antworten zuerst — für die Einsatzplanung beim Betrieb.
+            Excel mit drei Blättern: Rückmeldungen (dringendste zuerst, farbig), Übersicht und alle Projekte — für die Einsatzplanung beim Betrieb.
           </div>
         </>
       )}

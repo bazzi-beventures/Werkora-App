@@ -30,7 +30,7 @@ const BUCKET_STYLE: Record<string, React.CSSProperties> = {
   upcoming: { color: 'var(--muted)' },
 }
 
-function ReminderEditor({
+export function ReminderEditor({
   initial,
   busy,
   onSave,
@@ -45,7 +45,7 @@ function ReminderEditor({
 }) {
   const today = todayISO()
   const [text, setText] = useState(initial?.text ?? '')
-  const [date, setDate] = useState(initial?.date ?? quickDates(today)[0].date)
+  const [date, setDate] = useState(initial?.date || quickDates(today)[0].date)
   const [time, setTime] = useState(initial?.time ?? '')
   const valid = text.trim().length > 0 && date >= today
 

@@ -4156,12 +4156,26 @@ button.admin-list-item {
    Aufgaben-Board (Kanban) — tb-*
    ───────────────────────────────────────────────────────────── */
 
+/* Optik-Überarbeitung 2026-10-08 (Spec §14): das Board wirkte «abgehackt» —
+   jede Spalte endete auf einer anderen Höhe und scrollte für sich, zwei leere
+   Bereiche nahmen volle Breite ein und schoben «Manuell» rechts aus dem Bild,
+   Karte und Spalte trugen fast dieselbe Fläche. Jetzt: alle Spalten gleich
+   hoch über die verfügbare Höhe, leere Bereiche schmal, Karten heben sich als
+   weisse Fläche vom grauen Spaltengrund ab, Dringlichkeit als Farbstreifen. */
+
 .tb-filterbar {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 8px 16px;
   flex-wrap: wrap;
   margin-bottom: 16px;
+}
+
+.tb-filtergroup {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .tb-chip {
@@ -4184,75 +4198,135 @@ button.admin-list-item {
 }
 
 .tb-pl-select { width: auto; min-width: 160px; }
+.tb-pl-select.active { border-color: var(--primary); color: var(--primary); }
+
+.tb-search {
+  margin-left: auto;
+  width: 260px;
+  max-width: 100%;
+}
 
 .tb-board {
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: stretch;
   overflow-x: auto;
-  padding-bottom: 16px;
+  padding-bottom: 8px;
+  /* Volle Fensterhöhe wie die Shells (CLAUDE.md «Volle Fensterhöhe»): nie
+     100%/100vh, sondern --app-vh. 230px = Seitenkopf + Filterleiste. */
+  height: calc(var(--app-vh, 100dvh) - 230px);
+  min-height: 380px;
 }
 
 .tb-column {
   flex: 1 1 0;
-  min-width: 240px;
-  background: var(--surface);
+  min-width: 250px;
+  background: var(--surface-2);
   border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--tb-accent, var(--border));
   border-radius: 12px;
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 220px);
+  min-height: 0;
 }
 
+/* Leerer Bereich: schmal statt raumgreifend. Der Titel darf umbrechen —
+   «Prüfen & Freigeben» ist breiter als die Spalte. */
+.tb-column.compact {
+  flex: 0 0 170px;
+  min-width: 170px;
+}
+
+.tb-column.compact .tb-column-title { white-space: normal; }
+
 .tb-column.done { opacity: 0.85; }
+
+.tb-column[data-accent="offerten"] { --tb-accent: var(--primary); }
+.tb-column[data-accent="projekte"] { --tb-accent: var(--success); }
+.tb-column[data-accent="finanzen"] { --tb-accent: var(--warning); }
+.tb-column[data-accent="pruefen"]  { --tb-accent: var(--danger); }
+.tb-column[data-accent="manuell"]  { --tb-accent: var(--text-muted); }
+.tb-column[data-accent="reminders"] { --tb-accent: var(--warning); }
+.tb-column[data-accent="in_arbeit"] { --tb-accent: var(--success); }
+.tb-column[data-accent="wartet"]   { --tb-accent: var(--warning); }
+.tb-column[data-accent="person"]   { --tb-accent: var(--primary); }
 
 .tb-column-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  font-size: 12px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
+}
+
+.tb-column-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tb-column-count {
-  background: var(--surface-2);
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
   padding: 1px 8px;
   font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tb-column-count.alert {
+  background: var(--danger-soft);
+  border-color: transparent;
+  color: var(--danger-ink);
 }
 
 .tb-column-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 10px 12px;
+  padding: 2px 10px 12px;
   overflow-y: auto;
-  min-height: 60px;
+  flex: 1 1 auto;
+  min-height: 0;
+  scrollbar-width: thin;
 }
 
 .tb-column-empty {
   color: var(--text-muted);
   font-size: 13px;
   text-align: center;
-  padding: 18px 0;
+  padding: 18px 8px;
   border: 1px dashed var(--border);
   border-radius: 8px;
 }
 
 .tb-card {
-  background: var(--surface-2);
+  position: relative;
+  flex-shrink: 0;
+  background: var(--surface);
   border: 1px solid var(--border-subtle);
+  border-left: 3px solid transparent;
   border-radius: 10px;
-  padding: 10px 12px;
-  cursor: grab;
-  transition: border-color 0.12s ease;
+  padding: 10px 12px 9px;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.tb-card:hover { border-color: var(--primary); }
+.tb-card.draggable { cursor: grab; }
+.tb-card.static { cursor: default; }
+.tb-card:not(.static):hover { box-shadow: var(--shadow-hover); border-color: var(--primary); }
+/* Nach :hover, damit der Streifen beim Überfahren stehen bleibt. */
+.tb-card.urg-overdue { border-left-color: var(--danger); }
+.tb-card.urg-today,
+.tb-card.urg-soon { border-left-color: var(--warning); }
 .tb-card.done { opacity: 0.65; }
 .tb-card.done .tb-card-title { text-decoration: line-through; }
 
@@ -4265,6 +4339,7 @@ button.admin-list-item {
 }
 
 .tb-card-type {
+  min-width: 0;
   font-size: 11px;
   font-weight: 600;
   color: var(--primary);
@@ -4277,14 +4352,18 @@ button.admin-list-item {
 }
 
 .tb-card-type.manual {
-  color: var(--warning);
+  color: var(--warning-ink);
   background: var(--warning-soft);
 }
 
+.tb-card-type.reminder { color: var(--text-muted); background: var(--surface-2); }
+.tb-card-type.reminder.today { color: var(--warning-ink); background: var(--warning-soft); }
+.tb-card-type.reminder.overdue { color: var(--danger-ink); background: var(--danger-soft); }
+
 .tb-card-avatar {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: var(--primary);
   color: var(--on-accent, #fff);
@@ -4300,27 +4379,43 @@ button.admin-list-item {
   font-weight: 600;
   color: var(--text);
   line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.tb-reminder-text {
+  font-weight: 500;
+  white-space: pre-wrap;
 }
 
 .tb-card-project {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 
 .tb-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 8px;
+  min-height: 22px;
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 6px;
 }
 
-.tb-due.overdue { color: var(--danger); font-weight: 600; }
+.tb-due.overdue { color: var(--danger-ink); font-weight: 600; }
+.tb-due.soon { color: var(--warning-ink); font-weight: 600; }
 
 /* Detail-/Erfassungs-Modal */
 .tb-detail { display: flex; flex-direction: column; gap: 12px; }
 .tb-detail-title { font-size: 15px; font-weight: 600; color: var(--text); }
 .tb-detail-desc { font-size: 13px; color: var(--text-muted); white-space: pre-wrap; }
 .tb-detail-row { font-size: 13px; color: var(--text-muted); }
+.tb-detail-reminder { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.tb-detail-reminder > div:not(.tb-detail-row) { align-self: stretch; }
 
 .tb-field {
   display: flex;
@@ -4342,14 +4437,21 @@ button.admin-list-item {
 @media (max-width: 900px) {
   .tb-board {
     /* Spalten bleiben nebeneinander und horizontal swipebar; Statuswechsel geht
-       auf Touch zusätzlich über das Karten-Detail (Spalten-Dropdown). */
+       auf Touch zusätzlich über das Karten-Detail (Spalten-Dropdown). Die Höhe
+       folgt hier dem Inhalt — am Handy scrollt die Seite, nicht die Spalte. */
     scroll-snap-type: x mandatory;
+    height: auto;
+    min-height: 0;
+    align-items: flex-start;
   }
-  .tb-column {
+  .tb-column,
+  .tb-column.compact {
+    flex: 0 0 auto;
     min-width: 78vw;
     scroll-snap-align: start;
-    max-height: none;
   }
+  .tb-column-body { overflow-y: visible; }
+  .tb-search { margin-left: 0; width: 100%; }
 }
 
 /* Ansichten-Umschalter + Feld-Ansicht (Nachtrag 2026-08-10) */
@@ -4358,13 +4460,7 @@ button.admin-list-item {
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-}
-
-.tb-filterbar-sep {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-  margin: 0 4px;
+  margin-right: 2px;
 }
 
 .tb-card-top-right {
@@ -4383,19 +4479,47 @@ button.admin-list-item {
 }
 
 .tb-status-chip.in_arbeit {
-  color: var(--success);
+  color: var(--success-ink);
   background: var(--success-soft);
 }
 
 .tb-status-chip.wartet {
-  color: var(--warning);
+  color: var(--warning-ink);
   background: var(--warning-soft);
 }
 
+.tb-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Direktaktion (Abschliessen / Nachfassen): klein und zurückhaltend, damit
+   sie neben dem ✓ nicht zur lautesten Stelle der Karte wird. */
+.tb-card-action-btn {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.tb-card-action-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
 .tb-card-done-btn {
-  float: right;
-  width: 22px;
-  height: 22px;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -4403,12 +4527,11 @@ button.admin-list-item {
   font-size: 12px;
   line-height: 1;
   cursor: pointer;
-  margin-top: -2px;
 }
 
-.tb-card-done-btn:hover {
+.tb-card-done-btn:hover:not(:disabled) {
   border-color: var(--success);
-  color: var(--success);
+  color: var(--success-ink);
   background: var(--success-soft);
 }
 
