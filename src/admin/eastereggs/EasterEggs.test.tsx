@@ -44,8 +44,13 @@ beforeEach(() => {
 async function zeige(user = nutzer(), status: EasterEggStatus | null = stand()) {
   getEasterEggs.mockResolvedValue(status)
   render(<EasterEggs user={user} />)
-  // Der Fetch läuft im Effekt — einen Tick warten, dann steht das Overlay.
-  await screen.findByRole('dialog').catch(() => null)
+  // Der Fetch läuft im Effekt. Bis das Overlay steht, sind es nur Microtasks
+  // (Mock-Promise → `check` → setQueue → Effekt mit markSeen), kein Timer — ein
+  // Macrotask im act räumt sie vollständig ab. Vorher wartete hier
+  // `findByRole('dialog')` höchstens 1 s und schluckte den Timeout: im
+  // langsamen CI-Lauf stand das Overlay dann noch nicht, und der Test prüfte ins
+  // Leere (develop, Run 254, 2026-10-07).
+  await act(async () => { await new Promise(r => setTimeout(r, 0)) })
 }
 
 describe('EasterEggs', () => {
