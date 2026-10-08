@@ -113,6 +113,9 @@ export interface AuswahlProjekt {
   umfrage: '' | 'gesendet' | 'beantwortet' | 'fehler'
   /** Die Adresse hat in dieser Kampagne schon eine Mail — für ein anderes Projekt. */
   adresse_angeschrieben: boolean
+  /** Für welches Projekt die Adresse schon eine Mail bekam («2601672 Test HS»);
+   *  leer, wenn nicht gesperrt. Optional: ältere Backends liefern es nicht. */
+  adresse_angeschrieben_fuer?: string
 }
 
 export async function listProjekte(key: string): Promise<AuswahlProjekt[]> {

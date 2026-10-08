@@ -25,6 +25,7 @@ import { ApiError } from '../../api/client'
 import { useToast, ToastHost } from '../../admin/components/useToast'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
 import RueckmeldungAuswahl from './RueckmeldungAuswahl'
+import { fehlendeGleicheAdresse } from './rueckmeldungFilter'
 
 /** Abfragetakt für den Stand, solange ein Versand läuft. Der Lauf schickt alle
  *  paar Sekunden eine Mail; öfter zu fragen zeigt nichts Neues. */
@@ -140,10 +141,10 @@ export default function RueckmeldungScreen() {
   }
 
   /** Probelauf für die Auswahl holen und den Bestätigungsdialog öffnen. */
-  async function vorbereiten() {
+  async function vorbereiten(ids: Set<string> = auswahl) {
     setPruefend(true)
     try {
-      const res = await probelauf(gewaehlt, [...auswahl])
+      const res = await probelauf(gewaehlt, [...ids])
       setPlan(res.plan)
       setFrage(true)
     } catch (e: unknown) {
@@ -194,6 +195,19 @@ export default function RueckmeldungScreen() {
   if (!kampagne) return <div className="admin-empty">Es ist keine Kampagne definiert.</div>
 
   const lauf = stand?.lauf ?? null
+  // Gleiche Adresse, aber nicht angehakt: nach diesem Versand ist die Adresse
+  // gesperrt, diese Projekte bekämen nie eine Mail. Der Dialog warnt davor.
+  const fehlend = frage ? fehlendeGleicheAdresse(projekte, auswahl) : []
+
+  /** Die fehlenden Projekte mit anhaken und den Probelauf neu holen — die
+   *  Anzahl Mails bleibt gleich, aber die Mails bekommen mehr Zeilen. */
+  function fehlendeMitnehmen() {
+    const neu = new Set(auswahl)
+    for (const p of fehlend) neu.add(p.project_id)
+    setAuswahl(neu)
+    setFrage(false)
+    void vorbereiten(neu)
+  }
   const darfSenden = hatMandant && kampagne.offen && auswahl.size > 0 && !laeuft && !startend && !pruefend
 
   return (
@@ -371,11 +385,32 @@ export default function RueckmeldungScreen() {
                 + `${plan.bereits_gesendet} bereits angeschrieben, ${plan.adresse_angeschrieben} Adresse schon angeschrieben).`
               : undefined
           }
+          extraAction={fehlend.length > 0
+            ? { label: `${fehlend.length} ${fehlend.length === 1 ? 'Projekt' : 'Projekte'} mitnehmen`, onClick: fehlendeMitnehmen }
+            : undefined}
           confirmDisabled={plan.mails === 0}
           confirmLabel={`${plan.mails} Mails versenden`}
           onConfirm={() => { void versenden() }}
           onCancel={() => setFrage(false)}
-        />
+          scrollable
+        >
+          {fehlend.length > 0 && (
+            <div className="admin-confirm-warning">
+              <strong>
+                {fehlend.length} {fehlend.length === 1 ? 'weiteres Projekt' : 'weitere Projekte'} mit derselben
+                Adresse {fehlend.length === 1 ? 'ist' : 'sind'} nicht angehakt.
+              </strong>
+              {' '}Nach dem Versand ist die Adresse gesperrt — {fehlend.length === 1 ? 'es bekommt' : 'sie bekommen'} dann
+              keine Mail mehr. Mitnehmen heisst: dieselbe Mail, je Projekt eine Zeile mehr.
+              <ul className="adminsite-rm-liste">
+                {fehlend.slice(0, 8).map((p) => (
+                  <li key={p.project_id}>{p.projekt_nr} {p.projekt_name} — {p.email}</li>
+                ))}
+                {fehlend.length > 8 && <li>… und {fehlend.length - 8} weitere</li>}
+              </ul>
+            </div>
+          )}
+        </ConfirmDialog>
       )}
       <ToastHost toast={toast} />
     </div>

@@ -16,7 +16,7 @@
 import { useMemo, useState } from 'react'
 import type { AuswahlProjekt } from '../../api/rueckmeldung'
 import {
-  auswaehlbar, filtere, sperrGrund, FILTER_START, OFFERTE_LABEL, UMFRAGE_LABEL,
+  auswaehlbar, filtere, sperrGrund, umfrageText, FILTER_START, OFFERTE_LABEL,
   type EmailFilter, type Filter, type OfferteFilter, type UmfrageFilter,
 } from './rueckmeldungFilter'
 
@@ -31,7 +31,8 @@ function ladeCsv(zeilen: AuswahlProjekt[]) {
   const kopf = ['Projekt-Nr', 'Projekt', 'Kunde', 'E-Mail', 'Objekt', 'Offerte', 'Umfrage']
   const text = [kopf, ...zeilen.map((p) => [
     p.projekt_nr, p.projekt_name, p.kunde_name, p.email || '(keine)', p.objekt_adresse,
-    OFFERTE_LABEL[p.offerte], UMFRAGE_LABEL[p.umfrage],
+    OFFERTE_LABEL[p.offerte],
+    umfrageText(p) + (p.adresse_angeschrieben && p.adresse_angeschrieben_fuer ? ` (für ${p.adresse_angeschrieben_fuer})` : ''),
   ])].map((z) => z.map(csvZelle).join(';')).join('\n')
   const url = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' }))
   const a = document.createElement('a')
@@ -178,7 +179,12 @@ export default function RueckmeldungAuswahl({ projekte, regelText, auswahl, onAu
                       {OFFERTE_LABEL[p.offerte]}
                     </span>
                   </td>
-                  <td>{UMFRAGE_LABEL[p.umfrage]}</td>
+                  <td>
+                    {umfrageText(p)}
+                    {p.adresse_angeschrieben && p.adresse_angeschrieben_fuer && (
+                      <div className="admin-form-hint">für {p.adresse_angeschrieben_fuer}</div>
+                    )}
+                  </td>
                 </tr>
               )
             })}

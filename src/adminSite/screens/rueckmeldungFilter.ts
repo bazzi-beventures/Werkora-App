@@ -21,8 +21,25 @@ export function sperrGrund(p: AuswahlProjekt): string {
   if (p.umfrage === 'gesendet') return 'Ist bereits angeschrieben'
   if (p.offerte !== 'keine') return 'Hat schon eine Offerte'
   if (!p.email) return 'Keine E-Mail-Adresse — telefonisch nachfassen'
-  if (p.adresse_angeschrieben) return 'Adresse hat schon eine Mail (anderes Projekt)'
+  if (p.adresse_angeschrieben) {
+    return p.adresse_angeschrieben_fuer
+      ? `Adresse hat schon eine Mail (für ${p.adresse_angeschrieben_fuer})`
+      : 'Adresse hat schon eine Mail (anderes Projekt)'
+  }
   return ''
+}
+
+/** Angehakte Projekte, deren Adresse noch weitere anhakbare, aber NICHT
+ *  angehakte Projekte hat. Nach dem Versand ist die Adresse gesperrt — diese
+ *  Projekte bekämen dann nie eine Mail. Der Bestätigungsdialog warnt davor und
+ *  bietet an, sie mitzunehmen (eine Verwaltung soll EINE Mail mit allen
+ *  Objekten bekommen, nicht eine mit dem ersten). */
+export function fehlendeGleicheAdresse(projekte: AuswahlProjekt[], auswahl: Set<string>): AuswahlProjekt[] {
+  const adressen = new Set(
+    projekte.filter((p) => auswahl.has(p.project_id) && auswaehlbar(p)).map((p) => p.email.toLowerCase()),
+  )
+  return projekte.filter((p) =>
+    !auswahl.has(p.project_id) && auswaehlbar(p) && adressen.has(p.email.toLowerCase()))
 }
 
 export const OFFERTE_LABEL: Record<AuswahlProjekt['offerte'], string> = {
@@ -36,6 +53,13 @@ export const UMFRAGE_LABEL: Record<AuswahlProjekt['umfrage'], string> = {
   gesendet: 'angeschrieben',
   beantwortet: 'beantwortet',
   fehler: 'Versand fehlgeschlagen',
+}
+
+/** Text der Spalte «Umfrage» (Tabelle und CSV). Eine Adresse, die schon für
+ *  ein anderes Projekt angeschrieben ist, steht hier im Klartext — vorher stand
+ *  dort «—» neben einem grauen Haken, und das sah nach einem Fehler aus. */
+export function umfrageText(p: AuswahlProjekt): string {
+  return p.adresse_angeschrieben ? 'Adresse schon angeschrieben' : UMFRAGE_LABEL[p.umfrage]
 }
 
 export interface Filter {
@@ -60,8 +84,10 @@ export function filtere(projekte: AuswahlProjekt[], f: Filter): AuswahlProjekt[]
     if (f.offerte === 'keine' && p.offerte !== 'keine') return false
     if (f.email === 'mit' && !p.email) return false
     if (f.email === 'ohne' && p.email) return false
-    if (f.umfrage === 'offen' && p.umfrage !== '' && p.umfrage !== 'fehler') return false
-    if (f.umfrage === 'angeschrieben' && p.umfrage !== 'gesendet') return false
+    // «Adresse schon angeschrieben» zählt als angeschrieben, nicht als offen —
+    // die Zeile bekommt so oder so keine Mail mehr.
+    if (f.umfrage === 'offen' && ((p.umfrage !== '' && p.umfrage !== 'fehler') || p.adresse_angeschrieben)) return false
+    if (f.umfrage === 'angeschrieben' && p.umfrage !== 'gesendet' && !p.adresse_angeschrieben) return false
     if (f.umfrage === 'beantwortet' && p.umfrage !== 'beantwortet') return false
     if (!q) return true
     return [p.projekt_nr, p.projekt_name, p.kunde_name, p.email, p.objekt_adresse, ...p.offerten]

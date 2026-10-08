@@ -35,7 +35,7 @@ vi.mock('../../api/rueckmeldung', () => ({
 }))
 
 import RueckmeldungScreen from './RueckmeldungScreen'
-import { filtere, FILTER_START, auswaehlbar, sperrGrund } from './rueckmeldungFilter'
+import { filtere, FILTER_START, auswaehlbar, sperrGrund, umfrageText, fehlendeGleicheAdresse } from './rueckmeldungFilter'
 import type { AuswahlProjekt } from '../../api/rueckmeldung'
 
 const KAMPAGNE = {
@@ -77,7 +77,8 @@ const PROJEKTE: AuswahlProjekt[] = [
   projekt({ project_id: 'p6', projekt_nr: '2601554', projekt_name: 'Graf Hettlingen HS',
             kunde_name: 'Graf', email: 'graf@example.ch' }),
   projekt({ project_id: 'p7', projekt_nr: '2601555', projekt_name: 'Vogel Rickenbach HS',
-            kunde_name: 'Verwaltung', email: 'verwaltung@example.ch', adresse_angeschrieben: true }),
+            kunde_name: 'Verwaltung', email: 'verwaltung@example.ch', adresse_angeschrieben: true,
+            adresse_angeschrieben_fuer: '2601500 Vogel Seuzach HS' }),
 ]
 
 const PLAN = {
@@ -117,6 +118,33 @@ describe('rueckmeldungFilter', () => {
     expect(auswaehlbar({ ...PROJEKTE[4], umfrage: 'gesendet' })).toBe(false)
     // Ein fehlgeschlagener Versand darf erneut angehakt werden.
     expect(auswaehlbar({ ...PROJEKTE[4], umfrage: 'fehler' })).toBe(true)
+  })
+
+  it('nennt bei gesperrter Adresse das Projekt, das sie verbraucht hat', () => {
+    expect(sperrGrund(PROJEKTE[6])).toBe('Adresse hat schon eine Mail (für 2601500 Vogel Seuzach HS)')
+    expect(sperrGrund({ ...PROJEKTE[6], adresse_angeschrieben_fuer: undefined }))
+      .toBe('Adresse hat schon eine Mail (anderes Projekt)')
+    expect(umfrageText(PROJEKTE[6])).toBe('Adresse schon angeschrieben')
+    expect(umfrageText(PROJEKTE[4])).toBe('—')
+  })
+
+  it('zählt eine schon angeschriebene Adresse als angeschrieben, nicht als offen', () => {
+    expect(filtere(PROJEKTE, { ...FILTER_START, umfrage: 'offen' }).map((p) => p.project_id))
+      .toEqual(['p1', 'p2', 'p3', 'p5', 'p6'])
+    expect(filtere(PROJEKTE, { ...FILTER_START, umfrage: 'angeschrieben' }).map((p) => p.project_id))
+      .toEqual(['p7'])
+  })
+
+  it('findet nicht angehakte Projekte derselben Adresse', () => {
+    const liste = [
+      ...PROJEKTE,
+      projekt({ project_id: 'p8', projekt_name: 'Huber zweites Objekt HS', email: 'HUBER@example.ch' }),
+      // Selbe Adresse, aber mit Offerte — wäre ohnehin nicht dabei.
+      projekt({ project_id: 'p9', projekt_name: 'Huber mit Offerte HS', email: 'huber@example.ch', offerte: 'entwurf' }),
+    ]
+    expect(fehlendeGleicheAdresse(liste, new Set(['p5'])).map((p) => p.project_id)).toEqual(['p8'])
+    expect(fehlendeGleicheAdresse(liste, new Set(['p5', 'p8']))).toEqual([])
+    expect(fehlendeGleicheAdresse(liste, new Set(['p6']))).toEqual([])
   })
 })
 
@@ -170,6 +198,33 @@ describe('RueckmeldungScreen', () => {
     expect(await screen.findByText(/2 Mails \(2 Projekte\) an Kunden von Gehlhaar GmbH/)).toBeTruthy()
     fireEvent.click(screen.getByText('2 Mails versenden'))
     await waitFor(() => expect(starteVersand).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6'], 2))
+  })
+
+  it('zeigt in der Spalte Umfrage, für welches Projekt die Adresse schon angeschrieben ist', async () => {
+    render(<RueckmeldungScreen />)
+    const zeile = (await screen.findByText('Vogel Rickenbach HS')).closest('tr') as HTMLElement
+    expect(within(zeile).getByText('Adresse schon angeschrieben')).toBeTruthy()
+    expect(within(zeile).getByText('für 2601500 Vogel Seuzach HS')).toBeTruthy()
+  })
+
+  it('warnt vor nicht angehakten Projekten derselben Adresse und nimmt sie auf Wunsch mit', async () => {
+    listProjekte.mockResolvedValue([
+      ...PROJEKTE,
+      projekt({ project_id: 'p8', projekt_nr: '2601556', projekt_name: 'Huber Seuzach HS',
+                kunde_name: 'Huber', email: 'huber@example.ch' }),
+    ])
+    render(<RueckmeldungScreen />)
+    fireEvent.click(await screen.findByLabelText('Huber Wiesendangen HS auswählen'))
+    fireEvent.click(screen.getByText(/Versand vorbereiten \(1 Projekte ausgewählt\)/))
+
+    expect(await screen.findByText(/1 weiteres Projekt mit derselben/)).toBeTruthy()
+    expect(screen.getByText(/2601556 Huber Seuzach HS/)).toBeTruthy()
+    fireEvent.click(screen.getByText('1 Projekt mitnehmen'))
+
+    await waitFor(() => expect(probelauf).toHaveBeenLastCalledWith(KAMPAGNE.key, ['p5', 'p8']))
+    expect(await screen.findByText(/Versand vorbereiten \(2 Projekte ausgewählt\)/)).toBeTruthy()
+    expect(screen.queryByText(/weiteres Projekt mit derselben/)).toBeNull()
+    expect(starteVersand).not.toHaveBeenCalled()
   })
 
   it('«Sichtbare auswählen» nimmt nur anhakbare Zeilen', async () => {
