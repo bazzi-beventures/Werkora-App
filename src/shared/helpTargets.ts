@@ -47,6 +47,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'admin', screen: 'customers' },
   { app: 'admin', screen: 'quotes', module: 'quotes' },
   { app: 'admin', screen: 'invoices', module: 'invoicing' },
+  { app: 'admin', screen: 'hagelschaden', module: 'hagelschaden' },
   { app: 'admin', screen: 'payment-reconciliation', module: 'payment_matching' },
   { app: 'admin', screen: 'aftersales', module: 'aftersales' },
   { app: 'admin', screen: 'suppliers' },

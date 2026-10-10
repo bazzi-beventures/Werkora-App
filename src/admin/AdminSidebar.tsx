@@ -5,7 +5,7 @@ import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import {
   IconDashboard, IconUsers, IconCalendar, IconClock, IconDocument, IconBox,
   IconFolder, IconReceipt, IconCash, IconTag, IconKey, IconChart,
-  IconLogout, IconAddressBook, IconSettings, IconAftersales, IconTasks, IconBulb,
+  IconLogout, IconAddressBook, IconSettings, IconAftersales, IconTasks, IconBulb, IconHail,
 } from './AdminIcons'
 
 interface Props {
@@ -118,6 +118,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         )}
         {has('invoicing') && (
           <NavItem label="Rechnungen" target="invoices" current={screen} onNav={onNav} icon={<IconCash />} />
+        )}
+        {has('hagelschaden') && (
+          <NavItem label="Hagelschaden" target="hagelschaden" current={screen} onNav={onNav} icon={<IconHail />} />
         )}
         {has('payment_matching') && (
           <NavItem label="Zahlungsabgleich" target="payment-reconciliation" current={screen} onNav={onNav} icon={<IconCash />} />

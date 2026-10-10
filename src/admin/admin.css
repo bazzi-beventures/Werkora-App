@@ -1582,7 +1582,11 @@ button.admin-list-item {
 }
 .svc-heatmap-row {
   display: grid;
-  grid-template-columns: 110px 1fr 80px;
+  /* minmax(0, 1fr): die Mittelspalte darf unter die Summe ihrer Blöcke
+     schrumpfen. Mit `1fr` (= minmax(auto, 1fr)) setzte die Blockzahl mal
+     Mindestbreite die Untergrenze — bei 365 Tagen über 2000px, am Handy
+     schon bei 30 Tagen breiter als der Schirm: die Seite lief seitlich. */
+  grid-template-columns: 110px minmax(0, 1fr) 80px;
   align-items: center;
   gap: 14px;
   margin-bottom: 10px;
@@ -1621,14 +1625,19 @@ button.admin-list-item {
   display: flex;
   gap: 2px;
   height: 32px;
+  min-width: 0;
 }
+.svc-heatmap[data-density="dense"] .svc-heatmap-cells { gap: 1px; }
+.svc-heatmap[data-density="packed"] .svc-heatmap-cells { gap: 0; }
 .svc-heatmap-cell {
-  flex: 1;
-  min-width: 4px;
+  flex: 1 1 0;
+  min-width: 0;
   border-radius: 3px;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
   cursor: default;
 }
+.svc-heatmap[data-density="dense"] .svc-heatmap-cell { border-radius: 1px; }
+.svc-heatmap[data-density="packed"] .svc-heatmap-cell { border-radius: 0; }
 .svc-heatmap-cell:hover {
   transform: scaleY(1.12);
   box-shadow: 0 0 0 1.5px var(--text-strong);
@@ -1639,10 +1648,12 @@ button.admin-list-item {
   margin-left: 124px;
   margin-right: 94px;
   margin-top: 10px;
+  gap: 12px;
   font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 .svc-heatmap-legend {
   display: flex;
@@ -1662,6 +1673,27 @@ button.admin-list-item {
   border-radius: 3px;
   margin-right: 6px;
   vertical-align: -1px;
+}
+
+/* Am Handy: Name und Prozent auf eine Zeile, die Blöcke darunter über die
+   volle Kartenbreite. Neben 110px Name und 80px Prozent blieben bei 360px
+   Schirmbreite keine 100px für den Verlauf, und die Achse (mit 124px/94px
+   Einzug) brach Wort für Wort um. */
+@media (max-width: 767px) {
+  .svc-heatmap { padding: 16px 14px 14px; }
+  .svc-heatmap-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label pct"
+      "cells cells";
+    gap: 6px 10px;
+    margin-bottom: 14px;
+  }
+  .svc-heatmap-label { grid-area: label; }
+  .svc-heatmap-cells { grid-area: cells; height: 26px; }
+  .svc-heatmap-pct { grid-area: pct; }
+  .svc-heatmap-pct small { display: inline; margin: 0 0 0 4px; }
+  .svc-heatmap-axis { margin-left: 0; margin-right: 0; }
 }
 
 /* Segmented control for range */

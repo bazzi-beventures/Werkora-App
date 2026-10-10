@@ -87,11 +87,61 @@
   margin-top: var(--s-4);
 }
 
+/* ── Filterzeile (Eingang, Auswertung) ──
+   Stand bis 20260925 in support.css und ging mit dem Umbau der
+   Support-Übersicht verloren (a9a1314) — seither war die Zeile ungestylt:
+   Chips ohne Abstand, «Mandant» als nackte Beschriftung und ein natives
+   Auswahlfeld. Gehört jetzt hierher, weil nur noch diese Seite sie nutzt.
+   Chips und Auswahlfeld stehen auf derselben Grundlinie in gleicher Höhe. */
+
+.support-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin: var(--s-4) 0;
+}
+
+.support-filterbar .elog-chip {
+  min-height: 32px;
+  padding: 0 14px;
+}
+
+/* Beschriftung neben das Feld statt darüber — in einer waagrechten Zeile ist
+   das die einzige Anordnung, die keine zweite Textzeile über den Chips öffnet. */
+.support-filter-tenant {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-left: auto;
+  min-width: 0;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.support-filter-tenant select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  height: 32px;
+  min-width: 0;
+  padding: 0 8px;
+}
+
+.support-filter-tenant select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 /* ── Eingang ── */
 
 .fr-row { cursor: pointer; }
 .fr-row:hover td { background: var(--surface-2); }
 .fr-table td { vertical-align: top; }
+.fr-table .fr-td-ref, .fr-table .fr-td-date { white-space: nowrap; }
 
 .fr-bulk {
   display: flex;
@@ -260,6 +310,57 @@
 
 @media (max-width: 767px) {
   .fr-detail-columns { grid-template-columns: 1fr; }
+
+  /* Mandant auf eine eigene, volle Zeile unter die Chips — rechtsbündig
+     zwischen umgebrochenen Chips klebte es sonst irgendwo in der Mitte. */
+  .support-filter-tenant { flex: 1 1 100%; margin-left: 0; }
+  .support-filter-tenant select { flex: 1; }
+
+  /* Eingang als Kartenliste statt neunspaltiger Tabelle: am Handy blieb von
+     der Tabelle nur ein seitlich verschobener Ausschnitt, der Titel brach
+     Wort für Wort um. Je Anfrage oben Nr./Datum/Zustand, darunter der Titel,
+     zuletzt Mandant · Person · Bereich · Wichtigkeit. */
+  .fr-table, .fr-table tbody { display: block; width: 100%; }
+  .fr-table thead { display: none; }
+  .fr-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px var(--s-2);
+    position: relative;
+    padding: var(--s-3) var(--s-3) var(--s-3) 44px;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .fr-table tr:last-child { border-bottom: none; }
+  /* Hover färbt die ganze Karte (admin.css, tr), nicht nur die Zellen. */
+  .fr-row:hover td { background: none; }
+  .fr-table td {
+    display: block;
+    padding: 0;
+    border: none;
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+    min-width: 0;
+  }
+  .fr-table .fr-td-check { position: absolute; left: var(--s-3); top: var(--s-3); }
+  .fr-table .fr-td-ref { order: 1; font-weight: 600; color: var(--text); }
+  .fr-table .fr-td-date { order: 2; }
+  .fr-table .fr-td-state { order: 3; margin-left: auto; font-weight: 600; color: var(--text); }
+  .fr-table .fr-td-title {
+    order: 4;
+    flex: 1 1 100%;
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--text-strong);
+    overflow-wrap: anywhere;
+  }
+  .fr-table .fr-td-tenant { order: 5; }
+  .fr-table .fr-td-person { order: 6; }
+  .fr-table .fr-td-area { order: 7; }
+  .fr-table .fr-td-importance { order: 8; }
+  .fr-table .fr-td-person::before,
+  .fr-table .fr-td-area::before,
+  .fr-table .fr-td-importance::before { content: '· '; }
   .fr-board { grid-template-columns: repeat(6, minmax(78vw, 1fr)); scroll-snap-type: x mandatory; }
   .fr-column { scroll-snap-align: start; }
 }

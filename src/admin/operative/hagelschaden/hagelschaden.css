@@ -1,0 +1,235 @@
+/* Hagelschaden — docs/specs/hagelschaden-dashboard.md §7 */
+
+/* Dringlichkeit: dieselbe Reihenfolge wie die Excel-Liste (rot → orange → gelb → grün,
+   erledigt grau). Halbtransparent, damit es in hell und dunkel trägt. */
+.hagel-prio-0 { --hagel-prio: rgba(239, 68, 68, 0.22); }
+.hagel-prio-1 { --hagel-prio: rgba(249, 115, 22, 0.22); }
+.hagel-prio-2 { --hagel-prio: rgba(234, 179, 8, 0.25); }
+.hagel-prio-3 { --hagel-prio: rgba(132, 204, 22, 0.22); }
+.hagel-prio-erledigt { --hagel-prio: var(--surface-2); }
+
+.hagel-prio {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--hagel-prio, transparent);
+  color: var(--text-strong);
+}
+
+.hagel-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+.hagel-kachel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--hagel-prio, var(--border));
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.hagel-kachel:hover { background: var(--surface-2); }
+.hagel-kachel.aktiv {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.hagel-kachel-wert {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text-strong);
+  line-height: 1.1;
+}
+.hagel-kachel-label {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.hagel-hinweis {
+  margin-bottom: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-lg);
+  background: var(--warning-soft);
+  color: var(--text-strong);
+  font-size: var(--font-sm);
+}
+
+.hagel-filter { flex-wrap: wrap; }
+.hagel-filter .admin-form-select { width: auto; min-width: 0; }
+.hagel-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-sm);
+  white-space: nowrap;
+}
+
+.hagel-table-scroll { overflow-x: auto; }
+.hagel-table td { vertical-align: top; }
+.hagel-table tbody tr { cursor: pointer; }
+.hagel-zeile-offen td { background: var(--primary-soft); }
+.hagel-sub {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+.hagel-notiz-zelle {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hagel-schalter {
+  min-width: 52px;
+  min-height: 30px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--font-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.hagel-schalter.an {
+  background: var(--success-soft);
+  border-color: var(--success);
+  color: var(--success);
+  font-weight: 600;
+}
+.hagel-schalter:disabled { cursor: default; opacity: 0.7; }
+.hagel-termin {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--success);
+  white-space: nowrap;
+}
+.hagel-schalter-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+/* Detail: Seitenpanel rechts, am Handy Vollbild. Höhe über --app-vh, nie 100 %
+   (Wurzel-CLAUDE.md, «Volle Fensterhöhe»). */
+.hagel-detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  justify-content: flex-end;
+}
+.hagel-detail {
+  width: min(520px, 100vw);
+  height: 100dvh;
+  height: var(--app-vh, 100dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  box-sizing: border-box;
+}
+.hagel-detail-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+.hagel-detail-titel {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.hagel-detail-block h4 {
+  margin: 0 0 var(--s-2);
+  font-size: var(--font-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.hagel-dl {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px var(--s-3);
+  margin: 0;
+}
+.hagel-dl dt { color: var(--text-muted); font-size: var(--font-sm); }
+.hagel-dl dd { margin: 0; }
+.hagel-bemerkung { white-space: pre-wrap; }
+.hagel-fotos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--s-2);
+}
+.hagel-fotos a {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: none;
+  overflow: hidden;
+}
+.hagel-fotos img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+.hagel-fotos span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hagel-feld {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+.hagel-feld .admin-form-select { width: auto; }
+.hagel-notiz {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: var(--s-2) 0;
+}
+.hagel-notiz textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.hagel-detail-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: auto;
+}
+
+@media (max-width: 700px) {
+  .hagel-kacheln {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+  }
+  .hagel-kachel { flex: 0 0 140px; scroll-snap-align: start; }
+  .hagel-detail { width: 100vw; border-left: 0; }
+  .hagel-dl { grid-template-columns: 100px 1fr; }
+}

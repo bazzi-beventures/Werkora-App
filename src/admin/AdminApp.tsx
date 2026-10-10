@@ -56,6 +56,7 @@ import './mobile.css'
 // ändert sich also nichts. Vorbild: ProjectScheduleMap.
 const CustomersScreen = lazy(() => import('./operative/CustomersScreen'))
 const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
+const HagelschadenScreen = lazy(() => import('./operative/hagelschaden/HagelschadenScreen'))
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -245,6 +246,13 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'quotes':       return guard('quotes', <QuotesScreen initialStatus={detailId} onConsumed={clearDetail} />)
       case 'invoices':     return guard('invoicing', <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav} />)
+      case 'hagelschaden': return guard('hagelschaden', (
+        <HagelschadenScreen
+          userId={user.authorized_user_id}
+          onOpenProject={(id, tab) => { setDeepLinkTab(tab ?? null); guardedNav('projects', id) }}
+          onOpenSchedule={enabledModules.includes('scheduling') ? () => guardedNav('project-schedule') : undefined}
+        />
+      ))
       case 'aftersales':   return guard('aftersales', <AftersalesScreen />)
       case 'payment-reconciliation': return guard('payment_matching', <PaymentReconciliationScreen />)
       case 'suppliers':    return <SuppliersScreen />

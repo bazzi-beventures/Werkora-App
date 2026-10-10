@@ -64,6 +64,8 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // Erinnerungen (docs/specs/erinnerungen.md). Exakt statt /reminder/: die
   // Offerten-Erinnerung `admin_send_quote_reminder` gehört zu den Offerten.
   { test: /^admin_(create|update|delete)_reminder$/, module: 'reminders' },
+  // Hagelschaden (docs/specs/hagelschaden-dashboard.md) — vor /project/.
+  { test: /hagelschaden/,                        module: 'hagelschaden' },
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
@@ -233,6 +235,8 @@ const ACTION_LABELS: Record<string, string> = {
   admin_create_warranty_case: 'Garantiefall gemeldet',
   admin_update_warranty_case: 'Garantiefall bearbeitet',
   admin_create_warranty_project: 'Reparatur-Projekt aus Garantiefall angelegt',
+  // ── Hagelschaden ──
+  admin_update_hagelschaden: 'Hagelschaden-Fall bearbeitet',
   admin_delete_project_file: 'Projektdatei entfernt',
   admin_create_project_approval: 'Visierung angefordert',
   admin_approve_project_approval: 'Visierung erteilt',

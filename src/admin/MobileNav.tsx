@@ -7,7 +7,7 @@ import {
   IconDashboard, IconFolder, IconClock, IconCash,
   IconUsers, IconAddressBook, IconReceipt, IconCalendar,
   IconDocument, IconBox, IconTag, IconChart, IconKey, IconLogout, IconSettings,
-  IconAftersales, IconTasks, IconBulb,
+  IconAftersales, IconTasks, IconBulb, IconHail,
 } from './AdminIcons'
 
 interface Props {
@@ -206,6 +206,11 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 {has('quotes') && (
                   <button className={`admin-mobile-drawer-item${screen === 'quotes' ? ' active' : ''}`} onClick={() => navigate('quotes')}>
                     <IconReceipt /><span>Offerten</span>
+                  </button>
+                )}
+                {has('hagelschaden') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'hagelschaden' ? ' active' : ''}`} onClick={() => navigate('hagelschaden')}>
+                    <IconHail /><span>Hagelschaden</span>
                   </button>
                 )}
                 {has('hr') && (

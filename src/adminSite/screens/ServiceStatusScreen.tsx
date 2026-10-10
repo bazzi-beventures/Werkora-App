@@ -201,6 +201,18 @@ function HeatmapRow({
   )
 }
 
+/**
+ * Wie eng die Blöcke stehen. Bei 365 Tagen fressen allein 2px-Fugen 728px —
+ * am Handy mehr als die ganze Zeile. Ab 90 Tagen schrumpft die Fuge auf 1px,
+ * ab 180 fällt sie weg: dann ist der Verlauf ein durchgehendes Band, in dem
+ * ein roter Tag trotzdem als Strich stehen bleibt.
+ */
+function heatmapDensity(n: number): 'normal' | 'dense' | 'packed' {
+  if (n > 180) return 'packed'
+  if (n > 90) return 'dense'
+  return 'normal'
+}
+
 function Heatmap({ days }: { days: HistoryDay[] }) {
   if (days.length === 0) {
     return (
@@ -223,7 +235,7 @@ function Heatmap({ days }: { days: HistoryDay[] }) {
   const rightLabel = `${agoNew <= 0 ? 'heute' : `vor ${agoNew}d`} · ${formatDay(newest)}`
 
   return (
-    <div className="svc-heatmap">
+    <div className="svc-heatmap" data-density={heatmapDensity(ordered.length)}>
       <HeatmapRow name="railway" days={ordered} pick={d => d.railway} />
       <HeatmapRow name="supabase" days={ordered} pick={d => d.supabase} />
       <HeatmapRow name="mistral" days={ordered} pick={d => d.mistral} />

@@ -822,23 +822,23 @@ export default function FeatureRequestsScreen({ initialTenantId, onCountChange }
                 <tbody>
                   {requests.map(r => (
                     <tr key={r.id} className="fr-row" onClick={() => setOpenRequest(r.id)} title="Anfrage öffnen">
-                      <td onClick={e => e.stopPropagation()}>
+                      <td className="fr-td-check" onClick={e => e.stopPropagation()}>
                         <input type="checkbox" aria-label={`${r.reference} markieren`}
                                checked={selected.includes(r.id)} onChange={() => toggle(r.id)} />
                       </td>
-                      <td>{r.reference}</td>
-                      <td>{fmtDay(r.created_on)}</td>
-                      <td>{r.tenant_name ?? '—'}</td>
-                      <td>
+                      <td className="fr-td-ref">{r.reference}</td>
+                      <td className="fr-td-date">{fmtDay(r.created_on)}</td>
+                      <td className="fr-td-tenant">{r.tenant_name ?? '—'}</td>
+                      <td className="fr-td-person">
                         {r.created_by_name ?? '—'}
                         {r.source === 'betreiber' && r.source_channel && (
                           <span className="fr-muted"> · {CHANNEL_LABEL[r.source_channel]}</span>
                         )}
                       </td>
-                      <td>{r.area ? AREA_LABEL[r.area] ?? r.area : '—'}</td>
-                      <td>{IMPORTANCE_LABEL[r.importance]}</td>
-                      <td>{r.origin === 'unterstuetzung' ? <i>Unterstützung</i> : r.title}</td>
-                      <td>{TRIAGE_LABEL[r.triage]}</td>
+                      <td className="fr-td-area">{r.area ? AREA_LABEL[r.area] ?? r.area : '—'}</td>
+                      <td className="fr-td-importance">{IMPORTANCE_LABEL[r.importance]}</td>
+                      <td className="fr-td-title">{r.origin === 'unterstuetzung' ? <i>Unterstützung</i> : r.title}</td>
+                      <td className="fr-td-state">{TRIAGE_LABEL[r.triage]}</td>
                     </tr>
                   ))}
                 </tbody>

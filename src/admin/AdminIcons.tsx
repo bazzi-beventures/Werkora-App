@@ -85,6 +85,11 @@ export function IconAlert() {
   return <svg viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.26 3.1a2 2 0 0 1 3.48 0l6 10.5A2 2 0 0 1 16 16.6H4a2 2 0 0 1-1.74-3L8.26 3.1zM10 7a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V8a1 1 0 0 1 1-1zm0 7.5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" clipRule="evenodd"/></svg>
 }
 
+export function IconHail() {
+  // Hagelschaden: Wolke mit drei Hagelkörnern.
+  return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M5.5 12A3.5 3.5 0 0 1 5 5.04 4.5 4.5 0 0 1 13.72 4 3.5 3.5 0 1 1 14.5 12h-9z"/><circle cx="6.5" cy="15" r="1.25"/><circle cx="10" cy="16.5" r="1.25"/><circle cx="13.5" cy="15" r="1.25"/></svg>
+}
+
 export function IconLifebuoy() {
   // Support-Eingang: Rettungsring. Bewusst nicht dieselbe Sprechblase wie
   // IconAftersales — das eine ist der Kanal zu uns, das andere einer zum Kunden.

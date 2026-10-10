@@ -28,6 +28,7 @@ export type ModuleName =
   | 'feature_requests'
   | 'warranty'
   | 'reminders'
+  | 'hagelschaden'
 
 export function hasModule(user: UserInfo | null, name: ModuleName): boolean {
   if (!user) return false
