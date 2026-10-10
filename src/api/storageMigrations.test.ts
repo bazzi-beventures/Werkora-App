@@ -116,6 +116,20 @@ describe('runStorageMigrations — Robustheit', () => {
   })
 })
 
+describe('runStorageMigrations — v21 → v22 (Hagelschaden-Filter)', () => {
+  it('löscht nur den gemerkten Hagelschaden-Filter', () => {
+    localStorage.setItem(VERSION_KEY, '21')
+    localStorage.setItem('hagelschaden-filter:u1', '{"aktiv":"ja"}')
+    localStorage.setItem('admin-theme', 'dark')
+
+    runStorageMigrations()
+
+    expect(localStorage.getItem('hagelschaden-filter:u1')).toBeNull()
+    expect(localStorage.getItem('admin-theme')).toBe('dark')
+    expect(localStorage.getItem(VERSION_KEY)).toBe(String(APP_DATA_VERSION))
+  })
+})
+
 // Hinweis: Der selektive Fallback-Wipe bei einer LÜCKE in der Migrationskette
 // (MIGRATIONS.find(...) === undefined bei current < APP_DATA_VERSION) ist aktuell
 // nicht durch reale Daten auslösbar, da die Kette lückenlos von 0..N-1 läuft.

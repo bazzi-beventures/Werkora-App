@@ -20,7 +20,7 @@ import { useIsMobile } from '../../useIsMobile'
 import {
   STANDARD_FILTER, STATUS_LABELS, filtereZeilen, istStandard, kachelAktiv, kacheln, kennzahlen,
   ladeFilter, prioKlasse, speichereFilter, terminKurz, umfang,
-  type HagelFilter, type JaNeinAlle, type UmfrageStatus,
+  type HagelFilter, type JaNeinAlle, type Kachel, type UmfrageStatus,
 } from './hagelschadenFilter'
 import './hagelschaden.css'
 
@@ -95,7 +95,7 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
   }, [aktiveKampagne, showToast])
 
   const toggleAktiv = (z: HagelZeile) =>
-    speichern(z, { aktiv: !z.aktiv }, { aktiv: !z.aktiv, aktiv_automatisch: false })
+    speichern(z, { aktiv: !z.aktiv }, { aktiv: !z.aktiv })
   const toggleKontaktiert = (z: HagelZeile) =>
     speichern(z, { kontaktiert: !z.kontaktiert }, { kontaktiert: !z.kontaktiert })
   const toggleEinsatz = (z: HagelZeile) => {
@@ -173,19 +173,22 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
         </div>
       </div>
 
-      <div className="hagel-kacheln" role="group" aria-label="Kennzahlen — Klick filtert">
-        {kacheln(zahlen).map(k => (
-          <button
-            key={k.key}
-            type="button"
-            className={`hagel-kachel${kachelAktiv(k, filter) ? ' aktiv' : ''}${k.rang !== undefined ? ` hagel-prio-${Math.min(k.rang, 3)}` : ''}`}
-            aria-pressed={kachelAktiv(k, filter)}
-            onClick={() => setFilter(kachelAktiv(k, filter) ? STANDARD_FILTER : { ...k.filter, suche: filter.suche })}
-          >
-            <span className="hagel-kachel-wert">{k.wert}</span>
-            <span className="hagel-kachel-label">{k.label}</span>
-          </button>
-        ))}
+      <div className="hagel-gruppen">
+        <KachelGruppe
+          titel="Rückmeldung der Kunden"
+          hinweis="Was die Kunden in der Umfrage gemeldet haben"
+          kacheln={kacheln(zahlen).filter(k => k.gruppe === 'kunde')}
+          filter={filter}
+          onFilter={setFilter}
+        />
+        <KachelGruppe
+          titel="Unsere Bearbeitung"
+          hinweis="Was wir daraus machen — Aktiv, Kontaktiert, Einsatz"
+          betrieb
+          kacheln={kacheln(zahlen).filter(k => k.gruppe === 'betrieb')}
+          filter={filter}
+          onFilter={setFilter}
+        />
       </div>
 
       {daten?.termine_bekannt === false && (
@@ -198,41 +201,50 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
         <div className="admin-filter-bar hagel-filter">
           <input
             className="admin-search"
-            placeholder="Projekt, Kunde, Adresse, Bemerkung suchen…"
+            placeholder="Projekt, Kunde, Adresse, Bemerkung, Notiz suchen…"
             value={filter.suche}
             onChange={e => setFilter({ ...filter, suche: e.target.value })}
           />
-          <select className="admin-form-select" aria-label="Umfrage-Status" value={filter.status}
-            onChange={e => setFilter({ ...filter, status: e.target.value as UmfrageStatus })}>
-            {statusOptionen.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-          </select>
-          <select className="admin-form-select" aria-label="Dringlichkeit"
-            value={filter.prioritaeten[0] ?? ''}
-            onChange={e => setFilter({ ...filter, prioritaeten: e.target.value ? [e.target.value] : [] })}>
-            <option value="">Jede Dringlichkeit</option>
-            {[...kampagne.prioritaeten].sort((a, b) => (a.rang ?? 0) - (b.rang ?? 0))
-              .map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
-          <select className="admin-form-select" aria-label="Betroffen"
-            value={filter.produkte[0] ?? ''}
-            onChange={e => setFilter({ ...filter, produkte: e.target.value ? [e.target.value] : [] })}>
-            <option value="">Alles Betroffene</option>
-            {kampagne.produkte.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-          </select>
-          <JaNeinSelect label="Aktiv" value={filter.aktiv} onChange={v => setFilter({ ...filter, aktiv: v })} />
-          <JaNeinSelect label="Einsatz" value={filter.einsatz} onChange={v => setFilter({ ...filter, einsatz: v })} />
-          <JaNeinSelect label="Kontaktiert" value={filter.kontaktiert} onChange={v => setFilter({ ...filter, kontaktiert: v })} />
-          <label className="hagel-check">
-            <input type="checkbox" checked={filter.nurFotos}
-              onChange={e => setFilter({ ...filter, nurFotos: e.target.checked })} />
-            nur mit Fotos
-          </label>
           {!istStandard(filter) && (
             <button className="admin-btn admin-btn-secondary" onClick={() => setFilter({ ...STANDARD_FILTER, suche: filter.suche })}>
               Filter zurücksetzen
             </button>
           )}
         </div>
+        <div className="hagel-filter-gruppen">
+          <fieldset className="hagel-filter-gruppe">
+            <legend>Rückmeldung der Kunden</legend>
+            <select className="admin-form-select" aria-label="Umfrage-Status" value={filter.status}
+              onChange={e => setFilter({ ...filter, status: e.target.value as UmfrageStatus })}>
+              {statusOptionen.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+            </select>
+            <select className="admin-form-select" aria-label="Dringlichkeit"
+              value={filter.prioritaeten[0] ?? ''}
+              onChange={e => setFilter({ ...filter, prioritaeten: e.target.value ? [e.target.value] : [] })}>
+              <option value="">Jede Dringlichkeit</option>
+              {[...kampagne.prioritaeten].sort((a, b) => (a.rang ?? 0) - (b.rang ?? 0))
+                .map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+            <select className="admin-form-select" aria-label="Betroffen"
+              value={filter.produkte[0] ?? ''}
+              onChange={e => setFilter({ ...filter, produkte: e.target.value ? [e.target.value] : [] })}>
+              <option value="">Alles Betroffene</option>
+              {kampagne.produkte.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+            <label className="hagel-check">
+              <input type="checkbox" checked={filter.nurFotos}
+                onChange={e => setFilter({ ...filter, nurFotos: e.target.checked })} />
+              nur mit Fotos
+            </label>
+          </fieldset>
+          <fieldset className="hagel-filter-gruppe betrieb">
+            <legend>Unsere Bearbeitung</legend>
+            <JaNeinSelect label="Aktiv" value={filter.aktiv} onChange={v => setFilter({ ...filter, aktiv: v })} />
+            <JaNeinSelect label="Einsatz" value={filter.einsatz} onChange={v => setFilter({ ...filter, einsatz: v })} />
+            <JaNeinSelect label="Kontaktiert" value={filter.kontaktiert} onChange={v => setFilter({ ...filter, kontaktiert: v })} />
+          </fieldset>
+        </div>
+
 
         {isMobile ? (
           <AdminCardList
@@ -247,11 +259,17 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                   <PrioBadge z={z} kampagne={kampagne} />
                 </div>
                 <div className="admin-card-meta">{z.kunde}{z.objekt_adresse ? ` · ${z.objekt_adresse}` : ''}</div>
-                <div className="admin-card-meta">{[z.art, umfang(z), z.fotos ? `${z.fotos} Fotos` : ''].filter(Boolean).join(' · ')}</div>
-                <div className="hagel-schalter-reihe" onClick={e => e.stopPropagation()}>
-                  <Schalter label="Aktiv" an={z.aktiv} onClick={() => void toggleAktiv(z)} />
-                  <Schalter label="Kontaktiert" an={z.kontaktiert} onClick={() => void toggleKontaktiert(z)} />
-                  <EinsatzZelle z={z} onToggle={() => void toggleEinsatz(z)} />
+                <div className="hagel-karte-block">
+                  <div className="hagel-block-titel">Kunde meldet</div>
+                  <div className="admin-card-meta">{[z.art, umfang(z), z.fotos ? `${z.fotos} Fotos` : ''].filter(Boolean).join(' · ') || z.status}</div>
+                </div>
+                <div className="hagel-karte-block betrieb" onClick={e => e.stopPropagation()}>
+                  <div className="hagel-block-titel">Unsere Bearbeitung</div>
+                  <div className="hagel-schalter-reihe">
+                    <Schalter label="Aktiv" an={z.aktiv} onClick={() => void toggleAktiv(z)} />
+                    <Schalter label="Kontaktiert" an={z.kontaktiert} onClick={() => void toggleKontaktiert(z)} />
+                    <EinsatzZelle z={z} onToggle={() => void toggleEinsatz(z)} />
+                  </div>
                 </div>
               </>
             )}
@@ -260,15 +278,20 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
           <div className="hagel-table-scroll">
             <table className="admin-table hagel-table">
               <thead>
+                <tr className="hagel-gruppenkopf">
+                  <th colSpan={2} />
+                  <th colSpan={5} className="hagel-kopf-kunde">Rückmeldung der Kunden</th>
+                  <th colSpan={4} className="hagel-kopf-betrieb">Unsere Bearbeitung</th>
+                </tr>
                 <tr>
-                  <th>Dringlichkeit</th>
                   <th>Projekt</th>
                   <th>Kunde / Objekt</th>
+                  <th className="hagel-start-kunde">Dringlichkeit</th>
                   <th>Betroffen</th>
                   <th>Umfang</th>
                   <th>Fotos</th>
                   <th>Beantwortet</th>
-                  <th>Aktiv</th>
+                  <th className="hagel-start-betrieb" title="Wir bearbeiten den Fall gerade">Aktiv</th>
                   <th>Kontaktiert</th>
                   <th>Einsatz</th>
                   <th>Notiz</th>
@@ -281,7 +304,6 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                 {gefiltert.map(z => (
                   <tr key={z.project_id} onClick={() => setOffen(z.project_id)}
                     className={z.project_id === offen ? 'hagel-zeile-offen' : undefined}>
-                    <td><PrioBadge z={z} kampagne={kampagne} /></td>
                     <td className="primary">
                       <div>{z.projekt_name}</div>
                       <div className="hagel-sub">{z.projekt_nr}{!z.projekt_offen ? ' · nicht mehr offen' : ''}</div>
@@ -290,20 +312,21 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                       <div>{z.kunde || '—'}</div>
                       <div className="hagel-sub">{z.objekt_adresse}</div>
                     </td>
+                    <td className="hagel-start-kunde"><PrioBadge z={z} kampagne={kampagne} /></td>
                     <td className="secondary">{z.art}</td>
                     <td className="secondary">{umfang(z)}</td>
                     <td className="secondary">{z.fotos || ''}</td>
                     <td className="secondary">{z.beantwortet_am ? z.beantwortet_am.slice(0, 10) : ''}</td>
-                    <td onClick={e => e.stopPropagation()}>
+                    <td className="hagel-betrieb hagel-start-betrieb" onClick={e => e.stopPropagation()}>
                       <Schalter label="Aktiv" an={z.aktiv} onClick={() => void toggleAktiv(z)} kurz />
                     </td>
-                    <td onClick={e => e.stopPropagation()}>
+                    <td className="hagel-betrieb" onClick={e => e.stopPropagation()}>
                       <Schalter label="Kontaktiert" an={z.kontaktiert} onClick={() => void toggleKontaktiert(z)} kurz />
                     </td>
-                    <td onClick={e => e.stopPropagation()}>
+                    <td className="hagel-betrieb" onClick={e => e.stopPropagation()}>
                       <EinsatzZelle z={z} onToggle={() => void toggleEinsatz(z)} kurz />
                     </td>
-                    <td className="secondary hagel-notiz-zelle" title={z.notiz}>{z.notiz}</td>
+                    <td className="secondary hagel-betrieb hagel-notiz-zelle" title={z.notiz}>{z.notiz}</td>
                   </tr>
                 ))}
               </tbody>
@@ -325,6 +348,41 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
       )}
       <ToastHost toast={toast} />
     </div>
+  )
+}
+
+function KachelGruppe({ titel, hinweis, kacheln: liste, filter, onFilter, betrieb = false }: {
+  titel: string
+  hinweis: string
+  kacheln: Kachel[]
+  filter: HagelFilter
+  onFilter: (f: HagelFilter) => void
+  betrieb?: boolean
+}) {
+  return (
+    <section className={`hagel-gruppe${betrieb ? ' betrieb' : ''}`} aria-label={`${titel} — Klick filtert`}>
+      <div className="hagel-gruppe-kopf">
+        <h3>{titel}</h3>
+        <span className="hagel-sub">{hinweis}</span>
+      </div>
+      <div className="hagel-kacheln">
+        {liste.map(k => {
+          const an = kachelAktiv(k, filter)
+          return (
+            <button
+              key={k.key}
+              type="button"
+              className={`hagel-kachel${an ? ' aktiv' : ''}${k.rang !== undefined ? ` hagel-prio-${Math.min(k.rang, 3)}` : ''}`}
+              aria-pressed={an}
+              onClick={() => onFilter(an ? STANDARD_FILTER : { ...k.filter, suche: filter.suche })}
+            >
+              <span className="hagel-kachel-wert">{k.wert}</span>
+              <span className="hagel-kachel-label">{k.label}</span>
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -417,8 +475,6 @@ function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedu
     await onSave(z, { notiz: text }, { notiz: text })
   }
 
-  const aktivWert = z.aktiv_automatisch ? 'auto' : z.aktiv ? 'ja' : 'nein'
-
   return (
     <div className="hagel-detail-overlay" onClick={onClose}>
       <aside className="hagel-detail" role="dialog" aria-label={`Hagelschaden ${z.projekt_name}`} onClick={e => e.stopPropagation()}>
@@ -445,7 +501,7 @@ function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedu
         </section>
 
         <section className="hagel-detail-block">
-          <h4>Fotos im Projekt</h4>
+          <h4>Fotos des Kunden und im Projekt</h4>
           {fotos === null ? (
             <div className="hagel-sub">Laden…</div>
           ) : fotos.length === 0 ? (
@@ -463,20 +519,12 @@ function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedu
           )}
         </section>
 
-        <section className="hagel-detail-block">
-          <h4>Bearbeitung</h4>
+        <section className="hagel-detail-block betrieb">
+          <h4>Unsere Bearbeitung</h4>
           <div className="hagel-feld">
-            <span>Aktiv</span>
-            <select className="admin-form-select" value={aktivWert}
-              onChange={e => {
-                const v = e.target.value
-                if (v === 'auto') void onSave(z, { aktiv: null }, { aktiv_automatisch: true })
-                else void onSave(z, { aktiv: v === 'ja' }, { aktiv: v === 'ja', aktiv_automatisch: false })
-              }}>
-              <option value="auto">Automatisch ({z.aktiv_automatisch ? (z.aktiv ? 'ja' : 'nein') : 'nach Rückmeldung'})</option>
-              <option value="ja">Ja</option>
-              <option value="nein">Nein</option>
-            </select>
+            <span title="Wir bearbeiten den Fall gerade">Aktiv (in Bearbeitung)</span>
+            <Schalter label="Aktiv" an={z.aktiv} kurz
+              onClick={() => void onSave(z, { aktiv: !z.aktiv }, { aktiv: !z.aktiv })} />
           </div>
           <div className="hagel-feld">
             <span>Kontaktiert</span>

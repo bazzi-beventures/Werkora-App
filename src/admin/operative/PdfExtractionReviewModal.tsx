@@ -47,6 +47,8 @@ export interface PdfExtractionResponse {
   project_ref: string
   products: ExtractedProduct[]
   available_pricing_rules?: PricingRule[]
+  /** Gegenprobe gegen die Belegsummen, z. B. eine beim Lesen verlorene Griesser-Zeile. */
+  warnings?: string[]
 }
 
 // Metadaten der Positionsauswahl, die an der Produktzeile mitgespeichert werden.
@@ -397,6 +399,11 @@ export function PdfExtractionReviewModal({
           </div>
         )}
 
+        {!isManual && (data.warnings ?? []).map((w, k) => (
+          <div key={k} className="admin-alert admin-alert-warning" style={{ marginBottom: 16, fontSize: 13, padding: '8px 12px' }}>
+            {w}
+          </div>
+        ))}
         {!isManual && rules.length === 0 && (
           <div className="admin-alert admin-alert-warning" style={{ marginBottom: 16, fontSize: 13, padding: '8px 12px' }}>
             Keine Lieferanten-Preisregeln für <strong>{supplierLabel}</strong> hinterlegt — Aufschlag manuell eintragen.

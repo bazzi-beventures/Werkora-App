@@ -42,7 +42,7 @@ function zeile(over: Partial<HagelZeile>): HagelZeile {
     noch_pendent: 'ja', prioritaet: 'normal', dringlichkeit: 'Normal', produkt: 'storen',
     art: 'Storen', mehrere_objekte: 'nein', anzahl_objekte: '', anzahl_anlagen: 4, fotos: 0,
     antworten: 1, bemerkung_kunde: '', versandfehler: '',
-    aktiv: true, aktiv_automatisch: true, kontaktiert: false, einsatz_geplant: false,
+    aktiv: false, kontaktiert: false, einsatz_geplant: false,
     einsatz_geplant_manuell: false, termin: null, termine_bekannt: true, notiz: '',
     bearbeitet_von: '', bearbeitet_am: null,
     ...over,
@@ -51,11 +51,11 @@ function zeile(over: Partial<HagelZeile>): HagelZeile {
 
 const ZEILEN: HagelZeile[] = [
   zeile({ project_id: 'p2', projekt_name: 'B HS', prioritaet: 'sehr_dringend', dringlichkeit: 'Sehr dringend',
-    produkt: 'storen,markise', fotos: 3 }),
+    produkt: 'storen,markise', fotos: 3, aktiv: true }),
   zeile({ project_id: 'p1', projekt_name: 'A HS', prioritaet: 'normal',
     termin: { datum: '2026-10-14', bis: null, zeit: '07:30', art: 'Demontage' }, einsatz_geplant: true }),
   zeile({ project_id: 'p4', projekt_name: 'D HS', objekt_adresse: 'Seestrasse 4', status_key: 1, status: 'Erledigt gemeldet',
-    prioritaet: '', dringlichkeit: '', aktiv: false }),
+    prioritaet: '', dringlichkeit: '' }),
   zeile({ project_id: 'p5', projekt_name: 'E HS', status_key: 2, antworten: 0, beantwortet_am: '',
     prioritaet: '', dringlichkeit: '' }),
   zeile({ project_id: 'p3', projekt_name: 'C HS', status_key: 4, antworten: 0, gesendet_am: '',
@@ -70,8 +70,8 @@ function liste(zeilen = ZEILEN): HagelListe {
 // ─── reine Funktionen ─────────────────────────────────────────────
 
 describe('hagelschadenFilter', () => {
-  it('Standard zeigt die Planungsliste: beantwortet und aktiv', () => {
-    expect(filtereZeilen(ZEILEN, STANDARD_FILTER).map(z => z.project_id)).toEqual(['p2', 'p1'])
+  it('Standard zeigt alle beantworteten — «Aktiv» filtert nicht mit', () => {
+    expect(filtereZeilen(ZEILEN, STANDARD_FILTER).map(z => z.project_id)).toEqual(['p2', 'p1', 'p4'])
   })
 
   it('filtert nach Betroffen, Einsatz und Suche', () => {
@@ -89,10 +89,26 @@ describe('hagelschadenFilter', () => {
     expect(z.fotos).toBe(3)
     expect(z.jePrioritaet.map(p => [p.key, p.anzahl])).toEqual([
       ['sehr_dringend', 1], ['dringend', 0], ['normal', 1], ['nicht_dringend', 0]])
-    expect(z.aktiv).toBe(4)
-    expect(z.aktivOhneEinsatz).toBe(3)
+    // Bearbeitung: nur was der Betrieb gesetzt hat
+    expect(z.aktiv).toBe(1)
+    expect(z.aktivOhneEinsatz).toBe(1)
+    expect(z.kontaktiert).toBe(1)
+    // pendent p2 (aktiv), p1 (Termin) → nichts unbearbeitet
+    expect(z.pendentUnbearbeitet).toBe(0)
     const prio = kacheln(z).find(k => k.key === 'prio:sehr_dringend')!
     expect(filtereZeilen(ZEILEN, prio.filter).map(r => r.project_id)).toEqual(['p2'])
+  })
+
+  it('trennt die Kacheln in Kundenrückmeldung und Bearbeitung', () => {
+    const k = kacheln(kennzahlen(ZEILEN, KAMPAGNE))
+    expect(k.filter(x => x.gruppe === 'kunde').map(x => x.key)).toEqual([
+      'gesendet', 'beantwortet', 'erledigt', 'fotos',
+      'prio:sehr_dringend', 'prio:dringend', 'prio:normal', 'prio:nicht_dringend'])
+    expect(k.filter(x => x.gruppe === 'betrieb').map(x => x.key)).toEqual([
+      'unbearbeitet', 'aktiv', 'ohne_einsatz', 'einsatz', 'kontaktiert'])
+    const offen = k.find(x => x.key === 'unbearbeitet')!
+    const ohneArbeit = ZEILEN.map(z => (z.project_id === 'p2' ? { ...z, aktiv: false } : z))
+    expect(filtereZeilen(ohneArbeit, offen.filter).map(r => r.project_id)).toEqual(['p2'])
   })
 
   it('Anzeige: Termin kurz und Umfang', () => {
@@ -127,10 +143,13 @@ describe('HagelschadenScreen', () => {
     route(liste())
     render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
     await screen.findByText('B HS')
-    const zeilen = screen.getAllByRole('row').slice(1)
-    expect(zeilen.map(r => within(r).getAllByRole('cell')[1].textContent)).toEqual(
-      [expect.stringContaining('B HS'), expect.stringContaining('A HS')])
-    expect(screen.queryByText('D HS')).toBeNull()
+    const zeilen = screen.getAllByRole('row').slice(2)   // zwei Kopfzeilen
+    expect(zeilen.map(r => within(r).getAllByRole('cell')[0].textContent)).toEqual(
+      [expect.stringContaining('B HS'), expect.stringContaining('A HS'), expect.stringContaining('D HS')])
+    expect(screen.queryByText('E HS')).toBeNull()
+    // Die zwei Seiten stehen getrennt beschriftet da.
+    expect(screen.getAllByText('Rückmeldung der Kunden').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Unsere Bearbeitung').length).toBeGreaterThan(0)
   })
 
   it('ein Klick auf eine Kachel setzt den Filter', async () => {

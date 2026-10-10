@@ -31,13 +31,15 @@ export interface HagelFilter {
   nurFotos: boolean
 }
 
-/** Standard: die Planungsliste — beantwortet und aktiv. */
+/** Standard: die Planungsliste — alle beantworteten, dringendste zuerst.
+ *  «Aktiv» steht bewusst auf «alle»: es ist die Arbeit des Betriebs, nicht die
+ *  Meldung des Kunden, und startet für jeden Fall auf «nein». */
 export const STANDARD_FILTER: HagelFilter = {
   suche: '',
   status: 'beantwortet',
   prioritaeten: [],
   produkte: [],
-  aktiv: 'ja',
+  aktiv: 'alle',
   einsatz: 'alle',
   kontaktiert: 'alle',
   nurFotos: false,
@@ -105,8 +107,12 @@ export function istStandard(f: HagelFilter): boolean {
 
 // ─── Kacheln ──────────────────────────────────────────────────────
 
+/** Wessen Zahl: was die Kunden gemeldet haben, oder was der Betrieb tut. */
+export type KachelGruppe = 'kunde' | 'betrieb'
+
 export interface Kachel {
   key: string
+  gruppe: KachelGruppe
   wert: number
   label: string
   /** Dringlichkeits-Rang (0 = dringendste) für die Farbe, sonst undefined */
@@ -124,6 +130,7 @@ export interface HagelZahlen {
   aktivOhneEinsatz: number
   einsatzGeplant: number
   kontaktiert: number
+  pendentUnbearbeitet: number
 }
 
 export function kennzahlen(zeilen: HagelZeile[], kampagne: HagelKampagne): HagelZahlen {
@@ -144,31 +151,40 @@ export function kennzahlen(zeilen: HagelZeile[], kampagne: HagelKampagne): Hagel
     aktivOhneEinsatz: aktiv.filter(z => !z.einsatz_geplant).length,
     einsatzGeplant: zeilen.filter(z => z.einsatz_geplant).length,
     kontaktiert: zeilen.filter(z => z.kontaktiert).length,
+    pendentUnbearbeitet: pendent.filter(z => !z.aktiv && !z.einsatz_geplant).length,
   }
 }
 
-/** Jede Kachel ist ein Filter: Klick auf «12 Dringend» zeigt genau diese zwölf. */
+/** Jede Kachel ist ein Filter: Klick auf «12 Dringend» zeigt genau diese zwölf.
+ *  Zwei Gruppen, getrennt angezeigt: was die **Kunden** gemeldet haben und was
+ *  der **Betrieb** daraus gemacht hat (Rückmeldung 2026-10-10: die erste Fassung
+ *  mischte beides in einer Reihe). */
 export function kacheln(z: HagelZahlen): Kachel[] {
   const basis: HagelFilter = { ...STANDARD_FILTER, status: 'alle', aktiv: 'alle' }
   return [
-    { key: 'gesendet', wert: z.gesendet, label: 'Projekte angeschrieben',
+    { key: 'gesendet', gruppe: 'kunde', wert: z.gesendet, label: 'angeschrieben',
       filter: { ...basis, status: 'angeschrieben' } },
-    { key: 'beantwortet', wert: z.beantwortet, label: 'beantwortet',
+    { key: 'beantwortet', gruppe: 'kunde', wert: z.beantwortet, label: 'beantwortet',
       filter: { ...basis, status: 'beantwortet' } },
-    { key: 'erledigt', wert: z.erledigt, label: 'davon erledigt gemeldet',
+    { key: 'erledigt', gruppe: 'kunde', wert: z.erledigt, label: 'davon erledigt gemeldet',
       filter: { ...basis, status: 'erledigt' } },
-    { key: 'fotos', wert: z.fotos, label: 'Fotos erhalten',
+    { key: 'fotos', gruppe: 'kunde', wert: z.fotos, label: 'Fotos erhalten',
       filter: { ...basis, nurFotos: true } },
     ...z.jePrioritaet.map(p => ({
-      key: `prio:${p.key}`, wert: p.anzahl, label: p.label, rang: p.rang,
+      key: `prio:${p.key}`, gruppe: 'kunde' as KachelGruppe, wert: p.anzahl, label: p.label, rang: p.rang,
       filter: { ...basis, status: 'pendent' as UmfrageStatus, prioritaeten: [p.key] },
     })),
-    { key: 'aktiv', wert: z.aktiv, label: 'aktiv',
+    { key: 'unbearbeitet', gruppe: 'betrieb', wert: z.pendentUnbearbeitet,
+      label: 'pendent, noch nicht in Bearbeitung',
+      filter: { ...basis, status: 'pendent', aktiv: 'nein', einsatz: 'nein' } },
+    { key: 'aktiv', gruppe: 'betrieb', wert: z.aktiv, label: 'aktiv (in Bearbeitung)',
       filter: { ...basis, aktiv: 'ja' } },
-    { key: 'ohne_einsatz', wert: z.aktivOhneEinsatz, label: 'aktiv ohne Einsatz',
+    { key: 'ohne_einsatz', gruppe: 'betrieb', wert: z.aktivOhneEinsatz, label: 'aktiv, noch ohne Einsatz',
       filter: { ...basis, aktiv: 'ja', einsatz: 'nein' } },
-    { key: 'einsatz', wert: z.einsatzGeplant, label: 'Einsatz geplant',
+    { key: 'einsatz', gruppe: 'betrieb', wert: z.einsatzGeplant, label: 'Einsatz geplant',
       filter: { ...basis, einsatz: 'ja' } },
+    { key: 'kontaktiert', gruppe: 'betrieb', wert: z.kontaktiert, label: 'kontaktiert',
+      filter: { ...basis, kontaktiert: 'ja' } },
   ]
 }
 

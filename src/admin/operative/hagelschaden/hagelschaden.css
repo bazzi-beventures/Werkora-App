@@ -19,11 +19,45 @@
   color: var(--text-strong);
 }
 
+/* Zwei Gruppen, nie vermischt: was die Kunden melden | was wir daraus machen.
+   Die Bearbeitung trägt durchgehend (Kacheln, Filter, Tabellenspalten, Karte,
+   Detail) dieselbe getönte Fläche — so liest man an jeder Stelle, wessen Angabe
+   es ist. */
+.hagel-gruppen {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.hagel-gruppe {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--s-3);
+  background: var(--surface);
+}
+.hagel-gruppe.betrieb,
+.hagel-filter-gruppe.betrieb,
+.hagel-karte-block.betrieb,
+.hagel-detail-block.betrieb {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.hagel-gruppe-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.hagel-gruppe-kopf h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-strong);
+}
 .hagel-kacheln {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: var(--s-3);
-  margin-bottom: var(--s-4);
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--s-2);
 }
 .hagel-kachel {
   display: flex;
@@ -66,6 +100,29 @@
 }
 
 .hagel-filter { flex-wrap: wrap; }
+.hagel-filter-gruppen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  padding: 0 var(--s-4) var(--s-3);
+}
+.hagel-filter-gruppe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.hagel-filter-gruppe legend {
+  padding: 0 4px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.hagel-filter-gruppe .admin-form-select { width: auto; min-width: 0; }
 .hagel-filter .admin-form-select { width: auto; min-width: 0; }
 .hagel-check {
   display: inline-flex;
@@ -77,6 +134,20 @@
 
 .hagel-table-scroll { overflow-x: auto; }
 .hagel-table td { vertical-align: top; }
+.hagel-gruppenkopf th {
+  font-size: var(--font-sm);
+  text-transform: none;
+  letter-spacing: 0;
+  padding-bottom: 0;
+}
+.hagel-kopf-kunde { color: var(--text-muted); }
+.hagel-kopf-betrieb { color: var(--primary); background: var(--primary-soft); }
+.hagel-table .hagel-start-kunde { border-left: 1px solid var(--border); }
+.hagel-table .hagel-start-betrieb,
+.hagel-table .hagel-kopf-betrieb { border-left: 2px solid var(--primary); }
+.hagel-table td.hagel-betrieb,
+.hagel-table th.hagel-start-betrieb,
+.hagel-table thead tr:last-child th:nth-last-child(-n+4) { background: var(--primary-soft); }
 .hagel-table tbody tr { cursor: pointer; }
 .hagel-zeile-offen td { background: var(--primary-soft); }
 .hagel-sub {
@@ -120,7 +191,25 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2);
-  margin-top: var(--s-3);
+}
+.hagel-karte-block {
+  margin-top: var(--s-2);
+  padding: var(--s-2);
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.hagel-block-titel {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.hagel-detail-block.betrieb {
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-lg);
+  padding: var(--s-3);
 }
 
 /* Detail: Seitenpanel rechts, am Handy Vollbild. Höhe über --app-vh, nie 100 %
@@ -222,8 +311,12 @@
   margin-top: auto;
 }
 
+@media (max-width: 1100px) {
+  .hagel-gruppen { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 700px) {
-  .hagel-kacheln {
+  .hagel-gruppe .hagel-kacheln {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x proximity;

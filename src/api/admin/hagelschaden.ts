@@ -29,9 +29,8 @@ export interface HagelTermin {
 
 /** Die Bearbeitungsfelder einer Zeile — auch die Antwort des PATCH. */
 export interface HagelBearbeitung {
+  /** Der Betrieb bearbeitet den Fall gerade. Reiner Schalter, nie aus der Kundenantwort abgeleitet. */
   aktiv: boolean
-  /** true = es gilt die Vorgabe (pendent → ja, erledigt/nicht mehr offen → nein) */
-  aktiv_automatisch: boolean
   kontaktiert: boolean
   /** wirksam: offener Termin ODER Schalter */
   einsatz_geplant: boolean
@@ -82,6 +81,8 @@ export interface HagelKennzahlen {
   aktiv_ohne_einsatz: number
   einsatz_geplant: number
   kontaktiert: number
+  /** Kunde meldet «pendent», beim Betrieb weder aktiv noch eingeplant */
+  pendent_unbearbeitet: number
 }
 
 export interface HagelListe {
@@ -93,8 +94,7 @@ export interface HagelListe {
 }
 
 export type HagelPatch = Partial<{
-  /** null = zurück auf automatisch */
-  aktiv: boolean | null
+  aktiv: boolean
   kontaktiert: boolean
   einsatz_geplant_manuell: boolean
   notiz: string
