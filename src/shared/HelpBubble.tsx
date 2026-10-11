@@ -194,7 +194,9 @@ export default function HelpBubble({
   // Eigene Wünsche (docs/specs/feature-anfragen.md §5.5) — dieselbe Begründung:
   // das Abzeichen muss auch bei geschlossenem Panel stimmen.
   const wishes = useMyWishes(showWishes)
-  const unreadTotal = mine.unread + wishes.unread
+  // Bei den Wünschen zählt auch eine gelesene, aber offene Rückfrage
+  // (feature-anfragen.md §7.1a): sie wartet auf eine Antwort, nicht auf einen Blick.
+  const unreadTotal = mine.unread + wishes.attention
   // «Neues zu deinen Wünschen» (feature-anfragen.md §5.9): der Hinweis beim
   // Start der App. Er hängt HIER, weil die Blase den Hook schon hat und in
   // beiden Apps nach der Anmeldung steht; der Zähler rendert nach «Später» neu.
@@ -233,7 +235,7 @@ export default function HelpBubble({
     help: 'Fragen',
     wiki: wikiLabel,
     support: mine.unread > 0 ? `Support (${mine.unread})` : 'Problem melden',
-    wish: wishes.unread > 0 ? `Wünsche (${wishes.unread})` : 'Wünsche',
+    wish: wishes.attention > 0 ? `Wünsche (${wishes.attention})` : 'Wünsche',
   }
   const PANEL_TITLES: Record<TabId, string> = {
     help: 'Hilfe', wiki: wikiLabel, support: 'Support', wish: 'Wünsche & Roadmap',
@@ -538,6 +540,7 @@ export default function HelpBubble({
           appContext={appContext}
           onAcknowledge={() => void wishes.markRead()}
           onOpenRoadmap={onOpenRoadmap}
+          onAnswer={() => { setTab('wish'); setOpen(true) }}
           onDismiss={() => setNoticeClosed(n => n + 1)}
         />
       )}

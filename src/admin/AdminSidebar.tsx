@@ -24,6 +24,8 @@ interface Props {
     invoices?: number
     drafts?: number
     tasks?: number
+    /** Wünsche & Roadmap: ungelesene Nachrichten plus offene Rückfragen. */
+    wishes?: number
   }
 }
 
@@ -159,7 +161,7 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         <div className="admin-nav-group-label">System</div>
         <NavItem label="Benutzerverwaltung" target="users" current={screen} onNav={onNav} icon={<IconKey />} />
         {has('feature_requests') && (
-          <NavItem label="Wünsche & Roadmap" target="roadmap" current={screen} onNav={onNav} icon={<IconBulb />} />
+          <NavItem label="Wünsche & Roadmap" target="roadmap" current={screen} onNav={onNav} icon={<IconBulb />} badge={badges?.wishes} />
         )}
         {isManagement && has('document_backup') && (
           <NavItem label="Datensicherung" target="document-backup" current={screen} onNav={onNav} icon={<IconDocument />} />

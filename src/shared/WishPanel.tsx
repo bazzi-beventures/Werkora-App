@@ -23,7 +23,9 @@ interface Props {
 type View = 'neu' | 'meine'
 
 export default function WishPanel({ route, appContext, mine, onOpenRoadmap }: Props) {
-  const [view, setView] = useState<View>(mine.unread > 0 ? 'meine' : 'neu')
+  // Wartet etwas — eine Nachricht oder eine offene Rückfrage —, öffnet der
+  // Reiter direkt dort, wo man antworten kann.
+  const [view, setView] = useState<View>(mine.attention > 0 ? 'meine' : 'neu')
 
   function showMine() {
     setView('meine')
@@ -39,7 +41,7 @@ export default function WishPanel({ route, appContext, mine, onOpenRoadmap }: Pr
           Wunsch äussern
         </button>
         <button type="button" aria-pressed={view === 'meine'} onClick={showMine}>
-          Meine Wünsche{mine.unread > 0 ? ` (${mine.unread})` : ''}
+          Meine Wünsche{mine.attention > 0 ? ` (${mine.attention})` : ''}
         </button>
       </div>
 

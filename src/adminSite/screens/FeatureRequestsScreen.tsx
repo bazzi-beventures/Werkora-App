@@ -62,14 +62,25 @@ import './featureRequests.css'
 type Tab = 'eingang' | 'board' | 'auswertung'
 type Tenant = { id: string; name: string }
 
-const TRIAGE_FILTERS: (Triage | '')[] = ['neu', 'zugeordnet', 'beantwortet', 'support', 'abgelehnt', '']
+const TRIAGE_FILTERS: (Triage | '')[] = ['neu', 'rueckfrage', 'zugeordnet', 'beantwortet', 'support', 'abgelehnt', '']
 
 const ACTION_LABEL: Record<TriageAction, string> = {
   zuordnen: 'Einem Feature zuordnen',
   neues_feature: 'Neues Feature daraus',
   support: 'An den Support weiterleiten',
+  rueckfrage: 'Rückfrage (unklar, worum es geht)',
   beantworten: 'Beantworten (gibt es schon / Bedienfrage)',
   ablehnen: 'Ablehnen',
+}
+
+/** Ausgänge mit einem Satz an den Einreicher — Feld und Häkchen «benachrichtigen». */
+const TEXT_ACTIONS: TriageAction[] = ['rueckfrage', 'beantworten', 'ablehnen', 'support']
+
+const TEXT_PLACEHOLDER: Partial<Record<TriageAction, string>> = {
+  rueckfrage: 'Welche Maske meinst du genau? Ein Screenshot hilft.',
+  beantworten: 'Gibt es schon: Einstellungen → Vorlagen',
+  ablehnen: 'Warum nicht',
+  support: 'Das haben wir an den Support weitergegeben.',
 }
 
 function errorText(e: unknown, fallback: string): string {
@@ -160,8 +171,8 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
         aktion: action,
         ...(action === 'zuordnen' ? { feature_id: featureId } : {}),
         ...(action === 'neues_feature' ? { feature: { title: newTitle.trim(), area: newArea } } : {}),
-        ...(['beantworten', 'ablehnen', 'support'].includes(action) && text.trim() ? { text: text.trim() } : {}),
-        ...(['beantworten', 'ablehnen', 'support'].includes(action) && req.created_by && notify ? { notify: true } : {}),
+        ...(TEXT_ACTIONS.includes(action) && text.trim() ? { text: text.trim() } : {}),
+        ...(TEXT_ACTIONS.includes(action) && req.created_by && notify ? { notify: true } : {}),
       })
       onChanged()
       onClose()
@@ -183,7 +194,7 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
 
   const ready = action === 'zuordnen' ? !!featureId
     : action === 'neues_feature' ? !!newTitle.trim() && !!newArea
-      : action === 'beantworten' || action === 'ablehnen' ? !!text.trim()
+      : action === 'beantworten' || action === 'ablehnen' || action === 'rueckfrage' ? !!text.trim()
         : action === 'support'
 
   return (
@@ -249,7 +260,29 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                 </div>
               </>
             )}
-            {req.answer && (
+            {req.rueckfragen && req.rueckfragen.length > 0 && (
+              <>
+                <div className="fr-section-title">Rückfragen</div>
+                {req.rueckfragen.map((q, i) => (
+                  <div key={i} className="fr-dialog-round">
+                    <div className="fr-muted">Frage{q.gefragt_am ? ` · ${fmtDay(q.gefragt_am)}` : ''}</div>
+                    <div className="fr-quote">{q.frage}</div>
+                    {q.antwort ? (
+                      <>
+                        <div className="fr-muted">
+                          Antwort von {req.created_by_name ?? 'Einreicher'}
+                          {q.beantwortet_am ? ` · ${fmtDay(q.beantwortet_am)}` : ''}
+                        </div>
+                        <div className="fr-quote">{q.antwort}</div>
+                      </>
+                    ) : (
+                      <div className="fr-muted">noch keine Antwort</div>
+                    )}
+                  </div>
+                ))}
+              </>
+            )}
+            {req.answer && req.triage !== 'rueckfrage' && (
               <>
                 <div className="fr-section-title">Antwort an den Einreicher</div>
                 <div className="fr-quote">{req.answer}</div>
@@ -282,7 +315,10 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                 </label>
               ))}
               {!req.allowed_actions.includes('support') && req.triage !== 'support' && (
-                <span className="fr-muted">Weiterleiten an den Support geht nur mit Konto.</span>
+                <span className="fr-muted">Weiterleiten an den Support und Rückfragen gehen nur mit Konto.</span>
+              )}
+              {req.triage === 'rueckfrage' && (
+                <span className="fr-muted">Die Rückfrage ist offen — eine weitere geht erst nach der Antwort.</span>
               )}
             </div>
 
@@ -302,19 +338,25 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                 </label>
               </div>
             )}
-            {(action === 'beantworten' || action === 'ablehnen' || action === 'support') && (
+            {action && TEXT_ACTIONS.includes(action) && (
               <label className="admin-form-group">
                 <span className="admin-form-label">
-                  {action === 'support' ? 'Satz an den Einreicher (optional)' : 'Satz an den Einreicher (Pflicht)'}
+                  {action === 'support' ? 'Satz an den Einreicher (optional)'
+                    : action === 'rueckfrage' ? 'Frage an den Einreicher (Pflicht)'
+                      : 'Satz an den Einreicher (Pflicht)'}
                 </span>
                 <textarea className="admin-input" rows={3} maxLength={1000} value={text}
                           onChange={e => setText(e.target.value)}
-                          placeholder={action === 'beantworten'
-                            ? 'Gibt es schon: Einstellungen → Vorlagen'
-                            : action === 'ablehnen' ? 'Warum nicht' : 'Das haben wir an den Support weitergegeben.'} />
+                          placeholder={TEXT_PLACEHOLDER[action]} />
+                {action === 'rueckfrage' && (
+                  <span className="admin-form-hint">
+                    Der Wunsch geht zurück an den Einreicher. Antwortet er in «Meine Wünsche»,
+                    liegt er wieder als «Neu» im Eingang.
+                  </span>
+                )}
               </label>
             )}
-            {(action === 'beantworten' || action === 'ablehnen' || action === 'support') && (
+            {action && TEXT_ACTIONS.includes(action) && (
               req.created_by ? (
                 <label className="fr-check">
                   <input type="checkbox" checked={notify} onChange={e => setNotify(e.target.checked)} />
@@ -838,7 +880,10 @@ export default function FeatureRequestsScreen({ initialTenantId, onCountChange }
                       <td className="fr-td-area">{r.area ? AREA_LABEL[r.area] ?? r.area : '—'}</td>
                       <td className="fr-td-importance">{IMPORTANCE_LABEL[r.importance]}</td>
                       <td className="fr-td-title">{r.origin === 'unterstuetzung' ? <i>Unterstützung</i> : r.title}</td>
-                      <td className="fr-td-state">{TRIAGE_LABEL[r.triage]}</td>
+                      <td className="fr-td-state">
+                        {TRIAGE_LABEL[r.triage]}
+                        {r.reply_waiting && <span className="fr-reply-chip" title="Der Einreicher hat die Rückfrage beantwortet">↩ Antwort da</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

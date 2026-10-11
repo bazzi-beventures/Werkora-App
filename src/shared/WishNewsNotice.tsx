@@ -18,17 +18,25 @@ import './wishes.css'
  * der Hinweis wieder da, bis jemand ihn quittiert.
  */
 
+/** Eine Rückfrage des Betreibers (§7.1a) — sie will eine Antwort, nicht nur
+ *  einen Blick. Erkannt an der Triage hinter der Nachricht. */
+function isQuestion(n: WishNews): boolean {
+  return n.kind === 'antwort' && n.triage === 'rueckfrage'
+}
+
 function line(n: WishNews): string {
   if (n.kind === 'feature') return `jetzt «${n.phase_label}»${n.target_label ? ` · Ziel: ${n.target_label}` : ''}`
   return n.triage_label ?? 'Antwort'
 }
 
-export default function WishNewsNotice({ news, appContext, onAcknowledge, onOpenRoadmap, onDismiss }: {
+export default function WishNewsNotice({ news, appContext, onAcknowledge, onOpenRoadmap, onAnswer, onDismiss }: {
   news: WishNews[]
   appContext: 'pwa' | 'admin'
   /** Quittung an den Server (`markRead`). */
   onAcknowledge: () => void
   onOpenRoadmap?: () => void
+  /** Öffnet «Meine Wünsche», wo das Antwortfeld steht — nur bei Rückfragen. */
+  onAnswer?: () => void
   /** Nur ausblenden — der Aufrufer rendert neu. */
   onDismiss: () => void
 }) {
@@ -41,6 +49,7 @@ export default function WishNewsNotice({ news, appContext, onAcknowledge, onOpen
   }
 
   const shown = news.slice(0, 5)
+  const hasQuestion = news.some(isQuestion)
   return (
     <div className="roadmap-sheet-backdrop" onClick={() => close(false)}>
       <div className={`roadmap-sheet wish-root${appContext === 'admin' ? ' is-admin' : ''}`}
@@ -57,6 +66,7 @@ export default function WishNewsNotice({ news, appContext, onAcknowledge, onOpen
               {n.title && <div className="wish-card-title">{n.title}</div>}
               <div className="wish-accent">{line(n)}</div>
               {n.kind === 'antwort' && n.answer && <div className="wish-quote">{n.answer}</div>}
+              {isQuestion(n) && <div className="wish-muted">Bitte beantworte die Frage unter «Meine Wünsche».</div>}
             </li>
           ))}
         </ul>
@@ -74,9 +84,16 @@ export default function WishNewsNotice({ news, appContext, onAcknowledge, onOpen
               Zur Roadmap
             </button>
           )}
-          <button type="button" className="wish-btn" style={{ flex: '0 0 auto' }} onClick={() => close(true)}>
-            OK
-          </button>
+          {hasQuestion && onAnswer ? (
+            <button type="button" className="wish-btn" style={{ flex: '0 0 auto' }}
+                    onClick={() => { close(true); onAnswer() }}>
+              Jetzt beantworten
+            </button>
+          ) : (
+            <button type="button" className="wish-btn" style={{ flex: '0 0 auto' }} onClick={() => close(true)}>
+              OK
+            </button>
+          )}
         </div>
       </div>
     </div>

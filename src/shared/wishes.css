@@ -146,6 +146,18 @@ button.wish-card { cursor: pointer; }
   white-space: pre-wrap;
 }
 
+/* Offene Rückfrage des Betreibers (feature-anfragen.md §7.1a) — der Teil der
+   Karte, der auf eine Antwort wartet. */
+.wish-question {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-left: 3px solid var(--accent, #9A6716);
+  padding-left: 8px;
+}
+.wish-root.is-admin .wish-question { border-left-color: var(--primary, #3081AB); }
+.wish-question-round { display: flex; flex-direction: column; gap: 2px; }
+
 .wish-phase {
   display: inline-block;
   border: 1px solid var(--border, #e5e7eb);

@@ -145,6 +145,43 @@ describe('FeatureRequestsScreen — Eingang', () => {
     expect(within(dialog).queryByLabelText(/An den Support/)).toBeNull()
     expect(within(dialog).getByText(/nur mit Konto/)).toBeTruthy()
   })
+
+  it('«Rückfrage» spielt den Wunsch mit einer Frage zurück — Push vorbelegt', async () => {
+    api.fetchFeatureRequest.mockResolvedValue({
+      ...REQUEST, description: 'Auf der ersten Maske', similar: [],
+      allowed_actions: ['zuordnen', 'neues_feature', 'support', 'rueckfrage', 'beantworten', 'ablehnen'],
+    })
+    const dialog = await oeffneAnfrage()
+    fireEvent.click(within(dialog).getByLabelText(/Rückfrage \(unklar, worum es geht\)/))
+    const ausfuehren = within(dialog).getByRole('button', { name: 'Ausführen' })
+    expect(ausfuehren).toBeDisabled()
+    fireEvent.change(within(dialog).getByPlaceholderText(/Welche Maske meinst du/),
+                     { target: { value: 'Welche Maske meinst du?' } })
+    fireEvent.click(ausfuehren)
+    await waitFor(() => expect(api.triageFeatureRequest).toHaveBeenCalledWith(
+      'r-1', { aktion: 'rueckfrage', text: 'Welche Maske meinst du?', notify: true }))
+  })
+
+  it('zeigt Rückfragen samt Antwort des Einreichers', async () => {
+    api.fetchFeatureRequest.mockResolvedValue({
+      ...REQUEST, description: 'Auf der ersten Maske', similar: [], allowed_actions: ['zuordnen'],
+      rueckfragen: [{ frage: 'Welche Maske?', gefragt_am: '2026-10-11',
+                      antwort: 'Die Projektliste', beantwortet_am: '2026-10-12' }],
+    })
+    const dialog = await oeffneAnfrage()
+    expect(within(dialog).getByText('Welche Maske?')).toBeTruthy()
+    expect(within(dialog).getByText('Die Projektliste')).toBeTruthy()
+    expect(within(dialog).getByText(/12\.10\.26/)).toBeTruthy()
+  })
+
+  it('markiert im Eingang, was mit Antwort auf eine Rückfrage zurückkam', async () => {
+    api.fetchFeatureRequests.mockResolvedValue({
+      requests: [{ ...REQUEST, reply_waiting: true }], new_count: 1,
+      tenants: [{ id: 't-1', name: 'Gehlhaar AG' }], capped: false,
+    })
+    render(<FeatureRequestsScreen />)
+    expect(await screen.findByText('↩ Antwort da')).toBeTruthy()
+  })
 })
 
 describe('FeatureRequestsScreen — Board', () => {

@@ -175,6 +175,19 @@
   font-size: var(--font-sm);
 }
 
+.fr-dialog-round { display: flex; flex-direction: column; gap: var(--s-1); }
+
+/* «↩ Antwort da» — die Anfrage kam mit der Antwort auf eine Rückfrage zurück. */
+.fr-reply-chip {
+  margin-left: var(--s-2);
+  background: var(--primary);
+  color: var(--on-accent, #fff);
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
 .fr-similar { list-style: none; margin: 0; padding: 0; font-size: var(--font-sm); }
 .fr-similar li { padding: 2px 0; }
 

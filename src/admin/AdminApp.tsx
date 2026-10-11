@@ -36,6 +36,7 @@ import DocumentBackupScreen from './system/DocumentBackupScreen'
 import SettingsScreen from './configuration/SettingsScreen'
 import KpiScreen from './kpis/KpiScreen'
 import HelpBubble from '../shared/HelpBubble'
+import { useWishAttention } from '../shared/useMyWishes'
 import { SCREEN_TITLES } from './screenTitles'
 import Roadmap from '../shared/Roadmap'
 import EasterEggs from './eastereggs/EasterEggs'
@@ -152,12 +153,19 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   useEffect(() => { loadDashboard() }, [])
   useEffect(() => { if (screen === 'dashboard') loadDashboard() }, [screen])
 
+  // Zahl am Navigationspunkt «Wünsche & Roadmap» — wie das Abzeichen
+  // «Feature-Anfragen» auf admin.werkora.ch, nur aus Sicht des Einreichers:
+  // ungelesene Nachrichten plus offene Rückfragen (feature-anfragen.md §7.1a).
+  // Geladen von der Hilfe-Blase bzw. der Roadmap, hier nur abgelesen.
+  const wishAttention = useWishAttention()
+
   const badges = {
     corrections: dashboard?.pending_corrections ?? 0,
     absences: dashboard?.pending_absences ?? 0,
     invoices: dashboard?.open_invoices ?? 0,
     drafts: dashboard?.pending_drafts ?? 0,
     tasks: dashboard?.my_open_tasks ?? 0,
+    wishes: hasModule(user, 'feature_requests') ? wishAttention : 0,
   }
 
   const isManagement = isManagementRole(user.role)

@@ -25,6 +25,8 @@ interface Props {
     invoices?: number
     drafts?: number
     tasks?: number
+    /** Wünsche & Roadmap: ungelesene Nachrichten plus offene Rückfragen. */
+    wishes?: number
   }
   /** Die dem Konto zugeteilte offene Zählung. Sie ist zugleich die Berechtigung
    *  und der Einstieg: Der Eintrag erscheint, sobald eine Tranche ihm gehört —
@@ -67,6 +69,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
   const has = (m: ModuleName) => enabledModules.includes(m)
   const isMoreActive = !PRIMARY_TABS.includes(screen)
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
+    || (has('feature_requests') && (badges?.wishes ?? 0) > 0)
 
   function navigate(target: AdminScreen, detailId?: string) {
     setDrawerOpen(false)
@@ -274,6 +277,9 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 {has('feature_requests') && (
                   <button className={`admin-mobile-drawer-item${screen === 'roadmap' ? ' active' : ''}`} onClick={() => navigate('roadmap')}>
                     <IconBulb /><span>Wünsche &amp; Roadmap</span>
+                    {(badges?.wishes ?? 0) > 0 && (
+                      <span className="admin-mobile-drawer-item-badge">{badges!.wishes}</span>
+                    )}
                   </button>
                 )}
                 {isManagement && has('document_backup') && (

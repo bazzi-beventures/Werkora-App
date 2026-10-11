@@ -372,7 +372,7 @@ export default function Roadmap({ userId, role, appContext, initialFeatureId, co
         </button>
         <button type="button" role="tab" aria-pressed={tab === 'meine'}
                 onClick={() => { setTab('meine'); if (mine.unread > 0) void mine.markRead() }}>
-          Meine Wünsche{mine.unread > 0 ? ` (${mine.unread})` : ''}
+          Meine Wünsche{mine.attention > 0 ? ` (${mine.attention})` : ''}
         </button>
         {isAdminRole && (
           <button type="button" role="tab" aria-pressed={tab === 'unsere'} onClick={() => setTab('unsere')}>

@@ -16,8 +16,8 @@ export type Phase =
   | 'pruefung' | 'geplant' | 'entwurf' | 'umsetzung' | 'test' | 'verfuegbar'
   | 'zurueckgestellt' | 'abgelehnt'
 
-export type Triage = 'neu' | 'zugeordnet' | 'beantwortet' | 'support' | 'abgelehnt'
-export type TriageAction = 'zuordnen' | 'neues_feature' | 'support' | 'beantworten' | 'ablehnen'
+export type Triage = 'neu' | 'rueckfrage' | 'zugeordnet' | 'beantwortet' | 'support' | 'abgelehnt'
+export type TriageAction = 'zuordnen' | 'neues_feature' | 'support' | 'rueckfrage' | 'beantworten' | 'ablehnen'
 export type Importance = 'schoen' | 'wichtig' | 'dringend'
 export type Precision = 'woche' | 'monat' | 'quartal'
 export type Channel = 'whatsapp' | 'telefon' | 'mail' | 'vor_ort'
@@ -51,6 +51,7 @@ export const REASON_REQUIRED: Phase[] = ['zurueckgestellt', 'abgelehnt']
 
 export const TRIAGE_LABEL: Record<Triage, string> = {
   neu: 'Neu',
+  rueckfrage: 'Rückfrage offen',
   zugeordnet: 'Zugeordnet',
   beantwortet: 'Beantwortet',
   support: 'An Support',
@@ -189,6 +190,14 @@ export interface FeatureCard {
   updated_at?: string
 }
 
+/** Eine Runde Rückfrage (Spec §7.1a) — Daten als Kalendertag (F13). */
+export interface QuestionRound {
+  frage: string
+  gefragt_am?: string | null
+  antwort?: string | null
+  beantwortet_am?: string | null
+}
+
 export interface FeatureRequestRow {
   id: string
   tenant_id: string
@@ -213,6 +222,10 @@ export interface FeatureRequestRow {
   answer?: string | null
   support_ticket_id?: string | null
   internal_note?: string | null
+  /** Verlauf der Rückfragen samt Antworten des Einreichers. */
+  rueckfragen?: QuestionRound[]
+  /** Wieder im Eingang, weil der Einreicher die Rückfrage beantwortet hat. */
+  reply_waiting?: boolean
   created_at: string
   created_on?: string | null
 }
@@ -540,6 +553,7 @@ export interface MyWish {
   triage: Triage
   triage_label: string
   answer?: string | null
+  rueckfragen?: QuestionRound[]
   created_at: string
   created_on?: string | null
   notified_at?: string | null
@@ -598,6 +612,13 @@ export function uploadWishScreenshots(id: string, files: File[]): Promise<{ atta
   return apiFormFetch(`/pwa/features/requests/${id}/screenshots`, form)
 }
 
+/** Antwort auf eine Rückfrage des Betreibers (Spec §7.1a). Danach liegt der
+ *  Wunsch wieder im Eingang; Screenshots gehen hinterher über
+ *  `uploadWishScreenshots` — die Anfrage ist dann wieder `neu`. */
+export function replyToWishQuestion(id: string, text: string): Promise<{ ok: boolean; triage: Triage }> {
+  return apiFetch(`/pwa/features/requests/${id}/reply`, { method: 'POST', body: JSON.stringify({ text }) })
+}
+
 export function withdrawWish(id: string): Promise<{ ok: boolean }> {
   return apiFetch(`/pwa/features/requests/${id}`, { method: 'DELETE' })
 }
@@ -627,6 +648,8 @@ export interface WishNews {
   phase_label?: string
   target_label?: string
   triage_label?: string
+  /** Triage hinter einer `antwort` — `rueckfrage` will eine Antwort (§7.1a). */
+  triage?: Triage
   answer?: string | null
   notified_on?: string | null
 }
@@ -641,6 +664,8 @@ export interface MySubscription {
 export function fetchMyWishes(): Promise<{
   requests: MyWish[]
   unread: number
+  /** Ungelesenes plus offene Rückfragen — die Zahl am Navigationspunkt. */
+  attention?: number
   news?: WishNews[]
   subscriptions?: MySubscription[]
 }> {
