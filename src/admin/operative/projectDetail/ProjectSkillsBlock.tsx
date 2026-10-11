@@ -28,7 +28,7 @@ function Passende({ rows, labels }: { rows: PassendRow[]; labels: Map<string, st
   if (naechste.length === 0) return <span>keine aktiven Mitarbeiter</span>
   return (
     <span className="project-skills-warnung">
-      niemand hat alle Pillen — am nächsten:{' '}
+      niemand hat alle Skills — am nächsten:{' '}
       {naechste.map(r => `${r.name} (fehlt ${r.fehlt.map(k => labels.get(k) ?? '?').join(', ')})`).join('; ')}
     </span>
   )
@@ -47,7 +47,7 @@ export function ProjectSkillsBlock({ projectId }: { projectId: string }) {
       setDaten(d)
       setFehler('')
     } catch (e) {
-      setFehler(fehlerText(e, 'Fähigkeiten nicht ladbar.'))
+      setFehler(fehlerText(e, 'Skills nicht ladbar.'))
     }
   }, [projectId])
 
@@ -78,7 +78,7 @@ export function ProjectSkillsBlock({ projectId }: { projectId: string }) {
 
   return (
     <div className="admin-form-group project-skills">
-      <label className="admin-form-label">Fähigkeiten — was die Montage verlangt</label>
+      <label className="admin-form-label">Skills — was die Montage verlangt</label>
       <SkillPillPicker skills={skills} gewaehlt={new Set(daten.skill_ids)} onToggle={s => void umschalten(s)} disabled={speichert} />
       {fehler && <div className="admin-form-error">{fehler}</div>}
       <ul className="project-skills-einsaetze">
@@ -96,7 +96,7 @@ export function ProjectSkillsBlock({ projectId }: { projectId: string }) {
               </div>
               <div className="skill-pills">
                 {e.benoetigt.length === 0
-                  ? <span className="skill-pill-leer">keine besonderen Pillen nötig</span>
+                  ? <span className="skill-pill-leer">keine besonderen Skills nötig</span>
                   : e.benoetigt.map(k => byId.get(k) && <SkillPill key={k} skill={byId.get(k)!} />)}
               </div>
               {e.benoetigt.length > 0 && <div className="project-skills-passt"><Passende rows={e.mitarbeiter} labels={labels} /></div>}

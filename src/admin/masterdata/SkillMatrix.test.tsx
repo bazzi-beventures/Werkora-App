@@ -1,4 +1,4 @@
-// Personal → Skill-Matrix (Pillen). Spec docs/specs/mitarbeiterdisposition-faehigkeiten-routen.md §4, §13.
+// Personal → Skill-Matrix. Spec docs/specs/mitarbeiterdisposition-faehigkeiten-routen.md §4, §13.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -39,7 +39,7 @@ async function oeffneTab() {
   return (await screen.findByText('Peter Muster')).closest('li') as HTMLElement
 }
 
-describe('Skill-Matrix (Pillen)', () => {
+describe('Skill-Matrix', () => {
   // Klammern: ein zurückgegebener Mock wäre für Vitest eine Aufräum-Funktion.
   beforeEach(() => { mockFetch.mockReset() })
 
@@ -53,7 +53,7 @@ describe('Skill-Matrix (Pillen)', () => {
     expect(screen.getByDisplayValue('Altes Zeug')).toBeTruthy()
   })
 
-  it('eine Pille anheften speichert für sich', async () => {
+  it('einen Skill anheften speichert für sich', async () => {
     const puts: { path: string; body: unknown }[] = []
     route((path, body, method) => {
       if (method === 'PUT') {
@@ -83,7 +83,7 @@ describe('Skill-Matrix (Pillen)', () => {
     expect(within(peter).getByRole('button', { name: '+ Griesser' })).toBeTruthy()
   })
 
-  it('Filter «Wer kann …» zeigt nur, wer die Pille hat (abgelaufen zählt nicht)', async () => {
+  it('Filter «Wer kann …» zeigt nur, wer den Skill hat (abgelaufen zählt nicht)', async () => {
     route(path => (path.includes('skill-matrix') ? MATRIX : []))
     await oeffneTab()
     const filter = document.querySelector('.skill-filter') as HTMLElement
@@ -93,20 +93,35 @@ describe('Skill-Matrix (Pillen)', () => {
     expect(within(filter).getByText(/0 von 2/)).toBeTruthy()
   })
 
-  it('legt eine Pille als Tätigkeit an, die beim Ausmass immer nötig ist', async () => {
+  it('legt einen Skill als Tätigkeit an, der fürs Ausmass nötig ist', async () => {
     const posts: unknown[] = []
     route((path, body, method) => {
       if (method === 'POST') { posts.push(body); return { ...MATRIX.skills[0], id: 'k9' } }
       return path.includes('skill-matrix') ? MATRIX : []
     })
     await oeffneTab()
-    await userEvent.type(screen.getByLabelText('Neue Pille'), 'Ausmessen')
-    await userEvent.selectOptions(screen.getByLabelText('Art'), 'taetigkeit')
-    const kinds = screen.getByRole('group', { name: 'Neue Pille: immer nötig bei' })
-    await userEvent.click(within(kinds).getByRole('button', { name: 'Ausmass' }))
-    await userEvent.click(screen.getByRole('button', { name: '+ Pille' }))
+    await userEvent.type(screen.getByLabelText('Neuer Skill'), 'Ausmessen')
+    const form = document.querySelector('.skill-neu') as HTMLElement
+    await userEvent.selectOptions(within(form).getByLabelText('Art'), 'taetigkeit')
+    await userEvent.click(within(form).getByLabelText('fürs Ausmass'))
+    await userEvent.click(within(form).getByRole('button', { name: '+ Skill' }))
     await waitFor(() => expect(posts).toEqual([
       { label: 'Ausmessen', art: 'taetigkeit', requires_validity: false, einsatz_kinds: ['aufmass'] },
     ]))
+  })
+})
+
+describe('Skills verwalten', () => {
+  beforeEach(() => { mockFetch.mockReset() })
+
+  it('«fürs Ausmass» schaltet nur den Ausmass-Eintrag', async () => {
+    const patches: unknown[] = []
+    route((path, body, method) => {
+      if (method === 'PATCH') { patches.push({ path, body }); return MATRIX.skills[0] }
+      return path.includes('skill-matrix') ? MATRIX : []
+    })
+    await oeffneTab()
+    await userEvent.click(screen.getByLabelText('Griesser fürs Ausmass'))
+    await waitFor(() => expect(patches).toEqual([{ path: '/pwa/admin/skills/k1', body: { einsatz_kinds: ['aufmass'] } }]))
   })
 })

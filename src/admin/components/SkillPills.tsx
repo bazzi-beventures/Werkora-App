@@ -34,7 +34,7 @@ export function SkillPillPicker({ skills, gewaehlt, onToggle, disabled = false }
 }) {
   const aktive = skills.filter(s => s.is_active)
   if (aktive.length === 0) {
-    return <div className="skill-pill-leer">Noch keine Fähigkeiten — sie werden unter Personal → Skill-Matrix angelegt.</div>
+    return <div className="skill-pill-leer">Noch keine Skills — sie werden unter Personal → Skill-Matrix angelegt.</div>
   }
   return (
     <div className="skill-pill-picker">

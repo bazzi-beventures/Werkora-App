@@ -8,8 +8,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  APPOINTMENT_KIND_LABELS, SKILL_ART_LABELS,
-  createSkill, deleteSkill, getSkillMatrix, reorderSkills, setStaffSkill, updateSkill,
+  SKILL_ART_LABELS,
+  createSkill, deleteSkill, getSkillMatrix, setStaffSkill, updateSkill,
   type AppointmentKind, type Skill, type SkillArt, type SkillMatrix, type StaffSkill,
 } from '../../api/admin'
 import { SkillPill, SkillPillPicker } from '../components/SkillPills'
@@ -25,7 +25,7 @@ function datumKurz(iso: string): string {
   return `${d}.${m}.${y}`
 }
 
-const KINDS = Object.keys(APPOINTMENT_KIND_LABELS) as AppointmentKind[]
+const AUSMASS: AppointmentKind = 'aufmass'
 
 export function SkillMatrixPanel() {
   const [daten, setDaten] = useState<SkillMatrix | null>(null)
@@ -82,9 +82,8 @@ export function SkillMatrixPanel() {
         <div>
           <div className="admin-page-title">Skill-Matrix</div>
           <div className="admin-page-subtitle">
-            Wer kann was — Lieferanten und Tätigkeiten als Pillen. Damit zeigen Projekt und
-            Einsatzplanung, wer für einen Einsatz passt. Eine Pille sagt «kann das» und ist{' '}
-            <strong>keine Leistungsbewertung</strong>; sichtbar nur im Admin, nie in der Monteur-App.
+            Wer kann was — Lieferanten und Tätigkeiten. Projekt und Einsatzplanung zeigen damit, wer
+            passt. Keine Leistungsbewertung; sichtbar nur im Admin.
           </div>
         </div>
       </div>
@@ -136,7 +135,7 @@ export function SkillMatrixPanel() {
                 </div>
                 {!bearbeiten && (
                   <div className="skill-pills">
-                    {pillen.length === 0 && <span className="skill-pill-leer">noch keine Pillen</span>}
+                    {pillen.length === 0 && <span className="skill-pill-leer">noch keine Skills</span>}
                     {pillen.map(c => {
                       const s = skillById.get(c.skill_id)!
                       return (
@@ -174,28 +173,6 @@ export function SkillMatrixPanel() {
   )
 }
 
-function KindChips({ werte, onChange, disabled, name }: {
-  werte: AppointmentKind[]
-  onChange: (neu: AppointmentKind[]) => void
-  disabled?: boolean
-  name: string
-}) {
-  return (
-    <div className="skill-kinds" role="group" aria-label={`${name}: immer nötig bei`}>
-      {KINDS.map(k => {
-        const an = werte.includes(k)
-        return (
-          <button key={k} type="button" disabled={disabled} aria-pressed={an}
-            className={`skill-kind${an ? ' an' : ''}`}
-            onClick={() => onChange(an ? werte.filter(x => x !== k) : [...werte, k])}>
-            {APPOINTMENT_KIND_LABELS[k]}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 function SkillKatalog({ skills, onGeaendert, showToast }: {
   skills: Skill[]
   onGeaendert: () => Promise<void>
@@ -203,8 +180,7 @@ function SkillKatalog({ skills, onGeaendert, showToast }: {
 }) {
   const [label, setLabel] = useState('')
   const [art, setArt] = useState<SkillArt>('lieferant')
-  const [mitAblauf, setMitAblauf] = useState(false)
-  const [kinds, setKinds] = useState<AppointmentKind[]>([])
+  const [ausmass, setAusmass] = useState(false)
   const [laeuft, setLaeuft] = useState(false)
   const [namen, setNamen] = useState<Record<string, string>>({})
 
@@ -226,8 +202,8 @@ function SkillKatalog({ skills, onGeaendert, showToast }: {
     const name = label.trim()
     if (!name) return
     await aktion(async () => {
-      await createSkill({ label: name, art, requires_validity: mitAblauf, einsatz_kinds: kinds })
-      setLabel(''); setMitAblauf(false); setKinds([])
+      await createSkill({ label: name, art, requires_validity: false, einsatz_kinds: ausmass ? [AUSMASS] : [] })
+      setLabel(''); setAusmass(false)
     }, `«${name}» angelegt`, 'Nicht angelegt.')
   }
 
@@ -241,99 +217,65 @@ function SkillKatalog({ skills, onGeaendert, showToast }: {
     void aktion(() => updateSkill(s.id, { label: neu }), 'Umbenannt', 'Nicht umbenannt.').then(() => namenWeg(s.id))
   }
 
-  function verschieben(i: number, dir: -1 | 1) {
-    const ids = skills.map(s => s.id)
-    const j = i + dir
-    if (j < 0 || j >= ids.length) return
-    ;[ids[i], ids[j]] = [ids[j], ids[i]]
-    void aktion(() => reorderSkills(ids), null, 'Reihenfolge nicht gespeichert.')
+  /** «Nötig fürs Ausmass» schaltet nur den Ausmass-Eintrag — andere Einsatz-Typen bleiben, wie sie sind. */
+  function ausmassUmschalten(s: Skill, an: boolean) {
+    const ohne = s.einsatz_kinds.filter(k => k !== AUSMASS)
+    void aktion(() => updateSkill(s.id, { einsatz_kinds: an ? [AUSMASS, ...ohne] : ohne }), null, 'Nicht gespeichert.')
   }
 
   function loeschen(s: Skill) {
-    if (!window.confirm(`«${s.label}» löschen? Die Pille verschwindet bei allen Mitarbeitern und Projekten.\n\nWer sie behalten will, nimmt stattdessen das Häkchen «aktiv» weg.`)) return
+    if (!window.confirm(`«${s.label}» löschen? Der Skill verschwindet bei allen Mitarbeitern und Projekten.`)) return
     void aktion(() => deleteSkill(s.id), `«${s.label}» gelöscht`, 'Nicht gelöscht.')
   }
 
   return (
     <section className="skill-katalog">
-      <h3 className="skill-katalog-titel">Pillen verwalten</h3>
+      <h3 className="skill-katalog-titel">Skills verwalten</h3>
       <p className="skill-katalog-hilfe">
-        «Immer nötig bei» gilt unabhängig vom Projekt — typisch «Ausmessen» beim Ausmass. Ein Ausmass
-        braucht nur diese Pillen; ab der Montage kommen die Pillen hinzu, die am Projekt hängen.
+        Ein Ausmass braucht nur die Skills mit Häkchen «fürs Ausmass». Ab der Montage zählen die
+        Skills, die am Projekt hängen.
       </p>
       {skills.length > 0 && (
         <ul className="skill-katalog-liste">
-          {skills.map((s, i) => (
-            <li key={s.id} className={`skill-katalog-eintrag${s.is_active ? '' : ' inaktiv'}`}>
-              <div className="skill-katalog-zeile">
-                <div className="skill-rang">
-                  <button className="admin-btn-icon" aria-label={`«${s.label}» nach oben`} title="Nach oben"
-                    disabled={i === 0 || laeuft} onClick={() => verschieben(i, -1)}>↑</button>
-                  <button className="admin-btn-icon" aria-label={`«${s.label}» nach unten`} title="Nach unten"
-                    disabled={i === skills.length - 1 || laeuft} onClick={() => verschieben(i, 1)}>↓</button>
-                </div>
-                <input className="admin-form-input skill-katalog-name" value={namen[s.id] ?? s.label} maxLength={60}
-                  aria-label={`Name ${s.label}`}
-                  onChange={e => setNamen(n => ({ ...n, [s.id]: e.target.value }))}
-                  onBlur={() => umbenennen(s)}
-                  onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
-                <select className="admin-form-select skill-katalog-art" value={s.art} disabled={laeuft}
-                  aria-label={`Art ${s.label}`}
-                  onChange={e => void aktion(() => updateSkill(s.id, { art: e.target.value as SkillArt }), null, 'Nicht gespeichert.')}>
-                  {(Object.keys(SKILL_ART_LABELS) as SkillArt[]).map(a => <option key={a} value={a}>{SKILL_ART_LABELS[a]}</option>)}
-                </select>
-              </div>
-              <div className="skill-katalog-zeile">
-                <span className="skill-katalog-label">Immer nötig bei</span>
-                <KindChips werte={s.einsatz_kinds} disabled={laeuft} name={s.label}
-                  onChange={neu => void aktion(() => updateSkill(s.id, { einsatz_kinds: neu }), null, 'Nicht gespeichert.')} />
-              </div>
-              <div className="skill-katalog-zeile">
-                <label className="skill-check">
-                  <input type="checkbox" checked={s.requires_validity} disabled={laeuft}
-                    onChange={e => void aktion(() => updateSkill(s.id, { requires_validity: e.target.checked }), null, 'Nicht gespeichert.')} />
-                  Zertifikat mit Ablaufdatum
-                </label>
-                <label className="skill-check">
-                  <input type="checkbox" checked={s.is_active} disabled={laeuft}
-                    onChange={e => void aktion(() => updateSkill(s.id, { is_active: e.target.checked }), null, 'Nicht gespeichert.')} />
-                  aktiv
-                </label>
-                <button className="admin-btn admin-btn-danger admin-btn-sm skill-loeschen" disabled={laeuft}
-                  onClick={() => loeschen(s)}>Löschen</button>
-              </div>
+          {skills.map(s => (
+            <li key={s.id} className="skill-katalog-eintrag">
+              <input className="admin-form-input skill-katalog-name" value={namen[s.id] ?? s.label} maxLength={60}
+                aria-label={`Name ${s.label}`}
+                onChange={e => setNamen(n => ({ ...n, [s.id]: e.target.value }))}
+                onBlur={() => umbenennen(s)}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
+              <select className="admin-form-select skill-katalog-art" value={s.art} disabled={laeuft}
+                aria-label={`Art ${s.label}`}
+                onChange={e => void aktion(() => updateSkill(s.id, { art: e.target.value as SkillArt }), null, 'Nicht gespeichert.')}>
+                {(Object.keys(SKILL_ART_LABELS) as SkillArt[]).map(a => <option key={a} value={a}>{SKILL_ART_LABELS[a]}</option>)}
+              </select>
+              <label className="skill-check">
+                <input type="checkbox" checked={s.einsatz_kinds.includes(AUSMASS)} disabled={laeuft}
+                  aria-label={`${s.label} fürs Ausmass`}
+                  onChange={e => ausmassUmschalten(s, e.target.checked)} />
+                fürs Ausmass
+              </label>
+              <button className="admin-btn-icon skill-loeschen" disabled={laeuft} aria-label={`${s.label} löschen`}
+                title="Löschen" onClick={() => loeschen(s)}>×</button>
             </li>
           ))}
         </ul>
       )}
 
       <form onSubmit={e => void anlegen(e)} className="skill-neu">
-        <div className="skill-katalog-zeile">
-          <div className="admin-form-group" style={{ margin: 0, flex: '1 1 180px' }}>
-            <label className="admin-form-label" htmlFor="skill-neu-name">Neue Pille</label>
-            <input id="skill-neu-name" className="admin-form-input" value={label} maxLength={60}
-              onChange={e => setLabel(e.target.value)} placeholder="z.B. Griesser, Insektenschutzgitter" />
-          </div>
-          <div className="admin-form-group" style={{ margin: 0 }}>
-            <label className="admin-form-label" htmlFor="skill-neu-art">Art</label>
-            <select id="skill-neu-art" className="admin-form-select" value={art} onChange={e => setArt(e.target.value as SkillArt)}>
-              {(Object.keys(SKILL_ART_LABELS) as SkillArt[]).map(a => <option key={a} value={a}>{SKILL_ART_LABELS[a]}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="skill-katalog-zeile">
-          <span className="skill-katalog-label">Immer nötig bei</span>
-          <KindChips werte={kinds} onChange={setKinds} name="Neue Pille" />
-        </div>
-        <div className="skill-katalog-zeile">
-          <label className="skill-check">
-            <input type="checkbox" checked={mitAblauf} onChange={e => setMitAblauf(e.target.checked)} />
-            Zertifikat mit Ablaufdatum
-          </label>
-          <button className="admin-btn admin-btn-secondary" type="submit" disabled={laeuft || !label.trim()}>
-            + Pille
-          </button>
-        </div>
+        <input className="admin-form-input skill-katalog-name" value={label} maxLength={60}
+          aria-label="Neuer Skill" onChange={e => setLabel(e.target.value)} placeholder="Neuer Skill, z.B. Griesser" />
+        <select className="admin-form-select skill-katalog-art" value={art} aria-label="Art"
+          onChange={e => setArt(e.target.value as SkillArt)}>
+          {(Object.keys(SKILL_ART_LABELS) as SkillArt[]).map(a => <option key={a} value={a}>{SKILL_ART_LABELS[a]}</option>)}
+        </select>
+        <label className="skill-check">
+          <input type="checkbox" checked={ausmass} onChange={e => setAusmass(e.target.checked)} />
+          fürs Ausmass
+        </label>
+        <button className="admin-btn admin-btn-secondary" type="submit" disabled={laeuft || !label.trim()}>
+          + Skill
+        </button>
       </form>
     </section>
   )

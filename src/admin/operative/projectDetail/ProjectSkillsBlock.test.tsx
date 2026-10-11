@@ -35,7 +35,7 @@ function antwort(ids: string[]): ProjectSkills {
 describe('ProjectSkillsBlock', () => {
   beforeEach(() => { mockFetch.mockReset() })
 
-  it('Ausmass ist der nächste Einsatz ohne Offerte, Montage zeigt, wem eine Pille fehlt', async () => {
+  it('Ausmass ist der nächste Einsatz ohne Offerte, Montage zeigt, wem ein Skill fehlt', async () => {
     const puts: unknown[] = []
     let ids: string[] = []
     mockFetch.mockImplementation(async (path: string, opts?: RequestInit) => {
@@ -49,6 +49,6 @@ describe('ProjectSkillsBlock', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ Griesser' }))
     await waitFor(() => expect(puts).toEqual([['gri']]))
     const montage = screen.getByText('Montage').closest('li') as HTMLElement
-    expect(await within(montage).findByText(/niemand hat alle Pillen — am nächsten: Peter \(fehlt Griesser\)/)).toBeTruthy()
+    expect(await within(montage).findByText(/niemand hat alle Skills — am nächsten: Peter \(fehlt Griesser\)/)).toBeTruthy()
   })
 })

@@ -1153,7 +1153,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   function skillChip(staffId: string, braucht: string[]): { cls: string; title?: string; marke: string } {
     if (braucht.length === 0) return { cls: '', marke: '' }
     const fehlt = fehlende(staffId, braucht, pillenJeStaff)
-    if (fehlt.length === 0) return { cls: ' skill-ok', title: 'hat alle nötigen Pillen', marke: ' ✓' }
+    if (fehlt.length === 0) return { cls: ' skill-ok', title: 'hat alle nötigen Skills', marke: ' ✓' }
     return { cls: ' skill-fehlt', title: `fehlt: ${fehlt.map(k => skillLabel.get(k)?.label ?? '?').join(', ')}`, marke: '' }
   }
 

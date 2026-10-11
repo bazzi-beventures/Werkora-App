@@ -196,3 +196,14 @@
   .dispo-tag-knopf { margin-left: 0; }
   .dispo-steuerung .admin-btn { flex: 1 1 auto; }
 }
+
+/* Planung → «Feinjustierung»: selten gebrauchte Stellschrauben, eingeklappt. */
+.dispo-fein {
+  margin-top: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.dispo-fein summary { cursor: pointer; font-weight: 600; color: var(--text-strong); padding: var(--s-1, 4px) 0; }
+.dispo-fein[open] summary { margin-bottom: var(--s-2); }
+.dispo-fein .hagel-dispo-grid { margin-bottom: var(--s-2); }

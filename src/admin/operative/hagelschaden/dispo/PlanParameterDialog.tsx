@@ -150,66 +150,69 @@ export function PlanParameterDialog({ info, kampagne, onClose, onSaved }: {
           ))}
           <button type="button" className="admin-btn admin-btn-secondary" onClick={neueEquipe}>+ Equipe</button>
 
-          <h4 className="hagel-dispo-dialog-titel">Gewichtung</h4>
-          <label className="dispo-regler">
-            <span>Kurze Wege</span>
-            <input type="range" min={0} max={100} step={5} aria-label="Gewichtung kurze Wege gegen Dringendes"
-              value={plan.gewichtung} onChange={e => set('gewichtung', Number(e.target.value))} />
-            <span>Dringendes zuerst</span>
-          </label>
-
-          <h4 className="hagel-dispo-dialog-titel">Planung</h4>
+          <h4 className="hagel-dispo-dialog-titel">Arbeitstag</h4>
           <div className="hagel-dispo-grid">
             <label><span>Tagesbeginn</span>
               <input type="time" className="admin-form-input" value={plan.tagesbeginn}
                 onChange={e => set('tagesbeginn', e.target.value)} /></label>
-            <label><span>Horizont (Arbeitstage)</span>
-              <input type="number" className="admin-form-input" value={plan.horizont_tage}
-                onChange={e => set('horizont_tage', zahl(e.target.value))} /></label>
-            <label><span>Tempo (km/h)</span>
-              <input type="number" className="admin-form-input" value={plan.tempo_kmh}
-                onChange={e => set('tempo_kmh', zahl(e.target.value))} /></label>
-            <label><span>Umwegfaktor (%)</span>
-              <input type="number" className="admin-form-input" value={plan.umwegfaktor_pct}
-                onChange={e => set('umwegfaktor_pct', zahl(e.target.value))} /></label>
-            <label><span>Parkzeit je Stopp (min)</span>
-              <input type="number" className="admin-form-input" value={plan.parkzeit_min}
-                onChange={e => set('parkzeit_min', zahl(e.target.value))} /></label>
-            <label><span>Lieferfrist Material (Arbeitstage)</span>
-              <input type="number" className="admin-form-input" value={plan.lieferfrist_arbeitstage}
-                onChange={e => set('lieferfrist_arbeitstage', zahl(e.target.value))} /></label>
-            <label><span>Rechenzeit (s)</span>
-              <input type="number" className="admin-form-input" value={plan.budget_s}
-                onChange={e => set('budget_s', zahl(e.target.value))} /></label>
-            <label><span>Plan stabil halten</span>
-              <select className="admin-form-select" value={plan.stabil}
-                onChange={e => set('stabil', e.target.value as HagelPlanParameter['stabil'])}>
-                <option value="aus">aus</option><option value="normal">normal</option><option value="stark">stark</option>
-              </select></label>
           </div>
           <label className="hagel-check">
             <input type="checkbox" checked={plan.samstag} onChange={e => set('samstag', e.target.checked)} />
             Samstag einplanen
           </label>
-          {plan.samstag && (
-            <label className="dispo-inline"><span>Samstag (min)</span>
-              <input type="number" className="admin-form-input" value={plan.samstag_min}
-                onChange={e => set('samstag_min', zahl(e.target.value))} /></label>
-          )}
           <label className="hagel-check">
             <input type="checkbox" checked={plan.nur_bestaetigte_freigeben}
               onChange={e => set('nur_bestaetigte_freigeben', e.target.checked)} />
             Nur vom Kunden bestätigte Einsätze freigeben
           </label>
 
-          <h4 className="hagel-dispo-dialog-titel">Fristen (Arbeitstage ab Antwort)</h4>
-          <div className="hagel-dispo-grid">
-            {FRISTEN.map(f => (
-              <label key={f.key}><span>{f.label}</span>
-                <input type="number" className="admin-form-input" value={plan.fristen[f.key] ?? 0}
-                  onChange={e => set('fristen', { ...plan.fristen, [f.key]: zahl(e.target.value) })} /></label>
-            ))}
-          </div>
+          {/* Alles Weitere hat brauchbare Standardwerte und wird selten angefasst —
+              eingeklappt, damit der Dialog nicht wie ein Rechenmodell aussieht.
+              Die Rechenzeit steht gar nicht mehr im UI (rein technisch). */}
+          <details className="dispo-fein">
+            <summary>Feinjustierung — nur bei Bedarf ändern</summary>
+            <label className="dispo-regler">
+              <span>Kurze Wege</span>
+              <input type="range" min={0} max={100} step={5} aria-label="Gewichtung kurze Wege gegen Dringendes"
+                value={plan.gewichtung} onChange={e => set('gewichtung', Number(e.target.value))} />
+              <span>Dringendes zuerst</span>
+            </label>
+            <div className="hagel-dispo-grid">
+              <label><span>Planen für (Arbeitstage)</span>
+                <input type="number" className="admin-form-input" value={plan.horizont_tage}
+                  onChange={e => set('horizont_tage', zahl(e.target.value))} /></label>
+              <label><span>Lieferfrist Material (Arbeitstage)</span>
+                <input type="number" className="admin-form-input" value={plan.lieferfrist_arbeitstage}
+                  onChange={e => set('lieferfrist_arbeitstage', zahl(e.target.value))} /></label>
+              {plan.samstag && (
+                <label><span>Samstag (min)</span>
+                  <input type="number" className="admin-form-input" value={plan.samstag_min}
+                    onChange={e => set('samstag_min', zahl(e.target.value))} /></label>
+              )}
+              <label><span>Tempo (km/h)</span>
+                <input type="number" className="admin-form-input" value={plan.tempo_kmh}
+                  onChange={e => set('tempo_kmh', zahl(e.target.value))} /></label>
+              <label><span>Umwegfaktor (%)</span>
+                <input type="number" className="admin-form-input" value={plan.umwegfaktor_pct}
+                  onChange={e => set('umwegfaktor_pct', zahl(e.target.value))} /></label>
+              <label><span>Parkzeit je Stopp (min)</span>
+                <input type="number" className="admin-form-input" value={plan.parkzeit_min}
+                  onChange={e => set('parkzeit_min', zahl(e.target.value))} /></label>
+              <label><span>Plan stabil halten</span>
+                <select className="admin-form-select" value={plan.stabil}
+                  onChange={e => set('stabil', e.target.value as HagelPlanParameter['stabil'])}>
+                  <option value="aus">aus</option><option value="normal">normal</option><option value="stark">stark</option>
+                </select></label>
+            </div>
+            <span className="hagel-sub">Fristen in Arbeitstagen ab Antwort des Kunden</span>
+            <div className="hagel-dispo-grid">
+              {FRISTEN.map(f => (
+                <label key={f.key}><span>{f.label}</span>
+                  <input type="number" className="admin-form-input" value={plan.fristen[f.key] ?? 0}
+                    onChange={e => set('fristen', { ...plan.fristen, [f.key]: zahl(e.target.value) })} /></label>
+              ))}
+            </div>
+          </details>
 
           {kalib.length > 0 && (
             <>
