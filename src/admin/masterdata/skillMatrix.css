@@ -1,0 +1,88 @@
+/* Personal → Skill-Matrix (docs/specs/mitarbeiterdisposition-faehigkeiten-routen.md §4).
+   Pillen je Mitarbeiter statt Raster: am Handy liest sich eine Karte mit Pillen,
+   ein Raster mit 15 Spalten nicht. Die Pille selbst steht in components/skillPills.css. */
+
+.skill-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--s-4);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.skill-filter-titel { font-size: var(--font-sm); font-weight: 600; color: var(--text-muted); }
+.skill-filter-treffer { font-size: var(--font-sm); color: var(--text-muted); }
+.skill-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.skill-personen { list-style: none; margin: 0 0 var(--s-5); padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.skill-person {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.skill-person-kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s-2); }
+.skill-person-name { display: flex; flex-direction: column; min-width: 0; color: var(--text-strong); }
+.skill-person-name small { font-size: 12px; color: var(--text-muted); }
+.skill-gueltig { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--font-sm); color: var(--text-muted); }
+.skill-gueltig .admin-form-input { width: auto; }
+
+.skill-katalog { margin-top: var(--s-5); }
+.skill-katalog-titel { margin: 0 0 var(--s-2); font-size: 16px; color: var(--text-strong); }
+.skill-katalog-hilfe { margin: 0 0 var(--s-3); font-size: var(--font-sm); color: var(--text-muted); }
+.skill-katalog-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.skill-katalog-eintrag {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.skill-katalog-eintrag.inaktiv { opacity: 0.6; }
+.skill-katalog-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); min-width: 0; }
+.skill-katalog-name { flex: 1 1 160px; min-width: 0; }
+.skill-katalog-art { width: auto; }
+.skill-katalog-label { font-size: var(--font-sm); color: var(--text-muted); }
+.skill-rang { display: inline-flex; gap: 4px; }
+.skill-check { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-sm); }
+.skill-loeschen { margin-left: auto; }
+
+.skill-kinds { display: flex; flex-wrap: wrap; gap: 4px; }
+.skill-kind {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.skill-kind.an { border-color: var(--primary); background: var(--primary-soft); color: var(--text-strong); font-weight: 600; }
+.skill-kind:disabled { cursor: default; opacity: 0.6; }
+
+.skill-neu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding: var(--s-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}

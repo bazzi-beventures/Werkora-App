@@ -1,10 +1,12 @@
 // Hagelschaden — docs/specs/hagelschaden-dashboard.md §10 (Frontend).
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import HagelschadenScreen from './HagelschadenScreen'
 import { apiFetch } from '../../../api/client'
-import type { HagelKampagne, HagelListe, HagelZeile } from '../../../api/admin/hagelschaden'
+import type {
+  HagelDispo, HagelDispoInfo, HagelDispoParameter, HagelKampagne, HagelListe, HagelZeile,
+} from '../../../api/admin/hagelschaden'
 import {
   STANDARD_FILTER, filtereZeilen, kacheln, kennzahlen, terminKurz, umfang,
 } from './hagelschadenFilter'
@@ -205,5 +207,106 @@ describe('HagelschadenScreen', () => {
     await userEvent.click(await screen.findByText('B HS'))
     await userEvent.click(await screen.findByRole('button', { name: 'Fotos im Projekt' }))
     expect(open).toHaveBeenCalledWith('p2', 'documents')
+  })
+})
+
+// ─── Disposition — docs/specs/hagelschaden-disposition.md §15 ──
+
+describe('HagelschadenScreen — Disposition', () => {
+  const PARAM: HagelDispoParameter = {
+    plan: {
+      depot: null, equipen: [], tempo_kmh: 42, umwegfaktor_pct: 135, parkzeit_min: 5, tagesbeginn: '07:00',
+      samstag: false, samstag_min: 300, horizont_tage: 30, budget_s: 2, gewichtung: 50, stabil: 'normal',
+      lieferfrist_arbeitstage: 20, nur_bestaetigte_freigeben: true,
+      fristen: { sicherung: 1, sehr_dringend: 10, dringend: 7, normal: 20, nicht_dringend: 40, ohne: 40 },
+    },
+    grundzeit_min: 20,
+    min_je_element: { storen: 35, markise: 55, insektengitter: 10, dachfensterrollladen: 45, glasbruch_pergola: 80, fensterlaeden: 20 },
+    zuschlag_zusatzprodukt_min: 15, elemente_ohne_angabe: 2, elemente_je_objekt: 4,
+    sicherung_min: 35, aufnahme_grund_min: 15, aufnahme_je_element_min: 4, tageskapazitaet_min: 480,
+  }
+  const INFO: HagelDispoInfo = {
+    parameter: PARAM, defaults: PARAM,
+    einsatzarten: [{ key: 'sicherung', label: 'Sicherung' }, { key: 'aufnahme', label: 'Aufnahme' }, { key: 'reparatur', label: 'Reparatur' }],
+    kategorien: [{ key: 'glas', label: 'Glas/Pergola' }, { key: 'storen_markise', label: 'Storen/Markise' }],
+  }
+  function dispo(over: Partial<HagelDispo> = {}): HagelDispo {
+    return {
+      einsatzart: 'aufnahme', einsatzart_regel: 'aufnahme', kategorie: 'storen_markise',
+      kategorie_regel: 'storen_markise', dauer_min: 31, dauer_regel_min: 31, dauer_ueberschrieben: false,
+      rest_min: 191, stufen_min: { aufnahme: 31, reparatur: 160 }, elemente: 4, umfang_geschaetzt: false,
+      personen: 1, personen_regel: 1, nicht_vor: null, zeitfenster: null, ueberschrieben: [],
+      ...over,
+    }
+  }
+  function mitDispo(): HagelListe {
+    const zeilen = ZEILEN.map(z => ({ ...z, dispo: z.antworten > 0 ? dispo() : null }))
+    return { ...liste(zeilen), dispo: INFO }
+  }
+
+  beforeEach(() => {
+    mockFetch.mockReset()
+    try { localStorage.clear() } catch { /* jsdom ohne Storage */ }
+  })
+
+  function route(daten: HagelListe, onPatch?: (body: unknown) => unknown, onPut?: (body: unknown) => unknown) {
+    mockFetch.mockImplementation(async (path: string, opts?: RequestInit) => {
+      const body = JSON.parse(String(opts?.body ?? '{}'))
+      if (path.startsWith('/pwa/admin/hagelschaden/projekte/')) return onPatch ? onPatch(body) : {}
+      if (path.startsWith('/pwa/admin/hagelschaden/dispo/parameter')) return onPut ? onPut(body) : INFO
+      if (path.startsWith('/pwa/admin/hagelschaden')) return daten
+      if (path.includes('/files')) return []
+      return {}
+    })
+  }
+
+  it('ohne Dispo vom Server keine Spur davon', async () => {
+    route(liste())
+    render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
+    await screen.findByText('B HS')
+    expect(screen.queryByText(/Offene Arbeit/)).toBeNull()
+    expect(screen.queryByText('Nächster Einsatz')).toBeNull()
+  })
+
+  it('zeigt offene Arbeit, Einsatzart und Dauer', async () => {
+    route(mitDispo())
+    render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
+    await screen.findByText('B HS')
+    // pendent ohne Einsatz: p2 (p1 hat einen Termin, p4 meldet erledigt)
+    const summe = screen.getByRole('region', { name: 'Offene Arbeit' })
+    expect(within(summe).getByText(/1 Fall pendent ohne Einsatz/)).toBeTruthy()
+    expect(screen.getByText('Nächster Einsatz')).toBeTruthy()
+    const row = screen.getByText('B HS').closest('tr')!
+    expect(within(row).getByText(/Aufnahme · 31 min/)).toBeTruthy()
+    expect(within(row).getByText('3 h 11')).toBeTruthy()
+  })
+
+  it('Dauer im Detail überschreiben schickt nur dieses Feld', async () => {
+    let gesendet: unknown = null
+    route(mitDispo(), body => {
+      gesendet = body
+      return { ...ZEILEN[0], dispo: dispo({ dauer_min: 300, dauer_ueberschrieben: true, ueberschrieben: ['dauer_min'] }) }
+    })
+    render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
+    await userEvent.click(await screen.findByText('B HS'))
+    const feld = await screen.findByLabelText('Dauer in Minuten')
+    await userEvent.type(feld, '300')
+    fireEvent.blur(feld)
+    await waitFor(() => expect(gesendet).toEqual({ dauer_min: 300 }))
+    const row = screen.getAllByText('B HS').map(e => e.closest('tr')).find(Boolean)!
+    await waitFor(() => expect(within(row).getByLabelText('Dauer überschrieben')).toBeTruthy())
+  })
+
+  it('Parameter-Dialog speichert die Matrix', async () => {
+    let gesendet: { parameter?: HagelDispoParameter } | null = null
+    route(mitDispo(), undefined, body => { gesendet = body as typeof gesendet; return INFO })
+    render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Dauer-Parameter' }))
+    const markise = await screen.findByLabelText('Markise, Minuten je Element')
+    await userEvent.clear(markise)
+    await userEvent.type(markise, '65')
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }))
+    await waitFor(() => expect(gesendet?.parameter?.min_je_element.markise).toBe(65))
+    expect(gesendet!.parameter!.grundzeit_min).toBe(20)
   })
 })

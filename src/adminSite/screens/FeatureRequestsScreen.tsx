@@ -76,12 +76,9 @@ const ACTION_LABEL: Record<TriageAction, string> = {
 /** Ausgänge mit einem Satz an den Einreicher — Feld und Häkchen «benachrichtigen». */
 const TEXT_ACTIONS: TriageAction[] = ['rueckfrage', 'beantworten', 'ablehnen', 'support']
 
-const TEXT_PLACEHOLDER: Partial<Record<TriageAction, string>> = {
-  rueckfrage: 'Welche Maske meinst du genau? Ein Screenshot hilft.',
-  beantworten: 'Gibt es schon: Einstellungen → Vorlagen',
-  ablehnen: 'Warum nicht',
-  support: 'Das haben wir an den Support weitergegeben.',
-}
+/** Nur Platzhalter — geschickt wird ausschliesslich, was im Feld steht. Bewusst kein
+ *  Beispielsatz: der las sich im leeren Feld wie ein vorgegebener Text. */
+const TEXT_PLACEHOLDER = 'Antwort an den Kunden'
 
 function errorText(e: unknown, fallback: string): string {
   return e instanceof Error && e.message ? e.message : fallback
@@ -347,7 +344,7 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                 </span>
                 <textarea className="admin-input" rows={3} maxLength={1000} value={text}
                           onChange={e => setText(e.target.value)}
-                          placeholder={TEXT_PLACEHOLDER[action]} />
+                          placeholder={TEXT_PLACEHOLDER} />
                 {action === 'rueckfrage' && (
                   <span className="admin-form-hint">
                     Der Wunsch geht zurück an den Einreicher. Antwortet er in «Meine Wünsche»,

@@ -142,6 +142,8 @@ describe('Blocker (provisorische Planung)', () => {
     expect(pillClass({ kind: 'blocker' } as Project)).toBe(' provisional')
     expect(pillClass({ kind: 'project' } as Project)).toBe('')
     expect(pillClass({ kind: 'reservation' } as Project)).toBe('')
+    // Vorschlag der Hagelschaden-Disposition: gestrichelt, auch über einem Blocker
+    expect(pillClass({ id: 'vorschlag:12', kind: 'blocker' } as Project)).toBe(' vorschlag')
   })
 
   it('zeichnet die Kachel in der Plantafel schraffiert', () => {

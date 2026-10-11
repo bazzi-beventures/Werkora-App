@@ -69,6 +69,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
+  // Skill-Matrix (Personal, Spec mitarbeiterdisposition-faehigkeiten-routen.md §4.5) —
+  // vor /reorder/: `admin_reorder_skills` gehört zum Personal, nicht zum Lager.
+  { test: /skill/,                               module: 'grundfunktion' },
   // `reorder` ausdrücklich: die Bestellvorschläge heissen
   // `admin_reorder_draft_send`/`_discard` und tragen weder "material" noch
   // "stock" im Namen, gehören aber zum Lager (Lager v2, 20260919).
@@ -237,6 +240,13 @@ const ACTION_LABELS: Record<string, string> = {
   admin_create_warranty_project: 'Reparatur-Projekt aus Garantiefall angelegt',
   // ── Hagelschaden ──
   admin_update_hagelschaden: 'Hagelschaden-Fall bearbeitet',
+  admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
+  admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
+  admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',
+  admin_hagelschaden_dispo_vormerkung: 'Hagelschaden: Vormerkung geändert',
+  admin_hagelschaden_dispo_verwerfen: 'Hagelschaden: Vormerkung verworfen',
+  admin_hagelschaden_dispo_freigabe: 'Hagelschaden: Einsätze freigegeben',
+  admin_hagelschaden_dispo_tourenblatt: 'Hagelschaden: Tourenblatt gedruckt',
   admin_delete_project_file: 'Projektdatei entfernt',
   admin_create_project_approval: 'Visierung angefordert',
   admin_approve_project_approval: 'Visierung erteilt',
@@ -258,6 +268,12 @@ const ACTION_LABELS: Record<string, string> = {
   admin_upsert_staff_role: 'Funktion gespeichert',
   admin_delete_staff_role: 'Funktion gelöscht',
   admin_reorder_staff_roles: 'Funktionen sortiert',
+  admin_create_skill: 'Fähigkeit angelegt',
+  admin_update_skill: 'Fähigkeit geändert',
+  admin_reorder_skills: 'Fähigkeiten sortiert',
+  admin_delete_skill: 'Fähigkeit gelöscht',
+  admin_set_staff_skill: 'Pille am Mitarbeiter geändert',
+  admin_set_project_skills: 'Pillen am Projekt geändert',
   admin_create_user: 'Benutzer angelegt',
   admin_update_user: 'Benutzer geändert',
   admin_anonymize_user: 'Benutzer anonymisiert',

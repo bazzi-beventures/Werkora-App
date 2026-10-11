@@ -1,0 +1,198 @@
+/* Hagelschaden-Disposition — docs/specs/hagelschaden-disposition.md §10.
+   Grid-Spalten immer minmax(0, …) und min-width: 0 an flex/grid-Kindern: nichts
+   darf über die Breite wachsen (Lehre aus der Kachel-Korrektur vom 2026-10-11). */
+
+.dispo-reiter {
+  display: flex;
+  gap: var(--s-1, 4px);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s-4);
+  overflow-x: auto;
+}
+.dispo-hauptreiter { margin-top: calc(-1 * var(--s-2)); }
+.dispo-reiter-knopf {
+  flex: 0 0 auto;
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dispo-reiter-knopf.aktiv { color: var(--primary); border-bottom-color: var(--primary); }
+
+.dispo-kopf { margin-bottom: var(--s-3); }
+.dispo-steuerung {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.dispo-steuerung .admin-form-select { width: auto; min-width: 0; }
+.dispo-inline { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-sm); color: var(--text-muted); }
+.dispo-inline .admin-form-input { width: auto; }
+.dispo-planinfo { margin-bottom: var(--s-2); }
+
+.dispo-kennzahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.dispo-zahl {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.dispo-zahl.warnung { border-color: var(--warning); background: var(--warning-soft); }
+.dispo-zahl-wert { font-size: 20px; font-weight: 700; color: var(--text-strong); }
+.dispo-zahl-label { font-size: var(--font-sm); color: var(--text-muted); }
+
+.dispo-hinweise {
+  margin-bottom: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.dispo-hinweise h4, .dispo-tag h4 { margin: 0 0 var(--s-2); font-size: 15px; color: var(--text-strong); }
+.dispo-hinweise ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.dispo-hinweis { display: flex; gap: var(--s-2); align-items: baseline; min-width: 0; }
+.dispo-hinweis-typ {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.dispo-hinweis-kapazitaet .dispo-hinweis-typ,
+.dispo-hinweis-frist .dispo-hinweis-typ { background: var(--warning-soft); color: var(--text-strong); }
+
+.dispo-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+.dispo-karte-rahmen { margin-bottom: var(--s-3); }
+.dispo-karte-filter { margin-bottom: var(--s-2); }
+.dispo-karte-filter .admin-form-select { width: auto; }
+.dispo-karte {
+  height: 420px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.dispo-tag { margin-bottom: var(--s-4); }
+.dispo-tag-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); margin-bottom: var(--s-2); }
+.dispo-tag-kopf h4 { margin: 0; }
+.dispo-tag-knopf { margin-left: auto; }
+.dispo-touren {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--s-3);
+}
+.dispo-tour {
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--primary);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.dispo-tour-kopf { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--s-2); }
+.dispo-tour-name { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text-strong); }
+.dispo-punkt { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dispo-auslastung { height: 4px; border-radius: 2px; background: var(--surface-2); overflow: hidden; margin-bottom: var(--s-2); }
+.dispo-auslastung > div { height: 100%; }
+.dispo-stopps { margin: 0 0 var(--s-2); padding-left: 22px; display: flex; flex-direction: column; gap: var(--s-2); }
+.dispo-stopps li { min-width: 0; display: flex; flex-direction: column; }
+.dispo-stopps li.zu-spaet { color: var(--danger); }
+.dispo-zeit { font-weight: 600; font-size: var(--font-sm); }
+.dispo-ort, .dispo-meta { font-size: var(--font-sm); overflow-wrap: anywhere; }
+.dispo-meta { color: var(--text-muted); }
+.dispo-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.dispo-blatt { width: 100%; }
+.dispo-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+
+.dispo-status {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.dispo-status-angefragt { background: var(--warning-soft); color: var(--text-strong); }
+.dispo-status-bestaetigt { background: var(--success-soft); color: var(--text-strong); }
+
+.dispo-anrufliste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-3); }
+.dispo-anruf {
+  min-width: 0;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dispo-anruf-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); }
+.dispo-telefone { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.dispo-tel { font-weight: 600; color: var(--primary); text-decoration: none; }
+.dispo-anruf-knoepfe, .dispo-ablehnen { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-2); margin-top: var(--s-2); }
+.dispo-ablehnen label { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-sm); color: var(--text-muted); }
+
+.dispo-vm { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); min-width: 0; }
+
+.dispo-dialog { width: min(720px, 100vw); }
+.dispo-depot { display: flex; gap: var(--s-2); margin-bottom: 4px; }
+.dispo-depot .admin-form-input { flex: 1 1 auto; min-width: 0; }
+.dispo-equipe {
+  margin: 0 0 var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+.dispo-equipe legend .admin-form-input { width: auto; max-width: 100%; }
+.dispo-equipe-monteure { display: flex; flex-wrap: wrap; gap: var(--s-1, 4px) var(--s-3); margin-bottom: var(--s-2); }
+.dispo-equipe-zeile { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.dispo-equipe-zeile .admin-form-select { width: auto; }
+.dispo-regler { display: flex; align-items: center; gap: var(--s-2); font-size: var(--font-sm); color: var(--text-muted); }
+.dispo-regler input { flex: 1 1 auto; min-width: 0; }
+.dispo-tabelle-scroll { overflow-x: auto; }
+.dispo-aktuell td { font-weight: 600; }
+.dispo-warnung { color: var(--danger); font-weight: 600; }
+
+@media (max-width: 767px) {
+  .dispo-touren { grid-template-columns: minmax(0, 1fr); }
+  .dispo-kennzahlen { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dispo-karte { height: 320px; }
+  .dispo-tag-knopf { margin-left: 0; }
+  .dispo-steuerung .admin-btn { flex: 1 1 auto; }
+}

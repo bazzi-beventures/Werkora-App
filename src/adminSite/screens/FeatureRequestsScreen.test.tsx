@@ -90,7 +90,7 @@ describe('FeatureRequestsScreen — Eingang', () => {
     fireEvent.click(within(dialog).getByLabelText(/Beantworten/))
     const ausfuehren = within(dialog).getByRole('button', { name: 'Ausführen' })
     expect(ausfuehren).toBeDisabled()
-    fireEvent.change(within(dialog).getByPlaceholderText(/Gibt es schon/),
+    fireEvent.change(within(dialog).getByPlaceholderText('Antwort an den Kunden'),
                      { target: { value: 'Gibt es schon unter Vorlagen.' } })
     expect(ausfuehren).not.toBeDisabled()
     fireEvent.click(ausfuehren)
@@ -102,7 +102,7 @@ describe('FeatureRequestsScreen — Eingang', () => {
   it('«benachrichtigen» lässt sich abwählen', async () => {
     const dialog = await oeffneAnfrage()
     fireEvent.click(within(dialog).getByLabelText(/Ablehnen/))
-    fireEvent.change(within(dialog).getByPlaceholderText(/Warum nicht/), { target: { value: 'Doppelt' } })
+    fireEvent.change(within(dialog).getByPlaceholderText('Antwort an den Kunden'), { target: { value: 'Doppelt' } })
     fireEvent.click(within(dialog).getByLabelText(/benachrichtigen/))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ausführen' }))
     await waitFor(() => expect(api.triageFeatureRequest).toHaveBeenCalledWith(
@@ -155,7 +155,7 @@ describe('FeatureRequestsScreen — Eingang', () => {
     fireEvent.click(within(dialog).getByLabelText(/Rückfrage \(unklar, worum es geht\)/))
     const ausfuehren = within(dialog).getByRole('button', { name: 'Ausführen' })
     expect(ausfuehren).toBeDisabled()
-    fireEvent.change(within(dialog).getByPlaceholderText(/Welche Maske meinst du/),
+    fireEvent.change(within(dialog).getByPlaceholderText('Antwort an den Kunden'),
                      { target: { value: 'Welche Maske meinst du?' } })
     fireEvent.click(ausfuehren)
     await waitFor(() => expect(api.triageFeatureRequest).toHaveBeenCalledWith(

@@ -596,6 +596,7 @@ export default function ProjectDetailScreen({
           autosave={autosaveOn ? autosave : null}
           onCreateCustomerFromKontakt={autosaveOn ? k => setKontaktCustomer(k) : undefined}
           onOpenCustomer={onOpenCustomer}
+          projectId={!isNew && project ? project.id : null}
         />
       )}
 

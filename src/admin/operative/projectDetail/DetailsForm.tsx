@@ -12,6 +12,7 @@ import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
 import type { Kontakt } from '../../../api/admin/projects'
 import type { ProjectAutosave } from './useProjectAutosave'
 import { CustomerLink } from '../../components/CustomerLink'
+import { ProjectSkillsBlock } from './ProjectSkillsBlock'
 
 // Der Reiter «Projekt Details» (Charge H, H3) — die eigentliche Projektmaske.
 // Reines JSX: jeder Wert und jeder Setter kommt aus useProjectForm, damit hier
@@ -26,7 +27,7 @@ export interface StaffMember {
 
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
-  autosave, onCreateCustomerFromKontakt, onOpenCustomer,
+  autosave, onCreateCustomerFromKontakt, onOpenCustomer, projectId = null,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -56,6 +57,8 @@ export function DetailsForm({
   onCreateCustomerFromKontakt?: (k: Kontakt) => void
   /** Sprung auf die Kundenstammseite des gewählten Kunden (WW-9). */
   onOpenCustomer?: (customerId: string) => void
+  /** Gespeichertes Projekt: dann stehen die Skill-Pillen in der Karte Einsatzplanung. */
+  projectId?: string | null
 }) {
   // Verbatim aus dem Screen uebernommen: die Felder heissen hier wie dort, damit
   // der Umzug am JSX nichts geaendert hat und im Diff nachvollziehbar bleibt.
@@ -586,6 +589,8 @@ export function DetailsForm({
                   Standard-Team für alle Termine — je Termin lässt sich unten davon abweichen.
                 </div>
               )}
+
+              {projectId && <ProjectSkillsBlock projectId={projectId} />}
             </div>
           </div>
 

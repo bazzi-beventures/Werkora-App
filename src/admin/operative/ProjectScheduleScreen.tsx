@@ -30,6 +30,13 @@ import { useToast, ToastHost } from '../components/useToast'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { DateTimeInput } from '../components/DateTimeInput'
 import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
+import { getVorschlaege, patchVormerkung, type Vormerkung } from '../../api/admin/hagelschadenDispo'
+import { VorschlagPanel } from './hagelschaden/dispo/VorschlagPanel'
+import { isVorschlag, VORSCHLAG_PREFIX, vorschlagVerschoben } from './scheduleShared'
+import { STATUS_LABELS as VORSCHLAG_STATUS } from './hagelschaden/dispo/dispoFormat'
+import { getAllProjectSkills, getSkillMatrix, type Skill, type StaffSkill } from '../../api/admin/skills'
+import { anforderung, fehlende, pillenJeMitarbeiter } from '../utils/skillMatch'
+import { SkillPill } from '../components/SkillPills'
 
 interface StaffLite {
   id: string
@@ -224,13 +231,31 @@ function sameRows<T>(a: T[], b: T[]): boolean {
 interface Props {
   canton?: string
   onNav?: (screen: AdminScreen, detailId?: string) => void
+  /** Ebene «Vorschläge» der Hagelschaden-Disposition (Modul + Feature). */
+  hagelVorschlaege?: boolean
 }
 
-export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
+const VORSCHLAEGE_KEY = 'einsatzplanung-vorschlaege-zeigen'
+
+function vorschlaegeZeigenGespeichert(): boolean {
+  try { return window.localStorage.getItem(VORSCHLAEGE_KEY) !== '0' } catch { return true }
+}
+
+export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorschlaege = false }: Props) {
   const [projects, setProjects] = useState<Project[]>([])
   const [appointments, setAppointments] = useState<ProjectAppointment[]>([])
   // Genehmigte Absenzen im geladenen Fenster — Markierung in der Plantafel.
   const [absences, setAbsences] = useState<ScheduleAbsence[]>([])
+  // Vorgemerkte Hagel-Einsätze (keine Termine) — gestrichelte Ebene, Phase 2b.
+  const [vorschlaege, setVorschlaege] = useState<Vormerkung[]>([])
+  // Skill-Pillen (Spec mitarbeiterdisposition-faehigkeiten-routen.md §4): wer für
+  // einen Einsatz passt, markiert an den Team-Chips. Fehlt etwas, bleibt die
+  // Markierung einfach weg — geplant wird wie bisher.
+  const [skillKatalog, setSkillKatalog] = useState<Skill[]>([])
+  const [staffPillen, setStaffPillen] = useState<StaffSkill[]>([])
+  const [projektPillen, setProjektPillen] = useState<Map<string, string[]>>(new Map())
+  const [vorschlaegeZeigen, setVorschlaegeZeigen] = useState(vorschlaegeZeigenGespeichert)
+  const [vorschlagOffen, setVorschlagOffen] = useState<Vormerkung | null>(null)
   const [staff, setStaff] = useState<StaffLite[]>([])
   // Kundenstamm: nur für die «Kunde»-Auswahl im Planungs-Panel. Er lag früher im
   // Erst-Ladepaket des Kalenders und hielt ihn auf — eine volle Tabelle, die der
@@ -326,10 +351,42 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       setAppointments(prev => sameRows(prev, appts) ? prev : appts)
       if (abs) setAbsences(prev => sameRows(prev, abs) ? prev : abs)
       if (st) setStaff(prev => sameRows(prev, st) ? prev : st)
-      if (slowDue) lastSlowRefresh.current = Date.now()
+      if (slowDue) {
+        lastSlowRefresh.current = Date.now()
+        void ladeVorschlaege()
+      void ladeSkills()
+      }
     } catch {
       // still — siehe oben
     }
+  }
+
+  // Vorschläge laden — still bei Fehlern: ohne Ebene plant man wie bisher.
+  async function ladeSkills() {
+    try {
+      const [m, p] = await Promise.all([getSkillMatrix(), getAllProjectSkills()])
+      setSkillKatalog(m.skills)
+      setStaffPillen(m.cells)
+      const map = new Map<string, string[]>()
+      for (const r of p.project_skills) map.set(r.project_id, [...(map.get(r.project_id) ?? []), r.skill_id])
+      setProjektPillen(map)
+    } catch { /* still: ohne Pillen keine Markierung */ }
+  }
+
+  async function ladeVorschlaege() {
+    if (!hagelVorschlaege) return
+    const todayIso = toDateStr(new Date())
+    try {
+      const r = await getVorschlaege(shiftISO(todayIso, -7), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
+      setVorschlaege(prev => sameRows(prev, r.vorschlaege) ? prev : r.vorschlaege)
+    } catch { /* still */ }
+  }
+
+  function vorschlaegeUmschalten() {
+    setVorschlaegeZeigen(v => {
+      try { window.localStorage.setItem(VORSCHLAEGE_KEY, v ? '0' : '1') } catch { /* egal */ }
+      return !v
+    })
   }
 
   async function loadAll() {
@@ -358,6 +415,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
       setAbsences(abs)
       setStaff(st)
       lastSlowRefresh.current = Date.now()
+      void ladeVorschlaege()
     } catch {
       showToast('Daten konnten nicht geladen werden.', 'error')
     } finally {
@@ -528,8 +586,17 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
     setPanelOpen(true)
   }
 
+  function vorschlagZu(id: string): Vormerkung | undefined {
+    return vorschlaege.find(v => `${VORSCHLAG_PREFIX}${v.id}` === id)
+  }
+
   // Klick auf einen Kalenderblock: Entry-ID = Termin-ID → Termin + Projekt auflösen.
   function handleCalendarSelect(entry: Project) {
+    if (isVorschlag(entry.id)) {
+      const v = vorschlagZu(entry.id)
+      if (v) setVorschlagOffen(v)
+      return
+    }
     const project = resolveEntryProject(entry)
     if (!project) return
     selectProject(project, appointments.find(a => a.id === entry.id))
@@ -539,6 +606,11 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   // rechts plant nur Termine — Adresse, Kunde, Kontakte, Dokumente hängen am
   // Projekt und lassen sich nur dort ändern.
   function handleCalendarOpen(entry: Project) {
+    if (isVorschlag(entry.id)) {
+      const v = vorschlagZu(entry.id)
+      if (v && onNav) onNav('projects', v.project_id)
+      return
+    }
     const project = resolveEntryProject(entry)
     if (project && onNav) onNav('projects', project.id)
   }
@@ -599,7 +671,31 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   // Startzeit (Dauer wird mitgezogen), null = Uhrzeit löschen (→ ganztägig).
   // monteurIds (Plantafel: Chip in andere Monteur-Zeile gezogen) = neues Team,
   // gespeichert als termin-eigenes Team; undefined = Team unverändert.
+  // Verschieben eines Vorschlags ändert die Vormerkung, nie einen Termin. Die
+  // Equipe wechselt man in der Disposition — eine Plantafel-Zeile ist eine
+  // Person, eine Vormerkung gehört einer Equipe.
+  async function verschiebeVorschlag(v: Vormerkung, deltaDays: number, startTime?: string | null, monteurIds?: string[]) {
+    if (monteurIds !== undefined && JSON.stringify([...monteurIds].sort()) !== JSON.stringify([...(v.equipe?.monteur_ids ?? [])].sort())) {
+      showToast('Vorschlag: die Equipe ändert man in der Disposition. Verschoben wird nur der Tag.', 'info')
+    }
+    const felder = vorschlagVerschoben(v, deltaDays, startTime)
+    const vorher = vorschlaege
+    setVorschlaege(list => list.map(x => (x.id === v.id ? { ...x, ...felder } : x)))
+    try {
+      // end_datum zieht der Server selbst mit — gesendet wird nur, was der Nutzer bewegt hat.
+      await patchVormerkung(v.id, { datum: felder.datum, start_time: felder.start_time, end_time: felder.end_time })
+    } catch (e) {
+      setVorschlaege(vorher)
+      showToast(e instanceof Error ? e.message : 'Vorschlag konnte nicht verschoben werden.', 'error')
+    }
+  }
+
   async function handleReschedule(id: string, deltaDays: number, startTime?: string | null, monteurIds?: string[]) {
+    if (isVorschlag(id)) {
+      const v = vorschlagZu(id)
+      if (v) await verschiebeVorschlag(v, deltaDays, startTime, monteurIds)
+      return
+    }
     const appt = appointments.find(a => a.id === id)
     if (!appt) return
 
@@ -953,8 +1049,27 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
         termin_kind: p.kind === 'project' ? a.kind : undefined,
       })
     }
+    // Vorschläge (Phase 2b): eigene Einträge mit VORSCHLAG_PREFIX — gestrichelt
+    // (pillClass), Klick und Verschieben fangen die Handler oben ab.
+    if (vorschlaegeZeigen) {
+      for (const v of vorschlaege) {
+        const p = projById.get(v.project_id)
+        if (!p) continue
+        entries.push({
+          ...p,
+          id: `${VORSCHLAG_PREFIX}${v.id}`,
+          start_date: v.datum,
+          end_date: v.end_datum ?? v.datum,
+          start_time: v.start_time,
+          end_time: v.end_time,
+          monteur_ids: v.equipe?.monteur_ids ?? [],
+          termin_badge: `Vorschlag · ${VORSCHLAG_STATUS[v.status]}`,
+          termin_kind: undefined,
+        })
+      }
+    }
     return entries
-  }, [filteredByPl, appointments])
+  }, [filteredByPl, appointments, vorschlaege, vorschlaegeZeigen])
 
   const scheduledProjectIds = useMemo(
     () => new Set(appointments.map(a => a.project_id)),
@@ -1027,6 +1142,31 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
   // Einsätze behalten ihren einen Termin ohne Typ-/Team-Verwaltung.
   const showApptExtras = form?.kind === 'project'
 
+  // Welche Pillen das Projekt-Team (Montage) bzw. dieser Termin braucht, und wem
+  // was fehlt. Ein Ausmass braucht nur die «immer nötig»-Pillen (Ausmessen).
+  const pillenJeStaff = useMemo(() => pillenJeMitarbeiter(staffPillen), [staffPillen])
+  const skillLabel = useMemo(() => new Map(skillKatalog.map(s => [s.id, s])), [skillKatalog])
+  const projektPillenIds = form && showApptExtras ? (projektPillen.get(form.id) ?? []) : []
+  const teamBraucht = showApptExtras ? anforderung('montage', projektPillenIds, skillKatalog) : []
+  const terminBraucht = showApptExtras && apptForm ? anforderung(apptForm.kind, projektPillenIds, skillKatalog) : []
+
+  function skillChip(staffId: string, braucht: string[]): { cls: string; title?: string; marke: string } {
+    if (braucht.length === 0) return { cls: '', marke: '' }
+    const fehlt = fehlende(staffId, braucht, pillenJeStaff)
+    if (fehlt.length === 0) return { cls: ' skill-ok', title: 'hat alle nötigen Pillen', marke: ' ✓' }
+    return { cls: ' skill-fehlt', title: `fehlt: ${fehlt.map(k => skillLabel.get(k)?.label ?? '?').join(', ')}`, marke: '' }
+  }
+
+  function brauchtZeile(braucht: string[]) {
+    if (braucht.length === 0) return null
+    return (
+      <div className="project-schedule-skills">
+        <span>Braucht:</span>
+        {braucht.map(k => skillLabel.get(k) && <SkillPill key={k} skill={skillLabel.get(k)!} />)}
+      </div>
+    )
+  }
+
   return (
     <div className="admin-page admin-page-wide">
       <div className="admin-page-header">
@@ -1042,6 +1182,16 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
             value={projektleiterFilter}
             onChange={setProjektleiterFilter}
           />
+          {hagelVorschlaege && (
+            <button
+              className="admin-btn admin-btn-secondary"
+              onClick={vorschlaegeUmschalten}
+              aria-pressed={vorschlaegeZeigen}
+              title="Vorgemerkte Hagel-Einsätze (noch keine Termine) gestrichelt anzeigen"
+            >
+              Vorschläge {vorschlaegeZeigen ? 'ausblenden' : 'zeigen'}{vorschlaege.length ? ` (${vorschlaege.length})` : ''}
+            </button>
+          )}
           <button
             className="admin-btn admin-btn-primary"
             onClick={exportSchedulePdf}
@@ -1319,19 +1469,21 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                     {monteurOptions.map(s => {
                       const active = form.monteurIds.includes(s.id)
                       const lead = form.monteurIds[0] === s.id
+                      const sk = skillChip(s.id, teamBraucht)
                       return (
                         <button
                           key={s.id}
                           type="button"
-                          className={`project-schedule-chip${active ? ' active' : ''}${lead ? ' lead' : ''}`}
+                          className={`project-schedule-chip${active ? ' active' : ''}${lead ? ' lead' : ''}${sk.cls}`}
                           onClick={() => toggleMonteur(s.id)}
-                          title={lead ? 'Lead-Monteur (zuerst gewählt)' : undefined}
+                          title={[lead ? 'Lead-Monteur (zuerst gewählt)' : '', sk.title ?? ''].filter(Boolean).join(' · ') || undefined}
                         >
-                          {s.name}
+                          {s.name}{sk.marke}
                         </button>
                       )
                     })}
                   </div>
+                  {brauchtZeile(teamBraucht)}
                   {form.monteurIds.length > 1 && (
                     <div className="project-schedule-lead-hint">
                       Rot = Lead-Monteur (der zuerst gewählte). Abwählen und neu wählen ändert ihn.
@@ -1525,20 +1677,22 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
                           Eigenes Team für diesen Termin
                           {apptForm.requireMonteur && <span className="project-schedule-req"> *</span>}
                         </label>
+                        {apptForm.kind !== 'montage' || apptForm.ownTeam ? brauchtZeile(terminBraucht) : null}
                         {apptForm.ownTeam && (
                           <div className="project-schedule-monteur-chips" style={{ marginTop: 6 }}>
                             {monteurOptions.map(s => {
                               const active = apptForm.monteurIds.includes(s.id)
                               const lead = apptForm.monteurIds[0] === s.id
+                              const sk = skillChip(s.id, terminBraucht)
                               return (
                                 <button
                                   key={s.id}
                                   type="button"
-                                  className={`project-schedule-chip${active ? ' active' : ''}${lead ? ' lead' : ''}`}
+                                  className={`project-schedule-chip${active ? ' active' : ''}${lead ? ' lead' : ''}${sk.cls}`}
                                   onClick={() => toggleApptMonteur(s.id)}
-                                  title={lead ? 'Lead-Monteur (zuerst gewählt)' : undefined}
+                                  title={[lead ? 'Lead-Monteur (zuerst gewählt)' : '', sk.title ?? ''].filter(Boolean).join(' · ') || undefined}
                                 >
-                                  {s.name}
+                                  {s.name}{sk.marke}
                                 </button>
                               )
                             })}
@@ -1775,6 +1929,16 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav }: Props) {
         />
       )}
 
+      {vorschlagOffen && (
+        <VorschlagPanel
+          v={vorschlagOffen}
+          onClose={() => setVorschlagOffen(null)}
+          onGeaendert={() => { void ladeVorschlaege(); void loadAll() }}
+          onFehler={t => showToast(t, 'error')}
+          onErfolg={t => showToast(t, 'success')}
+          onProjekt={onNav ? pid => onNav('projects', pid) : undefined}
+        />
+      )}
       <ToastHost toast={toast} />
     </div>
   )

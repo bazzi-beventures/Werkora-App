@@ -6,7 +6,7 @@
 // Schalter) und eine interne Notiz. Die drei Schalter sitzen direkt in der Zeile —
 // «angerufen, eingeplant» ist die häufigste Handlung, ein Dialog dafür wäre zu viel.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   downloadHagelschadenExcel, getHagelschaden, patchHagelschaden,
   type HagelKampagne, type HagelListe, type HagelPatch, type HagelZeile,
@@ -22,9 +22,14 @@ import {
   ladeFilter, prioKlasse, speichereFilter, terminKurz, umfang,
   type HagelFilter, type JaNeinAlle, type Kachel, type UmfrageStatus,
 } from './hagelschadenFilter'
+import { DispoBlock, DispoKurz, DispoParameterDialog, DispoSumme } from './HagelDispo'
+import { dauerText, offeneArbeit } from './dispoAnzeige'
 import './hagelschaden.css'
 
 const NOTIZ_MAX = 2000
+
+// Reiter «Disposition» — eigener Chunk, die Karte darin ein weiterer.
+const DispositionScreen = lazy(() => import('./dispo/DispositionScreen'))
 
 function fehlerText(e: unknown, fallback: string): string {
   return e instanceof Error && e.message ? e.message : fallback
@@ -51,6 +56,8 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
   const [fehler, setFehler] = useState<string | null>(null)
   const [filter, setFilterState] = useState<HagelFilter>(() => ladeFilter(userId))
   const [offen, setOffen] = useState<string | null>(null)
+  const [parameterOffen, setParameterOffen] = useState(false)
+  const [reiter, setReiter] = useState<'liste' | 'disposition'>('liste')
 
   const setFilter = useCallback((f: HagelFilter) => {
     setFilterState(f)
@@ -78,6 +85,12 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
   const zahlen = useMemo(() => (kampagne ? kennzahlen(zeilen, kampagne) : null), [zeilen, kampagne])
   const detail = offen ? zeilen.find(z => z.project_id === offen) ?? null : null
   const aktiveKampagne = kampagne?.key
+  // Disposition: nur, wenn der Server sie mitschickt (Feature des Mandanten).
+  const dispo = daten?.dispo ?? null
+  const arbeit = useMemo(
+    () => (dispo ? offeneArbeit(zeilen, dispo.parameter.tageskapazitaet_min) : null),
+    [zeilen, dispo],
+  )
 
   /** Optimistisch: sofort umschalten, bei Fehler zurück + Meldung. */
   const speichern = useCallback(async (z: HagelZeile, felder: HagelPatch, vorschau: Partial<HagelZeile>) => {
@@ -173,6 +186,24 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
         </div>
       </div>
 
+      {dispo && (
+        <div className="dispo-reiter dispo-hauptreiter" role="tablist" aria-label="Hagelschaden-Ansicht">
+          <button type="button" role="tab" aria-selected={reiter === 'liste'}
+            className={`dispo-reiter-knopf${reiter === 'liste' ? ' aktiv' : ''}`} onClick={() => setReiter('liste')}>
+            Arbeitsliste
+          </button>
+          <button type="button" role="tab" aria-selected={reiter === 'disposition'}
+            className={`dispo-reiter-knopf${reiter === 'disposition' ? ' aktiv' : ''}`} onClick={() => setReiter('disposition')}>
+            Disposition
+          </button>
+        </div>
+      )}
+
+      {dispo && reiter === 'disposition' ? (
+        <Suspense fallback={<div className="admin-loading"><div className="admin-spinner" /> Laden…</div>}>
+          <DispositionScreen kampagne={kampagne} onOpenProject={pid => onOpenProject(pid, 'details')} showToast={showToast} />
+        </Suspense>
+      ) : (<>
       <div className="hagel-gruppen">
         <KachelGruppe
           titel="Rückmeldung der Kunden"
@@ -190,6 +221,8 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
           onFilter={setFilter}
         />
       </div>
+
+      {dispo && arbeit && <DispoSumme o={arbeit} onParameter={() => setParameterOffen(true)} />}
 
       {daten?.termine_bekannt === false && (
         <div className="hagel-hinweis">
@@ -271,18 +304,19 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                     <Schalter label="Kontaktiert" an={z.kontaktiert} onClick={() => void toggleKontaktiert(z)} />
                     <EinsatzZelle z={z} onToggle={() => void toggleEinsatz(z)} />
                   </div>
+                  {dispo && <div className="hagel-dispo-karte"><DispoKurz d={z.dispo} /></div>}
                 </div>
               </>
             )}
           />
         ) : (
           <div className="hagel-table-scroll">
-            <table className="admin-table hagel-table">
+            <table className={`admin-table hagel-table${dispo ? ' mit-dispo' : ''}`}>
               <thead>
                 <tr className="hagel-gruppenkopf">
                   <th colSpan={2} />
                   <th colSpan={5} className="hagel-kopf-kunde">Rückmeldung der Kunden</th>
-                  <th colSpan={4} className="hagel-kopf-betrieb">Unsere Bearbeitung</th>
+                  <th colSpan={dispo ? 6 : 4} className="hagel-kopf-betrieb">Unsere Bearbeitung</th>
                 </tr>
                 <tr>
                   <th>Projekt</th>
@@ -295,12 +329,14 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                   <th className="hagel-start-betrieb" title="Wir bearbeiten den Fall gerade">Aktiv</th>
                   <th>Kontaktiert</th>
                   <th>Einsatz</th>
+                  {dispo && <th title="Nächster Einsatz und seine Dauer">Nächster Einsatz</th>}
+                  {dispo && <th title="Restarbeit über alle offenen Stufen">Rest</th>}
                   <th>Notiz</th>
                 </tr>
               </thead>
               <tbody>
                 {gefiltert.length === 0 && (
-                  <tr><td colSpan={11} className="admin-table-empty">Keine Projekte für diesen Filter.</td></tr>
+                  <tr><td colSpan={dispo ? 13 : 11} className="admin-table-empty">Keine Projekte für diesen Filter.</td></tr>
                 )}
                 {gefiltert.map(z => (
                   <tr key={z.project_id} onClick={() => setOffen(z.project_id)}
@@ -327,6 +363,8 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                     <td className="hagel-betrieb" onClick={e => e.stopPropagation()}>
                       <EinsatzZelle z={z} onToggle={() => void toggleEinsatz(z)} kurz />
                     </td>
+                    {dispo && <td className="hagel-betrieb"><DispoKurz d={z.dispo} /></td>}
+                    {dispo && <td className="secondary hagel-betrieb">{z.dispo ? dauerText(z.dispo.rest_min) : ''}</td>}
                     <td className="secondary hagel-betrieb hagel-notiz-zelle" title={z.notiz}>{z.notiz}</td>
                   </tr>
                 ))}
@@ -335,6 +373,8 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
           </div>
         )}
       </div>
+
+      </>)}
 
       {detail && (
         <DetailPanel
@@ -345,6 +385,15 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
           onSave={speichern}
           onOpenProject={onOpenProject}
           onOpenSchedule={onOpenSchedule}
+          dispoBlock={dispo ? <DispoBlock z={detail} info={dispo} onSave={speichern} /> : null}
+        />
+      )}
+      {parameterOffen && dispo && (
+        <DispoParameterDialog
+          info={dispo}
+          kampagne={kampagne}
+          onClose={() => setParameterOffen(false)}
+          onSaved={() => { showToast('Dauer-Parameter gespeichert.', 'success'); void laden(kampagne.key) }}
         />
       )}
       <ToastHost toast={toast} />
@@ -443,13 +492,15 @@ function EinsatzZelle({ z, onToggle, kurz = false }: { z: HagelZeile; onToggle: 
   )
 }
 
-function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedule }: {
+function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedule, dispoBlock }: {
   z: HagelZeile
   kampagne: HagelKampagne
   onClose: () => void
   onSave: (z: HagelZeile, felder: HagelPatch, vorschau: Partial<HagelZeile>) => Promise<boolean>
   onOpenProject: (projectId: string, tab?: ProjectTab) => void
   onOpenSchedule?: () => void
+  /** Block «Disposition» — nur mit Feature (HagelDispo.tsx) */
+  dispoBlock?: ReactNode
 }) {
   const [notiz, setNotiz] = useState(z.notiz)
   const [fotos, setFotos] = useState<ProjectFile[] | null>(null)
@@ -558,6 +609,8 @@ function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedu
             <div className="hagel-sub">Zuletzt bearbeitet von {z.bearbeitet_von}{z.bearbeitet_am ? ` am ${fmtZeit(z.bearbeitet_am)}` : ''}</div>
           )}
         </section>
+
+        {dispoBlock}
 
         <div className="hagel-detail-aktionen">
           <button className="admin-btn admin-btn-secondary" onClick={() => onOpenProject(z.project_id, 'details')}>Projekt öffnen</button>

@@ -243,7 +243,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
         />
       )
       case 'project-drafts': return <ProjectDraftsScreen user={user} onBadgeChange={loadDashboard} />
-      case 'project-schedule': return guard('scheduling', <ProjectScheduleScreen canton={canton} onNav={guardedNav} />)
+      case 'project-schedule': return guard('scheduling', (
+        <ProjectScheduleScreen canton={canton} onNav={guardedNav}
+          hagelVorschlaege={hasModule(user, 'hagelschaden') && isFeatureEnabled(user, 'hagelschaden_disposition')} />
+      ))
       // detailId = Kunden-id aus einer Erinnerung (Dashboard, Mail-Knopf).
       case 'customers':    return (
         <CustomersScreen

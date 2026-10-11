@@ -12,8 +12,9 @@ import {
 } from '../../api/admin/scheduling'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import type { Project } from '../../api/admin/projects'
+import type { Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { projectCustomerName } from '../utils/project'
-import { diffDays, hhmmToMin, parseDateStr, shiftISO, toDateStr } from '../utils/calendarHelpers'
+import { diffDays, hhmmToMin, minToHHMM, parseDateStr, shiftISO, toDateStr } from '../utils/calendarHelpers'
 
 export interface StaffLite {
   id: string
@@ -196,7 +197,41 @@ export function pillBg(p: Project): string {
 // Inline-Hintergrundfarbe dazu, statt sie zu ersetzen: die Farbe bleibt pro
 // Mandant konfigurierbar, die Schraffur ist fix.
 export function pillClass(p: Project): string {
+  if (isVorschlag(p.id)) return ' vorschlag'
   return p.kind === 'blocker' ? ' provisional' : ''
+}
+
+// Vorschläge der Hagelschaden-Disposition (docs/specs/hagelschaden-disposition.md
+// §10.3, Phase 2b): vorgemerkte Einsätze, KEINE Termine. Sie laufen als eigene
+// Einträge mit dieser Kennung durch Raster, Tagesplan und Karte; Klick und
+// Verschieben fängt ProjectScheduleScreen ab, bevor ein Termin-Pfad sie sieht.
+export const VORSCHLAG_PREFIX = 'vorschlag:'
+
+export function isVorschlag(id: string | number | null | undefined): boolean {
+  return String(id ?? '').startsWith(VORSCHLAG_PREFIX)
+}
+
+/** Felder für den Vormerkungs-PATCH, wenn ein Vorschlag im Raster verschoben
+ *  wird: ein mehrtägiger Block wandert als Ganzes (end_datum mit), eine neue
+ *  Startzeit zieht die Dauer mit. Die Equipe bleibt — siehe Aufrufer. */
+export function vorschlagVerschoben(
+  v: Pick<Vormerkung, 'datum' | 'end_datum' | 'start_time' | 'end_time'>,
+  deltaDays: number,
+  startTime?: string | null,
+): { datum: string; end_datum: string | null; start_time: string | null; end_time: string | null } {
+  let start = v.start_time ? v.start_time.slice(0, 5) : null
+  let ende = v.end_time ? v.end_time.slice(0, 5) : null
+  if (startTime) {
+    const dauer = start && ende ? hhmmToMin(ende) - hhmmToMin(start) : null
+    start = startTime
+    ende = dauer && dauer > 0 ? minToHHMM(hhmmToMin(startTime) + dauer) : null
+  }
+  return {
+    datum: shiftISO(v.datum, deltaDays),
+    end_datum: v.end_datum ? shiftISO(v.end_datum, deltaDays) : null,
+    start_time: start,
+    end_time: ende,
+  }
 }
 
 // Kleines Typ-Symbol je Aufgaben-Art: Kundenprojekte nach Termin-Typ

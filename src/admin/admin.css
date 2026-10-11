@@ -2292,6 +2292,21 @@ button.admin-list-item {
   color: #fff;
 }
 
+/* Skill-Pillen (mitarbeiterdisposition-faehigkeiten-routen.md §4): wem für diesen
+   Einsatz eine Pille fehlt, bekommt einen gestrichelten Rand — die Farbe bleibt
+   Lead/aktiv vorbehalten, damit beides gleichzeitig lesbar ist. */
+.project-schedule-chip.skill-fehlt { border-style: dashed; border-color: var(--danger); }
+.project-schedule-chip.skill-ok { border-color: var(--success); }
+.project-schedule-skills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .project-schedule-lead-hint {
   margin-top: 4px;
   font-size: 11px;
@@ -3368,6 +3383,20 @@ button.admin-list-item {
   border-radius: 3px;
   line-height: 16px;
   white-space: nowrap;
+}
+
+/* ─── Vorschlag der Hagelschaden-Disposition (Phase 2b) ──────
+   Vorgemerkt, nicht geplant: gestrichelter Rand und blasser — nie mit einem
+   Termin zu verwechseln. Monteure sehen diese Kacheln nie (eigene Tabelle,
+   docs/specs/hagelschaden-disposition.md §10.3). */
+.project-cal-pill.vorschlag,
+.project-cal-week-event.vorschlag,
+.project-cal-board-chip.vorschlag,
+.project-cal-gantt-bar.vorschlag,
+.project-cal-agenda-event.vorschlag {
+  outline: 2px dashed var(--text-strong);
+  outline-offset: -2px;
+  opacity: 0.72;
 }
 
 /* ─── Blocker: provisorisch geplant (schraffierte Kachel) ──── */

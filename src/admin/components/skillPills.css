@@ -1,0 +1,62 @@
+/* Skill-Pillen (docs/specs/mitarbeiterdisposition-faehigkeiten-routen.md §4).
+   Lieferant und Tätigkeit unterscheiden sich in der Farbe, der Zustand (fehlt,
+   läuft ab, abgelaufen, nicht gewählt) im Rand — so bleibt beides gleichzeitig lesbar. */
+
+.skill-pills { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
+
+.skill-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+button.skill-pill { cursor: pointer; }
+button.skill-pill:disabled { cursor: default; opacity: 0.6; }
+.skill-pill small { font-weight: 400; font-size: 11px; color: var(--text-muted); }
+
+.skill-pill-lieferant { background: var(--primary-soft); }
+.skill-pill-taetigkeit { background: var(--success-soft); }
+
+.skill-pill-aus { background: transparent; border-color: var(--border); color: var(--text-muted); font-weight: 500; }
+.skill-pill-fehlt { background: transparent; border-style: dashed; border-color: var(--danger); color: var(--danger); }
+.skill-pill-bald { border-color: var(--warning); }
+.skill-pill-abgelaufen { border-color: var(--danger); background: var(--danger-soft); }
+
+.skill-pill-picker { display: flex; flex-direction: column; gap: var(--s-2); }
+.skill-pill-gruppe { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.skill-pill-gruppe-titel { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.skill-pill-leer { font-size: var(--font-sm); color: var(--text-muted); }
+
+/* Projekt-Detail → «Fähigkeiten — was die Montage verlangt» */
+.project-skills { display: flex; flex-direction: column; gap: var(--s-2); }
+.project-skills-einsaetze { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.project-skills-einsaetze li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.project-skills-einsaetze li.naechster { border-color: var(--primary); }
+.project-skills-kopf { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); color: var(--text-strong); }
+.project-skills-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.project-skills-passt { font-size: var(--font-sm); color: var(--text-muted); overflow-wrap: anywhere; }
+.project-skills-warnung { color: var(--danger); }

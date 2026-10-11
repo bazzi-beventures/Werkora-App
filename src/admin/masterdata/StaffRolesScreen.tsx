@@ -4,10 +4,13 @@ import {
 } from '../../api/admin'
 import { useToast, ToastHost } from '../components/useToast'
 import { useTabStrip } from '../hooks/useTabStrip'
+import { SkillMatrixPanel } from './SkillMatrixPanel'
 
-// "Personal"-Screen: Tab-Layout analog zum Material-Screen. Vorerst nur der Tab
-// "Stundensätze" (die früheren "Funktionen"). Weitere Tabs können hier andocken.
-type PersonalTab = 'rates'
+// "Personal"-Screen: Tab-Layout analog zum Material-Screen. Tabs "Stundensätze"
+// (die früheren "Funktionen") und "Skill-Matrix" (wer kann was, Spec
+// mitarbeiterdisposition-faehigkeiten-routen.md §4.5). Jeder Tab trägt seinen
+// eigenen Seitenkopf.
+type PersonalTab = 'rates' | 'skills'
 
 export default function StaffRolesScreen() {
   const [tab, setTab] = useState<PersonalTab>('rates')
@@ -22,9 +25,16 @@ export default function StaffRolesScreen() {
         >
           Stundensätze
         </button>
+        <button
+          className={`kpi-admin-tab${tab === 'skills' ? ' active' : ''}`}
+          onClick={() => setTab('skills')}
+        >
+          Skill-Matrix
+        </button>
       </div>
 
       {tab === 'rates' && <StaffRatesPanel />}
+      {tab === 'skills' && <SkillMatrixPanel />}
     </div>
   )
 }
