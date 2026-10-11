@@ -201,7 +201,8 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
         <div className="admin-filter-bar hagel-filter">
           <input
             className="admin-search"
-            placeholder="Projekt, Kunde, Adresse, Bemerkung, Notiz suchen…"
+            aria-label="Suchen"
+            placeholder={isMobile ? 'Projekt, Kunde, Notiz suchen…' : 'Projekt, Kunde, Adresse, Bemerkung, Notiz suchen…'}
             value={filter.suche}
             onChange={e => setFilter({ ...filter, suche: e.target.value })}
           />

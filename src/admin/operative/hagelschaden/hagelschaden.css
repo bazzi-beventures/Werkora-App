@@ -29,7 +29,11 @@
   gap: var(--s-4);
   margin-bottom: var(--s-4);
 }
+/* min-width: 0 an Gruppe und Kachel-Raster: ein Grid-Item wächst sonst auf die
+   min-content-Breite seines Inhalts — am Handy schob das die Kästen rechts aus dem
+   Bild, wo das overflow-x:hidden der Mobile-Shell sie abschnitt. */
 .hagel-gruppe {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--s-3);
@@ -107,6 +111,8 @@
   padding: 0 var(--s-4) var(--s-3);
 }
 .hagel-filter-gruppe {
+  /* <fieldset> hat per Default min-inline-size: min-content */
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -312,17 +318,43 @@
 }
 
 @media (max-width: 1100px) {
-  .hagel-gruppen { grid-template-columns: 1fr; }
+  .hagel-gruppen { grid-template-columns: minmax(0, 1fr); }
 }
 
-@media (max-width: 700px) {
-  .hagel-gruppe .hagel-kacheln {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    padding-bottom: 4px;
+/* Handy (dieselbe Grenze wie useIsMobile): alle Zahlen auf einen Blick in einem
+   kompakten Dreier-Raster statt einer waagrecht wischbaren Reihe — die zeigte
+   nur zwei Kacheln je Kasten, der Rest lag rechts ausserhalb. */
+@media (max-width: 767px) {
+  .hagel-gruppen { gap: var(--s-3); margin-bottom: var(--s-3); }
+  .hagel-gruppe { padding: var(--s-3) var(--s-2) var(--s-2); }
+  .hagel-gruppe-kopf {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    margin-bottom: var(--s-2);
+    padding: 0 var(--s-1);
   }
-  .hagel-kachel { flex: 0 0 140px; scroll-snap-align: start; }
+  .hagel-gruppe-kopf h3 { font-size: 14px; }
+  .hagel-kacheln {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .hagel-kachel {
+    min-width: 0;
+    padding: 6px 8px;
+    border-left-width: 3px;
+    border-radius: 8px;
+  }
+  .hagel-kachel-wert { font-size: 20px; }
+  .hagel-kachel-label {
+    font-size: 11.5px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  .hagel-filter-gruppen { padding: 0 var(--s-3) var(--s-3); gap: var(--s-2); }
+  .hagel-filter-gruppe { flex: 1 1 100%; }
+  .hagel-filter-gruppe .admin-form-select { flex: 1 1 140px; }
   .hagel-detail { width: 100vw; border-left: 0; }
   .hagel-dl { grid-template-columns: 100px 1fr; }
 }

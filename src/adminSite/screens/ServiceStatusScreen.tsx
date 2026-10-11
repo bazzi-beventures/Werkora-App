@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  getHealthStatus, getHealthHistory,
+  getHealthStatus, getHealthHistory, getMigrationStatus,
   HealthStatusResponse, HealthHistoryResponse, HistoryDay, DayUptime,
+  MigrationGateStatus, MigrationStatus,
   ServiceHealth, ServiceName, ServiceStatus,
 } from '../../api/serviceHealth'
 
@@ -154,6 +155,75 @@ function StatusCard({ name, data }: { name: ServiceName; data: ServiceHealth }) 
       {data.latest?.error && (
         <div style={{ fontSize: 11, color: 'var(--danger-ink)', background: 'var(--danger-soft)', padding: '6px 10px', borderRadius: 'var(--radius-xs)' }}>
           {data.latest.error}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function migrationBadge(status: MigrationGateStatus, fehlend: number): { text: string; bg: string; fg: string } {
+  if (status === 'aktuell') return { text: 'AKTUELL', bg: 'var(--success-soft)', fg: 'var(--success-ink)' }
+  if (status === 'fehlend') return { text: `${fehlend} AUSSTEHEND`, bg: 'var(--warning-soft)', fg: 'var(--warning-ink)' }
+  if (status === 'nicht_lesbar') return { text: 'NICHT LESBAR', bg: 'var(--danger-soft)', fg: 'var(--danger-ink)' }
+  return { text: 'NICHT EINGERICHTET', bg: 'var(--surface2)', fg: 'var(--text-muted)' }
+}
+
+/**
+ * Stand der Datenbank-Migrationen: was im Code liegt gegen das, was die
+ * Datenbank eingespielt hat (docs/specs/migrations-runner.md §6.3). «Ausstehend»
+ * ist kurz nach einem Merge nach develop normal — db-migrate läuft parallel zum
+ * Deploy. Erst wenn es bleibt, ist es ein Befund (dann steht er auch im error_log).
+ */
+export function MigrationCard({ data }: { data: MigrationStatus }) {
+  const badge = migrationBadge(data.status, data.fehlend.length)
+  const dot = data.status === 'aktuell' ? COLOR_OK
+    : data.status === 'fehlend' ? COLOR_WARN
+    : data.status === 'nicht_lesbar' ? COLOR_BAD
+    : 'var(--text-muted)'
+  return (
+    <div className="svc-card" style={{ ['--svc-accent' as string]: 'var(--warning)' }} data-testid="migration-card">
+      <div className="svc-card-head">
+        <div>
+          <div className="svc-card-title">Datenbank-Migrationen</div>
+          <div className="svc-card-sub">Runner · eingespielt beim Merge nach develop</div>
+        </div>
+        <div className="svc-card-dot" style={{ background: dot }} />
+      </div>
+
+      <div>
+        <div className="svc-card-value">
+          {data.angewandt ?? '—'}
+          <span className="svc-card-value-unit"> / {data.erwartet}</span>
+        </div>
+        <div className="svc-card-caption">
+          eingespielt / im Code{data.baseline != null ? ` · davon ${data.baseline} per Baseline erfasst` : ''}
+        </div>
+      </div>
+
+      <div className="svc-card-badge-row">
+        <span className="svc-badge" style={{ background: badge.bg, color: badge.fg }}>
+          <span className="svc-badge-dot" />{badge.text}
+        </span>
+      </div>
+
+      {data.fehlend.length > 0 && (
+        <div style={{ fontSize: 12, color: 'var(--warning-ink)', background: 'var(--warning-soft)', padding: '8px 10px', borderRadius: 'var(--radius-xs)', lineHeight: 1.5 }}>
+          Noch nicht in der Datenbank: {data.fehlend.slice(0, 5).join(', ')}
+          {data.fehlend.length > 5 && ` (+${data.fehlend.length - 5} weitere)`}.
+          {' '}Kurz nach einem Merge normal — bleibt es länger, den Lauf von db-migrate in Railway prüfen.
+        </div>
+      )}
+
+      {data.letzte.length > 0 && (
+        <div className="svc-card-meta" style={{ display: 'block' }}>
+          Zuletzt eingespielt
+          {data.letzte.map(r => (
+            <div key={r.version} className="svc-card-meta-val" title={r.snapshot ? `Snapshot: ${r.snapshot}` : 'ohne Snapshot'}
+              style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.version}</span>
+              <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{timeAgo(r.applied_at)}{r.applied_by ? ` · ${r.applied_by}` : ''}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -317,8 +387,12 @@ export default function ServiceStatusScreen() {
   const [historyRange, setHistoryRange] = useState<HistoryRange>(30)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [migrations, setMigrations] = useState<MigrationStatus | null>(null)
 
   async function load(range: HistoryRange = historyRange) {
+    // Eigener Aufruf ohne Einfluss auf den Rest: ein Fehler beim Migrationsstand
+    // (Tabelle nicht lesbar, älteres Backend) darf die Service-Ampeln nicht ausblenden.
+    getMigrationStatus().then(setMigrations).catch(() => setMigrations(null))
     try {
       const [status, hist] = await Promise.all([getHealthStatus(), getHealthHistory(range)])
       setData(status)
@@ -385,6 +459,7 @@ export default function ServiceStatusScreen() {
           <StatusCard name="railway" data={data.services.railway} />
           <StatusCard name="supabase" data={data.services.supabase} />
           <StatusCard name="mistral" data={data.services.mistral} />
+          {migrations && <MigrationCard data={migrations} />}
         </div>
       )}
 

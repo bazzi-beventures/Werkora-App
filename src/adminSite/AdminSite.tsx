@@ -34,6 +34,7 @@ import NewsletterScreen from './screens/NewsletterScreen'
 import RueckmeldungScreen from './screens/RueckmeldungScreen'
 import FeatureRequestsScreen from './screens/FeatureRequestsScreen'
 import { fetchNewRequestCount } from '../api/featureRequests'
+import { fetchOpenSupportCount } from '../api/support'
 
 // Die drei Rechnungs-Screens werden NICHT nach adminSite/ verschoben (§8.3):
 // sie bleiben Mandanten-Screens und werden von beiden Einstiegen importiert.
@@ -83,7 +84,9 @@ export default function AdminSite() {
   // Neue Feature-Anfragen als Abzeichen in der Leiste (docs/specs/feature-anfragen.md
   // §7, §9.2): der Betreiber bekommt je Anfrage weder Push noch Mail — die Zahl
   // hier ist der Hinweis. Nachgeladen bei jedem Screenwechsel, kein Polling.
+  // Daneben die offenen Support-Meldungen (Status «offen», noch nicht angefasst).
   const [neueAnfragen, setNeueAnfragen] = useState(0)
+  const [offeneTickets, setOffeneTickets] = useState(0)
 
   // Beim Start: gibt es schon eine gültige Sitzung? Das 30-Tage-Cookie ist der
   // Normalfall (E6 — Passkeys kommen erst mit O3), ein Login also die Ausnahme.
@@ -102,6 +105,9 @@ export default function AdminSite() {
     fetchNewRequestCount()
       .then((r) => { if (!abgebrochen) setNeueAnfragen(r.count) })
       .catch(() => { /* Abzeichen ist Beiwerk — ohne Zahl bleibt die Leiste, wie sie ist */ })
+    fetchOpenSupportCount()
+      .then((r) => { if (!abgebrochen) setOffeneTickets(r.count) })
+      .catch(() => { /* dito */ })
     return () => { abgebrochen = true }
   }, [user, screen])
 
@@ -200,7 +206,7 @@ export default function AdminSite() {
       onLogout={abmelden}
       onChangePassword={() => setPasswortDialog(true)}
       zeigeRechnungen={hatRechnungsbereich(user)}
-      badges={{ 'feature-anfragen': neueAnfragen }}
+      badges={{ 'feature-anfragen': neueAnfragen, support: offeneTickets }}
     >
       {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
           Navigation und Mandanten-Wähler stehen, statt dass die ganze Seite

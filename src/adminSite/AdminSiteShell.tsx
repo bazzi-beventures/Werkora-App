@@ -162,7 +162,7 @@ export default function AdminSiteShell({
               <Icon />
               <span>{SCREEN_TITEL[s]}</span>
               {badge > 0 && (
-                <span className="adminsite-nav-badge" aria-label={`${badge} neu`}>{badge}</span>
+                <span className="adminsite-nav-badge" aria-label={`${badge} ${s === 'support' ? 'offen' : 'neu'}`}>{badge}</span>
               )}
             </button>
           )

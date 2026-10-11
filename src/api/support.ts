@@ -300,6 +300,11 @@ export type SupportCluster = {
   since: string
 }
 
+/** Offene Meldungen aller Mandanten — das Abzeichen neben «Support» in der Leiste. */
+export async function fetchOpenSupportCount(): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>('/pwa/superadmin/support-tickets/open-count')
+}
+
 export async function fetchSupportDashboard(): Promise<SupportDashboard> {
   return apiFetch<SupportDashboard>('/pwa/superadmin/support-dashboard')
 }

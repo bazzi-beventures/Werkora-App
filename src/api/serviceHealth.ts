@@ -53,3 +53,27 @@ export interface HealthHistoryResponse {
 export async function getHealthHistory(days = 90): Promise<HealthHistoryResponse> {
   return apiFetch<HealthHistoryResponse>(`/pwa/superadmin/health/history?days=${days}`)
 }
+
+// Migrationsstand (docs/specs/migrations-runner.md §6.3). Nur Versionen und
+// Metadaten — der Endpunkt liefert nie Dateiinhalte.
+export type MigrationGateStatus = 'aktuell' | 'fehlend' | 'unbekannt' | 'nicht_lesbar'
+
+export interface MigrationRun {
+  version: string
+  applied_at: string | null
+  applied_by: string | null
+  snapshot: string | null
+}
+
+export interface MigrationStatus {
+  status: MigrationGateStatus
+  erwartet: number
+  angewandt: number | null
+  baseline: number | null
+  fehlend: string[]
+  letzte: MigrationRun[]
+}
+
+export async function getMigrationStatus(): Promise<MigrationStatus> {
+  return apiFetch<MigrationStatus>('/pwa/superadmin/health/migrations')
+}

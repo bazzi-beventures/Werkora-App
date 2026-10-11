@@ -38,6 +38,7 @@ function zeige(
   scope = scopeMit(tenantId),
   zeigeRechnungen = false,
   aktuellerScreen: AdminSiteScreen = 'uebersicht',
+  badges?: Partial<Record<AdminSiteScreen, number>>,
 ) {
   return render(
     <AdminSiteShell
@@ -48,6 +49,7 @@ function zeige(
       onLogout={vi.fn()}
       onChangePassword={vi.fn()}
       zeigeRechnungen={zeigeRechnungen}
+      badges={badges}
     >
       <div>inhalt</div>
     </AdminSiteShell>,
@@ -108,6 +110,13 @@ describe('AdminSiteShell', () => {
   it('meldet einen Fehler der Mandantenliste, statt ihn zu verschlucken', () => {
     zeige(null, { ...scopeMit(null), error: 'Netzwerkfehler' })
     expect(screen.getByText(/Netzwerkfehler/)).toBeTruthy()
+  })
+
+  it('zeigt die Zahlen neben Support und Feature-Anfragen, eine Null nicht', () => {
+    zeige(null, undefined, false, 'uebersicht', { support: 1, 'feature-anfragen': 2, fehler: 0 })
+    expect(screen.getByLabelText('1 offen').closest('button')?.textContent).toContain('Support')
+    expect(screen.getByLabelText('2 neu').closest('button')?.textContent).toContain('Feature-Anfragen')
+    expect(document.querySelectorAll('.adminsite-nav-badge')).toHaveLength(2)
   })
 
   it('bietet bei einem Fehler der Mandantenliste «Erneut laden» an', () => {
