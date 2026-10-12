@@ -5,6 +5,7 @@ import type {
 } from '../../../api/admin'
 import { useToast, ToastHost } from '../../../admin/components/useToast'
 import { BetaBadge } from '../../../shared/BetaBadge'
+import { matchesWorkflowSearch } from './workflowSearch'
 
 // ─── Workflows-Tab: konfigurierbare Feature-Flags pro Tenant ─────────────────
 //
@@ -20,6 +21,7 @@ export function WorkflowsTab({ tenantId }: { tenantId: string }) {
   const [draft, setDraft] = useState<Record<string, Record<string, unknown>>>({})
   const [savingKey, setSavingKey] = useState<string | null>(null)
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set())
+  const [query, setQuery] = useState('')
 
   async function load() {
     setLoading(true)
@@ -102,6 +104,14 @@ export function WorkflowsTab({ tenantId }: { tenantId: string }) {
     byCategory.get(entry.category)!.push(entry)
   }
 
+  // Die Suche blendet nur aus — Entwürfe, offene Zeilen und «x von y aktiv»
+  // beziehen sich weiter auf die ganze Kategorie, sonst änderte das Tippen
+  // scheinbar den Zustand.
+  const searching = query.trim() !== ''
+  const hitCount = searching
+    ? data.registry.filter(e => matchesWorkflowSearch(e, query)).length
+    : data.registry.length
+
   return (
     <div className="admin-table-wrap" style={{ padding: 24, maxWidth: 880 }}>
       <div style={{ marginBottom: 20, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
@@ -110,8 +120,34 @@ export function WorkflowsTab({ tenantId }: { tenantId: string }) {
         Zeile anklicken für Beschreibung und Parameter; jeder Eintrag wird einzeln gespeichert.
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+        <input
+          className="admin-search"
+          type="search"
+          value={query}
+          placeholder="Workflows durchsuchen: Name, Schlüssel, Beschreibung, Parameter"
+          aria-label="Workflows durchsuchen"
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Escape') setQuery('') }}
+          style={{ minWidth: 0 }}
+        />
+        {searching && (
+          <span style={{ fontSize: 12, color: 'var(--muted)', flexShrink: 0 }}>
+            {hitCount} von {data.registry.length}
+          </span>
+        )}
+      </div>
+
+      {searching && hitCount === 0 && (
+        <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>
+          Kein Workflow passt zu «{query.trim()}».
+        </div>
+      )}
+
       {Array.from(byCategory.entries()).map(([cat, entries]) => {
         if (entries.length === 0) return null
+        const visible = searching ? entries.filter(e => matchesWorkflowSearch(e, query)) : entries
+        if (visible.length === 0) return null
         // "x von y aktiv" zählt nur Einträge mit Aktiv-Schalter — reine
         // Parameter-Einträge (z. B. Review-Fenster) sind weder an noch aus.
         const withToggle = entries.filter(e => e.schema.some(f => f.key === 'enabled'))
@@ -131,7 +167,7 @@ export function WorkflowsTab({ tenantId }: { tenantId: string }) {
               )}
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
-              {entries.map(entry => {
+              {visible.map(entry => {
                 const current = draft[entry.key] ?? {}
                 // Nicht jedes Feature hat einen Aktiv-Schalter (z. B. aftersales_review_days
                 // ist ein reiner Parameter). Nur wenn ein enabled-Feld existiert, dürfen die
