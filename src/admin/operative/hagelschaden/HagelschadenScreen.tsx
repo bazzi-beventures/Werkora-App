@@ -187,13 +187,16 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
       </div>
 
       {dispo && (
-        <div className="dispo-reiter dispo-hauptreiter" role="tablist" aria-label="Hagelschaden-Ansicht">
+        // Derselbe Reiter-Stil wie Personal/Material (admin.css, immer geladen) — nicht
+        // dispo.css: die kommt erst mit dem nachgeladenen Disposition-Teil, und beim
+        // direkten Öffnen der Arbeitsliste standen die Reiter als nackte Knöpfe da.
+        <div className="kpi-admin-tabs" role="tablist" aria-label="Hagelschaden-Ansicht" style={{ marginBottom: 16 }}>
           <button type="button" role="tab" aria-selected={reiter === 'liste'}
-            className={`dispo-reiter-knopf${reiter === 'liste' ? ' aktiv' : ''}`} onClick={() => setReiter('liste')}>
+            className={`kpi-admin-tab${reiter === 'liste' ? ' active' : ''}`} onClick={() => setReiter('liste')}>
             Arbeitsliste
           </button>
           <button type="button" role="tab" aria-selected={reiter === 'disposition'}
-            className={`dispo-reiter-knopf${reiter === 'disposition' ? ' aktiv' : ''}`} onClick={() => setReiter('disposition')}>
+            className={`kpi-admin-tab${reiter === 'disposition' ? ' active' : ''}`} onClick={() => setReiter('disposition')}>
             Disposition
           </button>
         </div>
