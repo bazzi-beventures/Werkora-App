@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BoardTask } from '../../api/admin'
-import { cardAction, displayTitle, dropSortOrder, groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, matchesQuery, navTarget, taskField, urgency } from './taskBoardLogic'
+import { cardAction, displayTitle, processBoundHint, PROCESS_BOUND_HINT, dropSortOrder, groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound, matchesQuery, navTarget, taskField, urgency } from './taskBoardLogic'
 
 function task(over: Partial<BoardTask>): BoardTask {
   return {
@@ -157,12 +157,34 @@ describe('cardAction', () => {
     expect(cardAction(task({ task_type: 'quote_followup', ref_id: '42' }))?.kind).toBe('quote_reminder')
   })
 
+  it('«Rechnung erstellen» → «Keine Rechnung nötig» nur als Nebenknopf im Detail', () => {
+    const spec = cardAction(task({ task_type: 'invoice_missing', project_id: 'p-1' }))
+    expect(spec?.kind).toBe('archive_project')
+    expect(spec?.secondary).toBe(true)
+    expect(cardAction(task({ task_type: 'invoice_missing', project_id: null }))).toBeNull()
+    // Die beiden Arbeits-Aktionen bleiben auf der Karte.
+    expect(cardAction(task({ task_type: 'project_overdue', project_id: 'p-1' }))?.secondary).toBeFalsy()
+  })
+
   it('keine Aktion für erledigte, manuelle, übrige Typen oder kaputte Bezüge', () => {
     expect(cardAction(task({ task_type: 'project_overdue', project_id: 'p-1', status: 'erledigt' }))).toBeNull()
     expect(cardAction(task({ source: 'manuell', task_type: null, project_id: 'p-1' }))).toBeNull()
     expect(cardAction(task({ task_type: 'invoice_overdue_action', ref_id: '7' }))).toBeNull()
     expect(cardAction(task({ task_type: 'project_overdue', project_id: null }))).toBeNull()
     expect(cardAction(task({ task_type: 'quote_followup', ref_id: 'abc' }))).toBeNull()
+  })
+})
+
+describe('processBoundHint', () => {
+  it('nennt je festem Prozessschritt den Ausweg, wenn die Arbeit nicht nötig ist', () => {
+    expect(processBoundHint('invoice_missing')).toContain('Keine Rechnung nötig')
+    expect(processBoundHint('quote_draft_stale')).toContain('archivieren')
+    expect(processBoundHint('aftersales_review')).toContain('deaktivieren')
+  })
+
+  it('unbekannte Typen behalten den allgemeinen Satz', () => {
+    expect(processBoundHint('gibt_es_nicht')).toBe(PROCESS_BOUND_HINT)
+    expect(processBoundHint(null)).toBe(PROCESS_BOUND_HINT)
   })
 })
 

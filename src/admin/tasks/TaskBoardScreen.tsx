@@ -5,7 +5,7 @@ import {
   createBoardTask, deleteBoardTask, getTaskBoard, updateBoardTask,
 } from '../../api/admin'
 import { createReminder, getMyReminders, updateReminder } from '../../api/admin/reminders'
-import { closeProject } from '../../api/admin/projects'
+import { closeProject, setProjectStatus } from '../../api/admin/projects'
 import { sendQuoteReminder } from '../../api/admin/dashboard'
 import type { Reminder } from '../../api/admin/reminders'
 import { AdminScreen } from '../useAdminNav'
@@ -18,10 +18,8 @@ import { dueBucket, formatDue, targetLabel } from '../reminders/reminderLogic'
 import {
   BoardView, CardAction, COLUMN_LABELS, cardAction, daysSince, displayTitle, dropSortOrder,
   groupByAssignee, groupByColumn, groupByField, isOverdue, isProcessBound,
-  matchesQuery, navTarget, urgency,
+  matchesQuery, navTarget, processBoundHint, urgency,
 } from './taskBoardLogic'
-
-const PROCESS_BOUND_HINT = 'Fester Prozessschritt — erledigt sich automatisch, sobald die Arbeit getan ist.'
 
 interface Props {
   /** `tab`: Reiter, auf dem die Projektmaske aufgeht (nur mit Projekt-id). */
@@ -295,7 +293,7 @@ function TaskDetailModal({ task, board, onClose, onChanged, onNav, onReminderCre
           {task.source === 'auto' && task.status !== 'erledigt' && (
             <div className="tb-detail-row">
               {processBound
-                ? PROCESS_BOUND_HINT
+                ? processBoundHint(task.task_type)
                 : '«Erledigt» quittiert die Aufgabe: sie gilt als bewusst nicht ausgeführt und wird vom System nicht neu erstellt.'}
             </div>
           )}
@@ -347,7 +345,7 @@ function TaskDetailModal({ task, board, onClose, onChanged, onNav, onReminderCre
           <div className="tb-detail-actions">
             {action && (
               <button
-                className="admin-btn admin-btn-primary"
+                className={`admin-btn ${action.secondary ? 'admin-btn-secondary' : 'admin-btn-primary'}`}
                 disabled={busy}
                 onClick={async () => {
                   setBusy(true)
@@ -542,6 +540,7 @@ export default function TaskBoardScreen({ onNav, onBadgeChange, showReminders = 
     setActionBusy(task.id)
     try {
       if (spec.kind === 'close_project') await closeProject(task.project_id!)
+      else if (spec.kind === 'archive_project') await setProjectStatus(task.project_id!, 'archiviert')
       else await sendQuoteReminder(Number(task.ref_id))
       showToast(spec.success, 'success')
       await load(filter, true)
@@ -605,7 +604,7 @@ export default function TaskBoardScreen({ onNav, onBadgeChange, showReminders = 
   async function moveTask(task: BoardTask, column: BoardColumn, targetIndex: number) {
     if (!board) return
     if (column === 'erledigt' && task.status !== 'erledigt' && isProcessBound(task, board.task_types)) {
-      showToast(PROCESS_BOUND_HINT, 'error')
+      showToast(processBoundHint(task.task_type), 'error')
       return
     }
     const grouped = groupByColumn(visibleTasks, board.columns)
@@ -652,7 +651,7 @@ export default function TaskBoardScreen({ onNav, onBadgeChange, showReminders = 
         onComplete={opts.draggable || isProcessBound(task, board.task_types) ? undefined : () => completeTask(task)}
         action={(() => {
           const spec = cardAction(task)
-          return spec ? { spec, busy: actionBusy === task.id, run: () => void runAction(task) } : undefined
+          return spec && !spec.secondary ? { spec, busy: actionBusy === task.id, run: () => void runAction(task) } : undefined
         })()}
         onDragStart={e => e.dataTransfer.setData('text/task-id', task.id)}
         onDropBefore={opts.column !== undefined && opts.index !== undefined

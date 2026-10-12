@@ -54,6 +54,30 @@ export function isProcessBound(task: Pick<BoardTask, 'source' | 'task_type'>, ta
   return taskTypes[task.task_type ?? '']?.prozessgebunden === true
 }
 
+/**
+ * Wie sich ein fester Prozessschritt erledigt — auch dann, wenn die Arbeit
+ * NICHT getan werden muss. Ohne diesen Ausweg wirkt eine nicht abhakbare
+ * Karte wie eine Sackgasse («Projekt wurde versehentlich eröffnet, und jetzt
+ * will das Board eine Rechnung»). Die Wege sind dieselben, die der Sync als
+ * «Bedingung entfallen» erkennt (services/task_board_service.py).
+ */
+const PROCESS_BOUND_HINTS: Record<string, string> = {
+  quote_accepted_followup: 'Erledigt sich, sobald ein Termin geplant ist — oder das Projekt abgeschlossen bzw. archiviert wird.',
+  quote_draft_stale: 'Erledigt sich, sobald die Offerte versendet ist. Wird sie nicht mehr gebraucht: Entwurf archivieren.',
+  invoice_missing: 'Erledigt sich, sobald eine Rechnung existiert. Braucht das Projekt keine: «Keine Rechnung nötig».',
+  project_draft_review: 'Erledigt sich, sobald der Entwurf in ein Projekt umgewandelt oder verworfen ist.',
+  approval_pending: 'Erledigt sich, sobald der eingetragene Freigeber entscheidet — oder der Ersteller die Anfrage löscht.',
+  aftersales_review: 'Erledigt sich, sobald der Text freigegeben ist. Soll nichts rausgehen: Nachfass-Aufgabe deaktivieren.',
+  warranty_case_review: 'Erledigt sich, sobald der Fall entschieden ist — auch ein «abgelehnt» ist ein Entscheid.',
+}
+
+export const PROCESS_BOUND_HINT = 'Fester Prozessschritt — erledigt sich automatisch, sobald die Arbeit getan ist.'
+
+export function processBoundHint(taskType: string | null): string {
+  const way = PROCESS_BOUND_HINTS[taskType ?? '']
+  return way ? `Fester Prozessschritt. ${way}` : PROCESS_BOUND_HINT
+}
+
 /** Aufgabenfeld einer Karte: manuelle Karten → 'manuell', Auto-Karten über den
  *  Typ-Katalog; unbekannte Typen fallen ebenfalls nach 'manuell' (Catch-all). */
 export function taskField(task: Pick<BoardTask, 'source' | 'task_type'>, taskTypes: Record<string, TaskTypeInfo>): string {
@@ -200,7 +224,7 @@ export function navTarget(task: BoardTask): { screen: AdminScreen; detailId?: st
 
 /** Direktaktion auf der Karte — die Arbeit, für die man sonst erst «Öffnen» muss. */
 export interface CardAction {
-  kind: 'close_project' | 'quote_reminder'
+  kind: 'close_project' | 'quote_reminder' | 'archive_project'
   /** Knopf auf der Karte (kurz). */
   label: string
   /** Knopf im Detail (ausgeschrieben). */
@@ -208,6 +232,12 @@ export interface CardAction {
   /** Rückfrage vor dem Auslösen — beide Aktionen wirken nach aussen bzw. endgültig. */
   confirm: string
   success: string
+  /**
+   * Ausweg statt Arbeit: nur im Detail und dort als Nebenknopf, nicht auf der
+   * Karte. Auf jeder «Rechnung erstellen»-Karte stünde sonst als einziger
+   * Knopf ausgerechnet der, der die Rechnung NICHT schreibt.
+   */
+  secondary?: boolean
 }
 
 /**
@@ -217,6 +247,11 @@ export interface CardAction {
  *
  * - «Projekt überfällig» → Projekt abschliessen (wie das Dashboard-Modal).
  * - «Offerte nachfassen» → Erinnerungsmail an den Kunden.
+ * - «Rechnung erstellen» → «Keine Rechnung nötig»: Projekt archivieren (nur im
+ *   Detail, `secondary`). Für Projekte, die versehentlich eröffnet wurden oder
+ *   nichts zu verrechnen haben. Die Karte bleibt prozessgebunden — anders als
+ *   Quittieren ist Archivieren kein Dauer-Unterdrücken: wird das Projekt wieder
+ *   eröffnet und abgeschlossen, öffnet der Sync die system-erledigte Karte neu.
  *
  * Nicht dabei: «Rechnung mahnen». Ob Zahlungserinnerung oder Mahnung fällig
  * ist, weiss die Karte nicht, und eine Mahnung per Ein-Klick vom Board aus
@@ -240,6 +275,18 @@ export function cardAction(task: Pick<BoardTask, 'source' | 'task_type' | 'statu
       longLabel: 'Erinnerung an Kunden senden',
       confirm: 'Erinnerungsmail zu dieser Offerte jetzt an den Kunden senden?',
       success: 'Erinnerung an den Kunden gesendet',
+    }
+  }
+  if (task.task_type === 'invoice_missing' && task.project_id) {
+    return {
+      kind: 'archive_project',
+      label: 'Keine Rechnung',
+      longLabel: 'Keine Rechnung nötig',
+      confirm: 'Projekt ohne Rechnung archivieren? Gedacht für Projekte, die versehentlich eröffnet wurden '
+        + 'oder nichts zu verrechnen haben. Die Aufgabe erledigt sich damit; das Projekt lässt sich '
+        + 'in der Projektliste unter «Archiv» jederzeit wieder eröffnen.',
+      success: 'Projekt archiviert — keine Rechnung nötig',
+      secondary: true,
     }
   }
   return null
