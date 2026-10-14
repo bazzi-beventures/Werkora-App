@@ -124,7 +124,7 @@ describe('InvoicesTab — bezahlt markieren', () => {
     expect((screen.getByLabelText('Zahlungsdatum') as HTMLInputElement).value).toBe(todayISO())
 
     await userEvent.click(screen.getByRole('button', { name: 'Ja, bezahlt' }))
-    expect(onMarkPaid).toHaveBeenCalledWith(42, todayISO())
+    expect(onMarkPaid).toHaveBeenCalledWith(42, todayISO(), null)
   })
 
   it('reicht ein nachgetragenes Zahlungsdatum durch', async () => {
@@ -137,7 +137,29 @@ describe('InvoicesTab — bezahlt markieren', () => {
     await userEvent.type(dateInput, '2026-08-11')
     await userEvent.click(screen.getByRole('button', { name: 'Ja, bezahlt' }))
 
-    expect(onMarkPaid).toHaveBeenCalledWith(7, '2026-08-11')
+    expect(onMarkPaid).toHaveBeenCalledWith(7, '2026-08-11', null)
+  })
+
+  it('Skontoabzug: eingegangener Betrag geht mit, Überzahlung sperrt (WW-19)', async () => {
+    const onMarkPaid = vi.fn().mockResolvedValue(true)
+    renderTab([makeInvoice({ id: 7 })], undefined, onMarkPaid)
+    await userEvent.click(screen.getByRole('button', { name: 'Bezahlt' }))
+    const amount = screen.getByLabelText('Eingegangener Betrag (CHF)')
+    expect((amount as HTMLInputElement).value).toBe('4159.50')
+
+    await userEvent.clear(amount)
+    await userEvent.type(amount, '5000')
+    expect(screen.getByRole('button', { name: 'Ja, bezahlt' })).toBeDisabled()
+
+    await userEvent.clear(amount)
+    await userEvent.type(amount, '4076.30')
+    await userEvent.click(screen.getByRole('button', { name: 'Ja, bezahlt' }))
+    expect(onMarkPaid).toHaveBeenCalledWith(7, todayISO(), 4076.3)
+  })
+
+  it('zeigt bei bezahlter Rechnung, was tatsächlich einging', () => {
+    renderTab([makeInvoice({ status: 'bezahlt', paid_at: '2026-08-20', paid_amount: 4076.3 })])
+    expect(screen.getByText(/erhalten CHF 4.076,30|erhalten CHF 4’076.30|erhalten CHF 4'076.30/)).toBeTruthy()
   })
 
   it('lässt den Dialog offen, wenn das Backend das Datum ablehnt', async () => {

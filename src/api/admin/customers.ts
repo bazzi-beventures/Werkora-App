@@ -41,6 +41,33 @@ export function salutationLabel(value: string | null | undefined): string {
   return SALUTATIONS.find(s => s.value === value)?.label ?? ''
 }
 
+type RecipientSource = {
+  name: string
+  company?: string | null
+  salutation?: string | null
+  billing_name?: string | null
+}
+
+const squash = (v: string | null | undefined) => (v ?? '').split(/\s+/).filter(Boolean).join(' ')
+
+/** «z. H. Herr Peter Muster», wenn der Kunde eine Firma ist — Spiegel von
+ *  `db.customers.attention_line`. Leer bei abweichendem Rechnungsempfänger, ohne
+ *  Firma, oder wenn die Firma schon der Name ist. */
+export function customerAttentionLine(c: RecipientSource): string {
+  if (squash(c.billing_name)) return ''
+  const company = squash(c.company)
+  const person = squash(c.name)
+  if (!company || !person || person.toLowerCase() === company.toLowerCase()) return ''
+  return ['z. H.', salutationLabel(c.salutation), person].filter(Boolean).join(' ')
+}
+
+/** Name im Sichtfenster: abweichender Empfänger, sonst die Firma (mit
+ *  z.-H.-Zeile), sonst der Name — wie `db.customers.resolve_customer_billing`. */
+export function customerRecipientName(c: RecipientSource): string {
+  if (c.billing_name) return c.billing_name
+  return customerAttentionLine(c) ? squash(c.company) : c.name
+}
+
 /**
  * Auswahl fürs Anrede-Feld: die Basis-Anreden plus die per Feature-Flag
  * freigeschalteten.

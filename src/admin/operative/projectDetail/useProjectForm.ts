@@ -3,7 +3,7 @@ import {
   createAppointment, deleteAppointment, getProjectAppointments, updateAppointment,
 } from '../../../api/admin'
 import { saveProjectForm } from '../../../api/admin/projects'
-import type { Customer } from '../../../api/admin/customers'
+import { customerAttentionLine, customerRecipientName, type Customer } from '../../../api/admin/customers'
 import type { DisposalDetails, Eigentuemer, Kontakt, Project } from '../../../api/admin/projects'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, apptToDraft, diffAppointments, draftPayload,
@@ -448,9 +448,11 @@ export function useProjectForm(opts: {
   const selectedCustomer = customers.find(c => c.id === customerId) ?? null
   // Projekt-Override zuerst — dieselbe Vorrang-Kette wie das Backend
   // (resolve_billing_info): projects.billing_* vor customer.billing_* vor Stammdaten.
+  // Firmenkunde (WW-20): die Firma ist der Empfänger, die Person steht «z. H.».
   const billingRecipient = (billingDiffers && projBillingName.trim())
     || (selectedCustomer
-      ? (selectedCustomer.billing_name || selectedCustomer.name)
+      ? [customerRecipientName(selectedCustomer), customerAttentionLine(selectedCustomer)]
+          .filter(Boolean).join(', ')
       : (project ? projectCustomerName(project) : ''))
   const billingAddress = (billingDiffers && projBillingAddress)
     || (selectedCustomer

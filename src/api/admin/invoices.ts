@@ -17,6 +17,9 @@ export interface Invoice {
   status: string
   created_at: string
   paid_at: string | null
+  /** Tatsächlich eingegangen, wenn weniger als `total_amount` (Skonto u. ä.);
+   *  null = voll bezahlt. */
+  paid_amount?: number | null
   storage_path?: string | null
   customer_email?: string | null
   projektleiter_id: string | null
@@ -176,11 +179,13 @@ export async function sendInvoice(invoiceId: number, recipientEmail: string): Pr
   })
 }
 
-/** `paidAt` ist das Zahlungsdatum (ISO), nicht der Zeitpunkt des Klicks. */
-export async function markInvoicePaid(id: number, paidAt: string): Promise<void> {
+/** `paidAt` ist das Zahlungsdatum (ISO), nicht der Zeitpunkt des Klicks.
+ *  `paidAmount` = eingegangener Betrag, wenn weniger als die Rechnung (Skonto);
+ *  null/weggelassen = voll bezahlt. */
+export async function markInvoicePaid(id: number, paidAt: string, paidAmount: number | null = null): Promise<void> {
   await apiFetch(`/pwa/admin/invoices/${id}/mark-paid`, {
     method: 'POST',
-    body: JSON.stringify({ paid_at: paidAt }),
+    body: JSON.stringify({ paid_at: paidAt, paid_amount: paidAmount }),
   })
 }
 

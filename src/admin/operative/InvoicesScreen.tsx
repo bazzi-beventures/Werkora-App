@@ -13,6 +13,8 @@ import { getAdminStaff } from '../../api/admin/staff'
 import { INVOICE_STATUS_LABELS as STATUS_LABELS, INVOICE_STATUS_BADGE as STATUS_BADGE } from '../constants/statuses'
 import { fmtCHF, fmtDate, todayISO } from '../utils/format'
 import { invoiceWarningHint, sammelrechnungHint } from '../utils/invoiceHints'
+import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../utils/paidAmount'
+import { PaidAmountField } from './PaidAmountField'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { AdminCardList } from '../components/AdminCardList'
@@ -62,6 +64,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // Zahlungsdatum: vorbelegt mit heute, nachtragbar — der Eingang wird oft erst
   // Tage später im Dashboard erfasst (Umsatzmonat + Aftersales-Frist hängen dran).
   const [paidDate, setPaidDate] = useState('')
+  const [paidAmount, setPaidAmount] = useState('')
   // Nach dem Bezahlen: «Projekt abschliessen?» — die Rechnung ist meist der
   // letzte Schritt eines Auftrags, das Schliessen ging bisher nur im Projekt.
   const [confirmCloseProject, setConfirmCloseProject] = useState<Invoice | null>(null)
@@ -242,8 +245,11 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
 
   function openPaid(inv: Invoice) {
     setPaidDate(todayISO())
+    setPaidAmount(paidAmountDefault(inv.total_amount))
     setConfirmPaid(inv)
   }
+
+  const paidCheck = confirmPaid ? checkPaidAmount(paidAmount, confirmPaid.total_amount) : null
 
   // Klick auf eine Rechnung öffnet ihr Projekt. Alt-Rechnungen ohne project_id
   // (Backfill) bleiben unklickbar — es gibt kein eindeutiges Ziel.
@@ -270,9 +276,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   }
 
   async function handleMarkPaid(inv: Invoice) {
+    if (!paidCheck?.ok) return
     setActing(inv.id)
     try {
-      await markInvoicePaid(inv.id, paidDate)
+      await markInvoicePaid(inv.id, paidDate, paidCheck.amount)
       showToast('Rechnung als bezahlt markiert', 'success')
       setConfirmPaid(null)
       load()
@@ -436,6 +443,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                 <div className="admin-card-meta"><strong>{inv.project_name}</strong></div>
                 <div className="admin-card-meta">
                   {fmtCHF(inv.total_amount)} · erstellt {fmtDate(inv.created_at)}{inv.paid_at ? ` · bezahlt ${fmtDate(inv.paid_at)}` : ''}
+                  {paidDeduction(inv) != null && ` · erhalten ${fmtCHF(inv.paid_amount!)}`}
                 </div>
                 {/* Aktionen dürfen nicht ins Projekt springen — Klick hier stoppen. */}
                 <div className="admin-card-actions" onClick={e => e.stopPropagation()}>
@@ -503,7 +511,15 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                 >
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{inv.invoice_number}</td>
                   <td><strong>{inv.project_name}</strong></td>
-                  <td style={{ fontWeight: 700 }}>{fmtCHF(inv.total_amount)}</td>
+                  <td style={{ fontWeight: 700 }}>
+                    {fmtCHF(inv.total_amount)}
+                    {paidDeduction(inv) != null && (
+                      <div style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}
+                           title="Weniger eingegangen als verrechnet (z. B. Skonto)">
+                        erhalten {fmtCHF(inv.paid_amount!)}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <span className={`admin-badge ${STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>
                       {STATUS_LABELS[inv.status] || inv.status}
@@ -596,7 +612,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           confirmLabel="Ja, bezahlt"
           busyLabel="…"
           busy={acting === confirmPaid.id}
-          confirmDisabled={!paidDate}
+          confirmDisabled={!paidDate || !paidCheck?.ok}
           variant="success"
           onCancel={() => setConfirmPaid(null)}
           onConfirm={() => void handleMarkPaid(confirmPaid)}
@@ -615,6 +631,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
               Tag des Zahlungseingangs — nachtragbar, vorbelegt mit heute.
             </div>
           </div>
+          <PaidAmountField id="invoice-paid-amount" value={paidAmount}
+                           total={confirmPaid.total_amount} onChange={setPaidAmount} />
         </ConfirmDialog>
       )}
 

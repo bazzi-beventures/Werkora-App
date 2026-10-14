@@ -31,6 +31,7 @@ export interface ProjectInvoice {
   status: string
   created_at: string
   paid_at: string | null
+  paid_amount?: number | null
   storage_path?: string | null
   created_without_report?: boolean
 }

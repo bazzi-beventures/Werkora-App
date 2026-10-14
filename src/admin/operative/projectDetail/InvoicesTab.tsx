@@ -8,6 +8,8 @@ import { AutoGrowTextarea } from '../../components/AutoGrowTextarea'
 import { QuoteCoverageSelect } from '../../components/QuoteCoverageSelect'
 import { defaultCheckedIds, selectionPayload, showQuoteSelection } from '../../utils/quoteSelection'
 import { GeneralDeductionFields } from '../../components/GeneralDeductionFields'
+import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../../utils/paidAmount'
+import { PaidAmountField } from '../PaidAmountField'
 import {
   generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
   type GeneralDeductionConfig, type GeneralDeductionPayload, type GeneralDeductionState,
@@ -38,7 +40,7 @@ interface InvoicesTabProps {
   // Bezahlt-Markierung; `paidDate` ist der Tag des Zahlungseingangs (ISO),
   // nachtragbar statt automatisch «heute». Liefert true bei Erfolg — der Dialog
   // schliesst nur dann.
-  onMarkPaid: (invoiceId: number, paidDate: string) => Promise<boolean>
+  onMarkPaid: (invoiceId: number, paidDate: string, paidAmount?: number | null) => Promise<boolean>
   onUnmarkPaid: (invoiceId: number) => Promise<void>
   onArchive: (invoiceId: number) => Promise<void>
   onSendInvoice: (invoiceId: number, recipientEmail: string) => Promise<boolean>
@@ -55,6 +57,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   const [postalDate, setPostalDate] = useState('')
   const [confirmPaid, setConfirmPaid] = useState<ProjectInvoice | null>(null)
   const [paidDate, setPaidDate] = useState('')
+  const [paidAmount, setPaidAmount] = useState('')
   // Generieren-Dialog: traegt das Bemerkungs-Feld und (ohne unterschriebenen
   // Rapport) den frueheren Bestaetigungs-Hinweis — ein Dialog statt zwei.
   const [showGenerate, setShowGenerate] = useState(false)
@@ -99,13 +102,16 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
 
   function openPaid(inv: ProjectInvoice) {
     setPaidDate(todayISO())
+    setPaidAmount(paidAmountDefault(inv.total_amount))
     setConfirmPaid(inv)
   }
 
+  const paidCheck = confirmPaid ? checkPaidAmount(paidAmount, confirmPaid.total_amount) : null
+
   async function handlePaidConfirm() {
-    if (!confirmPaid || !paidDate) return
+    if (!confirmPaid || !paidDate || !paidCheck?.ok) return
     setActing(true)
-    const ok = await onMarkPaid(confirmPaid.id, paidDate)
+    const ok = await onMarkPaid(confirmPaid.id, paidDate, paidCheck.amount)
     setActing(false)
     // Nur bei Erfolg schliessen — sonst wäre die Fehlermeldung des Backends
     // (400 «Datum vor Rechnungsdatum») weg, bevor sie jemand liest.
@@ -204,7 +210,14 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                     <span className={`admin-badge proj-doc-status ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
                     <span className="proj-doc-date">{fmtDate(inv.created_at)}</span>
                     <div className="proj-doc-tail">
-                      <span className="proj-doc-amount">{fmtCHF(inv.total_amount)}</span>
+                      <span className="proj-doc-amount">
+                        {fmtCHF(inv.total_amount)}
+                        {paidDeduction(inv) != null && (
+                          <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }} title="Weniger eingegangen als verrechnet (z. B. Skonto)">
+                            {' '}· erhalten {fmtCHF(inv.paid_amount!)}
+                          </span>
+                        )}
+                      </span>
                       <div className="proj-doc-actions">
                         {inv.storage_path && (
                           <a href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)} target="_blank" rel="noreferrer" className="admin-btn admin-btn-secondary admin-btn-sm">PDF</a>
@@ -386,7 +399,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           confirmLabel="Ja, bezahlt"
           busyLabel="Wird markiert…"
           busy={acting}
-          confirmDisabled={!paidDate}
+          confirmDisabled={!paidDate || !paidCheck?.ok}
           variant="success"
           maxWidth={440}
           onCancel={() => { if (!acting) setConfirmPaid(null) }}
@@ -406,6 +419,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
               Tag des Zahlungseingangs — nachtragbar, vorbelegt mit heute.
             </div>
           </div>
+          <PaidAmountField id="proj-invoice-paid-amount" value={paidAmount}
+                           total={confirmPaid.total_amount} onChange={setPaidAmount} />
         </ConfirmDialog>
       )}
 

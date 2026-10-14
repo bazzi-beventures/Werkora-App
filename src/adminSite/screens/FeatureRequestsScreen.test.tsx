@@ -162,6 +162,27 @@ describe('FeatureRequestsScreen — Eingang', () => {
       'r-1', { aktion: 'rueckfrage', text: 'Welche Maske meinst du?', notify: true }))
   })
 
+  it('zeigt keinen Ausgang, den dieses Bundle nicht kennt (kein leeres Radio)', async () => {
+    api.fetchFeatureRequest.mockResolvedValue({
+      ...REQUEST, description: 'x', similar: [],
+      allowed_actions: ['zuordnen', 'kuenftige_aktion', 'ablehnen'],
+    })
+    const dialog = await oeffneAnfrage()
+    const gruppe = within(dialog).getByRole('radiogroup', { name: 'Ausgang' })
+    const radios = within(gruppe).getAllByRole('radio')
+    expect(radios).toHaveLength(2)
+    radios.forEach(r => expect(r.closest('label')?.textContent?.trim()).toBeTruthy())
+  })
+
+  it('zeigt die Beschreibung nicht doppelt, wenn sie dem Titel gleicht', async () => {
+    api.fetchFeatureRequest.mockResolvedValue({
+      ...REQUEST, title: 'Kunde zieht Skonto ab', description: 'Kunde zieht Skonto ab', similar: [],
+      allowed_actions: ['zuordnen'],
+    })
+    const dialog = await oeffneAnfrage()
+    expect(within(dialog).getAllByText('Kunde zieht Skonto ab')).toHaveLength(1)
+  })
+
   it('zeigt Rückfragen samt Antwort des Einreichers', async () => {
     api.fetchFeatureRequest.mockResolvedValue({
       ...REQUEST, description: 'Auf der ersten Maske', similar: [], allowed_actions: ['zuordnen'],

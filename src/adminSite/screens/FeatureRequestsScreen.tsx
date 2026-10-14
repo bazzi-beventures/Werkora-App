@@ -232,7 +232,10 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
             </dl>
 
             {req.title && <div className="fr-quote-title">{req.title}</div>}
-            {req.description && <div className="fr-quote">{req.description}</div>}
+            {/* Aus einer kurzen Support-Meldung sind Titel und Text oft derselbe Satz. */}
+            {req.description && req.description.trim() !== req.title?.trim() && (
+              <div className="fr-quote">{req.description}</div>
+            )}
             {req.problem && (
               <>
                 <div className="fr-section-title">Wofür / was klemmt heute</div>
@@ -305,7 +308,11 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
 
             <div className="fr-section-title">Was passiert damit?</div>
             <div className="fr-actions-list" role="radiogroup" aria-label="Ausgang">
-              {req.allowed_actions.map(a => (
+              {/* Nur Ausgänge, die dieses Bundle kennt: liefert ein neueres Backend
+                  eine Aktion, die ein noch gecachter Client nicht kennt, stünde
+                  sonst ein Radio ohne Beschriftung da — und wählbar wäre eine
+                  Aktion, deren Pflichtfelder dieser Client nicht rendert. */}
+              {req.allowed_actions.filter(a => a in ACTION_LABEL).map(a => (
                 <label key={a} className="fr-check">
                   <input type="radio" name="aktion" checked={action === a} onChange={() => setAction(a)} />
                   {ACTION_LABEL[a]}

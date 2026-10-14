@@ -60,7 +60,22 @@ describe('InvoicesScreen — bezahlt markieren', () => {
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/invoices/42/mark-paid', {
         method: 'POST',
-        body: JSON.stringify({ paid_at: todayISO() }),
+        body: JSON.stringify({ paid_at: todayISO(), paid_amount: null }),
+      }),
+    )
+  })
+
+  it('schickt den eingegangenen Betrag, wenn der Kunde Skonto abzieht (WW-19)', async () => {
+    await openPaidDialog()
+    const amount = screen.getByLabelText('Eingegangener Betrag (CHF)')
+    await userEvent.clear(amount)
+    await userEvent.type(amount, '100')
+    expect(screen.getByText(/Abzug CHF/)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Ja, bezahlt' }))
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/invoices/42/mark-paid', {
+        method: 'POST',
+        body: JSON.stringify({ paid_at: todayISO(), paid_amount: 100 }),
       }),
     )
   })
@@ -75,7 +90,7 @@ describe('InvoicesScreen — bezahlt markieren', () => {
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/invoices/42/mark-paid', {
         method: 'POST',
-        body: JSON.stringify({ paid_at: '2026-08-11' }),
+        body: JSON.stringify({ paid_at: '2026-08-11', paid_amount: null }),
       }),
     )
   })

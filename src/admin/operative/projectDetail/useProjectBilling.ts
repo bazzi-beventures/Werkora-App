@@ -62,7 +62,7 @@ export interface UseProjectBilling {
   ) => Promise<boolean>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
   loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
-  markPaid: (invoiceId: number, paidDate: string) => Promise<boolean>
+  markPaid: (invoiceId: number, paidDate: string, paidAmount?: number | null) => Promise<boolean>
   unmarkPaid: (invoiceId: number) => Promise<void>
   archive: (invoiceId: number) => Promise<void>
   send: (invoiceId: number, recipientEmail: string) => Promise<boolean>
@@ -324,9 +324,9 @@ export function useProjectBilling(
   // `paidDate` = Tag des Zahlungseingangs (ISO), nachtragbar statt automatisch
   // «heute». Danach fragt der Screen «Projekt abschliessen?» — die bezahlte
   // Rechnung ist meist der letzte Schritt eines Auftrags.
-  async function markPaid(invoiceId: number, paidDate: string): Promise<boolean> {
+  async function markPaid(invoiceId: number, paidDate: string, paidAmount: number | null = null): Promise<boolean> {
     try {
-      await markInvoicePaid(invoiceId, paidDate)
+      await markInvoicePaid(invoiceId, paidDate, paidAmount)
       await reloadInvoices()
       cb.onInvoicePaid()
       return true
