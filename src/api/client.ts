@@ -119,6 +119,11 @@ async function parseErrorDetail(res: Response): Promise<{ text: string; code?: s
   return { text: text || `Serverfehler (HTTP ${res.status})`, code }
 }
 
+// Server-Code für «Sitzung liess sich gerade nicht prüfen» — ausdrücklich KEIN
+// «Sitzung abgelaufen» (das wäre 401). Siehe Support WS-28.
+const AUTH_UNAVAILABLE = 'auth_unavailable'
+export const AUTH_RETRY_DELAY_MS = 1500
+
 export interface ApiFetchOptions extends RequestInit {
   // Bricht den Request nach dieser Zeit ab (wird zu ApiError status 0). Für
   // Aktionen mit Offline-Queue: im Funkloch hängt fetch sonst minutenlang,
@@ -136,7 +141,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
   const controller = timeoutMs !== undefined ? new AbortController() : null
   const timer = controller !== null ? setTimeout(() => controller.abort(), timeoutMs) : null
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
+    const send = () => fetch(`${BASE_URL}${path}`, {
       ...init,
       ...(controller !== null ? { signal: controller.signal } : {}),
       credentials: 'include',
@@ -145,6 +150,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
         ...(init.headers ?? {}),
       },
     })
+    let res = await send()
 
     // Beweist diese Antwort, dass die Leitung trägt? Nur bei einem MUTIERENDEN
     // Request. Der Service Worker bedient `/pwa/`-GETs per NetworkFirst aus dem
@@ -156,7 +162,19 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     if ((init.method ?? 'GET').toUpperCase() !== 'GET') noteRequestSuccess()
 
     if (!res.ok) {
-      const { text, code } = await parseErrorDetail(res)
+      let { text, code } = await parseErrorDetail(res)
+      // Die Sitzungsprüfung kam gerade nicht an die DB (Server: 503
+      // auth_unavailable, agents/routers/_deps.py). Der Request ist dabei nie
+      // bis zum Handler gelangt — ein zweiter Versuch ist auch für POST/PATCH
+      // gefahrlos und fängt den typischen Sekunden-Aussetzer ab, ohne dass der
+      // Nutzer eine Fehlermeldung sieht. Genau einmal, damit ein echter Ausfall
+      // nicht in einer Schleife hängt.
+      if (res.status === 503 && code === AUTH_UNAVAILABLE) {
+        await new Promise(resolve => setTimeout(resolve, AUTH_RETRY_DELAY_MS))
+        res = await send()
+        if (res.ok) return res.json()
+        ;({ text, code } = await parseErrorDetail(res))
+      }
       if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }

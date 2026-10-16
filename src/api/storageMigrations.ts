@@ -25,6 +25,9 @@ function isKnownKey(k: string): boolean {
   if (k === 'projektEntwurf_offline_queue') return true
   if (k === 'hinweise_offline_queue') return true
   if (k.startsWith('quote-draft:')) return true  // lokaler Offert-Zwischenstand (pro Projekt)
+  // Ungespeicherte Änderungen der Offerten-Bearbeiten-Maske, pro Offerte (WS-28).
+  // Additiver Key, keine APP_DATA_VERSION-Erhöhung nötig.
+  if (k.startsWith('quote-edit-draft:')) return true
   if (k.startsWith('rapport-draft:')) return true  // lokaler Rapport-Zwischenstand (pro Mitarbeiter)
   if (k.startsWith('offline-lesepaket:')) return true  // Offline-Snapshot der Lesedaten (pro Mitarbeiter)
   // Zwischenstand des Offline-Rapport-Formulars, pro Mitarbeiter UND Projekt

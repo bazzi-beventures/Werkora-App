@@ -315,3 +315,64 @@ describe('connectionHealth-Rückmeldung', () => {
     expect(connectionSeemsDown()).toBe(true)
   })
 })
+
+// Support WS-28: ein DB-Aussetzer bei der Sitzungsprüfung kommt als 503
+// auth_unavailable — nie als 401. Der Client versucht genau einmal neu und
+// meldet den Nutzer in keinem Fall ab.
+describe('apiFetch — Sitzungsprüfung kurz nicht erreichbar (503 auth_unavailable)', () => {
+  const authUnavailable = () => makeRes({
+    ok: false, status: 503,
+    body: { detail: { code: 'auth_unavailable', message: 'Server kurz nicht erreichbar – bitte gleich nochmals versuchen.' } },
+  })
+
+  beforeEach(() => {
+    resetSessionExpiredFlag()
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it('versucht einmal neu und liefert die zweite Antwort, ohne auth:expired', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(authUnavailable())
+      .mockResolvedValueOnce(makeRes({ ok: true, status: 200, body: { ok: 1 } }))
+    vi.stubGlobal('fetch', fetchMock)
+    const expired = vi.fn()
+    window.addEventListener('auth:expired', expired)
+
+    const p = apiFetch('/pwa/me')
+    await vi.advanceTimersByTimeAsync(2000)
+
+    await expect(p).resolves.toEqual({ ok: 1 })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(expired).not.toHaveBeenCalled()
+    window.removeEventListener('auth:expired', expired)
+  })
+
+  it('wirft nach dem zweiten 503 die Klartext-Meldung — kein dritter Versuch, kein Logout', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => authUnavailable())
+    vi.stubGlobal('fetch', fetchMock)
+    const expired = vi.fn()
+    window.addEventListener('auth:expired', expired)
+
+    const p = apiFetch('/pwa/admin/quotes/1', { method: 'PATCH', body: '{}' })
+    const assertion = expect(p).rejects.toMatchObject({ status: 503, code: 'auth_unavailable' })
+    await vi.advanceTimersByTimeAsync(2000)
+    await assertion
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(expired).not.toHaveBeenCalled()
+    window.removeEventListener('auth:expired', expired)
+  })
+
+  it('anderer 503 (ohne auth_unavailable) wird nicht wiederholt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(makeRes({ ok: false, status: 503, body: { detail: 'TEL_API_KEY nicht konfiguriert' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(apiFetch('/pwa/x')).rejects.toMatchObject({ status: 503 })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})

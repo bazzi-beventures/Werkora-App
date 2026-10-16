@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { QuoteCreateForm } from '../quotes/QuoteCreateForm'
 import type { QuoteCreateFormHandle } from '../quotes/QuoteCreateForm'
 import { QuoteEditForm } from '../quotes/QuoteEditForm'
+import { quoteEditDraftKey, removeQuoteEditDraft } from '../quotes/quoteEditDraft'
 import type { QuoteDetail } from '../quotes/quoteTypes'
 import { ReportCreateForm } from '../ReportCreateForm'
 import type { Project } from '../../../api/admin/projects'
@@ -74,18 +75,22 @@ export function ProjectMaskDialogs({
    */
   reportDirtyRef?: React.MutableRefObject<boolean>
 }) {
-  // Die Bearbeiten-Maske kennt keinen localStorage-Entwurf — geaenderte
-  // Positionen leben nur in ihrem State. Sie meldet ueber onDirtyChange, ob
-  // etwas offen ist; ein Klick neben das Fenster fragt dann nach, statt alles
-  // wegzuwerfen.
+  // Die Bearbeiten-Maske meldet ueber onDirtyChange, ob etwas offen ist; ein
+  // Klick neben das Fenster fragt dann nach, statt alles wegzuwerfen. Ihren
+  // localStorage-Entwurf (quoteEditDraft.ts) haelt sie selbst — er soll nur einen
+  // Abbau OHNE Entscheidung ueberleben (Sitzung abgelaufen, WS-28). Jeder Weg
+  // durch `close` ist eine Entscheidung (Speichern, Abbrechen, «Verwerfen»),
+  // darum wird der Entwurf hier mit weggeraeumt.
   const editQuoteDirty = useRef(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const markDirty = useCallback((dirty: boolean) => { editQuoteDirty.current = dirty }, [])
+  const editQuoteId = editQuote?.id
   const close = useCallback(() => {
     setConfirmDiscard(false)
     editQuoteDirty.current = false
+    if (editQuoteId !== undefined) removeQuoteEditDraft(quoteEditDraftKey(editQuoteId))
     onEditQuoteClose()
-  }, [onEditQuoteClose])
+  }, [onEditQuoteClose, editQuoteId])
 
   // Neue Offerte: der Backdrop-Klick laeuft ueber das requestClose-Handle des
   // Formulars — dieselbe Rueckfrage wie ✕/Esc/Abbrechen dort.
@@ -169,8 +174,8 @@ export function ProjectMaskDialogs({
       {/* ── Dialog: Offerte bearbeiten (nur Entwürfe) ────────── */}
       {/* Klick ausserhalb (auf das Overlay) verlässt die Maske. Solange nichts
           geändert wurde, direkt — das PDF entsteht erst beim Speichern, Verlassen
-          erzeugt nichts. Sind Änderungen offen, kommt zuerst die Rückfrage; sie
-          gingen sonst ersatzlos verloren (kein Entwurf wie beim Erstellen). */}
+          erzeugt nichts. Sind Änderungen offen, kommt zuerst die Rückfrage —
+          «Verwerfen» räumt auch den Entwurf der Maske weg. */}
       {editQuote && (
         <div
           className="admin-confirm-overlay"

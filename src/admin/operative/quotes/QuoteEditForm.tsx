@@ -1,9 +1,9 @@
 // Bestehende Offerte bearbeiten (Charge H2 — aus QuotesScreen.tsx herausgelöst).
 //
-// Unterschied zum Erstellen: hier gibt es keinen localStorage-Entwurf (was in der
-// Maske steht, existiert nur im State) und kein Katalog-Material — die
-// gespeicherte Offerte trägt aufgelöste Zeilen ohne Artikelnummer. Dafür ist der
-// Rechnungsempfänger änderbar und Fahrtkosten sind eigene Zeilen.
+// Unterschied zum Erstellen: kein Katalog-Material — die gespeicherte Offerte
+// trägt aufgelöste Zeilen ohne Artikelnummer. Dafür ist der Rechnungsempfänger
+// änderbar und Fahrtkosten sind eigene Zeilen. Ungespeicherte Änderungen hält ein
+// eigener localStorage-Entwurf je Offerte fest (quoteEditDraft.ts, seit WS-28).
 
 import { useEffect, useState } from 'react'
 import { updateQuote } from '../../../api/admin/quotes'
@@ -25,6 +25,10 @@ import {
   SpecialPositionsFieldset,
 } from './QuoteFieldsets'
 import { buildEditQuotePayload, specialModeFromUnit } from './quotePayload'
+import {
+  fingerprint, loadQuoteEditDraft, quoteEditDraftKey, removeQuoteEditDraft, saveQuoteEditDraft,
+} from './quoteEditDraft'
+import type { QuoteEditDraftData } from './quoteEditDraft'
 import { applyEkMargin } from './quoteRows'
 import { useQuoteMasterData } from './useQuoteMasterData'
 import { useQuotePdfImport } from './useQuotePdfImport'
@@ -139,22 +143,80 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
   useEffect(() => { getAllCustomers().then(setCustomers).catch(() => {}) }, [])
 
   // ── Dirty-Check ──
-  // Anders als beim Erstellen gibt es hier keinen localStorage-Entwurf: was in
-  // dieser Maske steht, existiert nur im State. Der Aufrufer (Projekt-Dialog)
-  // erfährt darüber, ob ein Klick neben das Fenster etwas wegwerfen würde.
-  // Alle Felder stammen aus `quote` und werden nicht nachgeladen — der erste
-  // Render taugt darum als Vergleichswert.
-  const editSnapshot = JSON.stringify({
+  // Der Aufrufer (Projekt-Dialog) erfährt darüber, ob ein Klick neben das Fenster
+  // etwas wegwerfen würde. Alle Felder stammen aus `quote` und werden nicht
+  // nachgeladen — der erste Render taugt darum als Vergleichswert.
+  const editData: QuoteEditDraftData = {
     laborRows: labor.rows, materialRows: material.rows, extraProducts: extraProducts.rows,
     extraCharges: extraCharges.rows, travelRows: travel.rows, installationRows: installation.rows,
     specialRows: special.rows, laborDiscount, materialDiscount, fixedPrice, skontoActive, skontoPct,
     skontoDays, notes, productDescription, customerId, quoteType,
-  })
+  }
+  const editSnapshot = JSON.stringify(editData)
   // useState statt useRef: der Startwert wird nur beim ersten Render berechnet
   // und darf im Render gelesen werden.
   const [initialSnapshot] = useState(editSnapshot)
   const isDirty = editSnapshot !== initialSnapshot
   useEffect(() => { onDirtyChange?.(isDirty) }, [isDirty, onDirtyChange])
+
+  // ── Entwurf (WS-28) ──
+  // Wird die Maske abgebaut, ohne dass jemand «Abbrechen» drückt — die Sitzung
+  // läuft ab und die App springt aufs Login —, sollen die Änderungen beim
+  // nächsten Öffnen wieder da sein. Details in quoteEditDraft.ts.
+  const draftKey = quoteEditDraftKey(quote.id)
+  const [base] = useState(() => fingerprint(initialSnapshot))
+  // Einmal beim Öffnen gelesen. `stale`: die Offerte wurde seit dem Entwurf
+  // gespeichert — dann nicht still übernehmen, sondern fragen.
+  const [draft, setDraft] = useState(() => {
+    const stored = loadQuoteEditDraft(draftKey)
+    return stored ? { savedAt: stored.savedAt, data: stored.data, stale: stored.base !== base } : null
+  })
+
+  function applyData(d: QuoteEditDraftData) {
+    labor.reset(d.laborRows); material.reset(d.materialRows); extraProducts.reset(d.extraProducts)
+    extraCharges.reset(d.extraCharges); travel.reset(d.travelRows); installation.reset(d.installationRows)
+    special.reset(d.specialRows)
+    setLaborDiscount(d.laborDiscount); setMaterialDiscount(d.materialDiscount); setFixedPrice(d.fixedPrice)
+    setSkontoActive(d.skontoActive); setSkontoPct(d.skontoPct); setSkontoDays(d.skontoDays)
+    setNotes(d.notes); setProductDescription(d.productDescription); setCustomerId(d.customerId)
+    setQuoteType(d.quoteType)
+  }
+
+  // Passender Entwurf: ohne Rückfrage übernehmen («Entwurf zuerst», wie beim Erstellen).
+  useEffect(() => {
+    if (draft && !draft.stale) applyData(draft.data)
+    // Nur beim Öffnen — danach schreibt die Maske selbst.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Laufend festhalten. Solange ein veralteter Entwurf auf Antwort wartet, bleibt
+  // er unangetastet — sonst ginge er schon beim Öffnen verloren.
+  const draftPending = draft?.stale === true
+  useEffect(() => {
+    if (draftPending) return
+    if (isDirty) saveQuoteEditDraft(draftKey, { savedAt: Date.now(), base, data: JSON.parse(editSnapshot) })
+    else removeQuoteEditDraft(draftKey)
+  }, [draftKey, base, editSnapshot, isDirty, draftPending])
+
+  function takeStaleDraft() {
+    if (!draft) return
+    applyData(draft.data)
+    setDraft({ ...draft, stale: false })
+  }
+
+  function discardDraft() {
+    removeQuoteEditDraft(draftKey)
+    // Nur ein übernommener Entwurf steht in den Feldern. Beim veralteten zeigt die
+    // Maske den gespeicherten Stand — und womöglich schon neue Eingaben, die
+    // «Verwerfen» (gemeint ist der alte Entwurf) nicht anrühren darf.
+    if (draft && !draft.stale) applyData(JSON.parse(initialSnapshot) as QuoteEditDraftData)
+    setDraft(null)
+  }
+
+  function cancel() {
+    removeQuoteEditDraft(draftKey)
+    onCancel()
+  }
 
   // Katalog-Material an die (Freitext-)Materialliste anhängen: art_nr wird beim
   // Bearbeiten NICHT gespeichert (das PATCH erwartet aufgelöste Zeilen), daher lösen
@@ -194,6 +256,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
       // Per OCR eingelesene Lieferanten-PDFs als Projekt-Datei ablegen (Kategorie
       // 'bestellungen'). Best-effort — die Offerte ist zu diesem Zeitpunkt gespeichert.
       if (quote.project_id && pdf.hasSupplierDocs) await pdf.fileSupplierDocs(quote.project_id)
+      removeQuoteEditDraft(draftKey)
       onDone(updated.fixed_price_missed ? `Gespeichert — aber der Fixpreis geht nicht auf: Total der Offerte ist CHF ${fmtCHF(updated.total_amount ?? 0)}, nicht der eingegebene Fixpreis. Bitte prüfen.` : undefined)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
@@ -204,7 +267,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
 
   return (
     <div className="admin-table-wrap" style={{ padding: 24 }}>
-      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={onCancel} disabled={saving} style={{ marginBottom: 12 }}>← Zurück</button>
+      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={cancel} disabled={saving} style={{ marginBottom: 12 }}>← Zurück</button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 4px' }}>
         <h3 style={{ margin: 0 }}>{quoteType === 'richtofferte' ? 'Richtofferte bearbeiten' : 'Offerte bearbeiten'}</h3>
         {/* Derselbe Umschalter wie im Erstell-Formular — hier zusätzlich an den
@@ -232,6 +295,25 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
       <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 20 }}>{quote.quote_number} · {quote.project_name}</div>
 
       {error && <div className="admin-alert admin-alert-error" style={{ marginBottom: 16 }}>{error}</div>}
+
+      {/* Entwurf aus einer früheren, nicht gespeicherten Bearbeitung. Passt er zur
+          gespeicherten Offerte, sind die Felder schon gefüllt (reiner Hinweis);
+          wurde sie seither gespeichert, entscheidet der Nutzer. */}
+      {draft && (
+        <div style={{ marginBottom: 16, padding: '12px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', textAlign: 'left' }}>
+          <span style={{ fontSize: 13 }}>
+            {draft.stale
+              ? <>Es gibt ungespeicherte Änderungen{fmtDraftTime(draft.savedAt)}. Die Offerte wurde seither gespeichert — übernehmen ersetzt den gespeicherten Stand in der Maske.</>
+              : <>Ungespeicherte Änderungen{fmtDraftTime(draft.savedAt)} wiederhergestellt.</>}
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {draft.stale && (
+              <button type="button" className="admin-btn admin-btn-primary admin-btn-sm" onClick={takeStaleDraft}>Übernehmen</button>
+            )}
+            <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm" onClick={discardDraft}>Verwerfen</button>
+          </div>
+        </div>
+      )}
 
       {/* Kunde — eigenständig gegenüber dem Projektkunden. overflow:visible, damit
           das Combobox-Dropdown nicht am fieldset abgeschnitten wird. */}
@@ -400,7 +482,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
         <button className="admin-btn admin-btn-primary" onClick={handleSave} disabled={saving}>
           {saving ? 'Wird gespeichert…' : 'Änderungen speichern'}
         </button>
-        <button className="admin-btn admin-btn-secondary" onClick={onCancel} disabled={saving}>Abbrechen</button>
+        <button className="admin-btn admin-btn-secondary" onClick={cancel} disabled={saving}>Abbrechen</button>
       </div>
 
       {pdf.pdfReview && (
@@ -415,4 +497,10 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
       )}
     </div>
   )
+}
+
+function fmtDraftTime(savedAt: number): string {
+  return savedAt
+    ? ` vom ${new Date(savedAt).toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+    : ''
 }

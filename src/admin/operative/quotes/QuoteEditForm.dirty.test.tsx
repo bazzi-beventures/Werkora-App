@@ -1,11 +1,12 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QuoteEditForm } from './QuoteEditForm'
 import type { QuoteDetail } from './quoteTypes'
 
-// Die Bearbeiten-Maske hat keinen localStorage-Entwurf: was hier steht, lebt nur
-// im State. Der Projekt-Dialog braucht darum eine verlässliche Dirty-Meldung,
-// bevor ein Klick neben das Fenster die Maske schliesst.
+// Der Projekt-Dialog braucht eine verlässliche Dirty-Meldung, bevor ein Klick
+// neben das Fenster die Maske schliesst. (Den localStorage-Entwurf prüft
+// QuoteEditForm.draft.test.tsx; hier wird er vor jedem Fall geleert, sonst
+// übernähme ein Fall die Eingaben des vorigen.)
 vi.mock('../../../api/client', () => ({
   apiFetch: vi.fn(async () => []),
   apiFormFetch: vi.fn(async () => ({})),
@@ -42,6 +43,8 @@ function quote(over: Partial<QuoteDetail> = {}): QuoteDetail {
 }
 
 describe('QuoteEditForm — Dirty-Meldung', () => {
+  beforeEach(() => localStorage.clear())
+
   it('meldet beim Öffnen «nicht geändert»', async () => {
     const onDirtyChange = vi.fn()
     render(<QuoteEditForm quote={quote()} onDone={() => {}} onCancel={() => {}} onDirtyChange={onDirtyChange} />)
