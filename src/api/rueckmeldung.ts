@@ -56,6 +56,9 @@ export interface Plan {
   treffer: number
   mails: number
   offene_projekte: number
+  /** Projekte in den Mails, die ihre Mail schon einmal bekommen haben (nur bei
+   *  «Erneut senden»). Optional: ältere Backends liefern es nicht. */
+  erneut?: number
   bereits_gesendet: number
   /** Übersprungen: Projekt hat schon eine Offerte. */
   mit_offerte: number
@@ -124,11 +127,14 @@ export async function listProjekte(key: string): Promise<AuswahlProjekt[]> {
 }
 
 /** Probelauf für die angehakten Projekte — genau das, was der Versand mit
- *  derselben Auswahl verschicken würde. */
-export function probelauf(key: string, projectIds: string[]): Promise<{ plan: Plan; lauf: Lauf | null }> {
+ *  derselben Auswahl verschicken würde. `erneut`: auch an Projekte, die ihre
+ *  Mail schon haben (Spec §5.1) — muss beim Versand derselbe Wert sein. */
+export function probelauf(
+  key: string, projectIds: string[], erneut = false,
+): Promise<{ plan: Plan; lauf: Lauf | null }> {
   return apiFetch(`${k(key)}/probelauf`, {
     method: 'POST',
-    body: JSON.stringify({ project_ids: projectIds }),
+    body: JSON.stringify({ project_ids: projectIds, erneut }),
   })
 }
 
@@ -155,11 +161,11 @@ export function testmail(key: string, empfaenger?: string): Promise<{ ok: boolea
  * 409 `plan_geaendert` statt eines Versands, den niemand so bestätigt hat.
  */
 export function starteVersand(
-  key: string, projectIds: string[], erwarteteMails: number,
+  key: string, projectIds: string[], erwarteteMails: number, erneut = false,
 ): Promise<{ gestartet: boolean; mails: number; lauf: Lauf | null }> {
   return apiFetch(`${k(key)}/versand`, {
     method: 'POST',
-    body: JSON.stringify({ project_ids: projectIds, erwartete_mails: erwarteteMails }),
+    body: JSON.stringify({ project_ids: projectIds, erwartete_mails: erwarteteMails, erneut }),
   })
 }
 

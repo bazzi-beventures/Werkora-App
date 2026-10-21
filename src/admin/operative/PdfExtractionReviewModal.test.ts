@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildConfirmedRow, cardOfferTotal, RowState, PositionState } from './PdfExtractionReviewModal'
+import { buildConfirmedRow, cardOfferTotal, withColor, RowState, PositionState } from './PdfExtractionReviewModal'
 
 function row(patch: Partial<RowState> = {}): RowState {
   return {
@@ -8,6 +8,7 @@ function row(patch: Partial<RowState> = {}): RowState {
     quantity: '1',
     unit: 'Stk',
     ek_price: '',
+    color: '',
     category: '',
     margin_pct: '0',
     positions: [],
@@ -209,5 +210,48 @@ describe('buildConfirmedRow — leere Zeilen', () => {
     const out = buildConfirmedRow(row({ description: '1810×1280 (Gelenkkurbel)', ek_price: '80' }), null)
 
     expect(out[0].description).toBe('Rolpac III — 1810×1280 (Gelenkkurbel)')
+  })
+})
+
+describe('Farbe (WW-23: Griesser-Farbe direkt in die Offerte)', () => {
+  it('hängt die Farbe an jede separate Griesser-Zeile', () => {
+    const out = buildConfirmedRow(
+      row({
+        name: 'P206A.01 Lamisol III 90',
+        description: '3× Gelenkkurbel. Farbe VSR 140 Metallic.',
+        color: 'VSR 140 Metallic',
+        positions: [
+          pos({ label: '201 1720×1905', separate: true }),
+          pos({ label: '202 1600×2055', separate: true }),
+        ],
+      }),
+      null,
+    )
+
+    expect(out.map(l => l.description)).toEqual([
+      'P206A.01 Lamisol III 90 — 201 1720×1905, Farbe VSR 140 Metallic',
+      'P206A.01 Lamisol III 90 — 202 1600×2055, Farbe VSR 140 Metallic',
+    ])
+  })
+
+  it('wiederholt die Farbe nicht, wenn der Artikeltext sie schon nennt', () => {
+    const out = buildConfirmedRow(
+      row({ name: 'Lamisol', description: 'Farbe vsr 140  metallic', color: 'VSR 140 Metallic', ek_price: '10' }),
+      null,
+    )
+
+    expect(out[0].description).toBe('Lamisol — Farbe vsr 140  metallic')
+  })
+
+  it('ergänzt die Produktzeile, wenn der Artikeltext keine Farbe nennt', () => {
+    const out = buildConfirmedRow(row({ name: 'Lamisol', color: 'VSR 130 Grau', ek_price: '10' }), null)
+
+    expect(out[0].description).toBe('Lamisol, Farbe VSR 130 Grau')
+  })
+
+  it('lässt den Text ohne Farbe unverändert', () => {
+    expect(withColor('Lamisol — Küche', '')).toBe('Lamisol — Küche')
+    expect(withColor('Lamisol — Küche', '   ')).toBe('Lamisol — Küche')
+    expect(withColor('', 'VSR 140')).toBe('')
   })
 })

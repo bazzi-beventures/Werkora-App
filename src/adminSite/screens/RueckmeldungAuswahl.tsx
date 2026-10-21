@@ -50,12 +50,16 @@ interface Props {
   auswahl: Set<string>
   onAuswahl: (neu: Set<string>) => void
   gesperrt?: boolean
+  /** «Erneut senden»: schon angeschriebene Projekte sind wieder anhakbar. */
+  erneut?: boolean
 }
 
-export default function RueckmeldungAuswahl({ projekte, regelText, auswahl, onAuswahl, gesperrt = false }: Props) {
+export default function RueckmeldungAuswahl({
+  projekte, regelText, auswahl, onAuswahl, gesperrt = false, erneut = false,
+}: Props) {
   const [f, setF] = useState<Filter>(FILTER_START)
   const sichtbar = useMemo(() => filtere(projekte, f), [projekte, f])
-  const sichtbarWaehlbar = sichtbar.filter(auswaehlbar)
+  const sichtbarWaehlbar = sichtbar.filter((p) => auswaehlbar(p, erneut))
   const ohneEmail = projekte.filter((p) => !p.email).length
   const setze = (patch: Partial<Filter>) => setF((alt) => ({ ...alt, ...patch }))
 
@@ -152,7 +156,7 @@ export default function RueckmeldungAuswahl({ projekte, regelText, auswahl, onAu
           </thead>
           <tbody>
             {sichtbar.map((p) => {
-              const grund = sperrGrund(p)
+              const grund = sperrGrund(p, erneut)
               return (
                 <tr key={p.project_id}>
                   <td>

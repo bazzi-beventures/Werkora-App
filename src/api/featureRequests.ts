@@ -247,7 +247,11 @@ export interface FeatureDetail extends FeatureCard {
 export interface FeatureRequestDetail extends FeatureRequestRow {
   /** Nur im Betreiber-Detail; `url` signiert (15 Minuten), `null`, wenn das
    *  Signieren scheiterte. */
-  attachments?: { path: string; size?: number; content_type?: string; url: string | null }[]
+  attachments?: {
+    path: string; size?: number; content_type?: string; url: string | null
+    /** Index in `rueckfragen`, wenn das Bild zu einer Antwort kam; fehlt beim Wunsch selbst. */
+    rueckfrage?: number
+  }[]
   allowed_actions: TriageAction[]
   similar: FeatureCard[]
   feature?: Pick<FeatureCard, 'id' | 'feature_no' | 'title' | 'phase' | 'reference' | 'phase_label'> | null
@@ -613,8 +617,9 @@ export function uploadWishScreenshots(id: string, files: File[]): Promise<{ atta
 }
 
 /** Antwort auf eine Rückfrage des Betreibers (Spec §7.1a). Danach liegt der
- *  Wunsch wieder im Eingang; Screenshots gehen hinterher über
- *  `uploadWishScreenshots` — die Anfrage ist dann wieder `neu`. */
+ *  Wunsch wieder im Eingang. Screenshots zur Antwort gehen VORHER über
+ *  `uploadWishScreenshots`, solange die Rückfrage offen ist — je Antwort bis
+ *  zu `MAX_WISH_FILES`, zusätzlich zu denen beim Einreichen. */
 export function replyToWishQuestion(id: string, text: string): Promise<{ ok: boolean; triage: Triage }> {
   return apiFetch(`/pwa/features/requests/${id}/reply`, { method: 'POST', body: JSON.stringify({ text }) })
 }

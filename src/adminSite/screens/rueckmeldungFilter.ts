@@ -11,17 +11,20 @@ export type UmfrageFilter = 'alle' | 'offen' | 'angeschrieben' | 'beantwortet'
 /** Darf die Zeile angehakt werden? Angeschrieben wird nur, wer noch **keine
  *  Offerte und keine Mail** hat: ohne Adresse geht keine Mail raus, ein Projekt
  *  mit Offerte (auch Entwurf) ist schon in Arbeit, und eine Adresse, die schon
- *  angeschrieben ist, bekommt keine zweite Mail. Der Server prüft dasselbe. */
-export function auswaehlbar(p: AuswahlProjekt): boolean {
-  return sperrGrund(p) === ''
+ *  angeschrieben ist, bekommt keine zweite Mail. Der Server prüft dasselbe.
+ *
+ *  `erneut` («Erneut senden», Spec §5.1): die beiden Mail-Sperren fallen weg —
+ *  Offerte und fehlende Adresse sperren weiter. */
+export function auswaehlbar(p: AuswahlProjekt, erneut = false): boolean {
+  return sperrGrund(p, erneut) === ''
 }
 
-export function sperrGrund(p: AuswahlProjekt): string {
-  if (p.umfrage === 'beantwortet') return 'Hat bereits geantwortet'
-  if (p.umfrage === 'gesendet') return 'Ist bereits angeschrieben'
+export function sperrGrund(p: AuswahlProjekt, erneut = false): string {
+  if (!erneut && p.umfrage === 'beantwortet') return 'Hat bereits geantwortet'
+  if (!erneut && p.umfrage === 'gesendet') return 'Ist bereits angeschrieben'
   if (p.offerte !== 'keine') return 'Hat schon eine Offerte'
   if (!p.email) return 'Keine E-Mail-Adresse — telefonisch nachfassen'
-  if (p.adresse_angeschrieben) {
+  if (!erneut && p.adresse_angeschrieben) {
     return p.adresse_angeschrieben_fuer
       ? `Adresse hat schon eine Mail (für ${p.adresse_angeschrieben_fuer})`
       : 'Adresse hat schon eine Mail (anderes Projekt)'

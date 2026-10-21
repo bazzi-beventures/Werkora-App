@@ -24,11 +24,11 @@ const testmail = vi.fn()
 vi.mock('../../api/rueckmeldung', () => ({
   listKampagnen: () => listKampagnen(),
   listProjekte: (k: string) => listProjekte(k),
-  probelauf: (k: string, ids: string[]) => probelauf(k, ids),
+  probelauf: (k: string, ids: string[], erneut?: boolean) => probelauf(k, ids, erneut),
   stand: (k: string) => stand(k),
   vorschauMail: (k: string) => vorschauMail(k),
   vorschauSeite: (k: string) => vorschauSeite(k),
-  starteVersand: (k: string, ids: string[], n: number) => starteVersand(k, ids, n),
+  starteVersand: (k: string, ids: string[], n: number, erneut?: boolean) => starteVersand(k, ids, n, erneut),
   stoppeVersand: vi.fn(),
   testmail: (k: string, e?: string) => testmail(k, e),
   downloadExport: vi.fn(),
@@ -135,6 +135,16 @@ describe('rueckmeldungFilter', () => {
       .toEqual(['p7'])
   })
 
+  it('«Erneut senden» hebt die Mail-Sperren auf, aber nicht Offerte und fehlende Adresse', () => {
+    const gesendet = { ...PROJEKTE[4], umfrage: 'gesendet' as const }
+    const beantwortet = { ...PROJEKTE[4], umfrage: 'beantwortet' as const }
+    expect(auswaehlbar(gesendet, true)).toBe(true)
+    expect(auswaehlbar(beantwortet, true)).toBe(true)
+    expect(auswaehlbar(PROJEKTE[6], true)).toBe(true)                 // Adresse schon angeschrieben
+    expect(sperrGrund(PROJEKTE[0], true)).toBe('Hat schon eine Offerte')
+    expect(sperrGrund(PROJEKTE[2], true)).toMatch(/Keine E-Mail-Adresse/)
+  })
+
   it('findet nicht angehakte Projekte derselben Adresse', () => {
     const liste = [
       ...PROJEKTE,
@@ -192,12 +202,12 @@ describe('RueckmeldungScreen', () => {
     fireEvent.click(screen.getByLabelText('Graf Hettlingen HS auswählen'))
     fireEvent.click(screen.getByText(/Versand vorbereiten \(2 Projekte ausgewählt\)/))
 
-    await waitFor(() => expect(probelauf).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6']))
+    await waitFor(() => expect(probelauf).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6'], false))
     expect(starteVersand).not.toHaveBeenCalled()
     // Mandant und Anzahl stehen im Dialog — die Verwechslung ist der teuerste Fehler.
     expect(await screen.findByText(/2 Mails \(2 Projekte\) an Kunden von Gehlhaar GmbH/)).toBeTruthy()
     fireEvent.click(screen.getByText('2 Mails versenden'))
-    await waitFor(() => expect(starteVersand).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6'], 2))
+    await waitFor(() => expect(starteVersand).toHaveBeenCalledWith(KAMPAGNE.key, ['p5', 'p6'], 2, false))
   })
 
   it('zeigt in der Spalte Umfrage, für welches Projekt die Adresse schon angeschrieben ist', async () => {
@@ -221,10 +231,53 @@ describe('RueckmeldungScreen', () => {
     expect(screen.getByText(/2601556 Huber Seuzach HS/)).toBeTruthy()
     fireEvent.click(screen.getByText('1 Projekt mitnehmen'))
 
-    await waitFor(() => expect(probelauf).toHaveBeenLastCalledWith(KAMPAGNE.key, ['p5', 'p8']))
+    await waitFor(() => expect(probelauf).toHaveBeenLastCalledWith(KAMPAGNE.key, ['p5', 'p8'], false))
     expect(await screen.findByText(/Versand vorbereiten \(2 Projekte ausgewählt\)/)).toBeTruthy()
     expect(screen.queryByText(/weiteres Projekt mit derselben/)).toBeNull()
     expect(starteVersand).not.toHaveBeenCalled()
+  })
+
+  it('«Erneut senden» macht angeschriebene Projekte anhakbar und schickt den Schalter mit', async () => {
+    listProjekte.mockResolvedValue([
+      ...PROJEKTE,
+      projekt({ project_id: 'p9', projekt_nr: '2601560', projekt_name: 'Frei Ohringen HS',
+                kunde_name: 'Frei', email: 'frei@example.ch', umfrage: 'gesendet' }),
+    ])
+    probelauf.mockResolvedValue({ plan: { ...PLAN, mails: 1, offene_projekte: 1, erneut: 1 }, lauf: null })
+    render(<RueckmeldungScreen />)
+    const box = await screen.findByLabelText('Frei Ohringen HS auswählen') as HTMLInputElement
+    expect(box.disabled).toBe(true)
+
+    fireEvent.click(screen.getByLabelText(/Erneut senden/))
+    expect(box.disabled).toBe(false)
+    // Offerte sperrt auch im erneuten Versand.
+    expect((screen.getByLabelText('Stahel Neftenbach HS auswählen') as HTMLInputElement).disabled).toBe(true)
+
+    fireEvent.click(box)
+    fireEvent.click(screen.getByText(/Versand vorbereiten \(1 Projekte ausgewählt\)/))
+    await waitFor(() => expect(probelauf).toHaveBeenCalledWith(KAMPAGNE.key, ['p9'], true))
+    expect(await screen.findByText('Umfrage erneut versenden?')).toBeTruthy()
+    expect(screen.getByText(/1 Projekt hat die Mail schon bekommen und erhält sie noch einmal/)).toBeTruthy()
+    fireEvent.click(screen.getByText('1 Mails versenden'))
+    await waitFor(() => expect(starteVersand).toHaveBeenCalledWith(KAMPAGNE.key, ['p9'], 1, true))
+    // Nach dem Versand ist der Schalter wieder aus.
+    await waitFor(() => expect((screen.getByLabelText(/Erneut senden/) as HTMLInputElement).checked).toBe(false))
+  })
+
+  it('Schalter aus nimmt die nur dank «erneut» angehakten Projekte aus der Auswahl', async () => {
+    listProjekte.mockResolvedValue([
+      ...PROJEKTE,
+      projekt({ project_id: 'p9', projekt_nr: '2601560', projekt_name: 'Frei Ohringen HS',
+                kunde_name: 'Frei', email: 'frei@example.ch', umfrage: 'gesendet' }),
+    ])
+    render(<RueckmeldungScreen />)
+    await screen.findByText('Frei Ohringen HS')
+    fireEvent.click(screen.getByLabelText(/Erneut senden/))
+    fireEvent.click(screen.getByLabelText('Frei Ohringen HS auswählen'))
+    fireEvent.click(screen.getByLabelText('Huber Wiesendangen HS auswählen'))
+    expect(screen.getByText(/Versand vorbereiten \(2 Projekte ausgewählt\)/)).toBeTruthy()
+    fireEvent.click(screen.getByLabelText(/Erneut senden/))
+    expect(screen.getByText(/Versand vorbereiten \(1 Projekte ausgewählt\)/)).toBeTruthy()
   })
 
   it('«Sichtbare auswählen» nimmt nur anhakbare Zeilen', async () => {

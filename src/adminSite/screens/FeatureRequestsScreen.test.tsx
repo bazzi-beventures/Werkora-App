@@ -195,6 +195,23 @@ describe('FeatureRequestsScreen — Eingang', () => {
     expect(within(dialog).getByText(/12\.10\.26/)).toBeTruthy()
   })
 
+  it('Screenshots zu einer Antwort stehen bei der Runde, nicht beim Wunsch', async () => {
+    api.fetchFeatureRequest.mockResolvedValue({
+      ...REQUEST, description: 'Auf der ersten Maske', similar: [], allowed_actions: ['zuordnen'],
+      rueckfragen: [{ frage: 'Wie soll es aussehen?', gefragt_am: '2026-10-11',
+                      antwort: 'Wie im Bild', beantwortet_am: '2026-10-12' }],
+      attachments: [
+        { path: 't-1/r-1/1.png', url: 'https://signed/1.png' },
+        { path: 't-1/r-1/2.png', url: 'https://signed/2.png', rueckfrage: 0 },
+      ],
+    })
+    const dialog = await oeffneAnfrage()
+    const bilder = within(dialog).getAllByAltText('Screenshot zum Wunsch')
+    expect(bilder.map(b => b.getAttribute('src'))).toEqual(['https://signed/1.png', 'https://signed/2.png'])
+    const runde = within(dialog).getByText('Wie im Bild').closest('.fr-dialog-round') as HTMLElement
+    expect(within(runde).getByAltText('Screenshot zum Wunsch').getAttribute('src')).toBe('https://signed/2.png')
+  })
+
   it('markiert im Eingang, was mit Antwort auf eine Rückfrage zurückkam', async () => {
     api.fetchFeatureRequests.mockResolvedValue({
       requests: [{ ...REQUEST, reply_waiting: true }], new_count: 1,

@@ -25,7 +25,7 @@ import { ApiError } from '../../api/client'
 import { useToast, ToastHost } from '../../admin/components/useToast'
 import { ConfirmDialog } from '../../admin/components/ConfirmDialog'
 import RueckmeldungAuswahl from './RueckmeldungAuswahl'
-import { fehlendeGleicheAdresse } from './rueckmeldungFilter'
+import { auswaehlbar, fehlendeGleicheAdresse } from './rueckmeldungFilter'
 
 /** Abfragetakt für den Stand, solange ein Versand läuft. Der Lauf schickt alle
  *  paar Sekunden eine Mail; öfter zu fragen zeigt nichts Neues. */
@@ -42,6 +42,9 @@ export default function RueckmeldungScreen() {
   const [projekteFehler, setProjekteFehler] = useState<string | null>(null)
   const [projekteLaden, setProjekteLaden] = useState(false)
   const [auswahl, setAuswahl] = useState<Set<string>>(() => new Set())
+  // «Erneut senden» (Spec §5.1): schon angeschriebene Projekte wieder anhakbar.
+  // Bewusst ein Schalter, kein Dauerzustand — nach jedem Versand wieder aus.
+  const [erneut, setErneut] = useState(false)
   // Der Plan entsteht erst beim Klick auf «Versand vorbereiten», aus der
   // Auswahl — und genau er steht dann im Bestätigungsdialog.
   const [plan, setPlan] = useState<Plan | null>(null)
@@ -144,7 +147,7 @@ export default function RueckmeldungScreen() {
   async function vorbereiten(ids: Set<string> = auswahl) {
     setPruefend(true)
     try {
-      const res = await probelauf(gewaehlt, [...ids])
+      const res = await probelauf(gewaehlt, [...ids], erneut)
       setPlan(res.plan)
       setFrage(true)
     } catch (e: unknown) {
@@ -159,9 +162,10 @@ export default function RueckmeldungScreen() {
     setFrage(false)
     setStartend(true)
     try {
-      const res = await starteVersand(gewaehlt, [...auswahl], plan.mails)
+      const res = await starteVersand(gewaehlt, [...auswahl], plan.mails, erneut)
       showToast(res.gestartet ? `Versand gestartet: ${res.mails} Mails.` : 'Nichts zu versenden.', 'success')
       setAuswahl(new Set())
+      setErneut(false)
       await aktualisiereStand(gewaehlt)
       await ladeProjekte(gewaehlt)
     } catch (e: unknown) {
@@ -209,6 +213,16 @@ export default function RueckmeldungScreen() {
     void vorbereiten(neu)
   }
   const darfSenden = hatMandant && kampagne.offen && auswahl.size > 0 && !laeuft && !startend && !pruefend
+
+  /** Schalter aus: was nur dank «erneut» anhakbar war, fällt aus der Auswahl —
+   *  sonst ginge eine Auswahl an den Server, die so niemand mehr sieht. */
+  function erneutUmschalten(an: boolean) {
+    setErneut(an)
+    if (an) return
+    const bleibt = new Set(projekte.filter((p) => auswahl.has(p.project_id) && auswaehlbar(p)).map((p) => p.project_id))
+    setAuswahl(bleibt)
+  }
+  const erneutAnzahl = plan?.erneut ?? 0
 
   return (
     <div className="admin-page">
@@ -275,6 +289,17 @@ export default function RueckmeldungScreen() {
       {hatMandant && (
         <>
           <h3 className="admin-section-title">Projekte auswählen</h3>
+          <label className="adminsite-rm-check">
+            <input type="checkbox" checked={erneut} disabled={laeuft || startend}
+                   onChange={(e) => erneutUmschalten(e.target.checked)} />
+            Erneut senden — auch schon angeschriebene Projekte auswählbar
+          </label>
+          {erneut && (
+            <div className="admin-form-hint">
+              Wer angehakt ist, bekommt die Mail noch einmal, mit demselben Link wie beim ersten Mal — bereits
+              gegebene Antworten bleiben. Projekte mit Offerte oder ohne E-Mail bleiben gesperrt.
+            </div>
+          )}
           {projekteFehler && <div className="admin-form-error">{projekteFehler}</div>}
           {projekteLaden && projekte.length === 0
             ? <div className="admin-loading"><div className="admin-spinner" /></div>
@@ -285,6 +310,7 @@ export default function RueckmeldungScreen() {
                 auswahl={auswahl}
                 onAuswahl={setAuswahl}
                 gesperrt={laeuft || startend}
+                erneut={erneut}
               />
             )}
           <button type="button" className="admin-btn admin-btn-secondary" disabled={projekteLaden}
@@ -343,7 +369,7 @@ export default function RueckmeldungScreen() {
           )}
           <div className="admin-form-hint">
             Gedrosselt, eine Mail alle {kampagne.pause_s} s. Ein zweiter Start erreicht nur, wer noch nichts
-            bekommen hat — auch nach einem Abbruch oder Deploy mitten im Lauf.
+            bekommen hat — auch nach einem Abbruch oder Deploy mitten im Lauf. Ausnahme: «Erneut senden» oben.
           </div>
           {lauf && (
             <div className="admin-card adminsite-rm-lauf">
@@ -376,8 +402,11 @@ export default function RueckmeldungScreen() {
 
       {frage && plan && kampagne.tenant && (
         <ConfirmDialog
-          title="Umfrage versenden?"
-          message={`${plan.mails} Mails (${plan.offene_projekte} Projekte) an Kunden von ${kampagne.tenant.name} versenden — im Namen des Betriebs. Das lässt sich nicht zurücknehmen.`}
+          title={erneutAnzahl > 0 ? 'Umfrage erneut versenden?' : 'Umfrage versenden?'}
+          message={`${plan.mails} Mails (${plan.offene_projekte} Projekte) an Kunden von ${kampagne.tenant.name} versenden — im Namen des Betriebs. Das lässt sich nicht zurücknehmen.`
+            + (erneutAnzahl > 0
+              ? ` ${erneutAnzahl} ${erneutAnzahl === 1 ? 'Projekt hat' : 'Projekte haben'} die Mail schon bekommen und ${erneutAnzahl === 1 ? 'erhält' : 'erhalten'} sie noch einmal.`
+              : '')}
           warning={
             plan.treffer !== plan.offene_projekte
               ? `Von ${auswahl.size} ausgewählten Projekten werden ${plan.treffer - plan.offene_projekte} übersprungen `

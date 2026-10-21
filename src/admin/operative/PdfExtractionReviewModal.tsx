@@ -16,6 +16,8 @@ export interface ExtractedProduct {
   unit: string
   // null = kein EK vorbelegt (manuelle Erfassung); OCR liefert immer eine Zahl.
   ek_price: number | null
+  /** Griesser: Farbe des Produktblocks («VSR 140 Metallic»), sonst leer/fehlend. */
+  color?: string
   positions?: ExtractedPosition[]
   suggested_category: string | null
   suggested_margin_factor: number | null
@@ -84,6 +86,7 @@ export interface RowState {
   quantity: string
   unit: string
   ek_price: string  // nur relevant, wenn keine Positionen vorhanden (Griesser/manuell)
+  color: string     // '' = keine Farbe; sonst an jede Offert-Zeile dieser Karte angehängt
   category: string  // '' = keine Kategorie gewählt
   margin_pct: string
   positions: PositionState[]
@@ -110,6 +113,17 @@ function productEk(row: RowState): number {
     .reduce((sum, p) => sum + parseNum(p.ek_price), 0)
 }
 
+// Hängt die Farbe der Karte an einen Offert-Zeilentext — ausser sie steht schon drin
+// (der Griesser-Artikeltext nennt sie meist selbst: «… Farbe VSR 140 Metallic.»).
+// Exportiert für Unit-Tests.
+export function withColor(text: string, color: string): string {
+  const c = color.trim()
+  if (!c || !text) return text
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ')
+  if (norm(text).includes(norm(c))) return text
+  return `${text}, Farbe ${c}`
+}
+
 // Baut die finalen Offert-Zeilen aus EINER Produktkarte:
 // 1 Produktzeile (EK = Summe nicht-separater Positionen) + N separate Zeilen.
 // Exportiert für Unit-Tests — reine Funktion, keine React-Abhängigkeit.
@@ -124,7 +138,12 @@ export function buildConfirmedRow(row: RowState, supplierId: string | null): Con
   // Ohne Bezeichnung entsteht keine Zeile — sonst zählt der „Übernehmen"-Button Zeilen mit,
   // die das Formular beim Speichern ohnehin wegfiltert.
   const includeProduct = !hasPositions || row.positions.some(p => p.selected && !p.separate)
-  const fullDescription = [row.name.trim(), row.description.trim()].filter(Boolean).join(' — ')
+  // Die Farbe hängt an JEDER erzeugten Zeile, nicht nur an der Produktzeile: bei
+  // Griesser sind alle Positionen separat, die Produktzeile (und mit ihr der
+  // Artikeltext) entfällt — ohne das kam die Farbe nie in der Offerte an (WW-23).
+  const color = row.color ?? ''
+  const fullDescription = withColor(
+    [row.name.trim(), row.description.trim()].filter(Boolean).join(' — '), color)
   if (includeProduct && fullDescription) {
     const ek = productEk(row)
     const vk = vkFromEk(ek, pct)
@@ -155,7 +174,7 @@ export function buildConfirmedRow(row: RowState, supplierId: string | null): Con
       const ek = parseNum(p.ek_price)
       const vk = vkFromEk(ek, pct)
       out.push({
-        description: [row.name.trim(), p.label.trim()].filter(Boolean).join(' — '),
+        description: withColor([row.name.trim(), p.label.trim()].filter(Boolean).join(' — '), color),
         quantity: '1',
         unit: row.unit || 'Stk',
         unit_price: String(vk),
@@ -244,6 +263,7 @@ export function PdfExtractionReviewModal({
         quantity: String(p.quantity ?? 1),
         unit: p.unit || 'Stk',
         ek_price: p.ek_price != null ? String(p.ek_price) : '',
+        color: p.color ?? '',
         category: p.suggested_category ?? '',
         margin_pct: String(factorToPct(factor)),
         positions: (p.positions ?? []).map(pos => ({
@@ -286,7 +306,7 @@ export function PdfExtractionReviewModal({
   function addRow() {
     setRows(rs => [...rs, {
       name: '', description: '', quantity: '1', unit: 'Stk',
-      ek_price: '', category: '', margin_pct: '', positions: [],
+      ek_price: '', color: '', category: '', margin_pct: '', positions: [],
     }])
   }
 
@@ -464,6 +484,20 @@ export function PdfExtractionReviewModal({
                     onChange={e => updateRow(i, { description: e.target.value })}
                   />
                 </div>
+
+                {/* Farbe: bei Griesser aus der «Farbe:»-Zeile des Blocks vorbelegt. Steht
+                    hinter jeder Offert-Zeile dieser Karte; leeren lässt sie weg. */}
+                {(isGriesser || row.color) && (
+                  <div style={{ marginBottom: 10, maxWidth: 340 }}>
+                    <label style={LABEL_STYLE}>Farbe — steht auf jeder Offert-Zeile</label>
+                    <input
+                      className="admin-form-input"
+                      placeholder="z. B. VSR 140 Metallic"
+                      value={row.color}
+                      onChange={e => updateRow(i, { color: e.target.value })}
+                    />
+                  </div>
+                )}
 
                 {/* Positionsliste: an-/abwählbar, optional separat ausweisen.
                     Kommt aus der OCR (Stobag/Griesser) oder wird von Hand angelegt. */}

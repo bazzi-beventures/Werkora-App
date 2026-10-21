@@ -108,3 +108,42 @@ describe('PdfExtractionReviewModal — Klick neben das Fenster', () => {
     expect(screen.queryByText('Positionen verwerfen?')).not.toBeInTheDocument()
   })
 })
+
+describe('PdfExtractionReviewModal — Griesser-Farbe', () => {
+  const GRIESSER: PdfExtractionResponse = {
+    supplier: 'griesser',
+    supplier_label: 'Griesser',
+    supplier_id: 'sup-g',
+    project_ref: 'P26-0424',
+    products: [{
+      ...PRODUCT,
+      name: 'P206A.01 Lamisol III 90',
+      description: '3× Gelenkkurbel',
+      quantity: 1,
+      color: 'VSR 140 Metallic',
+      positions: [{ label: '201 1720×1905', ek_price: 300 }],
+    }],
+  }
+
+  it('belegt das Farbfeld vor und übernimmt die Farbe in die Offert-Zeile', () => {
+    const onConfirm = vi.fn()
+    render(<PdfExtractionReviewModal data={GRIESSER} onCancel={() => {}} onConfirm={onConfirm} />)
+
+    const input = screen.getByPlaceholderText('z. B. VSR 140 Metallic') as HTMLInputElement
+    expect(input.value).toBe('VSR 140 Metallic')
+
+    fireEvent.click(screen.getByText(/Übernehmen/))
+    expect(onConfirm.mock.calls[0][0][0].description).toBe(
+      'P206A.01 Lamisol III 90 — 201 1720×1905, Farbe VSR 140 Metallic',
+    )
+  })
+
+  it('geleerte Farbe kommt nicht in die Offerte', () => {
+    const onConfirm = vi.fn()
+    render(<PdfExtractionReviewModal data={GRIESSER} onCancel={() => {}} onConfirm={onConfirm} />)
+
+    fireEvent.change(screen.getByPlaceholderText('z. B. VSR 140 Metallic'), { target: { value: '' } })
+    fireEvent.click(screen.getByText(/Übernehmen/))
+    expect(onConfirm.mock.calls[0][0][0].description).toBe('P206A.01 Lamisol III 90 — 201 1720×1905')
+  })
+})

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import {
-  AREA_LABEL, MAX_WISH_FILES, fmtDay, replyToWishQuestion, unsubscribeFeature, uploadWishScreenshots,
+  AREA_LABEL, MAX_WISH_FILE_BYTES, MAX_WISH_FILES, fmtDay, replyToWishQuestion, unsubscribeFeature, uploadWishScreenshots,
   withdrawWish, type MySubscription, type MyWish, type QuestionRound,
 } from '../api/featureRequests'
 import { useOnline } from './useOnline'
@@ -40,7 +40,14 @@ function QuestionHistory({ rounds, showPerson }: { rounds: QuestionRound[]; show
   )
 }
 
-/** Antwort auf die offene Rückfrage — Text Pflicht, Screenshots optional. */
+/** Antwort auf die offene Rückfrage — Text Pflicht, Screenshots optional.
+ *
+ *  Die Bilder gehen VOR dem Text hoch, solange die Rückfrage noch offen ist:
+ *  danach liegt der Wunsch wieder im Eingang, und ein Entscheid des
+ *  Betreibers zwischen Text und Bild verschluckte das Bild. Scheitert der
+ *  Upload, geht auch der Text nicht raus — beides bleibt stehen, ein zweiter
+ *  Klick versucht es erneut. Je Antwort bis zu drei Bilder, unabhängig davon,
+ *  wie viele schon am Wunsch hängen (Spec §7.1a). */
 function QuestionReply({ wish, onAnswered }: { wish: MyWish; onAnswered: () => void }) {
   const online = useOnline()
   const [text, setText] = useState('')
@@ -49,10 +56,52 @@ function QuestionReply({ wish, onAnswered }: { wish: MyWish; onAnswered: () => v
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement | null>(null)
 
+  function addFiles(selected: ArrayLike<File> | null) {
+    if (!selected) return
+    const next: File[] = []
+    let localError: string | null = null
+    for (const file of Array.from(selected)) {
+      if (file.size > MAX_WISH_FILE_BYTES) { localError = 'Ein Bild ist grösser als 10 MB.'; continue }
+      next.push(file)
+    }
+    if (files.length + next.length > MAX_WISH_FILES) localError = `Maximal ${MAX_WISH_FILES} Bilder.`
+    setFiles([...files, ...next].slice(0, MAX_WISH_FILES))
+    setError(localError)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  /** Strg+V mit einem Bild in der Zwischenablage — wie im Wunschformular. */
+  function handlePaste(e: React.ClipboardEvent) {
+    const images: File[] = []
+    for (const item of Array.from(e.clipboardData?.items ?? [])) {
+      if (item.kind !== 'file' || !item.type.startsWith('image/')) continue
+      const file = item.getAsFile()
+      if (!file) continue
+      const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg')
+      images.push(new File([file], `Eingefügtes Bild ${files.length + images.length + 1}.${ext}`,
+                           { type: file.type }))
+    }
+    if (images.length === 0) return
+    e.preventDefault()
+    addFiles(images)
+  }
+
   async function send() {
     if (!text.trim()) return
     setBusy(true)
     setError(null)
+    if (files.length > 0) {
+      try {
+        await uploadWishScreenshots(wish.id, files)
+        // Die Bilder hängen jetzt am Wunsch — ein zweiter Versuch nach einem
+        // gescheiterten Text darf sie nicht ein zweites Mal hochladen.
+        setFiles([])
+      } catch {
+        setError('Die Bilder konnten nicht hochgeladen werden. Deine Antwort ist noch nicht gesendet.')
+        setBusy(false)
+        return
+      }
+    }
     try {
       await replyToWishQuestion(wish.id, text.trim())
     } catch {
@@ -62,13 +111,6 @@ function QuestionReply({ wish, onAnswered }: { wish: MyWish; onAnswered: () => v
       setBusy(false)
       onAnswered()
       return
-    }
-    if (files.length > 0) {
-      try {
-        await uploadWishScreenshots(wish.id, files)
-      } catch {
-        // Die Antwort ist da; ein fehlendes Bild fragt der Betreiber nach.
-      }
     }
     setBusy(false)
     onAnswered()
@@ -80,16 +122,26 @@ function QuestionReply({ wish, onAnswered }: { wish: MyWish; onAnswered: () => v
       {wish.answer && <div className="wish-quote">{wish.answer}</div>}
       <textarea className="wish-input" rows={3} maxLength={2000} value={text}
                 aria-label={`Antwort auf die Rückfrage zu ${wish.reference}`}
-                placeholder="Deine Antwort" onChange={e => setText(e.target.value)} />
+                placeholder="Deine Antwort — Screenshots kannst du dazulegen"
+                onChange={e => setText(e.target.value)} onPaste={handlePaste} />
       <input ref={fileRef} type="file" accept="image/*" multiple hidden aria-label="Screenshot wählen"
-             onChange={e => {
-               setFiles(Array.from(e.target.files ?? []).slice(0, MAX_WISH_FILES))
-               if (fileRef.current) fileRef.current.value = ''
-             }} />
+             onChange={e => addFiles(e.target.files)} />
+      {files.length > 0 && (
+        <div className="wish-row" style={{ flexWrap: 'wrap' }}>
+          {files.map((f, i) => (
+            <button key={`${f.name}-${i}`} type="button" className="wish-btn-ghost"
+                    style={{ flex: '0 0 auto' }} aria-label={`${f.name} entfernen`}
+                    onClick={() => setFiles(files.filter((_, j) => j !== i))}>
+              {f.name} ✕
+            </button>
+          ))}
+        </div>
+      )}
       <div className="wish-row" style={{ justifyContent: 'flex-end' }}>
         <button type="button" className="wish-btn-ghost" style={{ flex: '0 0 auto' }}
+                disabled={files.length >= MAX_WISH_FILES}
                 onClick={() => fileRef.current?.click()}>
-          📷 {files.length > 0 ? `${files.length} Bild(er)` : 'Screenshot'}
+          📷 {files.length > 0 ? `${files.length}/${MAX_WISH_FILES} Bild(er)` : 'Screenshot'}
         </button>
         <button type="button" className="wish-btn" style={{ flex: '0 0 auto' }}
                 disabled={busy || !online || !text.trim()} onClick={send}>

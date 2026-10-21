@@ -84,6 +84,26 @@ function errorText(e: unknown, fallback: string): string {
   return e instanceof Error && e.message ? e.message : fallback
 }
 
+type Shot = NonNullable<FeatureRequestDetail['attachments']>[number]
+
+/** Screenshots als Vorschaubilder. Signieren gescheitert oder HEIC, das der
+ *  Browser nicht zeigt — dann der Dateiname statt eines kaputten Bildes. */
+function Shots({ shots }: { shots: Shot[] }) {
+  return (
+    <div className="support-shots">
+      {shots.map(att => (
+        att.url
+          ? <a key={att.path} href={att.url} target="_blank" rel="noreferrer">
+              <img src={att.url} alt="Screenshot zum Wunsch" className="support-shot" />
+            </a>
+          : <span key={att.path} className="support-shot-missing">
+              {att.path.split('/').pop()} (nicht anzeigbar)
+            </span>
+      ))}
+    </div>
+  )
+}
+
 // ── Feature-Auswahl mit Suche ───────────────────────────────────────────────
 
 function FeaturePicker({ features, value, onChange }: {
@@ -189,6 +209,14 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
     }
   }
 
+  // Bilder zum Wunsch oben, Bilder zu einer Antwort bei der Runde, zu der
+  // sie kamen (`rueckfrage` = Index in `rueckfragen`, Spec §7.1a).
+  // Ein Bild ohne passende Runde (Verlauf geleert) bleibt oben sichtbar.
+  const shots = req?.attachments ?? []
+  const rounds = req?.rueckfragen?.length ?? 0
+  const wishShots = shots.filter(a => a.rueckfrage == null || a.rueckfrage >= rounds)
+  const shotsOfRound = (i: number) => shots.filter(a => a.rueckfrage === i)
+
   const ready = action === 'zuordnen' ? !!featureId
     : action === 'neues_feature' ? !!newTitle.trim() && !!newArea
       : action === 'beantworten' || action === 'ablehnen' || action === 'rueckfrage' ? !!text.trim()
@@ -242,22 +270,10 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                 <div className="fr-quote">{req.problem}</div>
               </>
             )}
-            {req.attachments && req.attachments.length > 0 && (
+            {wishShots.length > 0 && (
               <>
                 <div className="fr-section-title">Screenshots</div>
-                <div className="support-shots">
-                  {req.attachments.map(att => (
-                    att.url
-                      ? <a key={att.path} href={att.url} target="_blank" rel="noreferrer">
-                          <img src={att.url} alt="Screenshot zum Wunsch" className="support-shot" />
-                        </a>
-                      // Signieren gescheitert oder HEIC, das der Browser nicht
-                      // zeigt — dann der Dateiname statt eines kaputten Bildes.
-                      : <span key={att.path} className="support-shot-missing">
-                          {att.path.split('/').pop()} (nicht anzeigbar)
-                        </span>
-                  ))}
-                </div>
+                <Shots shots={wishShots} />
               </>
             )}
             {req.rueckfragen && req.rueckfragen.length > 0 && (
@@ -278,6 +294,7 @@ function RequestDialog({ requestId, features, onClose, onChanged }: {
                     ) : (
                       <div className="fr-muted">noch keine Antwort</div>
                     )}
+                    {shotsOfRound(i).length > 0 && <Shots shots={shotsOfRound(i)} />}
                   </div>
                 ))}
               </>
