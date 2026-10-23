@@ -294,6 +294,22 @@ export async function getQuoteSendAttachments(quoteId: number): Promise<SendAtta
   return apiFetch<SendAttachmentsInfo>(`/pwa/admin/quotes/${quoteId}/send-attachments`)
 }
 
+/** Eine Offerte, die beim Versand zusammen mit der gewählten in EIN Mail geht
+ *  (offene Mitglieder der Varianten-Gruppe, WW-34). */
+export interface QuoteSendGroupMember {
+  id: number
+  label: string
+  quote_number: string
+  amount: number
+  status: string | null
+}
+
+/** Leer = Einzelversand, der Dialog zeigt dann keine Auswahl. */
+export async function getQuoteSendGroup(quoteId: number): Promise<QuoteSendGroupMember[]> {
+  const res = await apiFetch<{ members?: QuoteSendGroupMember[] }>(`/pwa/admin/quotes/${quoteId}/send-group`)
+  return res?.members ?? []
+}
+
 export interface SendQuoteInput {
   quoteId: number
   recipientEmail: string
@@ -302,6 +318,8 @@ export interface SendQuoteInput {
   anhangFileIds: string[]
   vorlageAttachmentIds: string[]
   fotoFileIds: string[]
+  // Auswahl im Varianten-Versand; weglassen = alle offenen Offerten der Gruppe.
+  groupQuoteIds?: number[]
 }
 
 export async function sendQuote(input: SendQuoteInput): Promise<void> {
@@ -315,6 +333,7 @@ export async function sendQuote(input: SendQuoteInput): Promise<void> {
       anhang_file_ids: input.anhangFileIds,
       vorlage_attachment_ids: input.vorlageAttachmentIds,
       foto_file_ids: input.fotoFileIds,
+      ...(input.groupQuoteIds ? { group_quote_ids: input.groupQuoteIds } : {}),
     }),
   })
 }

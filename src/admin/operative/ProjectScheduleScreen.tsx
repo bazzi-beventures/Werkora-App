@@ -1253,7 +1253,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
               {pendingSlot ? 'Neuer Termin' : form ? 'Einsatz planen' : 'Projekt wählen'}
             </div>
             <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={closePanel}>
-              Schließen
+              Schliessen
             </button>
           </div>
 

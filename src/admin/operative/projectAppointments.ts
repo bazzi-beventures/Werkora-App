@@ -13,6 +13,7 @@
 // (Validierung, Diff, «nächster Termin») unit-testbar sind.
 
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, ProjectAppointment } from '../../api/admin'
+import type { ProjectNextAppointment } from '../../api/admin'
 
 export interface AppointmentDraft {
   // Stabiler React-Key: bei gespeicherten Terminen die id, sonst ein Client-Key.
@@ -387,6 +388,23 @@ export function isOpenAppointment(
 export function nextAppointment(list: AppointmentDraft[], todayISO: string): AppointmentDraft | null {
   const upcoming = sortDrafts(list.filter(d => isOpenAppointment(d.startDate, d.endDate, todayISO)))
   return upcoming[0] ?? null
+}
+
+// Nächster Termin in der Projektliste (WW-4): «wann» und «was» in denselben
+// Formaten wie die Terminkarte der Projektmaske, damit Liste und Maske dasselbe
+// sagen. Der Server liefert ihn schon ausgewählt (next_appointment).
+export function nextAppointmentSummary(a: ProjectNextAppointment): { when: string; what: string } {
+  const d: AppointmentDraft = {
+    key: '', id: null,
+    startDate: a.start_date?.slice(0, 10) ?? '',
+    endDate: a.end_date?.slice(0, 10) ?? '',
+    startTime: a.start_time?.slice(0, 5) ?? '',
+    endTime: a.end_time?.slice(0, 5) ?? '',
+    kind: a.kind,
+    label: a.label ?? '',
+    ownTeam: false, monteurIds: [],
+  }
+  return { when: fmtDraftWhen(d), what: draftTitle(d) }
 }
 
 export { todayISO } from '../utils/format'

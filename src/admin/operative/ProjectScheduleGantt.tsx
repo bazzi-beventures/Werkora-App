@@ -8,14 +8,16 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Project } from '../../api/admin/projects'
+import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import {
   CalendarEntry, StaffLite,
-  addressLocality, crewShortLabels, useHoverCard, entryTitle, fmtTimeRange,
+  absenceLookup, addressLocality, useHoverCard, entryTitle, fmtTimeRange,
   hasUnassignedEntries, kindSymbol, neededDistancePairs, overlapConflictIds,
   pillBg, pillClass, projectCoversDay, readDragPayload, reassignTeam, rowEntries,
   setDragPayload, useScheduleDistances,
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
+import CrewChips from './CrewChips'
 import { diffDays, isToday, toDateStr } from '../utils/calendarHelpers'
 import { computeWeekHours } from '../utils/weekGrid'
 import {
@@ -60,12 +62,15 @@ interface Props {
   dayCapacityHours: number
   // Fahrdistanzen zwischen aufeinanderfolgenden Einsätzen anzeigen (Tenant-Config).
   showDistances?: boolean
+  // Genehmigte Absenzen: schraffiertes Band über den Tag der Zeile
+  // (einsatzplanung-rueckmeldungen-2026-10.md §7).
+  absences?: ScheduleAbsence[]
 }
 
 export default function ProjectScheduleGantt({
   projects, staff, rowStaff, fields, currentDate, span, hourWidth,
   onSelect, onOpenProject, onReschedule, onCreateSlot, holidays, greyAfter, greyUntil,
-  dayCapacityHours, showDistances,
+  dayCapacityHours, showDistances, absences,
 }: Props) {
   const { hover, bind } = useHoverCard()
   // Zeile, über der gerade ein Balken schwebt: rowId ('' = «Ohne Monteur»).
@@ -97,6 +102,7 @@ export default function ProjectScheduleGantt({
   }
 
   const hasUnassigned = hasUnassignedEntries(projects, staffIds, days)
+  const absentOn = absenceLookup(absences ?? [])
 
   const distBetween = useScheduleDistances(
     showDistances ? neededDistancePairs(projects, staffIds, rowStaff, days) : [],
@@ -191,7 +197,6 @@ export default function ProjectScheduleGantt({
     // Abschaltbar über dasselbe Tenant-Feld wie die Adresszeile der anderen
     // Ansichten (scheduling_config.fields.address).
     const locality = fields?.address !== false ? addressLocality(p.object_address) : ''
-    const crew = crewShortLabels(p, staff)
     return (
       <div
         key={`${p.id}@${dayISO}`}
@@ -225,17 +230,7 @@ export default function ProjectScheduleGantt({
           : undefined)}
       >
         <span className="project-cal-gantt-bar-line">
-          {crew.length > 0 && (
-            <span className="project-cal-gantt-bar-crew">
-              {crew.map(c => (
-                <span
-                  key={c.label}
-                  className={`schedule-crew-chip${c.lead ? ' lead' : ''}`}
-                  title={c.lead ? 'Lead-Monteur' : undefined}
-                >{c.label}</span>
-              ))}
-            </span>
-          )}
+          <CrewChips entry={p} staff={staff} className="project-cal-gantt-bar-crew" />
           {kindSymbol(p) && <span className="project-cal-kind-symbol">{kindSymbol(p)}</span>}
           {p.termin_badge && <span className="project-cal-termin-badge">{p.termin_badge}</span>}
           <span className="project-cal-gantt-bar-name">{entryTitle(p)}</span>
@@ -315,9 +310,16 @@ export default function ProjectScheduleGantt({
             const dow = d.getDay()
             const isHoliday = holidays.has(toDateStr(d))
             const dim = greyLeft !== null && dow >= 1 && dow <= 5 && greyRight > greyLeft
+            // «Ohne Monteur» ist niemand — dort gibt es auch keine Abwesenheit.
+            const absence = rowId !== null ? absentOn(rowId, toDateStr(d)) : null
             return (
               <div key={i} className="project-cal-gantt-day-bg" style={{ left: i * dayW, width: dayW }} aria-hidden="true">
                 {(dow === 0 || dow === 6 || isHoliday) && <div className="project-cal-gantt-offday" />}
+                {absence && (
+                  <div className="project-cal-gantt-absence" data-testid="gantt-absence">
+                    <span className="project-cal-gantt-absence-label">{absence}</span>
+                  </div>
+                )}
                 {dim && (
                   <div
                     className="project-cal-gantt-dim"

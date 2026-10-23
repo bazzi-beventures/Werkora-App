@@ -583,3 +583,24 @@ describe('ProjekteScreen – Projektnummer bei gleichnamigen Projekten', () => {
     expect(await screen.findByText('Projekt-Nr. 2600559')).toBeInTheDocument()
   })
 })
+
+// docs/specs/kleinkorrekturen-2026-10.md §1/§2: Fotos als Miniatur (ohne
+// Vorschau beim Überfahren), beim Umbenennen ist der Name ohne Endung markiert.
+describe('ProjekteScreen — Fotos', () => {
+  const FILES_PATH = '/pwa/projects/p1/files'
+  const FOTO = {
+    id: 'f9', filename: 'IMG_1234.jpg', storage_path: 'tenant/project_files/p1/x.jpg',
+    mime_type: 'image/jpeg', category: 'fotos', created_at: '2026-08-05T09:00:00Z',
+  }
+
+  it('zeigt die Miniatur und markiert beim Umbenennen den Namen ohne Endung', async () => {
+    const { user } = await openProject([project()], vi.fn(), { [FILES_PATH]: [FOTO] })
+    await screen.findByText('IMG_1234.jpg')
+    const img = document.querySelector('img[src="/pwa/projects/p1/files/f9/download"]')
+    expect(img).not.toBeNull()
+
+    await user.click(screen.getByTitle('Umbenennen'))
+    const input = screen.getByRole('textbox', { name: 'Neuer Dateiname' }) as HTMLInputElement
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 'IMG_1234'.length])
+  })
+})

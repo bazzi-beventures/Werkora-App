@@ -9,7 +9,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   downloadHagelschadenExcel, getHagelschaden, patchHagelschaden,
-  type HagelKampagne, type HagelListe, type HagelPatch, type HagelZeile,
+  type HagelKampagne, type HagelListe, type HagelPatch, type HagelTelefon, type HagelZeile,
 } from '../../../api/admin/hagelschaden'
 import { listProjectFiles, projectFileUrl } from '../../../api/projectFiles'
 import type { ProjectFile } from '../../../shared/projectDetail/types'
@@ -24,6 +24,7 @@ import {
 } from './hagelschadenFilter'
 import { DispoBlock, DispoKurz, DispoParameterDialog, DispoSumme } from './HagelDispo'
 import { dauerText, offeneArbeit } from './dispoAnzeige'
+import { telLink } from './dispo/dispoFormat'
 import './hagelschaden.css'
 
 const NOTIZ_MAX = 2000
@@ -296,6 +297,7 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                   <PrioBadge z={z} kampagne={kampagne} />
                 </div>
                 <div className="admin-card-meta">{z.kunde}{z.objekt_adresse ? ` · ${z.objekt_adresse}` : ''}</div>
+                <Telefone liste={z.telefon} nurErste />
                 <div className="hagel-karte-block">
                   <div className="hagel-block-titel">Kunde meldet</div>
                   <div className="admin-card-meta">{[z.art, umfang(z), z.fotos ? `${z.fotos} Fotos` : ''].filter(Boolean).join(' · ') || z.status}</div>
@@ -350,6 +352,7 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
                     </td>
                     <td>
                       <div>{z.kunde || '—'}</div>
+                      <Telefone liste={z.telefon} nurErste />
                       <div className="hagel-sub">{z.objekt_adresse}</div>
                     </td>
                     <td className="hagel-start-kunde"><PrioBadge z={z} kampagne={kampagne} /></td>
@@ -476,6 +479,27 @@ function Schalter({ label, an, onClick, kurz = false, gesperrt = false, titel }:
   )
 }
 
+/**
+ * Telefonnummern des Kunden als `tel:`-Links — ein Tipp wählt am Handy bzw.
+ * übergibt die Nummer an die Telefonie-Software. In Liste und Karte nur die
+ * erste (die Zeile öffnet sonst das Detail, dort stehen alle).
+ */
+function Telefone({ liste, nurErste = false }: { liste?: HagelTelefon[]; nurErste?: boolean }) {
+  const nummern = nurErste ? (liste ?? []).slice(0, 1) : (liste ?? [])
+  if (nummern.length === 0) return null
+  return (
+    <div className="hagel-telefone">
+      {nummern.map(t => (
+        <a key={t.nummer} className="hagel-tel" href={telLink(t.nummer)}
+          title={`${t.art} anrufen`} aria-label={`${t.art} ${t.nummer} anrufen`}
+          onClick={e => e.stopPropagation()}>
+          {t.nummer}{nurErste ? null : <span className="hagel-sub"> {t.art}</span>}
+        </a>
+      ))}
+    </div>
+  )
+}
+
 function EinsatzZelle({ z, onToggle, kurz = false }: { z: HagelZeile; onToggle: () => void; kurz?: boolean }) {
   if (z.termin) {
     return (
@@ -550,6 +574,7 @@ function DetailPanel({ z, kampagne, onClose, onSave, onOpenProject, onOpenSchedu
             {umfang(z) && <><dt>Umfang</dt><dd>{umfang(z)}</dd></>}
             {z.bemerkung_kunde && <><dt>Bemerkung</dt><dd className="hagel-bemerkung">«{z.bemerkung_kunde}»</dd></>}
             <dt>Kunde</dt><dd>{z.kunde || '—'}{z.email && z.email !== '(keine)' ? <div className="hagel-sub">{z.email}</div> : <div className="hagel-sub">keine E-Mail-Adresse</div>}</dd>
+            <dt>Telefon</dt><dd>{z.telefon?.length ? <Telefone liste={z.telefon} /> : <span className="hagel-sub">keine Telefonnummer im Kundenstamm</span>}</dd>
             {z.gesendet_am && <><dt>Angeschrieben</dt><dd>{z.gesendet_am}</dd></>}
             {z.beantwortet_am && <><dt>Beantwortet</dt><dd>{z.beantwortet_am}{z.antworten > 1 ? ` (${z.antworten} Antworten)` : ''}</dd></>}
           </dl>

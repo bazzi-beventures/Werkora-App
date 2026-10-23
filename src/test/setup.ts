@@ -69,7 +69,12 @@ if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = () => {}
 }
 
-// React-Komponenten nach jedem Test aus dem jsdom-Dokument entfernen.
+// React-Komponenten nach jedem Test aus dem jsdom-Dokument entfernen — und den
+// sessionStorage leeren: er lebt hier pro Testdatei, nicht pro Test. Seit die
+// Einsatzplanung ihre Ansicht in der Sitzung merkt (scheduleViewState.ts),
+// begann sonst jeder Test in der Ansicht, in der der vorige aufgehört hatte.
+// localStorage bleibt bewusst stehen — dort räumen die Tests selbst, wo nötig.
 afterEach(() => {
   cleanup()
+  window.sessionStorage.clear()
 })

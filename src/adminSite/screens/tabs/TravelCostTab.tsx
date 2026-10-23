@@ -121,7 +121,7 @@ export function TravelCostTab({ tenantId }: { tenantId: string }) {
         Fahrtkosten-Pauschale je nach Distanz (Firmensitz → Objektadresse). Die Distanz
         wird bei der Projekt-Anlage einmalig berechnet und auf den nächsten ganzen km
         aufgerundet. Es greift die erste Zeile, deren km-Schwelle ≥ der Distanz ist; der
-        Preis der <strong>letzten</strong> Zeile gilt für alle größeren Distanzen.
+        Preis der <strong>letzten</strong> Zeile gilt für alle grösseren Distanzen.
         Diese Tabelle wird in Offerten <em>und</em> Rechnungen verwendet.
       </div>
 

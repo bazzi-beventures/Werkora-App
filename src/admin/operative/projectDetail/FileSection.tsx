@@ -1,8 +1,10 @@
 import { useState, useRef } from 'react'
 import { apiUrl } from '../../../api/client'
 import { formatDateTime } from '../../utils/format'
-import { PROJECT_FILE_ACCEPT, projectFileIcon } from '../../../shared/projectFileTypes'
+import { PROJECT_FILE_ACCEPT } from '../../../shared/projectFileTypes'
 import { DownloadIcon } from '../../../shared/DownloadIcon'
+import { FileThumb } from '../../../shared/FileThumb'
+import { selectBaseName } from '../../../shared/selectBaseName'
 import type { ProjectFile, ProjectFileCategory } from './types'
 
 export const PROJECT_DOC_SECTIONS: { key: ProjectFileCategory; title: string; legacyFallback?: boolean }[] = [
@@ -213,7 +215,13 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {items.map(f => (
             <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-              <span style={{ fontSize: 18 }}>{projectFileIcon(f.mime_type, f.filename)}</span>
+              {/* Fotos: Miniatur + Vorschau beim Überfahren (kleinkorrekturen-2026-10.md §1). */}
+              <FileThumb
+                url={f.storage_path ? apiUrl(`/pwa/admin/project-files/${f.id}/download`) : null}
+                mimeType={f.mime_type}
+                filename={f.filename}
+                hoverPreview
+              />
               {editingId === f.id ? (
                 <>
                   <input
@@ -222,6 +230,8 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
                     value={editValue}
                     disabled={renaming}
                     autoFocus
+                    aria-label="Neuer Dateiname"
+                    onFocus={e => selectBaseName(e.currentTarget)}
                     onChange={e => setEditValue(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') saveEdit()

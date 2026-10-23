@@ -15,10 +15,13 @@ export function leereMeldungen(
   return {
     tickets: [] as MySupportTicket[],
     unread: 0,
+    forwarded: [] as MySupportTicket[],
     loading: false,
     failed: false,
     reload: vi.fn().mockResolvedValue(undefined),
     markRead: vi.fn().mockResolvedValue(undefined),
     ...overrides,
+    // Wie im Hook: jede ungelesene Antwort zählt fürs Abzeichen mit.
+    attention: overrides.attention ?? overrides.unread ?? 0,
   }
 }

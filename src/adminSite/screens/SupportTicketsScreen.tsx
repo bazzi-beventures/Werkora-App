@@ -4,11 +4,14 @@ import {
 } from 'recharts'
 import {
   fetchSupportDashboard,
+  fetchSupportForwardTargets,
   fetchSupportTicket,
   fetchSupportTickets,
+  remindSupportQuestion,
   sendSupportReply,
   updateSupportTicket,
   type SupportCluster,
+  type SupportForwardTarget,
   type SupportDashboard,
   type SupportReply,
   type SupportStatus,
@@ -16,6 +19,7 @@ import {
   type SupportTicketDetail,
 } from '../../api/support'
 import AdminPushToggle from '../AdminPushToggle'
+import { ApiError } from '../../api/client'
 import { supportTicketToFeatureRequest } from '../../api/featureRequests'
 import HorizontalBarChart from '../../admin/components/HorizontalBarChart'
 import { useChartTheme } from '../../admin/components/useChartTheme'
@@ -29,6 +33,7 @@ import {
   routeLabel,
   routeLabelAny,
   tabCounts,
+  waitTone,
   type InboxTab,
 } from './supportInbox'
 import '../../admin/kpis/kpi-dashboard.css'
@@ -47,11 +52,15 @@ import './support.css'
 const STATUS_LABEL: Record<SupportStatus, string> = {
   offen: 'Offen',
   in_arbeit: 'In Arbeit',
+  wartet: 'Wartet auf Mandant',
   erledigt: 'Erledigt',
 }
 
+// `wartet` fehlt hier mit Absicht: auf «wartet» setzt nur eine Rückfrage
+// (docs/specs/support-rueckfrage.md R2) — ohne Empfänger wüsste niemand, auf
+// wen gewartet wird.
 const STATUS_ORDER: SupportStatus[] = ['offen', 'in_arbeit', 'erledigt']
-const TABS: InboxTab[] = ['todo', 'erledigt', 'alle']
+const TABS: InboxTab[] = ['todo', 'wartet', 'erledigt', 'alle']
 
 function fmtDateTime(iso?: string | null): string {
   if (!iso) return '—'
@@ -120,6 +129,13 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
   // geladenen Ticket, stünde «gelesen am …» unter einer Antwort, die der Melder
   // noch gar nicht gesehen haben kann.
   const [readAt, setReadAt] = useState<string | null>(ticket.reply_read_at ?? null)
+  // Rückfrage (docs/specs/support-rueckfrage.md §4): wer gefragt wird und auf
+  // wen gerade gewartet wird — lokal mitgeführt wie der Status.
+  const [targets, setTargets] = useState<SupportForwardTarget[]>([])
+  const [questionTo, setQuestionTo] = useState('')
+  const [waitingOn, setWaitingOn] = useState<{ name: string; since: string | null } | null>(
+    ticket.status === 'wartet' && ticket.waiting_on_name
+      ? { name: ticket.waiting_on_name, since: ticket.waiting_since ?? null } : null)
   const [busy, setBusy] = useState(false)
   const replyRef = useRef<HTMLTextAreaElement | null>(null)
   const { toast, showToast } = useToast()
@@ -129,6 +145,14 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
   const audit = snapshot.audit ?? []
   const health = snapshot.health ?? []
 
+  useEffect(() => {
+    let aktiv = true
+    fetchSupportForwardTargets(ticket.id)
+      .then(r => { if (aktiv) setTargets(r.targets) })
+      .catch(() => { /* ohne Liste bleibt «an den Melder» */ })
+    return () => { aktiv = false }
+  }, [ticket.id])
+
   async function apply(next?: SupportStatus) {
     setBusy(true)
     try {
@@ -136,7 +160,11 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
         ...(next ? { status: next } : {}),
         superadmin_note: note,
       })
-      if (next) setStatus(next)
+      if (next) {
+        setStatus(next)
+        // Ein Statuswechsel von Hand beendet das Warten (serverseitig ebenso).
+        setWaitingOn(null)
+      }
       onChanged()
       // Abschliessen OHNE zu benachrichtigen (Spec A3): der Statuswechsel
       // verschickt bewusst nichts, er füllt nur das Antwortfeld vor. Ein
@@ -179,19 +207,40 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
     }
   }
 
-  async function sendReply() {
+  async function sendReply(asQuestion = false) {
     const text = reply.trim()
     if (!text) return
     setBusy(true)
     try {
-      const res = await sendSupportReply(ticket.id, text)
+      const res = asQuestion
+        ? await sendSupportReply(ticket.id, text, { toUserId: questionTo || undefined })
+        : await sendSupportReply(ticket.id, text)
       setReplies(res.replies ?? [])
       setReadAt(null)
       setReply('')
-      showToast('Antwort gesendet', 'success')
+      if (asQuestion && res.status === 'wartet') {
+        setStatus('wartet')
+        setWaitingOn({ name: res.waiting_on_name ?? '', since: res.waiting_since ?? null })
+      }
+      showToast(asQuestion ? 'Rückfrage gesendet' : 'Antwort gesendet', 'success')
       onChanged()
     } catch {
-      showToast('Antwort konnte nicht gesendet werden', 'error')
+      showToast(asQuestion ? 'Rückfrage konnte nicht gesendet werden'
+        : 'Antwort konnte nicht gesendet werden', 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remind() {
+    setBusy(true)
+    try {
+      const res = await remindSupportQuestion(ticket.id)
+      showToast(res.pushed ? 'Erinnerung gesendet'
+        : 'Keine Push möglich — die Rückfrage steht in der App', res.pushed ? 'success' : 'info')
+    } catch (e) {
+      const already = e instanceof ApiError && e.status === 429
+      showToast(already ? 'Heute schon erinnert' : 'Erinnerung fehlgeschlagen', 'error')
     } finally {
       setBusy(false)
     }
@@ -219,6 +268,16 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
               ? `erledigt ${fmtDateTime(ticket.closed_at)}`
               : `seit ${ageLabel(ticket.created_at, now)}`}
           </span>
+          {status === 'wartet' && waitingOn && (
+            <>
+              {' · '}
+              <span className={`support-age support-age--${waitTone(
+                { status, waiting_since: waitingOn.since }, now)}`}>
+                ⏳ wartet auf {waitingOn.name || 'Mandant'}
+                {waitingOn.since ? ` seit ${ageLabel(waitingOn.since, now)}` : ''}
+              </span>
+            </>
+          )}
           {' · '}
           {ticket.created_by_name || '—'}{ticket.created_by_role ? ` (${ticket.created_by_role})` : ''}
         </div>
@@ -240,7 +299,9 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
           {(ticket.addenda ?? []).map((a, index) => (
             <div key={`${a.at}-${index}`} className="support-addendum">
               <div className="support-reply-meta">
-                {a.resolved ? 'Melder: hat sich erledigt' : 'Nachtrag des Melders'}
+                {a.resolved ? 'Melder: hat sich erledigt'
+                  : a.kind === 'antwort' ? `Antwort auf Rückfrage${a.by ? ` · ${a.by}` : ''}`
+                  : 'Nachtrag des Melders'}
                 {' · '}{fmtDateTime(a.at)}
               </div>
               <div className="support-reply-text">{a.text}</div>
@@ -324,6 +385,7 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
             {replies.map((r, index) => (
               <div key={`${r.at}-${index}`} className="support-reply-item">
                 <div className="support-reply-meta">
+                  {r.kind === 'rueckfrage' && <b>Rückfrage{r.to ? ` an ${r.to}` : ''} · </b>}
                   {fmtDateTime(r.at)}{r.by ? ` · ${r.by}` : ''}
                   {index === replies.length - 1 && (
                     readAt
@@ -348,12 +410,33 @@ function TicketDetail({ ticket, now, onBack, onChanged }: DetailProps) {
         />
         <div className="support-reply-actions">
           <button className="admin-btn admin-btn-primary admin-btn-sm"
-                  disabled={busy || !reply.trim()} onClick={sendReply}>
+                  disabled={busy || !reply.trim()} onClick={() => sendReply(false)}>
             Antwort senden
           </button>
+          {/* Rückfrage (docs/specs/support-rueckfrage.md R2/R3): die Meldung
+              wartet danach auf die gewählte Person und steht im Reiter
+              «Wartet auf Mandant» — statt sie zum Aufräumen zu schliessen. */}
+          <button className="admin-btn admin-btn-secondary admin-btn-sm"
+                  disabled={busy || !reply.trim()} onClick={() => sendReply(true)}>
+            Als Rückfrage senden
+          </button>
+          <select aria-label="Rückfrage an" value={questionTo} disabled={busy}
+                  onChange={e => setQuestionTo(e.target.value)}>
+            <option value="">an den Melder</option>
+            {targets.filter(t => !t.is_reporter).map(t => (
+              <option key={t.user_id} value={t.user_id}>an {t.name}</option>
+            ))}
+          </select>
+          {status === 'wartet' && (
+            <button className="admin-btn admin-btn-secondary admin-btn-sm"
+                    disabled={busy} onClick={remind}
+                    title="Die Push der offenen Rückfrage noch einmal senden (höchstens 1× pro Tag)">
+              Erinnern
+            </button>
+          )}
           <span className="support-reply-hint">
-            Geht als Push an den Melder und steht in seiner App unter
-            «Meine Meldungen».
+            Geht als Push an den Melder (bzw. die gefragte Person) und steht in
+            der App unter «Meine Meldungen».
           </span>
         </div>
       </div>
@@ -419,6 +502,12 @@ function TicketRow({ ticket: t, now, selected, onOpen }: {
       <span className="support-row-line2">
         {t.created_by_name || '—'} · {routeLabel(t.route, t.app_context)}
         {t.status === 'in_arbeit' && ' · in Arbeit'}
+        {t.status === 'wartet' && (
+          <span className={`support-age support-age--${waitTone(t, now)}`}>
+            {' · ⏳ wartet auf '}{t.waiting_on_name || 'Mandant'}
+            {t.waiting_since ? ` seit ${ageLabel(t.waiting_since, now)}` : ''}
+          </span>
+        )}
       </span>
       <span className="support-row-msg">{t.message}</span>
       {(t.attachment_count > 0 || t.snapshot_error_count > 0 || replyMark || addendumMark) && (
@@ -639,11 +728,21 @@ export default function SupportTicketsScreen({ initialTicketId }: { initialTicke
     setTab('todo')
   }
 
+  const waiting = useMemo(() => tickets.filter(t => t.status === 'wartet'), [tickets])
+  const oldestWait = waiting.reduce<string | null>(
+    (min, t) => (t.waiting_since && (!min || t.waiting_since < min) ? t.waiting_since : min), null)
+
   const statusLine = dashboard && (
     <div className="support-statusline">
       {dashboard.open_total === 0
         ? <b>Alles erledigt ✓</b>
         : <b>{dashboard.open_total} zu erledigen</b>}
+      {waiting.length > 0 && (
+        <span>
+          {' · '}{waiting.length} {waiting.length === 1 ? 'wartet' : 'warten'} auf Mandant
+          {oldestWait ? ` (älteste ${ageLabel(oldestWait, now)})` : ''}
+        </span>
+      )}
       {dashboard.oldest_open_at && (
         <span className={`support-age support-age--${ageTone(
           { status: 'offen', created_at: dashboard.oldest_open_at }, now)}`}>

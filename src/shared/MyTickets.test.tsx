@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import SupportForm from './SupportForm'
 import HelpBubble from './HelpBubble'
-import MyTickets from './MyTickets'
+import MyTickets, { sortOpenFirst } from './MyTickets'
 import { leereMeldungen } from './supportTestFixtures'
 import type { MySupportTicket } from '../api/support'
 
@@ -11,6 +11,7 @@ import type { MySupportTicket } from '../api/support'
 const fetchMySupportTickets = vi.fn()
 const markSupportRepliesRead = vi.fn()
 const sendSupportAddendum = vi.fn()
+const answerSupportQuestion = vi.fn()
 
 vi.mock('../api/support', async () => {
   const actual = await vi.importActual<typeof import('../api/support')>('../api/support')
@@ -20,6 +21,7 @@ vi.mock('../api/support', async () => {
     fetchMySupportTickets: (...args: unknown[]) => fetchMySupportTickets(...args),
     markSupportRepliesRead: (...args: unknown[]) => markSupportRepliesRead(...args),
     sendSupportAddendum: (...args: unknown[]) => sendSupportAddendum(...args),
+    answerSupportQuestion: (...args: unknown[]) => answerSupportQuestion(...args),
   }
 })
 
@@ -300,5 +302,63 @@ describe('SupportForm — Hinweis auf offene Meldungen', () => {
       <SupportForm mine={leereMeldungen({ tickets: [BEANTWORTET] })} route="d" appContext="pwa" />,
     )
     expect(screen.queryByRole('button', { name: /noch offen/ })).toBeNull()
+  })
+})
+
+// docs/specs/support-rueckfrage.md §5
+describe('MyTickets — Rückfrage des Supports', () => {
+  const GEFRAGT: MySupportTicket = {
+    id: 't9', ticket_no: 9, reference: 'WS-9', message: 'Export leer',
+    status: 'wartet', created_at: '2026-09-20T08:00:00Z',
+    replies: [{ text: 'Welcher Zeitraum?', at: '2026-09-21T08:00:00Z', by: 'Luca',
+      kind: 'rueckfrage', to: 'Mia Muster' }],
+    waits_on_me: true, waiting_on_name: 'Mia Muster',
+  }
+
+  beforeEach(() => answerSupportQuestion.mockReset())
+
+  it('steht ganz oben, und «Antworten» schickt an die Antwort-Route', async () => {
+    answerSupportQuestion.mockResolvedValue({
+      ok: true, status: 'offen',
+      addenda: [{ text: 'Ganzer September', at: '2026-09-21T09:00:00Z', kind: 'antwort', by: 'Mia Muster' }],
+    })
+    expect(sortOpenFirst([BEANTWORTET, GEFRAGT]).map(t => t.id)).toEqual(['t9', 't1'])
+    render(<MyTickets tickets={[GEFRAGT]} loading={false} failed={false}
+                      onNewWithReference={() => {}} />)
+    expect(screen.getByText(/Der Support fragt nach/)).not.toBeNull()
+    expect(screen.getByText(/Rückfrage an Mia Muster/)).not.toBeNull()
+    // Gefragt ist eine Antwort, kein Nachtrag.
+    expect(screen.queryByRole('button', { name: 'Ergänzen' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Antworten' }))
+    fireEvent.change(screen.getByLabelText('Antwort zu WS-9'), { target: { value: 'Ganzer September' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Antwort senden' }))
+    await waitFor(() => expect(answerSupportQuestion).toHaveBeenCalledWith('t9', 'Ganzer September'))
+    expect(await screen.findByText(/Antwort auf Rückfrage von Mia Muster/)).not.toBeNull()
+    expect(screen.queryByText(/Der Support fragt nach/)).toBeNull()
+  })
+
+  it('zeigt dem Melder, bei wem seine Meldung gerade liegt', () => {
+    render(<MyTickets tickets={[{ ...GEFRAGT, waits_on_me: false }]} loading={false} failed={false}
+                      onNewWithReference={() => {}} />)
+    expect(screen.getByText('Der Support hat bei Mia Muster nachgefragt.')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: 'Antworten' })).toBeNull()
+  })
+
+  it('«An mich weitergeleitet»: fremde Meldung mit Melder, nur Antworten', () => {
+    const fremd = { ...GEFRAGT, id: 'f1', created_by_name: 'Max Melder' }
+    render(<MyTickets tickets={[]} forwarded={[fremd]} loading={false} failed={false}
+                      onNewWithReference={() => {}} />)
+    expect(screen.getByText('An mich weitergeleitet (1)')).not.toBeNull()
+    expect(screen.getByText(/von Max Melder/)).not.toBeNull()
+    expect(screen.getByRole('button', { name: 'Antworten' })).not.toBeNull()
+    // Abschliessen ist Sache des Melders.
+    expect(screen.queryByRole('button', { name: 'Hat sich erledigt' })).toBeNull()
+  })
+
+  it('das Formular weist auf die Rückfrage hin statt aufs Melden', () => {
+    render(<SupportForm mine={leereMeldungen({ forwarded: [{ ...GEFRAGT, id: 'f1' }], attention: 1 })}
+                        route="d" appContext="pwa" />)
+    expect(screen.getByRole('tab', { name: /Meine Meldungen \(1\)/ })).not.toBeNull()
+    expect(screen.getByText(/An mich weitergeleitet/)).not.toBeNull()
   })
 })

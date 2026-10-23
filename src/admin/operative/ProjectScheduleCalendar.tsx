@@ -22,7 +22,7 @@ import {
 } from '../utils/ganttGrid'
 import ProjectScheduleGantt from './ProjectScheduleGantt'
 import {
-  absenceLookup,
+  absenceKind, absenceLookup, absencesOnDay, staffShortLabel, type DayAbsence,
   crewMembers, entryTitle, fmtTime, fmtTimeRange, hasUnassignedEntries, kindSymbol,
   neededDistancePairs, overlapConflictIds, pillBg, pillClass, pillExtraLines,
   projectCoversDay, projectMonteurNames, readDragPayload, reassignTeam, rowEntries,
@@ -30,6 +30,8 @@ import {
   type CalendarEntry, type StaffLite,
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
+import CrewChips from './CrewChips'
+import { parseViewDate, readScheduleView, writeScheduleView } from './scheduleViewState'
 import MiniMonthPicker from './MiniMonthPicker'
 
 // Nachgeladen statt statisch importiert — und das ist keine Feinoptimierung:
@@ -119,10 +121,38 @@ function CalendarLegend({ canton }: { canton: string }) {
   )
 }
 
+// ─── Abwesenheiten ausserhalb der Plantafel ───────────────────────────────────
+// Genehmigte Absenzen (Ferien, Militär, …) als schraffierte Chips je Tag
+// (einsatzplanung-rueckmeldungen-2026-10.md §7). Vorher sah man sie nur in der
+// Plantafel; wer in Woche oder Mitarbeiter-Ansicht plante, erfuhr erst beim
+// Speichern (409) davon. Abgeleitet, kein Datensatz: zieht jemand seine Ferien
+// zurück, verschwindet die Markierung mit dem nächsten Laden.
+//
+// `withName`: ausserhalb der Mitarbeiter-Ansicht Kürzel + Art («MW Ferien»), das
+// volle Label und der Name im title. In der Mitarbeiter-Ansicht ist klar, um wen
+// es geht — dort steht das volle Label («Ferien 24.08.–28.08.2026»).
+function AbsenceChips({ list, withName }: { list: DayAbsence[]; withName: boolean }) {
+  if (list.length === 0) return null
+  return (
+    <div className="project-cal-absences">
+      {list.map(a => (
+        <span
+          key={a.staff.id}
+          className="project-cal-absence-chip"
+          title={`${a.staff.name}: ${a.label}`}
+        >
+          {withName ? `${staffShortLabel(a.staff)} ${absenceKind(a.label)}` : a.label}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 // ─── Month View ───────────────────────────────────────────────────────────────
 
 function MonthView({
   projects, staff, fields, currentDate, onSelect, onOpenProject, onReschedule, holidays,
+  absences, absenceStaff,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -132,7 +162,11 @@ function MonthView({
   onOpenProject?: (p: Project) => void
   onReschedule: (id: string, deltaDays: number, startTime?: string | null) => void
   holidays: Map<string, string>
+  absences?: ScheduleAbsence[]
+  // Wessen Abwesenheit zählt (sichtbare Mitarbeiter bzw. der fokussierte).
+  absenceStaff: StaffLite[]
 }) {
+  const absentOn = absenceLookup(absences ?? [])
   const days = getMonthDays(currentDate)
   const DOW = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
   const [hoverDay, setHoverDay] = useState<string | null>(null)
@@ -168,6 +202,9 @@ function MonthView({
           const today = isToday(day)
           const holidayName = holidays.get(dayISO)
           const dayProjects = projects.filter(p => projectCoversDay(p, day))
+          // Monatskacheln sind zu klein für Bänder — ein Marker je Tag, die
+          // Namen im title.
+          const absent = absencesOnDay(absentOn, absenceStaff, dayISO)
 
           return (
             <div
@@ -185,8 +222,14 @@ function MonthView({
                   </span>
                 )}
               </div>
+              {absent.length > 0 && (
+                <div
+                  className="project-cal-month-absent"
+                  title={absent.map(a => `${a.staff.name}: ${a.label}`).join('\n')}
+                >{absent.length} abwesend</div>
+              )}
               {dayProjects.map((p, j) => {
-                const extra = pillExtraLines(p, staff, fields)
+                const extra = pillExtraLines(p, staff, fields, { plKuerzel: true })
                 return (
                   <div
                     key={j}
@@ -222,7 +265,7 @@ function MonthView({
 
 function WeekView({
   projects, staff, fields, currentDate, onSelect, onOpenProject, onReschedule, onCreateSlot, holidays,
-  greyAfter, greyUntil, hourHeight,
+  greyAfter, greyUntil, hourHeight, absences, absenceStaff, staffMode = false,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -239,8 +282,17 @@ function WeekView({
   greyUntil?: string
   // Zeilenhöhe pro Stunde in px (Zoom-Stufe).
   hourHeight: number
+  absences?: ScheduleAbsence[]
+  // Wessen Abwesenheit gezeigt wird: die sichtbaren Mitarbeiter, in der
+  // Mitarbeiter-Ansicht nur der fokussierte.
+  absenceStaff: StaffLite[]
+  // Mitarbeiter-Ansicht: die Spalte eines Abwesenheitstags wird zusätzlich
+  // schraffiert — der Plan gehört genau dieser einen Person.
+  staffMode?: boolean
 }) {
   const days = getWeekDays(currentDate)
+  const absentOn = absenceLookup(absences ?? [])
+  const absentByDay: DayAbsence[][] = days.map(d => absencesOnDay(absentOn, absenceStaff, toDateStr(d)))
   const [hoverDayISO, setHoverDayISO] = useState<string | null>(null)
   const { hover, bind } = useHoverCard()
   // Live-Vorschau beim Ziehen ins Zeitraster: an welchem Tag/Höhe der Block landet.
@@ -355,6 +407,7 @@ function WeekView({
   function tileBody(p: CalendarEntry, timeLabel: string, extra: string[], layout: TileLayout) {
     const head = (
       <>
+        <CrewChips entry={p} staff={staff} className="project-cal-week-event-crew" />
         {kindSymbol(p) && <span className="project-cal-kind-symbol">{kindSymbol(p)}</span>}
         {p.termin_badge && <span className="project-cal-termin-badge">{p.termin_badge}</span>}
         {entryTitle(p)}
@@ -389,7 +442,7 @@ function WeekView({
     lane?: { col: number; total: number },
   ) {
     const timeLabel = fmtTimeRange(p)
-    const extra = pillExtraLines(p, staff, fields)
+    const extra = pillExtraLines(p, staff, fields, { plKuerzel: true })
     // key wird bewusst separat gesetzt — React 19 warnt, wenn er mitgespreadet wird.
     const common = {
       draggable: true,
@@ -413,6 +466,7 @@ function WeekView({
           style={{ background: pillBg(p) }}
         >
           <div className="project-cal-week-event-name">
+            <CrewChips entry={p} staff={staff} className="project-cal-week-event-crew" />
             {kindSymbol(p) && <span className="project-cal-kind-symbol">{kindSymbol(p)}</span>}
             {p.termin_badge && <span className="project-cal-termin-badge">{p.termin_badge}</span>}
             {entryTitle(p)}
@@ -466,6 +520,18 @@ function WeekView({
         })}
       </div>
 
+      {/* Abwesend-Zeile: genehmigte Absenzen der Woche (§7). Nur wenn es welche gibt. */}
+      {absentByDay.some(list => list.length > 0) && (
+        <div className="project-cal-week-allday-row project-cal-week-absent-row">
+          <div className="project-cal-week-allday-label">Abwesend</div>
+          {days.map((d, i) => (
+            <div key={i} className={`project-cal-week-allday-cell${absentByDay[i].length ? ' absent' : ''}`}>
+              <AbsenceChips list={absentByDay[i]} withName={!staffMode} />
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Ganztägig-Strip (Projekte ohne Startzeit) */}
       {projectsByDay.some(list => list.some(p => !p.start_time)) && (
         <div className="project-cal-week-allday-row">
@@ -508,7 +574,10 @@ function WeekView({
           return (
             <div
               key={i}
-              className={`project-cal-week-day-col${dropPreview?.dayISO === dayISO ? ' project-cal-drop-hover' : ''}${onCreateSlot ? ' creatable' : ''}`}
+              className={
+                `project-cal-week-day-col${dropPreview?.dayISO === dayISO ? ' project-cal-drop-hover' : ''}` +
+                `${onCreateSlot ? ' creatable' : ''}${staffMode && absentByDay[i].length ? ' absent' : ''}`
+              }
               onMouseDown={e => beginCreate(e, dayISO)}
               onDragOver={e => {
                 e.preventDefault()
@@ -749,6 +818,7 @@ function PlantafelView({
 // Einsätze über den +-Button im Tag-Header (Default-Slot 08:00–09:00).
 function AgendaView({
   projects, staff, fields, currentDate, onSelect, onOpenProject, onCreateSlot, holidays,
+  absences, absenceStaff, staffMode = false,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -758,9 +828,13 @@ function AgendaView({
   onOpenProject?: (p: Project) => void
   onCreateSlot?: (dayISO: string, startTime: string, endTime: string) => void
   holidays: Map<string, string>
+  absences?: ScheduleAbsence[]
+  absenceStaff: StaffLite[]
+  staffMode?: boolean
 }) {
   const days = getWeekDays(currentDate)
   const projectsByDay: CalendarEntry[][] = days.map(d => projects.filter(p => projectCoversDay(p, d)))
+  const absentOn = absenceLookup(absences ?? [])
   return (
     <div className="project-cal-agenda">
       {days.map((day, i) => {
@@ -781,11 +855,11 @@ function AgendaView({
                 >+</button>
               )}
             </div>
+            <AbsenceChips list={absencesOnDay(absentOn, absenceStaff, dayISO)} withName={!staffMode} />
             {dayProjects.length === 0 ? (
               <div className="project-cal-agenda-empty">–</div>
             ) : dayProjects.map(p => {
-              const extra = pillExtraLines(p, staff, fields)
-              const crew = crewMembers(p, staff)
+              const extra = pillExtraLines(p, staff, fields, { plKuerzel: true })
               return (
                 <div
                   key={p.id}
@@ -796,16 +870,8 @@ function AgendaView({
                 >
                   <span className="project-cal-agenda-event-time">{fmtTimeRange(p) || 'Ganztägig'}</span>
                   <strong>{kindSymbol(p) ? `${kindSymbol(p)} ` : ''}{p.termin_badge ? `${p.termin_badge} · ` : ''}{entryTitle(p)}</strong>
-                  {crew.length > 0 && (
-                    <span className="project-cal-agenda-event-sub">
-                      {crew.map((m, k) => (
-                        <span key={m.id}>
-                          {k > 0 && ', '}
-                          <span className={m.lead ? 'schedule-lead-chip' : undefined}>{m.name}</span>
-                        </span>
-                      ))}
-                    </span>
-                  )}
+                  {/* Kürzel wie im Tagesplan (§4) — die vollen Namen stehen im Bearbeitungs-Panel. */}
+                  <CrewChips entry={p} staff={staff} className="project-cal-agenda-event-crew" />
                   {extra.map((line, j) => <span key={j} className="project-cal-agenda-event-sub">{line}</span>)}
                 </div>
               )
@@ -862,7 +928,10 @@ export default function ProjectScheduleCalendar({
   projects, staff, loading, canton = 'ZH', onSelect, onOpenProject, onReschedule, onCreateSlot,
   onVisibleWeekChange, onVisibleStaffChange, schedulingConfig, configPending = false, absences,
 }: Props) {
-  const [viewMode, setViewMode] = useState<SchedulingViewKey>('month')
+  // Gemerkter Ansichtszustand der Sitzung (scheduleViewState.ts): ein Ausflug in
+  // die Projektmaske soll nicht wieder bei «Monat / heute» enden.
+  const [saved] = useState(readScheduleView)
+  const [viewMode, setViewMode] = useState<SchedulingViewKey>(saved.view ?? 'month')
   const isMobile = useIsMobile()
   const fields = schedulingConfig?.fields
   const greyAfter = schedulingConfig?.grey_after
@@ -882,12 +951,12 @@ export default function ProjectScheduleCalendar({
   for (const [k, v] of Object.entries(schedulingConfig?.colors || {})) {
     ;(kindColorVars as Record<string, string>)[`--kind-${k}`] = v
   }
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => parseViewDate(saved.date) ?? new Date())
   const [zoom, setZoom] = useState(readZoom)
   const [ganttZoom, setGanttZoom] = useState(readGanttZoom)
   // Sichtbare Tage im Tagesplan (1 / 3 / 5), pro Browser gemerkt.
   const [ganttSpan, setGanttSpan] = useState<number>(readGanttSpan)
-  const [hiddenStaff, setHiddenStaff] = useState<Set<string>>(new Set())
+  const [hiddenStaff, setHiddenStaff] = useState<Set<string>>(() => new Set(saved.hiddenStaff ?? []))
 
   // Zoom-Stufe der gerade aktiven Ansicht: Wochenraster = Zeilenhöhe,
   // Tagesplan = Stundenbreite.
@@ -914,6 +983,27 @@ export default function ProjectScheduleCalendar({
   // Index bei geänderter Staff-Liste in gültige Grenzen ziehen.
   const curStaffIndex = staff.length ? Math.min(staffIndex, staff.length - 1) : 0
   const focusedStaff = staff[curStaffIndex] ?? null
+
+  // Gemerkten Mitarbeiter wieder fokussieren, sobald die Liste da ist — die
+  // Ablage hält die id, der Index stimmt nach einem Neuladen nicht zwingend.
+  const pendingStaffIdRef = useRef(saved.staffId ?? null)
+  useEffect(() => {
+    const id = pendingStaffIdRef.current
+    if (!id || staff.length === 0) return
+    pendingStaffIdRef.current = null
+    const idx = staff.findIndex(s => s.id === id)
+    if (idx >= 0) setStaffIndex(idx)
+  }, [staff])
+
+  useEffect(() => {
+    writeScheduleView({
+      view: viewMode,
+      date: toDateStr(currentDate),
+      // Solange die Liste noch lädt, bleibt der gemerkte Mitarbeiter stehen.
+      staffId: focusedStaff?.id ?? pendingStaffIdRef.current,
+      hiddenStaff: [...hiddenStaff],
+    })
+  }, [viewMode, currentDate, focusedStaff, hiddenStaff])
 
   function stepStaff(delta: number) {
     if (staff.length === 0) return
@@ -954,6 +1044,11 @@ export default function ProjectScheduleCalendar({
   // Stale monteur_ids (nicht mehr in staff) werden ignoriert, sonst könnten sie
   // das Filter aushebeln (hiddenStaff enthält nur bekannte Staff-IDs).
   const staffIds = new Set(staff.map(s => s.id))
+  // Wessen Abwesenheit die Ansichten zeigen (§7): in der Mitarbeiter-Ansicht der
+  // fokussierte, sonst die sichtbaren Mitarbeiter — ausgeblendete auch hier nicht.
+  const absenceStaff: StaffLite[] = view === 'staff'
+    ? (focusedStaff ? [focusedStaff] : [])
+    : staff.filter(s => !hiddenStaff.has(s.id))
   const visibleProjects = projects.filter(p => {
     // Mitarbeiteransicht: nur Einsätze, auf denen der fokussierte Mitarbeiter
     // tatsächlich draussen ist — Termin-Team, Fallback Projekt-Team (das steckt
@@ -1156,8 +1251,12 @@ export default function ProjectScheduleCalendar({
                 key={s.id}
                 className={`absence-cal-staff-chip${hiddenStaff.has(s.id) ? ' hidden' : ''}`}
                 onClick={() => toggleStaff(s.id)}
+                // Kürzel wie auf den Kacheln (§4); der volle Name bleibt
+                // Tooltip und zugänglicher Name des Knopfs.
+                title={s.name}
+                aria-label={s.name}
               >
-                {s.name}
+                {staffShortLabel(s)}
               </button>
             ))}
           </div>
@@ -1230,6 +1329,9 @@ export default function ProjectScheduleCalendar({
           onOpenProject={onOpenProject}
           onCreateSlot={onCreateSlot ? handleCreateSlot : undefined}
           holidays={holidays}
+          absences={absences}
+          absenceStaff={absenceStaff}
+          staffMode={view === 'staff'}
         />
       ) : view === 'gantt' ? (
         <ProjectScheduleGantt
@@ -1249,6 +1351,7 @@ export default function ProjectScheduleCalendar({
           greyUntil={greyUntil}
           dayCapacityHours={schedulingConfig?.day_capacity_hours ?? DAY_CAPACITY_FALLBACK_H}
           showDistances={schedulingConfig?.show_distances !== false}
+          absences={absences}
         />
       ) : view === 'plantafel' ? (
         <PlantafelView
@@ -1277,6 +1380,8 @@ export default function ProjectScheduleCalendar({
           onOpenProject={onOpenProject}
           onReschedule={(id, d, t) => { void onReschedule(id, d, t) }}
           holidays={holidays}
+          absences={absences}
+          absenceStaff={absenceStaff}
         />
       ) : (
         <WeekView
@@ -1292,6 +1397,9 @@ export default function ProjectScheduleCalendar({
           greyAfter={greyAfter}
           greyUntil={greyUntil}
           hourHeight={WEEK_ZOOM_LEVELS[zoom]}
+          absences={absences}
+          absenceStaff={absenceStaff}
+          staffMode={view === 'staff'}
         />
       )}
 

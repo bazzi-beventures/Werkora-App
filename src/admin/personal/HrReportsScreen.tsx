@@ -120,37 +120,6 @@ export default function HrReportsScreen() {
     loadViolations(background)
   }, 15_000)
 
-  async function handleExport() {
-    setExporting(true)
-    try {
-      const res = await fetch(`${BASE_URL}/pwa/admin/hr/export-timesheets`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date_from: dateFrom, date_to: dateTo }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: res.statusText }))
-        throw new Error(err.detail || 'Export fehlgeschlagen')
-      }
-      const blob = await res.blob()
-      const disposition = res.headers.get('Content-Disposition') ?? ''
-      const match = disposition.match(/filename="?([^"]+)"?/)
-      const filename = match ? match[1] : `Stunden-Export_${dateFrom}_${dateTo}.xlsx`
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      a.click()
-      URL.revokeObjectURL(url)
-      showToast('Export heruntergeladen', 'success')
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Export fehlgeschlagen', 'error')
-    } finally {
-      setExporting(false)
-    }
-  }
-
   // ── Lookup-Tabellen ──────────────────────────────
   const roleByName: Map<string, StaffRole> = useMemo(() => {
     const m = new Map<string, StaffRole>()
@@ -211,6 +180,50 @@ export default function HrReportsScreen() {
   function toggleAllStaff(all: boolean) {
     setStaffFilterUserModified(true)
     setSelectedStaff(all ? new Set(visibleStaffNames) : new Set())
+  }
+
+  async function handleExport() {
+    // Exportiert wird, was die Maske zeigt (WW-38): ist der Mitarbeiter-Filter
+    // eingeschränkt (von Hand oder durch das ausgeblendete Management), geht die
+    // Auswahl mit. Sind alle gewählt, bleibt staff_names weg — dann exportiert
+    // der Server wie bisher alle, auch wer im Zeitraum nur Rapporte hat.
+    const filtered = selectedStaff.size < allStaffNames.length
+    if (filtered && selectedStaff.size === 0) {
+      showToast('Keine Mitarbeiter ausgewählt', 'error')
+      return
+    }
+    setExporting(true)
+    try {
+      const res = await fetch(`${BASE_URL}/pwa/admin/hr/export-timesheets`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date_from: dateFrom,
+          date_to: dateTo,
+          ...(filtered ? { staff_names: Array.from(selectedStaff) } : {}),
+        }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }))
+        throw new Error(err.detail || 'Export fehlgeschlagen')
+      }
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = disposition.match(/filename="?([^"]+)"?/)
+      const filename = match ? match[1] : `Stunden-Export_${dateFrom}_${dateTo}.xlsx`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast('Export heruntergeladen', 'success')
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Export fehlgeschlagen', 'error')
+    } finally {
+      setExporting(false)
+    }
   }
 
   // ── Sessions filtern + nach Staff gruppieren ──

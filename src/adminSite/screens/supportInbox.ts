@@ -7,10 +7,14 @@
 import type { SupportStatus, SupportTicket } from '../../api/support'
 import { SCREEN_TITLES } from '../../admin/screenTitles'
 
-export type InboxTab = 'todo' | 'erledigt' | 'alle'
+export type InboxTab = 'todo' | 'wartet' | 'erledigt' | 'alle'
 
 export const TAB_LABEL: Record<InboxTab, string> = {
   todo: 'Zu erledigen',
+  // Rückfrage gestellt, der Ball liegt beim Mandanten
+  // (docs/specs/support-rueckfrage.md §4). Nicht in «Zu erledigen»: dort steht,
+  // was auf MICH wartet.
+  wartet: 'Wartet auf Mandant',
   erledigt: 'Erledigt',
   alle: 'Alle',
 }
@@ -53,6 +57,17 @@ export function ageTone(ticket: Pick<SupportTicket, 'status' | 'created_at'>, no
   return 'ok'
 }
 
+/** Ab wann eine Rückfrage als lange unbeantwortet gilt (Warnfarbe). */
+export const WAIT_WARN_HOURS = 72
+
+/** Farbstufe des Wartens auf den Mandanten — gemessen ab der Rückfrage, nicht
+ *  ab der Meldung. */
+export function waitTone(ticket: Pick<SupportTicket, 'status' | 'waiting_since'>, now: number):
+  'ok' | 'warn' {
+  if (ticket.status !== 'wartet' || !ticket.waiting_since) return 'ok'
+  return ageHours(ticket.waiting_since, now) >= WAIT_WARN_HOURS ? 'warn' : 'ok'
+}
+
 /** Noch nie im Detail geöffnet. Ohne `seen_at`-Spalte (Server älter als die
  *  Migration) ist nichts ungelesen — lieber kein Punkt als überall einer. */
 export function isUnread(ticket: Pick<SupportTicket, 'seen_at'>): boolean {
@@ -77,6 +92,7 @@ export function inboxView(tickets: SupportTicket[], f: InboxFilter): SupportTick
   const q = f.query.trim().toLowerCase()
   const rows = tickets.filter(t => {
     if (f.tab === 'todo' && !isOpen(t.status)) return false
+    if (f.tab === 'wartet' && t.status !== 'wartet') return false
     if (f.tab === 'erledigt' && t.status !== 'erledigt') return false
     if (f.tenantId && t.tenant_id !== f.tenantId) return false
     if (f.cluster) {
@@ -90,9 +106,13 @@ export function inboxView(tickets: SupportTicket[], f: InboxFilter): SupportTick
     }
     return true
   })
-  const asc = f.tab === 'todo'
+  // «Wartet» zeigt wie «Zu erledigen» die älteste zuerst — gemessen ab der
+  // Rückfrage: wer am längsten nicht antwortet, gehört zuerst erinnert.
+  const asc = f.tab === 'todo' || f.tab === 'wartet'
+  const since = (t: SupportTicket) =>
+    new Date((f.tab === 'wartet' && t.waiting_since) || t.created_at).getTime()
   return rows.sort((a, b) => {
-    const d = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    const d = since(a) - since(b)
     return asc ? d : -d
   })
 }
@@ -101,6 +121,7 @@ export function tabCounts(tickets: SupportTicket[], tenantId: string): Record<In
   const scoped = tenantId ? tickets.filter(t => t.tenant_id === tenantId) : tickets
   return {
     todo: scoped.filter(t => isOpen(t.status)).length,
+    wartet: scoped.filter(t => t.status === 'wartet').length,
     erledigt: scoped.filter(t => t.status === 'erledigt').length,
     alle: scoped.length,
   }

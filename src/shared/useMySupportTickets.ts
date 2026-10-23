@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  fetchForwardedSupportTickets,
   fetchMySupportTickets,
   markSupportRepliesRead,
   type MySupportTicket,
@@ -19,6 +20,12 @@ export interface MySupportTicketsState {
   tickets: MySupportTicket[]
   /** Meldungen mit ungelesener Antwort — vom Server gezählt (eine Regel, ein Ort). */
   unread: number
+  /** Fremde Meldungen mit einer Rückfrage des Betreibers an mich
+   *  (docs/specs/support-rueckfrage.md R5). */
+  forwarded: MySupportTicket[]
+  /** Fürs Abzeichen: ungelesene Antworten plus Rückfragen, die auf MICH warten
+   *  — eigene und weitergeleitete, je Meldung einmal. */
+  attention: number
   loading: boolean
   /** Laden fehlgeschlagen (offline, Serverfehler). Blockiert das Melden nie. */
   failed: boolean
@@ -29,6 +36,8 @@ export interface MySupportTicketsState {
 export function useMySupportTickets(enabled: boolean): MySupportTicketsState {
   const [tickets, setTickets] = useState<MySupportTicket[]>([])
   const [unread, setUnread] = useState(0)
+  const [ownAttention, setOwnAttention] = useState(0)
+  const [forwarded, setForwarded] = useState<MySupportTicket[]>([])
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -36,9 +45,16 @@ export function useMySupportTickets(enabled: boolean): MySupportTicketsState {
     if (!enabled) return
     setLoading(true)
     try {
-      const res = await fetchMySupportTickets()
+      // Beide Listen zugleich; die weitergeleiteten sind Beiwerk — scheitern
+      // sie, bleibt die eigene Liste trotzdem stehen.
+      const [res, fwd] = await Promise.all([
+        fetchMySupportTickets(),
+        fetchForwardedSupportTickets().catch(() => null),
+      ])
       setTickets(res?.tickets ?? [])
       setUnread(res?.unread ?? 0)
+      setOwnAttention(res?.attention ?? res?.unread ?? 0)
+      if (fwd) setForwarded(fwd.tickets ?? [])
       setFailed(false)
     } catch {
       // Kein Fehlerbanner: dieser Aufruf hängt am Öffnen der Hilfe-Blase. Wer
@@ -57,6 +73,9 @@ export function useMySupportTickets(enabled: boolean): MySupportTicketsState {
     // selben Augenblick weg sein, in dem der Nutzer die Antwort sieht — nicht
     // erst, wenn eine Baustellen-Verbindung den POST durchgelassen hat.
     setUnread(0)
+    // Eine offene Rückfrage an mich bleibt im Abzeichen: sie wartet auf eine
+    // Antwort, nicht auf einen Blick (wie bei den Wünschen, §7.1a).
+    setOwnAttention(tickets.filter(t => t.waits_on_me).length)
     try {
       await markSupportRepliesRead()
     } catch {
@@ -64,7 +83,8 @@ export function useMySupportTickets(enabled: boolean): MySupportTicketsState {
       // Beim nächsten Laden steht das Abzeichen wieder da — das ist die
       // richtige Richtung, in die dieser Fehler fallen soll.
     }
-  }, [])
+  }, [tickets])
 
-  return { tickets, unread, loading, failed, reload, markRead }
+  const attention = ownAttention + forwarded.filter(t => t.waits_on_me).length
+  return { tickets, unread, forwarded, attention, loading, failed, reload, markRead }
 }

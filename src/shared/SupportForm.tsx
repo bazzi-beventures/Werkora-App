@@ -65,7 +65,7 @@ function formatSeconds(total: number) {
 export default function SupportForm({ route, appContext, mine }: Props) {
   // Startwert aus dem Ladezustand der Blase: die Liste ist beim Öffnen des
   // Panels bereits geholt (Hook hängt am App-Start), der Wert stimmt also.
-  const [view, setView] = useState<View>(mine.unread > 0 ? 'meine' : 'melden')
+  const [view, setView] = useState<View>(mine.attention > 0 ? 'meine' : 'melden')
   const [message, setMessage] = useState('')
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
@@ -189,6 +189,9 @@ export default function SupportForm({ route, appContext, mine }: Props) {
   }, [view, mine])
 
   const offene = mine.tickets.filter(isOpenTicket)
+  // Rückfragen des Betreibers, die auf MICH warten — eigene und an mich
+  // weitergeleitete (docs/specs/support-rueckfrage.md §5).
+  const rueckfragen = [...mine.tickets, ...mine.forwarded].filter(t => t.waits_on_me).length
 
   /** «Passt nicht» — zurück ins Formular, vorbelegt mit dem Bezug (Spec A8). */
   function neueMeldungMitBezug(prefill: string) {
@@ -262,8 +265,8 @@ export default function SupportForm({ route, appContext, mine }: Props) {
         >
           {id === 'melden'
             ? 'Problem melden'
-            : mine.unread > 0
-              ? `Meine Meldungen (${mine.unread})`
+            : mine.attention > 0
+              ? `Meine Meldungen (${mine.attention})`
               // Ohne ungelesene Antwort zählt der Reiter die offenen: der
               // Melder soll sehen, dass da noch etwas läuft (§13).
               : `Meine Meldungen${offene.length > 0 ? ` · ${offene.length} offen` : ''}`}
@@ -281,6 +284,7 @@ export default function SupportForm({ route, appContext, mine }: Props) {
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
           <MyTickets
             tickets={mine.tickets}
+            forwarded={mine.forwarded}
             loading={mine.loading}
             failed={mine.failed}
             onNewWithReference={neueMeldungMitBezug}
@@ -314,7 +318,23 @@ export default function SupportForm({ route, appContext, mine }: Props) {
       {/* Sicherheitsnetz zum Startwert oben: kam die Liste erst herein, nachdem
           das Panel schon offen war, steht die Ansicht auf «melden» — dann darf
           die wartende Antwort nicht unsichtbar bleiben. */}
-      {mine.unread > 0 && (
+      {rueckfragen > 0 && (
+        <button
+          type="button"
+          onClick={() => setView('meine')}
+          style={{
+            textAlign: 'left', padding: '8px 10px', borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--accent)', background: 'transparent',
+            color: 'inherit', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600,
+          }}
+        >
+          {rueckfragen === 1
+            ? 'Der Support hat eine Rückfrage an dich — antworten'
+            : `Der Support hat ${rueckfragen} Rückfragen an dich — antworten`}
+        </button>
+      )}
+
+      {rueckfragen === 0 && mine.unread > 0 && (
         <button
           type="button"
           onClick={() => setView('meine')}
@@ -335,7 +355,7 @@ export default function SupportForm({ route, appContext, mine }: Props) {
           Korrektur gehört als Nachtrag an die bestehende Meldung, nicht als
           zweite Meldung ohne Bezug in den Eingang. Hinter dem Antwort-Hinweis,
           damit nie zwei Banner übereinander stehen. */}
-      {mine.unread === 0 && offene.length > 0 && (
+      {rueckfragen === 0 && mine.unread === 0 && offene.length > 0 && (
         <button
           type="button"
           onClick={() => setView('meine')}

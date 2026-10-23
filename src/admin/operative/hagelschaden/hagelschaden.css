@@ -162,6 +162,16 @@
   font-size: var(--font-sm);
   color: var(--text-muted);
 }
+/* Telefonnummer des Kunden — tel:-Link, ein Tipp wählt (Spec §7) */
+.hagel-telefone { display: flex; flex-direction: column; gap: 2px; }
+.hagel-tel {
+  align-self: flex-start;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.hagel-tel:hover { text-decoration: underline; }
 .hagel-notiz-zelle {
   max-width: 220px;
   overflow: hidden;

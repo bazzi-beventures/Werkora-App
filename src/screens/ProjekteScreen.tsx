@@ -31,7 +31,9 @@ import {
 } from './projekte/taskQueue'
 import { sortProjectsNewestFirst } from './projekte/sortProjects'
 import { filterProjectsBySearch } from './projekte/searchProjects'
-import { PROJECT_FILE_ACCEPT, projectFileIcon } from '../shared/projectFileTypes'
+import { PROJECT_FILE_ACCEPT } from '../shared/projectFileTypes'
+import { FileThumb } from '../shared/FileThumb'
+import { selectBaseName } from '../shared/selectBaseName'
 import { mapsUrl } from '../shared/mapsLink'
 import { hasModule, isFeatureEnabled } from '../api/modules'
 import { looksLikeEmail, setCustomerEmail } from '../api/customerEmail'
@@ -847,12 +849,22 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     // weg: sie stünde unter jeder Zeile derselben Karte.
     const renderFileRow = (f: ProjectFile, showCategory = true) => (
       <div key={f.id} className="projekte-detail-row" style={{ alignItems: 'center' }}>
-        <span style={{ fontSize: 16 }}>{projectFileIcon(f.mime_type, f.filename)}</span>
+        {/* Fotos als Miniatur (kleinkorrekturen-2026-10.md §1) — ohne Vorschau beim
+            Überfahren, die gibt es auf dem Handy nicht. Offline kein Bild: die
+            Datei liegt beim Server, nicht im Lesepaket. */}
+        <FileThumb
+          url={f.storage_path && online ? projectFileUrl(SCOPE, projectId, f.id) : null}
+          mimeType={f.mime_type}
+          filename={f.filename}
+          iconSize={16}
+        />
         {renamingFileId === f.id ? (
           <span className="projekte-detail-value" style={{ flex: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
             <input
               autoFocus
+              aria-label="Neuer Dateiname"
               value={renameValue}
+              onFocus={e => selectBaseName(e.currentTarget)}
               onChange={e => setRenameValue(e.target.value)}
               onKeyDown={e => {
                 if (e.key === 'Enter') { e.preventDefault(); void handleRenameFile(f.id) }

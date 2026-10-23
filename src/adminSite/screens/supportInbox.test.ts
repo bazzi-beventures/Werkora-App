@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest'
 import type { SupportTicket } from '../../api/support'
 import {
-  ageLabel, ageTone, inboxView, isUnread, routeLabel, routeLabelAny, tabCounts,
+  ageLabel, ageTone, inboxView, isUnread, routeLabel, routeLabelAny, tabCounts, waitTone,
 } from './supportInbox'
 
 const NOW = new Date('2026-09-25T12:00:00Z').getTime()
@@ -51,7 +51,7 @@ describe('inboxView', () => {
 
   it('zählt die Reiter im gewählten Mandanten', () => {
     const r = [...rows, tk({ id: 'fremd', tenant_id: 't-2' })]
-    expect(tabCounts(r, 't-1')).toEqual({ todo: 2, erledigt: 1, alle: 3 })
+    expect(tabCounts(r, 't-1')).toEqual({ todo: 2, wartet: 0, erledigt: 1, alle: 3 })
     expect(tabCounts(r, '').todo).toBe(3)
   })
 })
@@ -89,5 +89,32 @@ describe('Screen-Namen', () => {
   it('lässt Unbekanntes roh stehen, statt zu raten', () => {
     expect(routeLabel('irgendwas', 'admin')).toBe('irgendwas')
     expect(routeLabelAny('/neu')).toBe('/neu')
+  })
+})
+
+describe('Rückfrage — Reiter «Wartet auf Mandant» (support-rueckfrage.md §4)', () => {
+  const rows = [
+    tk({ id: 'offen' }),
+    tk({ id: 'frisch', status: 'wartet', created_at: '2026-09-01T10:00:00Z',
+      waiting_since: '2026-09-25T10:00:00Z' }),
+    tk({ id: 'lange', status: 'wartet', created_at: '2026-09-24T10:00:00Z',
+      waiting_since: '2026-09-20T10:00:00Z' }),
+  ]
+
+  it('steht nicht in «Zu erledigen» — der Ball liegt beim Mandanten', () => {
+    expect(inboxView(rows, { tab: 'todo', tenantId: '', query: '' }).map(t => t.id))
+      .toEqual(['offen'])
+    expect(tabCounts(rows, '')).toEqual({ todo: 1, wartet: 2, erledigt: 0, alle: 3 })
+  })
+
+  it('am längsten Wartende zuerst — gemessen ab der Rückfrage, nicht ab der Meldung', () => {
+    expect(inboxView(rows, { tab: 'wartet', tenantId: '', query: '' }).map(t => t.id))
+      .toEqual(['lange', 'frisch'])
+  })
+
+  it('färbt erst nach drei Tagen Warten ein', () => {
+    expect(waitTone(rows[1], NOW)).toBe('ok')
+    expect(waitTone(rows[2], NOW)).toBe('warn')
+    expect(waitTone(tk({ status: 'offen', waiting_since: '2026-09-01T10:00:00Z' }), NOW)).toBe('ok')
   })
 })

@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { sourceBuildId } from './scripts/buildId.mjs'
 
 // Custom-Domain-Setup → App auf Root. Jedes Ziel mit eigener Domain und
 // eigenem VITE_API_URL, gebaut im jeweiligen Pages-Repo:
@@ -37,13 +38,25 @@ const OUT_DIR = IS_ADMIN ? 'dist-admin' : 'dist'
 // Build-ID wird beim Build injiziert (index.html Platzhalter __BUILD_ID__).
 // Dient als Nuclear-Kill-Switch: Wenn localStorage eine andere ID hält als
 // das frisch geladene HTML, wird SW + Cache hart zurückgesetzt.
-const BUILD_ID = new Date().toISOString()
+//
+// Inhaltsbasiert, nicht die Uhrzeit (docs/specs/pwa-neuladen.md §3.3): mit
+// `new Date()` war jeder Build ein neues sw.js und damit ein Reload auf jedem
+// Gerät — auch nach einem reinen Test-Commit. VITE_BUILD_ID überstimmt für
+// den Fall, dass jemand einen Neustart aller Clients erzwingen will.
+const BUILD_ID = process.env.VITE_BUILD_ID || sourceBuildId(PAKET_WURZEL)
 
 // Inline Kill-Switch — wird inline in index.html gerendert. Pfad-unabhängig
 // (kein /Bau-App/-Prefix-Problem) und mit SHA-256-Hash in CSP whitelisted.
 // Bewusst KEINE Referenz auf das __BUILD_ID__-Token, damit /g-Substitution den
 // Skript-Body nicht verändert und der CSP-Hash stabil bleibt.
-const BOOT_KILL_SWITCH = `(function(){try{var m=document.querySelector('meta[name="app-build-id"]');var c=m&&m.getAttribute('content');if(!c||c.indexOf('_'+'_')===0)return;var K='app_build_id';var l=localStorage.getItem(K);if(l===c)return;localStorage.setItem(K,c);if(l!==null&&'caches'in window){caches.keys().then(function(n){n.forEach(function(x){caches.delete(x);});});}}catch(e){}})();`
+//
+// Der Precache (`workbox-precache…`) bleibt verschont (docs/specs/pwa-neuladen.md
+// §3.4): nach dem Update-Reload trägt das HTML schon die neue ID, der Kill-Switch
+// lief also genau dann, wenn der NEUE Service Worker seinen Precache gerade
+// gefüllt hatte — und löschte ihn. Die nächsten Starts luden ~3 MB aus dem Netz,
+// ein Offline-Kaltstart scheiterte bis zur nächsten Installation. Alte
+// Precache-Revisionen räumt Workbox selbst (cleanupOutdatedCaches).
+const BOOT_KILL_SWITCH = `(function(){try{var m=document.querySelector('meta[name="app-build-id"]');var c=m&&m.getAttribute('content');if(!c||c.indexOf('_'+'_')===0)return;var K='app_build_id';var l=localStorage.getItem(K);if(l===c)return;localStorage.setItem(K,c);if(l!==null&&'caches'in window){caches.keys().then(function(n){n.forEach(function(x){if(x.indexOf('workbox-precache')!==0)caches.delete(x);});});}}catch(e){}})();`
 
 // Zurück-Wächter. Muss INLINE laufen und nicht im Bundle: App.tsx setzt seinen
 // Wächter-Eintrag erst in einem Effekt, also erst wenn ~2 MB JS geladen, geparst

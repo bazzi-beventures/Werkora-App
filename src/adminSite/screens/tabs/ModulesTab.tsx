@@ -47,6 +47,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   // Benachrichtigungen — Push
   clock_in_reminder:{ label: 'Einstempel-Erinnerung', desc: 'Push werktags um 07:15 an eingeplante, noch nicht eingestempelte Mitarbeiter (benötigt Zeiterfassung)', category: 'notifications', channel: 'push' },
   clock_out_reminder:{ label: 'Ausstempel-Erinnerung', desc: 'Abend-Push (Standard 18:00, einstellbar) an Mitarbeiter, die noch eingestempelt sind — verhindert die automatische Schliessung um 23:59 (benötigt Zeiterfassung)', category: 'notifications', channel: 'push' },
+  appointment_reminder:{ label: 'Termin-Erinnerung', desc: 'Push an das Team eines Termins, einstellbar 15 Minuten bis 2 Stunden vorher (Standard 30) — so weiss man, ob man pünktlich ist oder sich beim Kunden melden muss. Nur Termine mit Uhrzeit, nicht an Mitarbeiter mit genehmigter Absenz (benötigt Einsatzplanung)', category: 'notifications', channel: 'push' },
   auto_clockout_correction_reminder:{ label: 'Korrektur-Erinnerung (Folgetag)', desc: 'Morgen-Push (Standard 07:00, einstellbar) an Mitarbeiter, deren Session am Vortag automatisch um 23:59 geschlossen wurde (benötigt HR + Zeiterfassung)', category: 'notifications', channel: 'push' },
   approval_push:{ label: 'Genehmigungs-Push', desc: 'Sofort-Push an Mitarbeiter, wenn ihr Ferien- oder Korrekturantrag genehmigt oder abgelehnt wurde', category: 'notifications', channel: 'push' },
   correction_request_push:{ label: 'Zeitkorrektur-Meldung', desc: 'Sofort-Push ans Büro (Admin, Management, Superadmin), wenn ein Mitarbeiter eine Zeitkorrektur beantragt. Ohne sie liegt der Antrag im Korrekturen-Screen, bis jemand von sich aus nachschaut. Erreicht nur Konten mit Mitarbeiter-Zeile — die Push geht an die Geräte der Person, nicht an das Konto (benötigt Zeiterfassung).', category: 'notifications', channel: 'push' },
@@ -61,6 +62,19 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
 const MODULE_TIME_FEATURE: Record<string, { feature: string; default: string }> = {
   clock_out_reminder: { feature: 'clock_out_reminder_time', default: '18:00' },
   auto_clockout_correction_reminder: { feature: 'auto_clockout_correction_reminder_time', default: '07:00' },
+}
+
+// Module mit konfigurierbarer Vorlaufzeit in Minuten (feature_flags.<feature>.minutes).
+// Wie die Uhrzeit oben: An/Aus ist das Modul, die Minuten stehen inline darunter.
+// Die Auswahl bleibt bewusst grob — «22 Minuten vorher» braucht niemand, und eine
+// feste Liste lässt keinen Wert ausserhalb des Registry-Schemas (5–240) zu.
+const MODULE_MINUTES_FEATURE: Record<string, { feature: string; default: number; options: number[] }> = {
+  appointment_reminder: { feature: 'appointment_reminder_lead', default: 30, options: [15, 30, 45, 60, 90, 120] },
+}
+
+function fmtLead(minutes: number): string {
+  if (minutes % 60 === 0) return minutes === 60 ? '1 Stunde' : `${minutes / 60} Stunden`
+  return `${minutes} Minuten`
 }
 
 const CATEGORY_ORDER: ModuleCategory[] = ['operativ', 'hr', 'analyse', 'ki', 'notifications', 'other']
@@ -92,6 +106,8 @@ export function ModulesTab({ view, tenantId }: { view: 'modules' | 'notification
   } | null>(null)
   // Reminder-Uhrzeiten (Feature-Flags): feature-key -> HH:MM. Nur im Notifications-View relevant.
   const [reminderTimes, setReminderTimes] = useState<Record<string, string>>({})
+  // Vorlaufzeiten (Feature-Flags): feature-key -> Minuten.
+  const [reminderMinutes, setReminderMinutes] = useState<Record<string, number>>({})
 
   // Zwei Listen, ein Speichervorgang: `enabled` ist der An/Aus-Schalter,
   // `beta` die Teilmenge davon, die nur Tester sehen. Zusammen in EINEM Wert,
@@ -118,6 +134,12 @@ export function ModulesTab({ view, tenantId }: { view: 'modules' | 'notification
             times[feature] = (ov?.time as string) || def
           }
           setReminderTimes(times)
+          const minutes: Record<string, number> = {}
+          for (const { feature, default: def } of Object.values(MODULE_MINUTES_FEATURE)) {
+            const ov = features.overrides?.[feature] as { minutes?: number } | undefined
+            minutes[feature] = Number(ov?.minutes) || def
+          }
+          setReminderMinutes(minutes)
         } catch { /* Uhrzeiten optional — Toggle funktioniert auch ohne */ }
       }
       return {
@@ -143,6 +165,16 @@ export function ModulesTab({ view, tenantId }: { view: 'modules' | 'notification
       showToast('Uhrzeit gespeichert', 'success')
     } catch {
       showToast('Uhrzeit speichern fehlgeschlagen', 'error')
+    }
+  }
+
+  async function saveReminderMinutes(feature: string, minutes: number) {
+    setReminderMinutes(prev => ({ ...prev, [feature]: minutes }))
+    try {
+      await scoped.setFeature(tenantId, feature, { minutes })
+      showToast('Vorlaufzeit gespeichert', 'success')
+    } catch {
+      showToast('Vorlaufzeit speichern fehlgeschlagen', 'error')
     }
   }
 
@@ -275,6 +307,29 @@ export function ModulesTab({ view, tenantId }: { view: 'modules' | 'notification
                   color: 'inherit',
                 }}
               />
+            </div>
+          )}
+          {MODULE_MINUTES_FEATURE[m] && isOn && (
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}
+              onClick={e => { e.preventDefault(); e.stopPropagation() }}
+            >
+              <span style={{ fontSize: 12, color: 'var(--muted)' }}>Erinnern:</span>
+              <select
+                aria-label={`${meta.label} — Vorlaufzeit`}
+                value={reminderMinutes[MODULE_MINUTES_FEATURE[m].feature] ?? MODULE_MINUTES_FEATURE[m].default}
+                onClick={e => e.stopPropagation()}
+                onChange={e => saveReminderMinutes(MODULE_MINUTES_FEATURE[m].feature, Number(e.target.value))}
+                style={{
+                  padding: '4px 8px', borderRadius: 'var(--radius-xs)', fontSize: 13,
+                  border: '1px solid rgba(255,255,255,0.15)', background: 'transparent',
+                  color: 'inherit',
+                }}
+              >
+                {MODULE_MINUTES_FEATURE[m].options.map(o => (
+                  <option key={o} value={o}>{fmtLead(o)} vorher</option>
+                ))}
+              </select>
             </div>
           )}
         </div>

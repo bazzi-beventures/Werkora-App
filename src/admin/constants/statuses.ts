@@ -26,6 +26,19 @@ export const QUOTE_STATUS_LABELS: Record<string, string> = {
   archiviert: 'Archiviert',
 }
 
+/** Spalte «Offerte» der Projektliste (docs/specs/projektliste-offertenstatus.md §2.1):
+ *  gesendet UND Entwurf heissen dort «Offerte aktiv» — die Liste beantwortet, ob
+ *  zu dem Projekt eine Offerte läuft, nicht in welchem Bearbeitungsschritt. Der
+ *  Einzelstatus steht im Tooltip und in der Badge-Farbe. */
+export const PROJECT_QUOTE_LABELS: Record<string, string> = {
+  akzeptiert: 'Angenommen',
+  gesendet: 'Offerte aktiv',
+  entwurf: 'Offerte aktiv',
+  abgelehnt: 'Abgelehnt',
+  absage: 'Abgelehnt',
+  archiviert: 'Archiviert',
+}
+
 export const QUOTE_STATUS_BADGE: Record<string, string> = {
   entwurf: 'admin-badge-draft',
   gesendet: 'admin-badge-sent',

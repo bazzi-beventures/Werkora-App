@@ -36,9 +36,12 @@ interface Props {
     remove: (key: string) => Promise<string>
     isDirty: (d: AppointmentDraft) => boolean
   }
+  /** Sprung in die Einsatzplanung auf die Woche des Termins (YYYY-MM-DD) —
+   *  die Gegenrichtung zum Doppelklick dort (einsatzplanung-rueckmeldungen-2026-10.md §2.2). */
+  onOpenSchedule?: (date: string) => void
 }
 
-export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave }: Props) {
+export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave, onOpenSchedule }: Props) {
   // Nur ein Termin ist gleichzeitig aufgeklappt — sonst wird die Kachel bei
   // vier Terminen unübersichtlich lang.
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -130,6 +133,12 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                 if (!team.names) return null
                 return <> · {team.fromProject ? 'Projekt-Team' : 'Team'}: {team.names}</>
               })()}
+              {onOpenSchedule && next.startDate && (
+                <> · <button type="button" onClick={() => onOpenSchedule(next.startDate)}
+                    style={{ background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer',
+                      color: 'var(--primary)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                    In Einsatzplanung zeigen</button></>
+              )}
             </>
           : <span style={{ color: 'var(--muted)' }}>Kein künftiger Termin geplant.</span>}
       </div>

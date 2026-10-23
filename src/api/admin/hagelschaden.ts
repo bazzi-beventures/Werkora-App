@@ -122,6 +122,9 @@ export interface HagelDispoInfo {
   kategorien: { key: HagelKategorie; label: string }[]
 }
 
+/** Eine Nummer aus der Kundenkarte — `art` z. B. «Mobil», «Vor Ort · Hans Muster». */
+export interface HagelTelefon { art: string; nummer: string }
+
 export interface HagelZeile extends HagelBearbeitung {
   project_id: string
   /** 0 beantwortet/pendent · 1 erledigt gemeldet · 2 ohne Antwort · 3 nicht angeschrieben · 4 keine E-Mail */
@@ -132,6 +135,8 @@ export interface HagelZeile extends HagelBearbeitung {
   projekt_offen: boolean
   kunde: string
   email: string
+  /** Aus der Kundenkarte, wichtigste zuerst; leer ohne Kunde oder ohne Nummer */
+  telefon?: HagelTelefon[]
   objekt_adresse: string
   gesendet_am: string
   beantwortet_am: string

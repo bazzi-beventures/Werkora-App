@@ -10,7 +10,7 @@
  * neue Kategorie, die dort nicht registriert ist, erschiene doppelt.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { FileSections, PROJECT_DOC_SECTIONS, QUOTE_DOC_SECTIONS, SUPPLIER_DOC_SECTIONS } from './FileSection'
 import type { ProjectFile, ProjectFileCategory } from './types'
 
@@ -64,5 +64,26 @@ describe('Auftragsbestätigung an den Kunden', () => {
     expect(screen.queryByText('Auftragsbestaetigung_OF-2026-042.pdf')).toBeNull()
     // Gegenprobe: echte Altlasten (Kategorie null) fängt «Sonstiges» weiterhin auf.
     expect(screen.getByText('Altlast.pdf')).toBeTruthy()
+  })
+})
+
+// docs/specs/kleinkorrekturen-2026-10.md §1/§2: Fotos mit Miniatur, beim
+// Umbenennen ist der Name ohne Endung markiert.
+describe('Fotos: Miniatur und Umbenennen', () => {
+  const FOTO: ProjectFile = { ...makeFile('fotos', 'Baustelle Nord.jpg'), mime_type: 'image/jpeg' }
+
+  it('zeigt vor einem Foto die Miniatur aus dem Proxy', () => {
+    renderSections(PROJECT_DOC_SECTIONS, [FOTO, makeFile('fotos', 'Plan.pdf')])
+    const imgs = document.querySelectorAll('img')
+    expect(imgs).toHaveLength(1)
+    expect(imgs[0]).toHaveAttribute('src', `/pwa/admin/project-files/${FOTO.id}/download`)
+  })
+
+  it('markiert beim Umbenennen den Namen ohne Endung', () => {
+    renderSections(PROJECT_DOC_SECTIONS, [FOTO])
+    fireEvent.click(screen.getByTitle('Umbenennen'))
+    const input = screen.getByRole('textbox', { name: 'Neuer Dateiname' }) as HTMLInputElement
+    expect(document.activeElement).toBe(input)
+    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 'Baustelle Nord'.length])
   })
 })

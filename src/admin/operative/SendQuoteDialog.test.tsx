@@ -205,3 +205,69 @@ describe('SendQuoteDialog — mehrere Empfänger und CC', () => {
     await waitFor(() => expect(sendBody().cc_recipients).toEqual([]))
   })
 })
+
+describe('SendQuoteDialog — Auswahl der Offerten einer Gruppe (WW-34)', () => {
+  const GROUP = [
+    { id: 7, label: 'Offerte 1', quote_number: 'OFF-2026-1267', amount: 1505.85, status: 'gesendet' },
+    { id: 8, label: 'Offerte 2', quote_number: 'OFF-2026-1268', amount: 7672.2, status: 'gesendet' },
+    { id: 9, label: 'Offerte 3', quote_number: 'OFF-2026-1269', amount: 4066.2, status: 'entwurf' },
+  ]
+
+  function mockGroup(members: typeof GROUP) {
+    mockFetch.mockImplementation((path: string) => {
+      if (path.includes('send-group')) return Promise.resolve({ members })
+      if (path.includes('send-attachments')) return Promise.resolve({ ...INFO, enabled: false, fotos_enabled: false })
+      return Promise.resolve({ status: 'ok' })
+    })
+  }
+
+  it('zeigt alle offenen Offerten der Gruppe, alle vorausgewählt', async () => {
+    const user = userEvent.setup()
+    mockGroup(GROUP)
+    renderDialog()
+    expect(await screen.findByText('Offerten in diesem Mail')).toBeInTheDocument()
+    const boxes = screen.getAllByRole('checkbox')
+    expect(boxes).toHaveLength(3)
+    expect(boxes.every(b => (b as HTMLInputElement).checked)).toBe(true)
+
+    await user.click(screen.getByRole('button', { name: 'Offerte senden' }))
+    await waitFor(() => expect(sendBody().group_quote_ids).toEqual([7, 8, 9]))
+  })
+
+  it('sendet nur die angehakten Offerten', async () => {
+    const user = userEvent.setup()
+    mockGroup(GROUP)
+    renderDialog()
+    await screen.findByText('Offerten in diesem Mail')
+
+    await user.click(screen.getByRole('checkbox', { name: /Offerte 1/ }))
+    await user.click(screen.getByRole('checkbox', { name: /Offerte 2/ }))
+    expect(screen.getByText(/einzelne Offerte mit Annehmen\/Ablehnen/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Offerte senden' }))
+    await waitFor(() => expect(sendBody().group_quote_ids).toEqual([9]))
+  })
+
+  it('ohne gewählte Offerte bleibt «Senden» gesperrt', async () => {
+    const user = userEvent.setup()
+    mockGroup(GROUP)
+    renderDialog()
+    await screen.findByText('Offerten in diesem Mail')
+    for (const name of [/Offerte 1/, /Offerte 2/, /Offerte 3/]) {
+      await user.click(screen.getByRole('checkbox', { name }))
+    }
+    expect(screen.getByText('Bitte mindestens eine Offerte wählen.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Offerte senden' })).toBeDisabled()
+  })
+
+  it('Einzel-Offerte: keine Auswahl, kein group_quote_ids', async () => {
+    const user = userEvent.setup()
+    mockGroup([])
+    renderDialog()
+    await waitFor(() => expect(mockFetch.mock.calls.some(c => String(c[0]).includes('send-group'))).toBe(true))
+    expect(screen.queryByText('Offerten in diesem Mail')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Offerte senden' }))
+    await waitFor(() => expect(sendBody()).not.toHaveProperty('group_quote_ids'))
+  })
+})

@@ -196,7 +196,9 @@ export default function HelpBubble({
   const wishes = useMyWishes(showWishes)
   // Bei den Wünschen zählt auch eine gelesene, aber offene Rückfrage
   // (feature-anfragen.md §7.1a): sie wartet auf eine Antwort, nicht auf einen Blick.
-  const unreadTotal = mine.unread + wishes.attention
+  // Beim Support zählt ebenso eine offene Rückfrage des Betreibers an mich
+  // (support-rueckfrage.md §5) — `attention` zählt sie je Meldung einmal.
+  const unreadTotal = mine.attention + wishes.attention
   // «Neues zu deinen Wünschen» (feature-anfragen.md §5.9): der Hinweis beim
   // Start der App. Er hängt HIER, weil die Blase den Hook schon hat und in
   // beiden Apps nach der Anmeldung steht; der Zähler rendert nach «Später» neu.
@@ -234,7 +236,7 @@ export default function HelpBubble({
   const TAB_LABELS: Record<TabId, string> = {
     help: 'Fragen',
     wiki: wikiLabel,
-    support: mine.unread > 0 ? `Support (${mine.unread})` : 'Problem melden',
+    support: mine.attention > 0 ? `Support (${mine.attention})` : 'Problem melden',
     wish: wishes.attention > 0 ? `Wünsche (${wishes.attention})` : 'Wünsche',
   }
   const PANEL_TITLES: Record<TabId, string> = {

@@ -7,7 +7,7 @@ import { getMe } from '../../api/auth'
 import { getFeature, isFeatureEnabled } from '../../api/modules'
 import ProjectDetailScreen from './ProjectDetailScreen'
 import type { ProjectTab } from './projectDetail/ProjectTabBar'
-import { ProjectStatus, PROJECT_STATUS_LABELS, PROJECT_STATUS_BADGE, QUOTE_STATUS_LABELS, INVOICE_STATUS_LABELS } from '../constants/statuses'
+import { ProjectStatus, PROJECT_STATUS_LABELS, PROJECT_STATUS_BADGE, QUOTE_STATUS_LABELS, QUOTE_STATUS_BADGE, PROJECT_QUOTE_LABELS, INVOICE_STATUS_LABELS } from '../constants/statuses'
 import { BESCHAFFUNG_STEPS, beschaffungStep } from '../constants/beschaffungSteps'
 import { AdminCardList } from '../components/AdminCardList'
 import { ColumnFilter, rangeValue } from '../components/ColumnFilter'
@@ -15,6 +15,7 @@ import type { FilterOption, FilterSection, FilterValues } from '../components/Co
 import { MobileFilterSheet } from '../components/MobileFilterSheet'
 import { useListState } from '../hooks/useListState'
 import { addressLocality } from './scheduleShared'
+import { nextAppointmentSummary } from './projectAppointments'
 import { useIsMobile } from '../useIsMobile'
 import { projectWarranty, warrantyBadge } from '../../shared/warranty'
 import type { WarrantyConfig } from '../../shared/warranty'
@@ -35,6 +36,22 @@ const DOC_STATUS_BADGE: Record<string, string> = {
   entwurf: 'admin-badge-draft',
   akzeptiert: 'admin-badge-approved',
   archiviert: 'admin-badge-closed',
+}
+
+/** «Offerte aktiv · 3»: Label der massgeblichen Offerte, dazu die Zahl offener
+ *  Offerten, sobald es mehr als eine ist (docs/specs/projektliste-offertenstatus.md). */
+function projectQuoteText(p: Project): string {
+  if (!p.quote) return '—'
+  const label = PROJECT_QUOTE_LABELS[p.quote.status] || QUOTE_STATUS_LABELS[p.quote.status] || p.quote.status
+  const open = p.quote_open_count ?? 0
+  return open > 1 ? `${label} · ${open}` : label
+}
+
+function projectQuoteTitle(p: Project): string {
+  if (!p.quote) return ''
+  const status = QUOTE_STATUS_LABELS[p.quote.status] || p.quote.status
+  const open = p.quote_open_count ?? 0
+  return `${p.quote.quote_number} · ${status}` + (open > 1 ? ` · ${open} offene Offerten` : '')
 }
 
 // Sortierschluessel = Katalog des Endpoints (db.projects._ADMIN_PROJECTS_SORT_MAP).
@@ -60,7 +77,7 @@ const NONE = 'none'
 // Offerten mit 'abgelehnt'/'absage' und Rechnungen mit 'inaktiv' fuehrt der View
 // gar nicht — sie stehen deshalb auch nicht zur Auswahl. Ein Filter, der
 // garantiert nichts findet, ist schlimmer als kein Filter.
-const QUOTE_FILTER_VALUES = ['entwurf', 'gesendet', 'akzeptiert', 'archiviert']
+const QUOTE_FILTER_VALUES = ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage', 'archiviert']
 const INVOICE_FILTER_VALUES = ['ausstehend', 'offen', 'gesendet', 'bezahlt', 'archiviert']
 const LIFECYCLE_VALUES: ProjectStatus[] = ['offen', 'abgeschlossen', 'archiviert']
 const BESCHAFFUNG_KEYS = BESCHAFFUNG_STEPS.map(s => s.key)
@@ -81,6 +98,14 @@ interface ProjectsScreenProps {
   // muss auf der aktuellen Listenseite gar nicht vorkommen.
   openProjectId?: string
   onConsumedProjectId?: () => void
+  // Zurück aus einer per Direktsprung geöffneten Maske: wer aus der
+  // Einsatzplanung kam, landet wieder dort statt in der Projektliste
+  // (docs/specs/einsatzplanung-rueckmeldungen-2026-10.md §2). AdminApp setzt
+  // ihn nur, wenn der Sprung von dort kam. Gilt für «← Zurück», Hardware-Zurück
+  // und Verlassen über Speichern — alle enden in onClose bzw. onSaved(null).
+  onReturnFromJump?: () => void
+  // Sprung aus der Kachel «Termine» in die Einsatzplanung (Datum YYYY-MM-DD).
+  onOpenSchedule?: (date: string) => void
   // Reiter, auf dem die Maske aufgehen soll (Deep-Link aus einer Info-Mail:
   // «Rapport eingereicht» → 'reports'). Gilt nur fuer den Sprung oben.
   openProjectTab?: ProjectTab
@@ -174,6 +199,7 @@ function formatDay(iso: string): string {
 
 export default function ProjectsScreen({
   openNew, onConsumedNew, openProjectId, onConsumedProjectId, openProjectTab, onOpenCustomer,
+  onReturnFromJump, onOpenSchedule,
 }: ProjectsScreenProps = {}) {
   const { state, patch, reset } = useListState<ProjectsListState>('admin-projects', DEFAULT_STATE, reviveState)
   const {
@@ -286,6 +312,20 @@ export default function ProjectsScreen({
   // (`onConsumedProjectId`). Als lokaler Zustand überlebt er den einen Render,
   // in dem die Maske aufgeht.
   const jumpedToRef = useRef<string | null>(null)
+  // Die offene Maske kam per Direktsprung — beim Schliessen gilt dann
+  // onReturnFromJump statt der Projektliste. Bleibt über einen Sprung zwischen
+  // Ursprungsprojekt und Nacharbeit hinweg stehen: der Ausflug ist derselbe.
+  const openedByJumpRef = useRef(false)
+  // Der Rücksprung läuft erst, wenn die Maske abgebaut ist: solange sie steht,
+  // ist ihr «ungespeicherte Änderungen»-Guard noch angemeldet, und AdminApps
+  // guardedNav fragte nach dem eben beantworteten Verlassen-Dialog ein zweites
+  // Mal. Effekte laufen nach den Aufräumarbeiten der abgebauten Maske.
+  const [returnPending, setReturnPending] = useState(false)
+  useEffect(() => {
+    if (!returnPending || selected || showNew) return
+    setReturnPending(false)
+    onReturnFromJump?.()
+  }, [returnPending, selected, showNew, onReturnFromJump])
   useEffect(() => {
     // Zurückgesetzt, sobald der Sprung verbraucht ist — sonst liesse sich
     // dasselbe Projekt kein zweites Mal per Doppelklick öffnen.
@@ -294,7 +334,7 @@ export default function ProjectsScreen({
     jumpedToRef.current = openProjectId
     const tab = openProjectTab ?? null
     getProject(openProjectId)
-      .then(p => { setShowNew(false); setInitialTab(tab); setSelected(p) })
+      .then(p => { openedByJumpRef.current = true; setShowNew(false); setInitialTab(tab); setSelected(p) })
       .catch(() => {})
       .finally(() => onConsumedProjectId?.())
   }, [openProjectId, openProjectTab, onConsumedProjectId])
@@ -527,6 +567,12 @@ export default function ProjectsScreen({
 
   const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
 
+  function returnIfJumped() {
+    if (!openedByJumpRef.current) return
+    openedByJumpRef.current = false
+    if (onReturnFromJump) setReturnPending(true)
+  }
+
   if (selected || showNew) {
     return (
       <ProjectDetailScreen
@@ -535,8 +581,9 @@ export default function ProjectsScreen({
         key={showNew ? 'new' : selected!.id}
         project={showNew ? null : selected}
         initialTab={initialTab ?? undefined}
-        onClose={() => { setSelected(null); setShowNew(false); setInitialTab(null) }}
+        onClose={() => { setSelected(null); setShowNew(false); setInitialTab(null); returnIfJumped() }}
         onSaved={saved => {
+          if (!saved) returnIfJumped()
           setShowNew(false)
           // Frisch angelegtes Projekt → direkt hineinspringen statt auf die Übersicht.
           setSelected(saved ?? null)
@@ -555,6 +602,7 @@ export default function ProjectsScreen({
             .catch(() => {})
         }}
         onOpenCustomer={onOpenCustomer}
+        onOpenSchedule={onOpenSchedule}
       />
     )
   }
@@ -694,8 +742,12 @@ export default function ProjectsScreen({
                   <div className="admin-card-meta">
                     {p.project_id_text || '—'} · {projectCustomerName(p) || '—'}{ort ? ` · ${ort}` : ''}
                   </div>
+                  {p.next_appointment && (() => {
+                    const n = nextAppointmentSummary(p.next_appointment)
+                    return <div className="admin-card-meta">Nächster Termin: {n.when} · {n.what}</div>
+                  })()}
                   <div className="admin-card-meta">
-                    Offerte: {p.quote ? p.quote.status : '—'} · Rechnung: {p.invoice ? p.invoice.status : '—'} · {new Date(p.created_at).toLocaleDateString('de-CH')}
+                    Offerte: {p.quote ? projectQuoteText(p) : '—'} · Rechnung: {p.invoice ? p.invoice.status : '—'} · {new Date(p.created_at).toLocaleDateString('de-CH')}
                   </div>
                 </>
               )
@@ -725,6 +777,9 @@ export default function ProjectsScreen({
                     der View bringt den Beleg an der Projektzeile mit, sortiert wird
                     nach seinem Ablauf-Rang. Projekte ohne Beleg haengen in beiden
                     Richtungen hinten — "kein Beleg" ist keine Stufe des Ablaufs. */}
+                {/* Nicht sortierbar: der nächste Termin kommt aus einer eigenen
+                    Tabelle und wird erst nach dem Paging an die Zeilen gehängt. */}
+                <th>Nächster Termin</th>
                 <th style={thStyle} onClick={() => toggleSort('quote')} title="Nach dem Stand der Offerte sortieren (Entwurf → gesendet → akzeptiert). Ohne Offerte zuletzt.">
                   Offerte <SortIcon active={sortKey === 'quote'} dir={sortDir} />
                   <ColumnFilter label="Offerte" sections={quoteSections} values={filterValues} onChange={applyFilter} />
@@ -751,7 +806,7 @@ export default function ProjectsScreen({
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={7 + (showProjektleiterCol ? 1 : 0) + (showBeschaffungCol ? 1 : 0)} className="admin-table-empty">Keine Projekte gefunden.</td></tr>
+                <tr><td colSpan={8 + (showProjektleiterCol ? 1 : 0) + (showBeschaffungCol ? 1 : 0)} className="admin-table-empty">Keine Projekte gefunden.</td></tr>
               ) : rows.map(p => {
                 const effectiveStatus: ProjectStatus = p.status ?? (p.is_closed ? 'abgeschlossen' : 'offen')
                 const ort = projectLocality(p)
@@ -771,9 +826,23 @@ export default function ProjectsScreen({
                       <td>{p.projektleiter_id ? (staffNameById[p.projektleiter_id] || '—') : '—'}</td>
                     )}
                     <td>
+                      {p.next_appointment ? (() => {
+                        const n = nextAppointmentSummary(p.next_appointment)
+                        return (
+                          <>
+                            {n.when}
+                            <div style={{ color: 'var(--muted)', fontSize: 12 }}>{n.what}</div>
+                          </>
+                        )
+                      })() : (
+                        <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
+                      )}
+                    </td>
+                    <td>
                       {p.quote ? (
-                        <span className={`admin-badge ${DOC_STATUS_BADGE[p.quote.status] || 'admin-badge-draft'}`}>
-                          {p.quote.status}
+                        <span className={`admin-badge ${QUOTE_STATUS_BADGE[p.quote.status] || 'admin-badge-draft'}`}
+                              title={projectQuoteTitle(p)}>
+                          {projectQuoteText(p)}
                         </span>
                       ) : (
                         <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>

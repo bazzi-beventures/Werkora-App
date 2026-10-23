@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, applyStartDate, apptToDraft,
   diffAppointments, draftPayload, draftTeamNames, draftTitle, effectiveTeamIds, emptyDraft,
-  fmtDraftWhen, isOpenAppointment, newAppointmentDraft, nextAppointment, normalizeDrafts,
+  fmtDraftWhen, isOpenAppointment, newAppointmentDraft, nextAppointment, nextAppointmentSummary,
+  normalizeDrafts,
   pinProjectTeam, sortDrafts, teamlessFollowersError, teamsDiffer, todayISO, validateDraftTeams,
   validateDrafts,
 } from './projectAppointments'
@@ -346,5 +347,27 @@ describe('Projekt-Team-Wechsel', () => {
   it('nach dem Festschreiben zählt der Termin nicht mehr als Mitläufer', () => {
     const pinned = pinProjectTeam([gespeichertOhneTeam], new Set(['a-1']), ['s-1'])
     expect(appointmentsFollowingProjectTeam(pinned)).toEqual([])
+  })
+})
+
+describe('nextAppointmentSummary (Projektliste, WW-4)', () => {
+  it('eintägig mit Zeitfenster: Datum + Zeit, Typ als Titel', () => {
+    const s = nextAppointmentSummary({
+      start_date: '2026-10-28', end_date: null, start_time: '07:30:00', end_time: '12:00:00',
+      kind: 'montage', label: null,
+    })
+    expect(s.when).toBe(fmtDraftWhen(draft({ startDate: '2026-10-28', startTime: '07:30', endTime: '12:00' })))
+    expect(s.when).toContain('07:30–12:00')
+    expect(s.what).toBe('Montage')
+  })
+
+  it('mehrtägig ganztägig, «Sonstiges» mit Freitext', () => {
+    const s = nextAppointmentSummary({
+      start_date: '2026-10-27', end_date: '2026-10-31', start_time: null, end_time: null,
+      kind: 'sonstiges', label: 'Gerüst stellen',
+    })
+    expect(s.when).toContain('–')
+    expect(s.when).toContain('ganztägig')
+    expect(s.what).toBe('Gerüst stellen')
   })
 })

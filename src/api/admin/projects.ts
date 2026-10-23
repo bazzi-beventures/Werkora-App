@@ -12,7 +12,7 @@
 
 import { apiFetch, apiBlobFetch, apiFormFetch } from '../client'
 import { requestEasterEggCheck } from './eastereggs'
-import type { AbsenceOverride } from './scheduling'
+import type { AbsenceOverride, AppointmentKind } from './scheduling'
 import {
   deleteProjectFile as deleteFile, listProjectFiles as listFiles,
   renameProjectFile as renameFile, uploadProjectFile as uploadFile,
@@ -122,7 +122,15 @@ export interface Project {
   // Referenzprojekt einer Reparatur — das Projekt, aus dem die Nacharbeit stammt.
   parent_project_id?: string | null
   invoice?: ProjectInvoiceSummary | null
+  // Die MASSGEBLICHE Offerte (angenommen > gesendet > Entwurf > abgelehnt >
+  // archiviert), nicht die juengste — docs/specs/projektliste-offertenstatus.md.
   quote?: ProjectQuoteSummary | null
+  // Nur in der Projektliste: Anzahl offener Offerten (gesendet + Entwurf).
+  quote_open_count?: number
+  // Nur an GET /admin/projects/list: der nächste offene Termin (laufende
+  // mehrtägige zählen mit), null ohne offenen Termin. Anders als die vier
+  // Spiegel-Felder oben (= Ersttermin) — siehe admin_projects.py::_attach_next_appointment.
+  next_appointment?: ProjectNextAppointment | null
   // Nur an GET /admin/projects/{id}: die Fristauskunft des Servers und die
   // Nacharbeiten, die auf dieses Projekt zeigen. In der Liste fehlen beide —
   // dort rechnet die App die Frist selbst (shared/warranty.ts).
@@ -131,6 +139,16 @@ export interface Project {
   // Nur an GET /admin/projects/{id} eines Reparatur-Projekts mit Modul
   // «warranty»: der Garantiefall, aus dem es entstand (Spec garantiefall.md §6.1).
   repair_case?: RepairCaseRef | null
+}
+
+/** Nächster offener Termin eines Projekts in der Projektliste (schmale Angabe). */
+export interface ProjectNextAppointment {
+  start_date: string
+  end_date: string | null
+  start_time: string | null
+  end_time: string | null
+  kind: AppointmentKind
+  label: string | null
 }
 
 /** Der Garantiefall hinter einem Reparatur-Projekt (schmale Angabe für den Kopf). */

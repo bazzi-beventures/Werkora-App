@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import ProjectsScreen from './ProjectsScreen'
 import type { Project } from '../../api/admin/projects'
 import { apiFetch } from '../../api/client'
-import { resetUnsavedChangesGuard } from '../unsavedChanges'
+import { dirtyGuard, resetUnsavedChangesGuard } from '../unsavedChanges'
 
 vi.mock('../../api/client', () => ({
   apiFetch: vi.fn(),
@@ -282,5 +282,106 @@ describe('ProjectsScreen — bestehendes Projekt speichert selbst', () => {
 
     expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
     expect(patches()).toHaveLength(0)
+  })
+})
+
+describe('ProjectsScreen — Zurück aus einem Direktsprung (einsatzplanung-rueckmeldungen-2026-10.md §2)', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    resetUnsavedChangesGuard()
+  })
+
+  function routeMitEinzelprojekt() {
+    routeApi([EXISTING])
+    const listen = mockFetch.getMockImplementation()!
+    mockFetch.mockImplementation(async (path, options) => {
+      if (path === `/pwa/admin/projects/${EXISTING.id}` && !options?.method) return EXISTING
+      return listen(path, options)
+    })
+  }
+
+  it('springt nach «← Zurück» dorthin zurück, woher der Sprung kam', async () => {
+    routeMitEinzelprojekt()
+    const zurueck = vi.fn()
+    const user = userEvent.setup()
+    render(<ProjectsScreen openProjectId={EXISTING.id} onReturnFromJump={zurueck} />)
+    await screen.findByLabelText('Projektname *')
+
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+
+    await waitFor(() => expect(zurueck).toHaveBeenCalledTimes(1))
+  })
+
+  it('bleibt beim normalen Öffnen aus der Liste bei der Projektliste', async () => {
+    routeMitEinzelprojekt()
+    const zurueck = vi.fn()
+    const user = userEvent.setup()
+    render(<ProjectsScreen onReturnFromJump={zurueck} />)
+    await user.click(await screen.findByText('Fassade Seehalde'))
+    await screen.findByLabelText('Projektname *')
+
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+
+    expect(await screen.findByRole('button', { name: /Neues Projekt/ })).toBeInTheDocument()
+    expect(zurueck).not.toHaveBeenCalled()
+  })
+
+  it('fragt bei ungespeicherten Änderungen einmal — und springt nach «Verwerfen» zurück', async () => {
+    routeMitEinzelprojekt()
+    // PATCH scheitert, damit die Änderung offen bleibt und die Abfrage kommt.
+    const ok = mockFetch.getMockImplementation()!
+    mockFetch.mockImplementation(async (path, options) => {
+      if (options?.method === 'PATCH') throw new Error('Server nicht erreichbar')
+      return ok(path, options)
+    })
+    // Beim Rücksprung darf die abgebaute Maske keinen Guard mehr angemeldet
+    // haben — sonst fragte AdminApps guardedNav ein zweites Mal.
+    let guardBeimRuecksprung: unknown = 'nicht aufgerufen'
+    const zurueck = vi.fn(() => { guardBeimRuecksprung = dirtyGuard() })
+    const user = userEvent.setup()
+    render(<ProjectsScreen openProjectId={EXISTING.id} onReturnFromJump={zurueck} />)
+    await user.type(await screen.findByLabelText('Projektname *'), ' Etappe 2')
+
+    await user.click(screen.getByRole('button', { name: '← Zurück' }))
+    const dialog = within(await screen.findByRole('dialog', { name: 'Ungespeicherte Änderungen' }))
+    await user.click(dialog.getByRole('button', { name: 'Verwerfen' }))
+
+    await waitFor(() => expect(zurueck).toHaveBeenCalledTimes(1))
+    expect(guardBeimRuecksprung).toBeNull()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+})
+
+describe('ProjectsScreen — Spalte «Offerte» (docs/specs/projektliste-offertenstatus.md)', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    resetUnsavedChangesGuard()
+  })
+
+  const quote = (status: string) => ({
+    quote_number: 'OF-2600001-1', total_amount: 1000, status, created_at: '2026-10-01T08:00:00Z',
+  })
+
+  it('zeigt gesendet und Entwurf als «Offerte aktiv», mit Zähler ab zwei offenen', async () => {
+    routeApi([
+      { ...EXISTING, quote: quote('gesendet'), quote_open_count: 3 },
+      { ...CREATED, quote: quote('entwurf'), quote_open_count: 1 },
+    ])
+    render(<ProjectsScreen />)
+    const badge = await screen.findByText('Offerte aktiv · 3')
+    expect(badge).toHaveAttribute('title', 'OF-2600001-1 · Gesendet · 3 offene Offerten')
+    expect(screen.getByText('Offerte aktiv')).toBeInTheDocument()
+  })
+
+  it('zeigt angenommene, abgelehnte und archivierte Offerten mit eigenem Label', async () => {
+    routeApi([
+      { ...EXISTING, quote: quote('akzeptiert') },
+      { ...CREATED, quote: quote('archiviert') },
+      { ...EXISTING, id: 'p-3', name: 'Dritte', quote: quote('absage') },
+    ])
+    render(<ProjectsScreen />)
+    expect(await screen.findByText('Angenommen')).toBeInTheDocument()
+    expect(screen.getByText('Archiviert')).toBeInTheDocument()
+    expect(screen.getByText('Abgelehnt')).toBeInTheDocument()
   })
 })

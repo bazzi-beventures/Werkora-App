@@ -44,6 +44,7 @@ import { trackNav } from '../shared/breadcrumbs'
 import { takeCustomerDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
+import { readScheduleView, writeScheduleView } from './operative/scheduleViewState'
 import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
 import './tokens.css'
@@ -240,6 +241,17 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           openProjectTab={deepLinkTab ?? undefined}
           onConsumedProjectId={() => { clearDetail(); setDeepLinkTab(null) }}
           onOpenCustomer={id => guardedNav('customers', id)}
+          // Doppelklick in der Einsatzplanung → Maske → Zurück landet wieder
+          // in der Planung (einsatzplanung-rueckmeldungen-2026-10.md §2).
+          onReturnFromJump={previous?.screen === 'project-schedule'
+            ? () => guardedNav('project-schedule') : undefined}
+          // Gegenrichtung: Kachel «Termine» → Einsatzplanung auf der Woche des
+          // Termins. Das Datum geht über die gemerkte Ansicht der Planung
+          // (scheduleViewState.ts), nicht über einen weiteren Nav-Parameter.
+          onOpenSchedule={hasModule(user, 'scheduling') ? date => {
+            writeScheduleView({ ...readScheduleView(), date })
+            guardedNav('project-schedule')
+          } : undefined}
         />
       )
       case 'project-drafts': return <ProjectDraftsScreen user={user} onBadgeChange={loadDashboard} />

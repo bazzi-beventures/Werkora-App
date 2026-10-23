@@ -77,6 +77,9 @@ interface Props {
    * `useUnsavedChangesGuard` unten, wie bei einem Klick in die Sidebar.
    */
   onOpenCustomer?: (customerId: string) => void
+  /** Sprung in die Einsatzplanung auf die Woche eines Termins (Kachel «Termine»),
+   *  über AdminApp wie onOpenCustomer — samt Verlassen-Abfrage. */
+  onOpenSchedule?: (date: string) => void
   /**
    * Reiter, auf dem die Maske aufgeht. Nur beim Direktsprung gesetzt (Button in
    * einer Info-Mail, siehe shared/deepLink.ts) — gelesen wird er ausschliesslich
@@ -86,7 +89,7 @@ interface Props {
 }
 
 export default function ProjectDetailScreen({
-  project, onClose, onSaved, onOpenProject, onOpenCustomer, initialTab, onProjectUpdated,
+  project, onClose, onSaved, onOpenProject, onOpenCustomer, onOpenSchedule, initialTab, onProjectUpdated,
 }: Props) {
   const isNew = !project
 
@@ -596,6 +599,7 @@ export default function ProjectDetailScreen({
           autosave={autosaveOn ? autosave : null}
           onCreateCustomerFromKontakt={autosaveOn ? k => setKontaktCustomer(k) : undefined}
           onOpenCustomer={onOpenCustomer}
+          onOpenSchedule={onOpenSchedule}
           projectId={!isNew && project ? project.id : null}
         />
       )}

@@ -266,13 +266,19 @@ export function terminLegend(): string {
 }
 
 // Optionale Zusatz-Zeilen auf der Kachel, gesteuert per Tenant-Config (scheduling_config.fields).
-export function pillExtraLines(p: Project, staff: StaffLite[], fields?: Record<string, boolean>): string[] {
+// `plKuerzel`: «PL: MW» statt «PL: Marvin Walser» — auf den kleinen Kacheln von
+// Woche, Mitarbeiter-Ansicht, Monat und Agenda (einsatzplanung-rueckmeldungen-2026-10.md §4).
+// Die Plantafel nutzt die Zeilen nur im Tooltip und behält den vollen Namen.
+export function pillExtraLines(
+  p: Project, staff: StaffLite[], fields?: Record<string, boolean>,
+  opts: { plKuerzel?: boolean } = {},
+): string[] {
   if (!fields) return []
   const lines: string[] = []
   if (fields.address && p.object_address) lines.push(p.object_address)
   if (fields.projektleiter && p.projektleiter_id) {
-    const pl = staff.find(s => s.id === p.projektleiter_id)?.name
-    if (pl) lines.push(`PL: ${pl}`)
+    const pl = staff.find(s => s.id === p.projektleiter_id)
+    if (pl) lines.push(`PL: ${opts.plKuerzel ? staffShortLabel(pl) : pl.name}`)
   }
   if (fields.customer) { const c = projectCustomerName(p); if (c) lines.push(c) }
   if (fields.bemerkung && p.bemerkung) lines.push(p.bemerkung)
@@ -462,7 +468,10 @@ export function reassignTeam(
  */
 export function absenceLookup(absences: ScheduleAbsence[]): (staffId: string, dayISO: string) => string | null {
   const byStaff = new Map<string, ScheduleAbsence[]>()
-  for (const a of absences) {
+  // Defensiv: seit 2026-10 lesen auch Woche, Monat, Tagesplan und Agenda die
+  // Liste (vorher nur die Plantafel). Eine kaputte Antwort darf dort keinen
+  // ganzen Kalender umwerfen — dann eben keine Markierung.
+  for (const a of Array.isArray(absences) ? absences : []) {
     if (!a.staff_id || !a.date_start) continue
     const list = byStaff.get(a.staff_id)
     if (list) list.push(a)
@@ -477,6 +486,39 @@ export function absenceLookup(absences: ScheduleAbsence[]): (staffId: string, da
     }
     return null
   }
+}
+
+/** Eine Abwesenheit an einem Tag, aufgelöst auf den Mitarbeiter. */
+export interface DayAbsence {
+  staff: StaffLite
+  label: string
+}
+
+/**
+ * Wer von `staffList` ist am Tag abwesend — für die Ansichten ausser der
+ * Plantafel (Woche, Mitarbeiter-Ansicht, Tagesplan, Monat, Agenda;
+ * einsatzplanung-rueckmeldungen-2026-10.md §7). Abgeleitet aus den genehmigten
+ * Absenzen, die der Screen ohnehin lädt — kein Blocker-Datensatz, der beim
+ * Zurückziehen der Ferien stehen bliebe. Reihenfolge wie `staffList`.
+ */
+export function absencesOnDay(
+  lookup: (staffId: string, dayISO: string) => string | null,
+  staffList: StaffLite[],
+  dayISO: string,
+): DayAbsence[] {
+  const out: DayAbsence[] = []
+  for (const s of staffList) {
+    const label = lookup(s.id, dayISO)
+    if (label) out.push({ staff: s, label })
+  }
+  return out
+}
+
+/** Art der Absenz aus dem Server-Label («Ferien 24.08.–28.08.2026» → «Ferien»):
+ *  alles vor dem ersten Datum. Für die schmalen Chips, das volle Label steht im title. */
+export function absenceKind(label: string): string {
+  const m = label.match(/^(.*?)\s+\d/)
+  return (m ? m[1] : label).trim()
 }
 
 export const PAIR_SEP = '\u0001'

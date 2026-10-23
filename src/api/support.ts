@@ -88,6 +88,11 @@ export type SupportReply = {
   at: string
   /** Wer geantwortet hat — Anzeigename, nie eine E-Mail. */
   by?: string
+  /** `rueckfrage`: der Betreiber fragt nach und wartet auf eine Antwort
+   *  (docs/specs/support-rueckfrage.md). Fehlt bei normalen Antworten. */
+  kind?: 'rueckfrage'
+  /** Bei einer Rückfrage: an wen sie ging (Anzeigename). */
+  to?: string
 }
 
 /** Nachtrag des Melders zur offenen Meldung (Spec support-antwort.md §13).
@@ -98,6 +103,10 @@ export type SupportAddendum = {
   at: string
   /** Mit diesem Nachtrag hat der Melder die Meldung selbst abgeschlossen. */
   resolved?: boolean
+  /** `antwort`: Antwort auf eine Rückfrage — von `by`, das kann jemand
+   *  anderes als der Melder sein (docs/specs/support-rueckfrage.md R4). */
+  kind?: 'antwort'
+  by?: string
 }
 
 /**
@@ -121,6 +130,14 @@ export type MySupportTicket = {
   reply_read_at?: string | null
   /** Eigene Nachträge (Spec §13) — fehlt bei einem Server vor der Migration. */
   addenda?: SupportAddendum[] | null
+  /** Status `wartet`: auf wessen Antwort (docs/specs/support-rueckfrage.md). */
+  waiting_on_user_id?: string | null
+  waiting_on_name?: string | null
+  waiting_since?: string | null
+  /** Nur in «An mich weitergeleitet»: wer die Meldung geschrieben hat. */
+  created_by_name?: string | null
+  /** Wartet gerade auf eine Antwort von MIR — vom Server ausgerechnet. */
+  waits_on_me?: boolean
 }
 
 export type MySupportTickets = {
@@ -128,6 +145,31 @@ export type MySupportTickets = {
   /** Wie viele Meldungen eine ungelesene Antwort tragen — vom Server gezählt,
    *  damit Abzeichen und Liste nie auseinanderlaufen. */
   unread: number
+  /** Eigene Meldungen, die auf eine Antwort von mir warten. */
+  waiting_on_me?: number
+  /** Meldungen, die etwas von mir wollen (ungelesene Antwort oder Rückfrage
+   *  an mich), je Meldung einmal — fürs Abzeichen. */
+  attention?: number
+}
+
+/** «An mich weitergeleitet»: fremde Meldungen mit einer Rückfrage an mich. */
+export type ForwardedSupportTickets = {
+  tickets: MySupportTicket[]
+  waiting_on_me: number
+}
+
+export async function fetchForwardedSupportTickets(): Promise<ForwardedSupportTickets> {
+  return apiFetch<ForwardedSupportTickets>('/pwa/support/forwarded-tickets')
+}
+
+/** Antwort auf eine Rückfrage des Betreibers (docs/specs/support-rueckfrage.md R4). */
+export async function answerSupportQuestion(
+  id: string, text: string,
+): Promise<{ ok: boolean; addenda: SupportAddendum[]; status: SupportStatus }> {
+  return apiFetch(`/pwa/support/questions/${id}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+  })
 }
 
 export async function fetchMySupportTickets(): Promise<MySupportTickets> {
@@ -152,7 +194,7 @@ export function bezugPrefix(reference: string): string {
 
 /** Noch nicht erledigt — die Meldungen, die der Melder ergänzen kann. */
 export function isOpenTicket(ticket: Pick<MySupportTicket, 'status'>): boolean {
-  return ticket.status === 'offen' || ticket.status === 'in_arbeit'
+  return ticket.status === 'offen' || ticket.status === 'in_arbeit' || ticket.status === 'wartet'
 }
 
 /**
@@ -175,7 +217,7 @@ export async function sendSupportAddendum(
 // Superadmin-Eingang
 // ────────────────────────────────────────────────────────────────────────────
 
-export type SupportStatus = 'offen' | 'in_arbeit' | 'erledigt'
+export type SupportStatus = 'offen' | 'in_arbeit' | 'wartet' | 'erledigt'
 
 export type SupportTicket = {
   id: string
@@ -204,6 +246,10 @@ export type SupportTicket = {
   seen_at?: string | null
   /** Letzter Nachtrag des Melders (Spec support-antwort.md §13). */
   last_addendum_at?: string | null
+  /** Status `wartet`: wer gefragt wurde und seit wann (support-rueckfrage.md). */
+  waiting_on_user_id?: string | null
+  waiting_on_name?: string | null
+  waiting_since?: string | null
   snapshot_error_count: number
   snapshot_top_source?: string | null
   attachment_count: number
@@ -317,9 +363,29 @@ export async function fetchSupportDashboard(): Promise<SupportDashboard> {
  */
 export async function sendSupportReply(
   id: string, text: string,
-): Promise<{ ok: boolean; replies: SupportReply[]; last_reply_at: string }> {
+  question?: { toUserId?: string },
+): Promise<{
+  ok: boolean; replies: SupportReply[]; last_reply_at: string
+  status?: SupportStatus; waiting_on_user_id?: string | null
+  waiting_on_name?: string | null; waiting_since?: string | null
+}> {
   return apiFetch(`/pwa/superadmin/support-tickets/${id}/reply`, {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(question
+      ? { text, kind: 'rueckfrage', to_user_id: question.toUserId || undefined }
+      : { text }),
   })
+}
+
+/** Mögliche Empfänger einer Rückfrage: der Melder zuerst, dann die
+ *  Admin-Konten seines Mandanten (docs/specs/support-rueckfrage.md R3). */
+export type SupportForwardTarget = { user_id: string; name: string; is_reporter: boolean }
+
+export async function fetchSupportForwardTargets(id: string): Promise<{ targets: SupportForwardTarget[] }> {
+  return apiFetch(`/pwa/superadmin/support-tickets/${id}/forward-targets`)
+}
+
+/** «Erinnern»: die Push der offenen Rückfrage noch einmal (höchstens 1×/Tag). */
+export async function remindSupportQuestion(id: string): Promise<{ ok: boolean; pushed: boolean }> {
+  return apiFetch(`/pwa/superadmin/support-tickets/${id}/remind`, { method: 'POST' })
 }

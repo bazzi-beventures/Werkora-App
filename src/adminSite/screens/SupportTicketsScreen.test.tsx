@@ -18,13 +18,17 @@ const fetchSupportTickets = vi.fn()
 const fetchSupportTicket = vi.fn()
 const updateSupportTicket = vi.fn()
 const sendSupportReply = vi.fn()
+const fetchSupportForwardTargets = vi.fn()
+const remindSupportQuestion = vi.fn()
 
 vi.mock('../../api/support', () => ({
   fetchSupportDashboard: () => fetchSupportDashboard(),
   fetchSupportTickets: (p: unknown) => fetchSupportTickets(p),
   fetchSupportTicket: (id: string) => fetchSupportTicket(id),
   updateSupportTicket: (id: string, body: unknown) => updateSupportTicket(id, body),
-  sendSupportReply: (id: string, text: string) => sendSupportReply(id, text),
+  sendSupportReply: (...args: unknown[]) => sendSupportReply(...args),
+  fetchSupportForwardTargets: (id: string) => fetchSupportForwardTargets(id),
+  remindSupportQuestion: (id: string) => remindSupportQuestion(id),
 }))
 
 const supportTicketToFeatureRequest = vi.fn()
@@ -33,6 +37,7 @@ vi.mock('../../api/featureRequests', () => ({
 }))
 
 import SupportTicketsScreen from './SupportTicketsScreen'
+import { ApiError } from '../../api/client'
 
 const TICKET = {
   id: 'tk-1',
@@ -73,6 +78,11 @@ beforeEach(() => {
   fetchSupportTickets.mockResolvedValue({ tickets: [TICKET], tenants: [], capped: false })
   fetchSupportTicket.mockResolvedValue({ ...DETAIL })
   updateSupportTicket.mockResolvedValue({})
+  fetchSupportForwardTargets.mockResolvedValue({ targets: [
+    { user_id: 'u-melder', name: 'Max Melder', is_reporter: true },
+    { user_id: 'u-chef', name: 'Clara Chefin', is_reporter: false },
+  ] })
+  remindSupportQuestion.mockResolvedValue({ ok: true, pushed: true })
   sendSupportReply.mockResolvedValue({
     ok: true,
     replies: [{ text: 'Behoben.', at: '2026-09-19T08:00:00Z', by: 'Luca' }],
@@ -254,5 +264,49 @@ describe('SupportTicketsScreen — Nachtrag des Melders (support-antwort.md §13
     fireEvent.click(await screen.findByTitle('Meldung öffnen'))
     expect(await screen.findByText(/Melder: hat sich erledigt/)).not.toBeNull()
     expect(screen.getByText('Hat sich erledigt.')).not.toBeNull()
+  })
+})
+
+describe('SupportTicketsScreen — Rückfrage an den Mandanten (support-rueckfrage.md §4)', () => {
+  it('sendet als Rückfrage an die gewählte Person und zeigt danach, auf wen gewartet wird', async () => {
+    sendSupportReply.mockResolvedValue({
+      ok: true,
+      replies: [{ text: 'Welcher Rapport?', at: '2026-09-19T08:00:00Z', by: 'Luca',
+        kind: 'rueckfrage', to: 'Clara Chefin' }],
+      last_reply_at: '2026-09-19T08:00:00Z',
+      status: 'wartet', waiting_on_user_id: 'u-chef', waiting_on_name: 'Clara Chefin',
+      waiting_since: '2026-09-19T08:00:00Z',
+    })
+    await oeffneDetail()
+    // Der Melder steht als Vorgabe da, nicht doppelt in der Liste.
+    const wahl = await screen.findByRole('option', { name: 'an Clara Chefin' })
+    expect(screen.queryByRole('option', { name: 'an Max Melder' })).toBeNull()
+    fireEvent.change(screen.getByLabelText('Rückfrage an'), { target: { value: wahl.getAttribute('value') } })
+    fireEvent.change(screen.getByPlaceholderText(/Was der Melder lesen soll/),
+      { target: { value: 'Welcher Rapport?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Als Rückfrage senden' }))
+    await waitFor(() => expect(sendSupportReply).toHaveBeenCalledWith(
+      'tk-1', 'Welcher Rapport?', { toUserId: 'u-chef' }))
+    expect(await screen.findByText(/wartet auf Clara Chefin/)).not.toBeNull()
+    expect(screen.getByText(/Rückfrage an Clara Chefin/)).not.toBeNull()
+    // «Wartet» setzt nur die Rückfrage — es gibt keinen Status-Knopf dafür.
+    expect(screen.queryByRole('button', { name: /→ Wartet/ })).toBeNull()
+  })
+
+  it('«Erinnern» erst, wenn die Meldung wartet — und höchstens einmal am Tag', async () => {
+    fetchSupportTicket.mockResolvedValue({
+      ...DETAIL, status: 'wartet', waiting_on_name: 'Max Melder',
+      waiting_since: '2026-09-19T08:00:00Z',
+    })
+    remindSupportQuestion.mockRejectedValueOnce(new ApiError(429, 'already_reminded'))
+    await oeffneDetail()
+    fireEvent.click(screen.getByRole('button', { name: 'Erinnern' }))
+    await waitFor(() => expect(remindSupportQuestion).toHaveBeenCalledWith('tk-1'))
+    expect(await screen.findByText('Heute schon erinnert')).not.toBeNull()
+  })
+
+  it('ohne Rückfrage gibt es nichts zu erinnern', async () => {
+    await oeffneDetail()
+    expect(screen.queryByRole('button', { name: 'Erinnern' })).toBeNull()
   })
 })

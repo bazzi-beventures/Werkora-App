@@ -342,6 +342,8 @@ const ACTION_LABELS: Record<string, string> = {
   support_ticket_update: 'Support-Meldung bearbeitet',
   support_ticket_reply: 'Support-Meldung beantwortet',
   support_ticket_addendum: 'Support-Meldung ergänzt (Melder)',
+  support_ticket_answer: 'Rückfrage des Supports beantwortet',
+  support_ticket_remind: 'An offene Support-Rückfrage erinnert',
   // Feature-Anfragen (docs/specs/feature-anfragen.md §10.5) — Triage durch den
   // Betreiber, im Mandanten der Anfrage protokolliert.
   feature_request_erfasst: 'Feature-Anfrage im Auftrag erfasst',

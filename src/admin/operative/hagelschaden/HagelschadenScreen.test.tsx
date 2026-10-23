@@ -208,6 +208,32 @@ describe('HagelschadenScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Fotos im Projekt' }))
     expect(open).toHaveBeenCalledWith('p2', 'documents')
   })
+
+  it('Telefonnummer des Kunden als tel:-Link — in der Zeile die erste, im Detail alle', async () => {
+    const telefon = [
+      { art: 'Mobil', nummer: '079 123 45 67' },
+      { art: 'Vor Ort · Hans Muster', nummer: '+41 44 555 66 77' },
+    ]
+    route(liste([zeile({ project_id: 'p2', projekt_name: 'B HS', telefon }), ...ZEILEN.slice(1)]))
+    render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
+    const row = (await screen.findByText('B HS')).closest('tr')!
+    const link = within(row).getByRole('link', { name: 'Mobil 079 123 45 67 anrufen' })
+    expect(link.getAttribute('href')).toBe('tel:0791234567')
+    expect(within(row).queryByText('+41 44 555 66 77')).toBeNull()
+
+    // Der Klick auf die Nummer wählt — er öffnet nicht nebenbei das Detail.
+    fireEvent.click(link)
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    await userEvent.click(screen.getByText('B HS'))
+    const detail = await screen.findByRole('dialog')
+    expect(within(detail).getByRole('link', { name: /Vor Ort · Hans Muster/ }).getAttribute('href'))
+      .toBe('tel:+41445556677')
+    // Ohne Nummer im Kundenstamm sagt das Detail es, statt die Zeile wegzulassen.
+    await userEvent.click(within(detail).getByRole('button', { name: 'Schliessen' }))
+    await userEvent.click(screen.getByText('A HS'))
+    expect(await screen.findByText('keine Telefonnummer im Kundenstamm')).toBeTruthy()
+  })
 })
 
 // ─── Disposition — docs/specs/hagelschaden-disposition.md §15 ──

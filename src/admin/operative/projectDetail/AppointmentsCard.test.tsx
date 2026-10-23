@@ -179,3 +179,26 @@ describe('AppointmentsCard', () => {
     expect(screen.getByText(/Rot = Lead-Monteur/)).toBeTruthy()
   })
 })
+
+describe('AppointmentsCard — Sprung in die Einsatzplanung', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    vi.setSystemTime(new Date(2026, 7, 14))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('öffnet die Einsatzplanung auf dem nächsten Termin', () => {
+    const onOpenSchedule = vi.fn()
+    render(
+      <AppointmentsCard appointments={[draft({ startDate: '2026-08-18' })]} onChange={vi.fn()}
+        staff={STAFF} projectTeam={['s-1']} onOpenSchedule={onOpenSchedule} />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'In Einsatzplanung zeigen' }))
+    expect(onOpenSchedule).toHaveBeenCalledWith('2026-08-18')
+  })
+
+  it('zeigt den Link nicht ohne Einsatzplanung (Modul aus)', () => {
+    setup([draft({ startDate: '2026-08-18' })])
+    expect(screen.queryByRole('button', { name: 'In Einsatzplanung zeigen' })).toBeNull()
+  })
+})

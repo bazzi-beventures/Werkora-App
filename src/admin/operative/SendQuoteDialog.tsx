@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../api/client'
-import { getQuoteSendAttachments, sendQuote } from '../../api/admin/quotes'
-import type { SendAttachmentsInfo } from '../../api/admin/quotes'
+import { getQuoteSendAttachments, getQuoteSendGroup, sendQuote } from '../../api/admin/quotes'
+import type { QuoteSendGroupMember, SendAttachmentsInfo } from '../../api/admin/quotes'
 import { uploadProjectFile } from '../../api/admin/projects'
 import { backdropCloseProps } from '../../shared/backdropClose'
+import { fmtCHF } from '../utils/format'
 
 interface Props {
   quoteId: number
@@ -83,6 +84,22 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
   const [directFiles, setDirectFiles] = useState<File[]>([])
   const [vorlagenSearch, setVorlagenSearch] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  // Varianten-Gruppe (WW-34): gehört die Offerte zu einer Gruppe mit ≥2 offenen
+  // Offerten, gehen sie zusammen in EIN Mail — welche, wählt man hier. Vorgabe:
+  // alle (wie bisher). Leer = Einzelversand, keine Auswahl sichtbar.
+  const [group, setGroup] = useState<QuoteSendGroupMember[]>([])
+  const [selectedGroup, setSelectedGroup] = useState<Set<number>>(new Set())
+
+  useEffect(() => {
+    getQuoteSendGroup(quoteId)
+      .then(members => {
+        setGroup(members)
+        setSelectedGroup(new Set(members.map(m => m.id)))
+      })
+      .catch(() => {
+        // Ohne Auswahl entscheidet der Server wie bisher: die ganze offene Gruppe.
+      })
+  }, [quoteId])
 
   useEffect(() => {
     getQuoteSendAttachments(quoteId)
@@ -96,6 +113,14 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
         // Anhang-Infos sind optional — bei Fehler bleibt der Versand ohne Zusatz-Anhang möglich.
       })
   }, [quoteId])
+
+  function toggleGroupQuote(id: number) {
+    setSelectedGroup(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
 
   function toggleAnhang(id: string) {
     setSelectedAnhaenge(prev => {
@@ -141,8 +166,10 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
     setDirectFiles(prev => prev.filter((_, j) => j !== i))
   }
 
+  const groupEmpty = group.length >= 2 && selectedGroup.size === 0
+
   async function handleSend() {
-    if (!email) return
+    if (!email || groupEmpty) return
     setSending(true)
     setError('')
     try {
@@ -166,6 +193,10 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
         anhangFileIds: [...selectedAnhaenge, ...uploadedIds],
         vorlageAttachmentIds: [...selectedVorlagen],
         fotoFileIds: [...selectedFotos],
+        // In Gruppen-Reihenfolge, nur wenn es eine Auswahl gab.
+        ...(group.length >= 2
+          ? { groupQuoteIds: group.filter(m => selectedGroup.has(m.id)).map(m => m.id) }
+          : {}),
       })
       onSent(email)
     } catch (err) {
@@ -186,6 +217,37 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
       <div className="admin-confirm-box" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <div className="admin-confirm-title">Offerte senden</div>
         <div className="admin-confirm-text" style={{ marginBottom: 12 }}>{header}</div>
+
+        {group.length >= 2 && (
+          <div style={{ marginBottom: 12 }}>
+            <label className="admin-form-label">Offerten in diesem Mail</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+              {group.map(m => (
+                <label key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedGroup.has(m.id)}
+                    disabled={sending}
+                    onChange={() => toggleGroupQuote(m.id)}
+                  />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    {m.label} <span style={{ color: 'var(--muted)' }}>· {m.quote_number}</span>
+                  </span>
+                  <span style={{ color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtCHF(m.amount)}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div style={{ fontSize: 12, color: groupEmpty ? 'var(--danger)' : 'var(--muted)', marginTop: 6 }}>
+              {groupEmpty
+                ? 'Bitte mindestens eine Offerte wählen.'
+                : selectedGroup.size === 1
+                  ? 'Geht als einzelne Offerte mit Annehmen/Ablehnen raus.'
+                  : 'Die gewählten Offerten gehen zusammen in einem Mail raus, jede mit eigenem Annehmen-Knopf.'}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginBottom: 12 }}>
           <label className="admin-form-label">Empfänger E-Mail</label>
@@ -386,7 +448,7 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
 
         <div className="admin-confirm-actions">
           <button className="admin-btn admin-btn-secondary" onClick={onClose} disabled={sending}>Abbrechen</button>
-          <button className="admin-btn admin-btn-primary" onClick={handleSend} disabled={!email || sending}>
+          <button className="admin-btn admin-btn-primary" onClick={handleSend} disabled={!email || sending || groupEmpty}>
             {sending ? 'Wird gesendet…' : 'Offerte senden'}
           </button>
         </div>

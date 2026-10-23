@@ -27,7 +27,7 @@ export interface StaffMember {
 
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
-  autosave, onCreateCustomerFromKontakt, onOpenCustomer, projectId = null,
+  autosave, onCreateCustomerFromKontakt, onOpenCustomer, onOpenSchedule, projectId = null,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -57,6 +57,8 @@ export function DetailsForm({
   onCreateCustomerFromKontakt?: (k: Kontakt) => void
   /** Sprung auf die Kundenstammseite des gewählten Kunden (WW-9). */
   onOpenCustomer?: (customerId: string) => void
+  /** Sprung in die Einsatzplanung (Kachel «Termine»). */
+  onOpenSchedule?: (date: string) => void
   /** Gespeichertes Projekt: dann stehen die Skill-Pillen in der Karte Einsatzplanung. */
   projectId?: string | null
 }) {
@@ -601,6 +603,7 @@ export function DetailsForm({
               onChange={handleAppointmentsChange}
               staff={staff}
               projectTeam={monteurIds}
+              onOpenSchedule={onOpenSchedule}
               autosave={autosave ? {
                 commit: key => autosave.run(f => f.commitAppointment(key)),
                 remove: key => autosave.run(f => f.removeAppointmentNow(key)),
