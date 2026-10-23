@@ -2,7 +2,7 @@
 // Teil des api/admin/-Barrels (Charge H1): eine Datei je Domäne, gebündelt in
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
-import { apiFetch } from '../client'
+import { apiFetch, apiUrl } from '../client'
 
 export interface AdminDashboard {
   pending_corrections: number
@@ -117,4 +117,25 @@ export async function sendZahlungserinnerung(invoiceId: number): Promise<void> {
 
 export async function sendMahnung(invoiceId: number): Promise<void> {
   await apiFetch(`/pwa/admin/invoices/${invoiceId}/send-mahnung`, { method: 'POST' })
+}
+
+/** Mahnstufe — dieselben zwei Stufen wie beim Mail-Versand. */
+export type MahnStufe = 'zahlungserinnerung' | 'mahnung'
+
+/**
+ * Zahlungserinnerung/Mahnung als Brief-PDF (WW-35, docs/specs/mahnung-papier.md).
+ * Eine URL statt eines Fetch: das PDF öffnet sich per Link in einem neuen Tab
+ * (Cookie-Auth wie beim Papier-Rapport), und ein `window.open` nach einem
+ * `await` hielte der Popup-Blocker auf. Der Abruf vermerkt nichts.
+ */
+export function mahnschreibenPdfUrl(invoiceId: number, stufe: MahnStufe): string {
+  return apiUrl(`/pwa/admin/invoices/${invoiceId}/mahnschreiben.pdf?stufe=${stufe}`)
+}
+
+/** Vermerkt den Postversand — setzt dieselbe Spalte wie der Mail-Versand. */
+export async function markReminderSentByPost(invoiceId: number, stufe: MahnStufe): Promise<void> {
+  await apiFetch(`/pwa/admin/invoices/${invoiceId}/mark-reminder-sent`, {
+    method: 'POST',
+    body: JSON.stringify({ stufe }),
+  })
 }

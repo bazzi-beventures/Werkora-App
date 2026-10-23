@@ -97,3 +97,65 @@ describe('selectCustomer → Ansprechperson', () => {
     expect(result.current.kontakte.map(k => k.name)).toEqual(['Beat Huber'])
   })
 })
+
+// Kundenwechsel = Objektadresse nachziehen, damit das Backend die Distanz
+// (Fahrspesen der Offerte) neu bei Google Maps holt. Fehlerbild: bei einem
+// bestehenden Projekt galt die Adresse immer als «angefasst» — nach der ersten
+// Offerte blieben Adresse und Distanz beim alten Kunden stehen.
+describe('selectCustomer → Objektadresse', () => {
+  const existing = (over: Partial<Project> = {}) => ({
+    id: 'p-1', name: 'Gottardi', art_der_arbeit: [], kontakte: [],
+    customer_id: 'c-schuermann',
+    object_address: 'Haltenrebenstrasse 54, 8408 Winterthur',
+    ...over,
+  }) as unknown as Project
+  const MEIER = customer({
+    id: 'c-meier', name: 'Meier AG', address: 'Bahnhofstrasse 1, 8001 Zürich',
+    object_address: 'Seeweg 7, 8800 Thalwil',
+  })
+
+  function setupWith(project: Project | null) {
+    return renderHook(() => useProjectForm({
+      project,
+      customers: [SCHUERMANN, MUELLER, MEIER],
+      schedulingEnabled: false,
+      focusDetails: () => {},
+    }))
+  }
+
+  it('übernimmt beim bestehenden Projekt die Adresse des neuen Kunden', () => {
+    const { result } = setupWith(existing())
+    act(() => result.current.selectCustomer('c-meier'))
+    expect(result.current.objectAddress).toBe('Seeweg 7, 8800 Thalwil')
+  })
+
+  it('lässt eine vom Kundenstamm abweichende Projektadresse stehen', () => {
+    const { result } = setupWith(existing({ object_address: 'Baustelle Nord, 8400 Winterthur' }))
+    act(() => result.current.selectCustomer('c-meier'))
+    expect(result.current.objectAddress).toBe('Baustelle Nord, 8400 Winterthur')
+  })
+
+  it('lässt eine in der Sitzung getippte Adresse stehen', () => {
+    const { result } = setupWith(existing())
+    act(() => {
+      result.current.setObjectAddress('Haltenrebenstrasse 54, 8408 Winterthur')
+      result.current.setObjectAddressTouched(true)
+    })
+    act(() => result.current.selectCustomer('c-meier'))
+    expect(result.current.objectAddress).toBe('Haltenrebenstrasse 54, 8408 Winterthur')
+  })
+
+  it('zieht beim neuen Projekt über mehrere Wechsel mit', () => {
+    const { result } = setupWith(null)
+    act(() => result.current.selectCustomer('c-schuermann'))
+    expect(result.current.objectAddress).toBe('Haltenrebenstrasse 54, 8408 Winterthur')
+    act(() => result.current.selectCustomer('c-meier'))
+    expect(result.current.objectAddress).toBe('Seeweg 7, 8800 Thalwil')
+  })
+
+  it('füllt eine leere Adresse eines bestehenden Projekts', () => {
+    const { result } = setupWith(existing({ customer_id: null, object_address: null }))
+    act(() => result.current.selectCustomer('c-meier'))
+    expect(result.current.objectAddress).toBe('Seeweg 7, 8800 Thalwil')
+  })
+})

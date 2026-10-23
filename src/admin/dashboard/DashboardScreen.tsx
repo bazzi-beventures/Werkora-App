@@ -4,6 +4,7 @@ import {
   AdminDashboard,
   PendingReminderQuote, getPendingReminderQuotes, sendQuoteReminder,
   PendingActionInvoice, getPendingActionInvoices, sendZahlungserinnerung, sendMahnung,
+  MahnStufe, mahnschreibenPdfUrl, markReminderSentByPost,
   PendingApproval, getPendingApprovals, approveApproval, rejectApproval,
   OverdueProject, getOverdueProjects, updateProjectSchedule, closeProject,
 } from '../../api/admin'
@@ -177,6 +178,11 @@ interface MahnungModalProps {
 function MahnungModal({ onClose, onSent }: MahnungModalProps) {
   const [invoices, setInvoices] = useState<PendingActionInvoice[] | null>(null)
   const [sending, setSending] = useState<{ id: number; type: 'erinnerung' | 'mahnung' } | null>(null)
+  // Brief geöffnet, Versand noch nicht vermerkt (WW-35). Bewusst zwei Schritte:
+  // das PDF anzusehen darf die Mahnstufe nicht weiterschalten — erst der Klick
+  // auf «vermerken» setzt den Zeitstempel, wie der Mail-Versand es tut.
+  const [brief, setBrief] = useState<{ id: number; stufe: MahnStufe } | null>(null)
+  const [vermerkt, setVermerkt] = useState(false)
   const { toast, showToast } = useToast(3500)
 
   useEffect(() => {
@@ -214,6 +220,26 @@ function MahnungModal({ onClose, onSent }: MahnungModalProps) {
       showToast('Fehler beim Senden', 'error')
     } finally {
       setSending(null)
+    }
+  }
+
+  async function handleBriefVermerken(invoiceId: number, stufe: MahnStufe) {
+    setVermerkt(true)
+    try {
+      await markReminderSentByPost(invoiceId, stufe)
+      const feld = stufe === 'zahlungserinnerung' ? 'zahlungserinnerung_sent_at' : 'mahnung_sent_at'
+      showToast(stufe === 'zahlungserinnerung'
+        ? 'Zahlungserinnerung per Post vermerkt' : 'Mahnung per Post vermerkt', 'success')
+      setInvoices(list => list
+        ? list.map(inv => inv.id === invoiceId ? { ...inv, [feld]: new Date().toISOString() } : inv)
+        : list
+      )
+      setBrief(null)
+      onSent()
+    } catch {
+      showToast('Fehler beim Vermerken', 'error')
+    } finally {
+      setVermerkt(false)
     }
   }
 
@@ -279,6 +305,44 @@ function MahnungModal({ onClose, onSent }: MahnungModalProps) {
                       {isSending(inv.id, 'mahnung') ? 'Sende…' : 'Mahnung senden'}
                     </button>
                   </div>
+                  {/* Papierfassung für Kunden ohne E-Mail oder mit Postversand (WW-35).
+                      Ein Link statt eines Knopfs: das PDF öffnet sich im neuen Tab. */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <a
+                      className="admin-btn admin-btn-secondary"
+                      style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                      href={mahnschreibenPdfUrl(inv.id, 'zahlungserinnerung')}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setBrief({ id: inv.id, stufe: 'zahlungserinnerung' })}
+                    >
+                      Erinnerung als Brief (PDF)
+                    </a>
+                    <a
+                      className="admin-btn admin-btn-secondary"
+                      style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
+                      href={mahnschreibenPdfUrl(inv.id, 'mahnung')}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={() => setBrief({ id: inv.id, stufe: 'mahnung' })}
+                    >
+                      Mahnung als Brief (PDF)
+                    </a>
+                  </div>
+                  {brief?.id === inv.id && (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <span style={{ flex: 1, color: 'var(--text-muted)' }}>
+                        {brief.stufe === 'zahlungserinnerung' ? 'Zahlungserinnerung' : 'Mahnung'} ausgedruckt und verschickt?
+                      </span>
+                      <button
+                        className="admin-btn admin-btn-primary"
+                        disabled={vermerkt}
+                        onClick={() => handleBriefVermerken(inv.id, brief.stufe)}
+                      >
+                        {vermerkt ? 'Speichere…' : 'Als per Post versendet vermerken'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

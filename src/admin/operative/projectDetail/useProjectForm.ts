@@ -223,6 +223,22 @@ export interface UseProjectForm {
   linkCreatedCustomers: (created: { id: string; name: string }[]) => void
 }
 
+/** Die Objektadresse, die ein Kunde beim Auswählen vorschlägt. */
+export function customerSeedAddress(c: Customer): string {
+  return c.object_address || c.billing_address || c.address || ''
+}
+
+/**
+ * Darf ein Kundenwechsel die Objektadresse ersetzen? Ja, wenn sie leer ist oder
+ * genau der Vorschlag des bisherigen Kunden — dann ist sie seine, nicht die des
+ * Projekts. Eine abweichende Adresse hat jemand bewusst gesetzt und bleibt.
+ */
+export function addressFollowsCustomer(address: string, prev: Customer | null): boolean {
+  const norm = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+  if (!norm(address)) return true
+  return !!prev && norm(address) === norm(customerSeedAddress(prev))
+}
+
 export function useProjectForm(opts: {
   project: Project | null
   /** Fuer das Seeden beim Kundenwechsel; leer, solange die Liste laedt. */
@@ -272,10 +288,15 @@ export function useProjectForm(opts: {
   // speist die Google-Maps-Distanz (Fahrspesen), darum darf der Name nicht mit rein.
   const [objectName, setObjectName] = useState(baseline.objectName)
   const [objectAddress, setObjectAddress] = useState(baseline.objectAddress)
-  // Wurde die Objektadresse manuell bearbeitet? Dann beim Kundenwechsel NICHT überschreiben.
-  // Eine nur automatisch (aus dem Kundenstamm) befüllte Adresse wird hingegen neu geseedet,
-  // damit ein Kundenwechsel auch die Distanz (Offerten-Fahrspesen) neu berechnen lässt.
-  const [objectAddressTouched, setObjectAddressTouched] = useState(!!project?.object_address)
+  // Wurde die Objektadresse in dieser Sitzung von Hand gesetzt (getippt, gewählt, aus dem
+  // Referenzprojekt übernommen)? Dann beim Kundenwechsel NICHT überschreiben. Eine Adresse,
+  // die nur aus dem Kundenstamm stammt, wird dagegen neu geseedet, damit ein Kundenwechsel
+  // auch die Distanz (Offerten-Fahrspesen) neu berechnen lässt — siehe selectCustomer.
+  //
+  // Bewusst NICHT mit `!!project?.object_address` vorbelegt: damit galt die Adresse jedes
+  // bestehenden Projekts als «angefasst», und der Kundenwechsel nach der ersten Offerte
+  // liess Adresse und Distanz still beim alten Kunden stehen.
+  const [objectAddressTouched, setObjectAddressTouched] = useState(false)
   // Koordinaten aus dem Adress-Autocomplete, samt der Adresse, ZU DER sie
   // gehoeren. Das Label mitzufuehren ist der Trick: der Payload schickt die
   // Koordinaten nur mit, solange `objectAddress` noch genau diese Adresse ist.
@@ -428,11 +449,12 @@ export function useProjectForm(opts: {
   }
 
   function selectCustomer(id: string) {
+    const prev = customerId ? customers.find(x => x.id === customerId) ?? null : null
     setCustomerId(id)
     const c = id ? customers.find(x => x.id === id) ?? null : null
     if (id && !c) return   // Liste noch nicht geladen: lieber nichts seeden als das Falsche
-    if (c && !objectAddressTouched) {
-      setObjectAddress(c.object_address || c.billing_address || c.address || '')
+    if (c && !objectAddressTouched && addressFollowsCustomer(objectAddress, prev)) {
+      setObjectAddress(customerSeedAddress(c))
     }
     // Ansprechperson aus dem Kundenstamm vorbelegen (kontaktKundenstamm.ts).
     // `seededKontakt` merkt sich die gesetzte Zeile, damit ein Kundenwechsel sie
