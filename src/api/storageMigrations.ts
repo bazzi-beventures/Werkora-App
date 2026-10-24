@@ -7,7 +7,7 @@
 
 import { SK } from './storageKeys'
 
-export const APP_DATA_VERSION = 22
+export const APP_DATA_VERSION = 24
 const STORAGE_VERSION_KEY = 'app_data_version'
 
 // Zentrale Whitelist: Keys, die als "aktiv genutzt" gelten. Alles andere
@@ -30,6 +30,9 @@ function isKnownKey(k: string): boolean {
   if (k.startsWith('quote-edit-draft:')) return true
   if (k.startsWith('rapport-draft:')) return true  // lokaler Rapport-Zwischenstand (pro Mitarbeiter)
   if (k.startsWith('offline-lesepaket:')) return true  // Offline-Snapshot der Lesedaten (pro Mitarbeiter)
+  // Start-Snapshot: letztes /pwa/me + Branding, pro Konto (api/startSnapshot.ts,
+  // docs/specs/pwa-neuladen.md §3.5). Eingeführt mit v24.
+  if (k.startsWith('start-snapshot:')) return true
   // Zwischenstand des Offline-Rapport-Formulars, pro Mitarbeiter UND Projekt
   // (docs/specs/offline-modus.md §4.5.3). Additiver Key — keine
   // APP_DATA_VERSION-Erhoehung noetig; erst eine Shape-Aenderung loest die Regel
@@ -46,6 +49,9 @@ function isKnownKey(k: string): boolean {
   if (k === 'schedule-gantt-zoom') return true  // Zoom-Stufe des Tagesplans (Gantt)
   if (k === 'schedule-gantt-span') return true  // Sichtbarer Zeitraum des Tagesplans (1/3/5 Tage)
   if (k === 'schedule-map-period') return true  // Zeitraum der Auftragskarte (Wochen ab heute)
+  // Eingeblendete Zusatzspalten der Projektliste, z.B. { termine: true }
+  // (docs/specs/projektliste-termine-team.md §2.2).
+  if (k === 'projektliste-spalten') return true
   // Infrastruktur
   if (k === STORAGE_VERSION_KEY) return true
   if (k === 'app_build_id') return true
@@ -338,7 +344,31 @@ const migration_21_to_22: Migration = {
   },
 }
 
-const MIGRATIONS: Migration[] = [migration_0_to_1, migration_1_to_2, migration_2_to_3, migration_3_to_4, migration_4_to_5, migration_5_to_6, migration_6_to_7, migration_7_to_8, migration_8_to_9, migration_9_to_10, migration_10_to_11, migration_11_to_12, migration_12_to_13, migration_13_to_14, migration_14_to_15, migration_15_to_16, migration_16_to_17, migration_17_to_18, migration_18_to_19, migration_19_to_20, migration_20_to_21, migration_21_to_22]
+// v22 → v23: neuer Key `projektliste-spalten` (Schalter «Termine» der
+// Projektliste, docs/specs/projektliste-termine-team.md §2.2). Rein additiv —
+// fehlt der Key, ist die Spalte an. No-op als Tripwire, damit ältere Clients
+// keinen Fallback-Wipe fahren.
+const migration_22_to_23: Migration = {
+  from: 22,
+  to: 23,
+  run: () => {
+    // no-op
+  },
+}
+
+// v23 → v24: neuer Key `start-snapshot:<userId>` (Start aus dem letzten Stand,
+// docs/specs/pwa-neuladen.md §3.5). Rein additiv — es gibt nichts umzubauen; der
+// Schritt hält nur die Versionskette lückenlos, und `isKnownKey` kennt den Key,
+// damit ein späterer Grossputz ihn nicht wegräumt.
+const migration_23_to_24: Migration = {
+  from: 23,
+  to: 24,
+  run: () => {
+    // no-op
+  },
+}
+
+const MIGRATIONS: Migration[] = [migration_0_to_1, migration_1_to_2, migration_2_to_3, migration_3_to_4, migration_4_to_5, migration_5_to_6, migration_6_to_7, migration_7_to_8, migration_8_to_9, migration_9_to_10, migration_10_to_11, migration_11_to_12, migration_12_to_13, migration_13_to_14, migration_14_to_15, migration_15_to_16, migration_16_to_17, migration_17_to_18, migration_18_to_19, migration_19_to_20, migration_20_to_21, migration_21_to_22, migration_22_to_23, migration_23_to_24]
 
 function readVersion(): number {
   const raw = localStorage.getItem(STORAGE_VERSION_KEY)

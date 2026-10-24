@@ -144,65 +144,137 @@ describe('Serientermin anlegen', () => {
 })
 
 describe('Serientermin ändern', () => {
-  it('ändert ohne Häkchen nur diesen einen Termin', async () => {
+  const scopeSelect = () => screen.getByRole('combobox', { name: /Änderung gilt für/ })
+
+  it('ändert per Vorgabe nur diesen einen Termin', async () => {
     mockLoad()
     const user = userEvent.setup()
     render(<ProjectScheduleScreen />)
     await openProject(user)
 
+    expect((scopeSelect() as HTMLSelectElement).value).toBe('single')
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
     await waitFor(() => expect(updateAppointment).toHaveBeenCalled())
     expect(vi.mocked(updateAppointment).mock.calls[0][2]).toBe('single')
+    expect(vi.mocked(updateAppointment).mock.calls[0][3]).toEqual({})
   })
 
-  it('überträgt die Änderung mit Häkchen auf die ganze Serie', async () => {
+  it('überträgt die Änderung auf die ganze Serie', async () => {
     mockLoad()
     const user = userEvent.setup()
     render(<ProjectScheduleScreen />)
     await openProject(user)
 
-    await user.click(screen.getByLabelText(/ganze Serie anwenden/))
+    await user.selectOptions(scopeSelect(), 'series')
     await user.click(screen.getByRole('button', { name: 'Speichern' }))
 
     await waitFor(() => expect(updateAppointment).toHaveBeenCalled())
     expect(vi.mocked(updateAppointment).mock.calls[0][2]).toBe('series')
   })
 
-  it('bietet die Serien-Option bei einem Einzeltermin gar nicht an', async () => {
+  it('schickt «dieser und folgende» mit neuem Ende als series_until', async () => {
+    mockLoad([{ ...SERIES_APPT, series_rule: { freq: 'weekly', interval: 1, until: '2026-10-26' } }])
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await openProject(user)
+
+    await user.selectOptions(scopeSelect(), 'following')
+    const ende = screen.getByLabelText('Serie bis') as HTMLInputElement
+    expect(ende.value).toBe('2026-10-26')
+    await user.clear(ende)
+    await user.type(ende, '2026-12-28')
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => expect(updateAppointment).toHaveBeenCalled())
+    const [, , scope, extras] = vi.mocked(updateAppointment).mock.calls[0]
+    expect(scope).toBe('following')
+    expect(extras).toEqual({ series_until: '2026-12-28' })
+  })
+
+  it('wechselt den Rhythmus ab hier — mit «Serie bis» als Ende', async () => {
+    mockLoad([{ ...SERIES_APPT, series_rule: { freq: 'weekly', interval: 1, until: '2026-10-26' } }])
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await openProject(user)
+
+    await user.selectOptions(scopeSelect(), 'following')
+    await user.selectOptions(screen.getByLabelText('Rhythmus ab hier'), 'biweekly')
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    await waitFor(() => expect(updateAppointment).toHaveBeenCalled())
+    expect(vi.mocked(updateAppointment).mock.calls[0][3])
+      .toEqual({ recurrence: { freq: 'weekly', interval: 2, until: '2026-10-26' } })
+  })
+
+  it('lässt Verschieben und Ende ändern nicht in einem Zug zu', async () => {
+    mockLoad([{ ...SERIES_APPT, series_rule: { freq: 'weekly', interval: 1, until: '2026-10-26' } }])
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await openProject(user)
+
+    await user.selectOptions(scopeSelect(), 'series')
+    const start = screen.getByLabelText('Start') as HTMLInputElement
+    await user.clear(start)
+    await user.type(start, '2026-09-08')
+    const ende = screen.getByLabelText('Serie bis') as HTMLInputElement
+    await user.clear(ende)
+    await user.type(ende, '2026-12-28')
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+
+    expect(await screen.findByText(/eins nach dem anderen/)).toBeTruthy()
+    expect(updateAppointment).not.toHaveBeenCalled()
+  })
+
+  it('bietet die Reichweite bei einem Einzeltermin gar nicht an', async () => {
     mockLoad([SINGLE_APPT])
     const user = userEvent.setup()
     render(<ProjectScheduleScreen />)
     await openProject(user)
 
-    expect(screen.queryByLabelText(/ganze Serie anwenden/)).toBeNull()
+    expect(screen.queryByRole('combobox', { name: /Änderung gilt für/ })).toBeNull()
   })
 })
 
 describe('Serientermin löschen', () => {
-  it('fragt nach und löscht auf Wunsch die ganze Serie', async () => {
+  async function openDeleteDialog(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByTitle('Termin oder Serie entfernen'))
+    return screen.findByRole('dialog', { name: 'Serientermin entfernen' })
+  }
+
+  it('löscht per Vorgabe nur den einen Termin', async () => {
     mockLoad()
     const user = userEvent.setup()
     render(<ProjectScheduleScreen />)
     await openProject(user)
 
-    await user.click(screen.getByTitle('Termin oder Serie entfernen'))
-    const dialog = await screen.findByRole('dialog', { name: 'Serientermin entfernen' })
-    await user.click(within(dialog).getByRole('button', { name: 'Ganze Serie' }))
-
-    await waitFor(() => expect(deleteAppointment).toHaveBeenCalledWith('a1', 'series'))
+    const dialog = await openDeleteDialog(user)
+    await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }))
+    await waitFor(() => expect(deleteAppointment).toHaveBeenCalledWith('a1', 'single'))
   })
 
-  it('löscht auf Wunsch nur den einen Termin', async () => {
+  it('löscht auf Wunsch diesen und alle folgenden', async () => {
     mockLoad()
     const user = userEvent.setup()
     render(<ProjectScheduleScreen />)
     await openProject(user)
 
-    await user.click(screen.getByTitle('Termin oder Serie entfernen'))
-    const dialog = await screen.findByRole('dialog', { name: 'Serientermin entfernen' })
-    await user.click(within(dialog).getByRole('button', { name: 'Nur dieser Termin' }))
+    const dialog = await openDeleteDialog(user)
+    await user.click(within(dialog).getByLabelText('Dieser und alle folgenden'))
+    await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }))
+    await waitFor(() => expect(deleteAppointment).toHaveBeenCalledWith('a1', 'following'))
+  })
 
-    await waitFor(() => expect(deleteAppointment).toHaveBeenCalledWith('a1', 'single'))
+  it('löscht auf Wunsch die ganze Serie — mit Warnung', async () => {
+    mockLoad()
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await openProject(user)
+
+    const dialog = await openDeleteDialog(user)
+    await user.click(within(dialog).getByLabelText('Ganze Serie'))
+    expect(within(dialog).getByText(/auch die bereits vergangenen/)).toBeTruthy()
+    await user.click(within(dialog).getByRole('button', { name: 'Entfernen' }))
+    await waitFor(() => expect(deleteAppointment).toHaveBeenCalledWith('a1', 'series'))
   })
 
   it('löscht einen Einzeltermin ohne Rückfrage', async () => {

@@ -3,6 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react'
 import App from './App'
 import { getMe, getTenantInfo, UserInfo } from './api/auth'
 import { getBreadcrumbs, clearBreadcrumbs } from './shared/breadcrumbs'
+import { ApiError } from './api/client'
+import { SK } from './api/storageKeys'
+import { START_TIMEOUT_MS, loadStartSnapshot, saveMeSnapshot } from './api/startSnapshot'
 
 // Der Boot-Pfad der App: von `screen === 'loading'` auf den ersten echten Screen.
 //
@@ -92,5 +95,50 @@ describe('App — Boot-Übergang aus dem Ladebildschirm', () => {
     // Runde vor dessen Ausführung da sein. Die Zusage bleibt dieselbe.
     await waitFor(() => expect(getBreadcrumbs().map(b => b.detail)).toEqual(['loading', 'home']))
     expect(screen.getByText('home-stub')).toBeInTheDocument()
+  })
+})
+
+// docs/specs/pwa-neuladen.md §3.5: Start aus dem letzten Stand.
+describe('App — Start aus dem Snapshot', () => {
+  const merke = (u: UserInfo) => {
+    localStorage.setItem(SK.AUTHORIZED_USER_ID, u.authorized_user_id)
+    localStorage.setItem(SK.TENANT_SLUG, 'muster')
+    saveMeSnapshot(u)
+  }
+
+  it('zeichnet nach 5 s aus dem Snapshot, wenn /pwa/me hängt', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      merke(user())
+      mockGetMe.mockReturnValue(new Promise(() => {}))
+      render(<App />)
+      expect(screen.getByText('Laden…')).toBeInTheDocument()
+      await vi.advanceTimersByTimeAsync(START_TIMEOUT_MS + 10)
+      await waitFor(() => expect(screen.getByText('home-stub')).toBeInTheDocument())
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('ohne Netz: Snapshot statt Login', async () => {
+    merke(user())
+    mockGetMe.mockRejectedValue(new ApiError(0, 'Keine Internetverbindung'))
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('home-stub')).toBeInTheDocument())
+  })
+
+  it('abgelaufene Sitzung: zum Login, auch mit Snapshot', async () => {
+    merke(user())
+    mockGetMe.mockRejectedValue(new ApiError(401, 'Sitzung abgelaufen'))
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('login-stub')).toBeInTheDocument())
+  })
+
+  it('eine schnelle Antwort ersetzt den Snapshot', async () => {
+    merke(user({ display_name: 'Alt' }))
+    mockGetMe.mockResolvedValue(user({ display_name: 'Neu' }))
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('home-stub')).toBeInTheDocument())
+    expect(loadStartSnapshot('u1')?.me?.display_name).toBe('Neu')
   })
 })

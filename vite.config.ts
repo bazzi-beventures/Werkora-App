@@ -122,7 +122,12 @@ export default defineConfig(({ command }) => ({
     },
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt' statt 'autoUpdate' (docs/specs/pwa-neuladen.md §3.1): ein
+      // neues sw.js wartet, bis src/api/registerSW.ts es übernehmen lässt —
+      // beim Kaltstart, nach ≥ 30 min im Hintergrund oder im Leerlauf, nie
+      // mitten in einem Rapport. `autoUpdate` lud bei jedem Fund sofort neu.
+      // Ratchet: src/api/registerSW.test.ts.
+      registerType: 'prompt',
       // Registrierung passiert explizit in src/api/registerSW.ts (nicht via
       // auto-injiziertem Script), damit wir bei jeder Rueckkehr in die App per
       // r.update() aktiv auf ein neues sw.js pruefen koennen. Sonst prueft eine
@@ -132,7 +137,9 @@ export default defineConfig(({ command }) => ({
       // We manage manifest.json ourselves in public/
       manifest: false,
       workbox: {
-        skipWaiting: true,
+        // Kein skipWaiting: der neue Service Worker wartet (siehe registerType).
+        // Workbox hängt dafür einen SKIP_WAITING-Message-Handler an, den
+        // `updateSW(true)` auslöst.
         clientsClaim: true,
         cleanupOutdatedCaches: true,
         // Eigener Push-Handler je App — wird in den generierten Workbox-SW

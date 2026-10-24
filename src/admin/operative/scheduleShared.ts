@@ -142,7 +142,7 @@ export interface CrewMember {
   lead: boolean
 }
 
-export function crewMembers(p: Project, staff: StaffLite[]): CrewMember[] {
+export function crewMembers(p: Pick<Project, 'monteur_ids'>, staff: StaffLite[]): CrewMember[] {
   const byId = new Map(staff.map(s => [s.id, s]))
   return (p.monteur_ids ?? [])
     .map(id => byId.get(id))
@@ -154,7 +154,7 @@ export function crewMembers(p: Project, staff: StaffLite[]): CrewMember[] {
 // Projektnamen von der Kachel drängen. Was wegfällt, zeigt "+n" an (und die
 // Hover-Karte nennt ohnehin alle Namen). Der Lead steht immer an erster Stelle
 // und wird deshalb nie vom Deckel abgeschnitten.
-export function crewShortLabels(p: Project, staff: StaffLite[], max = 3): { label: string; lead: boolean }[] {
+export function crewShortLabels(p: Pick<Project, 'monteur_ids'>, staff: StaffLite[], max = 3): { label: string; lead: boolean }[] {
   const known = crewMembers(p, staff)
   const shown = known.slice(0, max).map(m => ({ label: m.short, lead: m.lead }))
   if (known.length > max) shown.push({ label: `+${known.length - max}`, lead: false })

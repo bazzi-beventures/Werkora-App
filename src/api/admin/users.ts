@@ -21,6 +21,9 @@ export interface AuthUser {
    *  Setzen darf das Häkchen nur Management/Superadmin — das Backend lehnt den
    *  eingeschränkten Admin mit 403 `management_required` ab. */
   beta_tester?: boolean
+  /** Zusatzrechte neben der Rolle, z. B. `absence_approve`
+   *  (docs/specs/ferien-freigabe-recht.md). */
+  permissions?: string[]
 }
 
 export interface AuthUserInput {
@@ -32,6 +35,16 @@ export interface AuthUserInput {
   // Weglassen heisst «nicht anfassen» — das Backend rührt das Häkchen dann nicht
   // an. Nur Management/Superadmin dürfen es setzen (docs/specs/beta-tester.md §5.7).
   beta_tester?: boolean
+}
+
+/** Zusatzrechte setzen — die ganze Liste, nicht anhängen. Nur Management und
+ *  Superadmin; ohne das Beta-Feature `ferien_freigabe_recht` 403. */
+export async function setUserPermissions(id: string, permissions: string[]): Promise<string[]> {
+  const res = await apiFetch<{ permissions: string[] }>(`/pwa/admin/users/${id}/permissions`, {
+    method: 'PUT',
+    body: JSON.stringify({ permissions }),
+  })
+  return res.permissions
 }
 
 export async function listUsers(): Promise<AuthUser[]> {

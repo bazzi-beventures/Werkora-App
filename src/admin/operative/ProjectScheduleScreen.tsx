@@ -5,7 +5,13 @@ import {
   DEFAULT_APPOINTMENT_KIND, AppointmentRecurrence,
   listAppointments, createAppointment, updateAppointment, deleteAppointment,
   listScheduleAbsences, absenceConflictMessage, type ScheduleAbsence,
+  getProjectAppointments, SERIES_ACTIVITY_CODE,
+  type AppointmentScope, type SeriesExtras, type SeriesRule,
 } from '../../api/admin'
+import { ApiError } from '../../api/client'
+import {
+  SCOPE_LABELS, describeRule, scopeHint, seriesChangeError, seriesEnd, seriesRows, seriesSavedMessage,
+} from './seriesEdit'
 import {
   ProjectTask,
   listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
@@ -105,8 +111,21 @@ type ApptFormState = AppointmentDraft & {
   // Serie, zu der dieser Termin gehört (null = Einzeltermin). Nur bei einem
   // BESTEHENDEN Termin gesetzt — beim Anlegen entsteht sie erst serverseitig.
   seriesId: string | null
-  // Änderung auf alle Termine der Serie übertragen (Zeiten/Typ/Team, keine Daten).
-  applyToSeries: boolean
+  // Reichweite einer Änderung am bestehenden Serientermin (Spec
+  // einsatzplanung-rueckmeldungen-2026-10.md §3): nur dieser, dieser und
+  // folgende, ganze Serie. Default «nur dieser» — ein versehentliches «Serie»
+  // trifft Dutzende Termine.
+  scope: AppointmentScope
+  // Gespeicherte Regel (null = Serie von vor 20261024, der Server leitet sie ab).
+  seriesRule: SeriesRule | null
+  // «Serie bis»: Ende beim Öffnen und das bearbeitete. Ungleich = verlängern
+  // oder verkürzen.
+  seriesUntilOriginal: string
+  seriesUntil: string
+  // Neuer Rhythmus ab diesem Termin ('' = unverändert), nur mit «folgende».
+  seriesRhythm: RepeatPreset
+  // Startdatum beim Öffnen — ein anderes heisst bei Serien-Reichweite «verschieben».
+  originalStartDate: string
   // Wiederholung eines NEUEN Termins ('' = Einzeltermin). Eine Serie braucht ein
   // Ende — repeatUntil ist Pflicht, sobald ein Muster gewählt ist.
   repeat: RepeatPreset
@@ -116,7 +135,12 @@ type ApptFormState = AppointmentDraft & {
 // Serien-Felder in ihrem Ausgangszustand — an drei Stellen gebraucht
 // (bestehender Termin laden, leerer Termin, aufgezogener Slot).
 const EMPTY_SERIES_FIELDS = {
-  applyToSeries: false,
+  scope: 'single' as AppointmentScope,
+  seriesRule: null as SeriesRule | null,
+  seriesUntilOriginal: '',
+  seriesUntil: '',
+  seriesRhythm: '' as RepeatPreset,
+  originalStartDate: '',
   repeat: '' as RepeatPreset,
   repeatUntil: '',
 }
@@ -144,7 +168,14 @@ function projectToForm(p: Project): FormState {
 }
 
 function apptToForm(a: ProjectAppointment): ApptFormState {
-  return { ...apptToDraft(a), seriesId: a.series_id ?? null, ...EMPTY_SERIES_FIELDS }
+  const until = a.series_rule?.until ?? ''
+  return {
+    ...apptToDraft(a), seriesId: a.series_id ?? null, ...EMPTY_SERIES_FIELDS,
+    seriesRule: a.series_rule ?? null,
+    seriesUntilOriginal: until,
+    seriesUntil: until,
+    originalStartDate: a.start_date?.slice(0, 10) ?? '',
+  }
 }
 
 function emptyApptForm(kind: AppointmentKind = 'montage'): ApptFormState {
@@ -286,6 +317,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   const [pendingSlot, setPendingSlot] = useState<PendingSlot | null>(null)
   // Offene Rückfrage «nur dieser Termin oder ganze Serie?» beim Löschen.
   const [seriesDeletePrompt, setSeriesDeletePrompt] = useState<ProjectAppointment | null>(null)
+  const [seriesDeleteScope, setSeriesDeleteScope] = useState<AppointmentScope>('single')
   // Rückfrage «trotzdem einplanen?»: der Server lehnt einen Einsatz in einer
   // genehmigten Absenz mit 409 ab, überstimmbar. `onConfirm` wiederholt genau
   // denselben Schreibvorgang mit gesetztem Override.
@@ -422,6 +454,36 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       setLoading(false)
     }
   }
+
+  // «Serie bis» beim Öffnen eines Serientermins: das echte Ende steht in den
+  // Zeilen, nicht im geladenen Kalenderfenster — deshalb die Termine des
+  // Projekts holen. Scheitert das, bleibt das Ende aus der gespeicherten Regel.
+  const apptIdForSeries = apptForm?.id ?? null
+  const apptSeriesId = apptForm?.seriesId ?? null
+  const projectIdForSeries = form?.id ?? null
+  useEffect(() => {
+    if (!apptIdForSeries || !apptSeriesId || !projectIdForSeries) return
+    let alive = true
+    getProjectAppointments(projectIdForSeries)
+      .then(all => {
+        if (!alive) return
+        const rows = seriesRows(all, apptSeriesId)
+        setApptForm(a => {
+          if (!a || a.id !== apptIdForSeries) return a
+          const end = seriesEnd(rows, a.seriesRule)
+          // Hat der Planer schon ein Ende getippt, bleibt seine Eingabe stehen.
+          const untouched = a.seriesUntil === a.seriesUntilOriginal
+          return {
+            ...a,
+            seriesUntilOriginal: end,
+            seriesUntil: untouched ? end : a.seriesUntil,
+            seriesRule: a.seriesRule ?? rows.find(r => r.series_rule)?.series_rule ?? null,
+          }
+        })
+      })
+      .catch(() => { /* ohne Liste: Ende aus der gespeicherten Regel */ })
+    return () => { alive = false }
+  }, [apptIdForSeries, apptSeriesId, projectIdForSeries])
 
   // Anzeige-Config bewusst NEBEN loadAll und nicht darin: sie ist ein winziger
   // Tenant-Lookup, die Kalenderdaten sind Projekte, ~1000 Tage Termine und die
@@ -838,6 +900,18 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
           setError('Das Serien-Ende liegt vor dem ersten Termin.'); return
         }
       }
+      // Bestehende Serie: eine Art Serien-Änderung pro Speichern (Server-Regel
+      // `one_series_change_at_a_time`) — die Rückmeldung kommt hier sofort.
+      if (apptForm.id && apptForm.seriesId) {
+        const err = seriesChangeError({
+          scope: apptForm.scope,
+          dateChanged: apptForm.startDate !== apptForm.originalStartDate,
+          untilChanged: apptForm.scope !== 'single' && !apptForm.seriesRhythm
+            && !!apptForm.seriesUntil && apptForm.seriesUntil !== apptForm.seriesUntilOriginal,
+          rhythmChanged: !!apptForm.seriesRhythm,
+        })
+        if (err) { setError(err); return }
+      }
     }
     setSaving(true)
     beginWrite()
@@ -902,10 +976,17 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
         // zurück, und die Bezeichnung geht nur bei kind 'sonstiges' mit.
         const payload = { ...draftPayload(apptForm), ...(override ? { ignore_absence_conflicts: true } : {}) }
         if (apptForm.id) {
-          await updateAppointment(
-            apptForm.id, payload,
-            apptForm.seriesId && apptForm.applyToSeries ? 'series' : 'single',
-          )
+          const scope: AppointmentScope = apptForm.seriesId ? apptForm.scope : 'single'
+          const rhythm = scope === 'following' ? repeatToRecurrence(apptForm.seriesRhythm, apptForm.seriesUntil) : null
+          const untilChanged = scope !== 'single' && !!apptForm.seriesUntil
+            && apptForm.seriesUntil !== apptForm.seriesUntilOriginal
+          // Ein neuer Rhythmus nimmt «Serie bis» als sein Ende mit — dann ist
+          // das kein eigenes «Ende ändern».
+          const extras: SeriesExtras = rhythm
+            ? { recurrence: rhythm }
+            : untilChanged ? { series_until: apptForm.seriesUntil } : {}
+          const res = await updateAppointment(apptForm.id, payload, scope, extras)
+          if (scope !== 'single') savedMsg = seriesSavedMessage(res)
         } else {
           const created = await createAppointment(targetId, {
             ...payload,
@@ -934,6 +1015,13 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
         })
         return
       }
+      // Serien-Änderungen, die der Server begründet ablehnt (Rapport an einem
+      // Termin, der beim Verkürzen wegfiele; Rhythmus unbekannt; zu lang):
+      // seinen Text zeigen statt eines blanken «fehlgeschlagen».
+      if (e instanceof ApiError && (e.code === SERIES_ACTIVITY_CODE || e.status === 400) && e.message) {
+        setError(e.message)
+        return
+      }
       setError('Speichern fehlgeschlagen.')
     } finally {
       setSaving(false)
@@ -956,21 +1044,29 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   // sind beide plausibel und die Serie ist nicht wiederherstellbar. Deshalb eine
   // Rückfrage statt einer Annahme. Einzeltermine löschen wie bisher direkt.
   function requestDeleteAppt(a: ProjectAppointment) {
-    if (a.series_id) setSeriesDeletePrompt(a)
-    else void handleDeleteAppt(a)
+    if (a.series_id) {
+      setSeriesDeleteScope('single')
+      setSeriesDeletePrompt(a)
+    } else void handleDeleteAppt(a)
   }
 
-  async function handleDeleteAppt(a: ProjectAppointment, scope: 'single' | 'series' = 'single') {
+  async function handleDeleteAppt(a: ProjectAppointment, scope: AppointmentScope = 'single') {
     setSeriesDeletePrompt(null)
     setSaving(true)
     beginWrite()
     try {
       await deleteAppointment(a.id, scope)
-      setAppointments(prev => scope === 'series' && a.series_id
-        ? prev.filter(x => x.series_id !== a.series_id)
-        : prev.filter(x => x.id !== a.id))
+      setAppointments(prev => {
+        if (!a.series_id || scope === 'single') return prev.filter(x => x.id !== a.id)
+        if (scope === 'series') return prev.filter(x => x.series_id !== a.series_id)
+        return prev.filter(x => x.series_id !== a.series_id || x.start_date < a.start_date)
+      })
       if (apptForm?.id === a.id) setApptForm(null)
-      showToast(scope === 'series' ? 'Serie entfernt.' : 'Termin entfernt.', 'success')
+      showToast(
+        scope === 'series' ? 'Serie entfernt.'
+          : scope === 'following' ? 'Termin und alle folgenden entfernt.' : 'Termin entfernt.',
+        'success',
+      )
     } catch {
       showToast('Entfernen fehlgeschlagen.', 'error')
     } finally {
@@ -1613,10 +1709,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                       </label>
                     </div>
 
-                    {/* Wiederholung: nur beim ANLEGEN. Ein bestehender Serientermin
-                        ist eine echte Zeile — sein Muster nachträglich zu ändern
-                        hiesse, die ganze Serie neu zu bauen. Dafür: löschen und
-                        neu anlegen. */}
+                    {/* Wiederholung beim ANLEGEN. Ein bestehender Serientermin
+                        ändert seine Serie unten über «Reichweite», «Serie bis»
+                        und «Rhythmus ab hier». */}
                     {!apptForm.id && (
                       <div className="project-schedule-row">
                         <label className="project-schedule-field">
@@ -1647,22 +1742,78 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                       </div>
                     )}
 
-                    {/* Bestehender Serientermin: Umfang der Änderung wählen. Die
-                        Daten bleiben immer am einzelnen Termin (siehe api/admin.ts). */}
+                    {/* Bestehender Serientermin: Reichweite wie in jedem Kalender
+                        (Spec einsatzplanung-rueckmeldungen-2026-10.md §3). Ein
+                        neues Datum verschiebt bei «folgende»/«Serie» um gleich
+                        viele Tage; «Serie bis» verlängert oder verkürzt; ein neuer
+                        Rhythmus gilt ab hier. Eins davon pro Speichern. */}
                     {apptForm.id && apptForm.seriesId && (
                       <div className="project-schedule-field">
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={apptForm.applyToSeries}
-                            onChange={e => setApptForm(a => a && ({ ...a, applyToSeries: e.target.checked }))}
-                          />
-                          🔁 Änderung auf die ganze Serie anwenden
+                        <label className="project-schedule-field">
+                          <span>
+                            🔁 Änderung gilt für
+                            {describeRule(apptForm.seriesRule) && ` (Serie ${describeRule(apptForm.seriesRule)})`}
+                          </span>
+                          <select
+                            className="admin-input"
+                            value={apptForm.scope}
+                            onChange={e => setApptForm(a => a && ({
+                              ...a,
+                              scope: e.target.value as AppointmentScope,
+                              // Ein neuer Rhythmus gilt nur «ab hier».
+                              seriesRhythm: e.target.value === 'following' ? a.seriesRhythm : '',
+                            }))}
+                          >
+                            {(Object.keys(SCOPE_LABELS) as AppointmentScope[]).map(s => (
+                              <option key={s} value={s}>{SCOPE_LABELS[s]}</option>
+                            ))}
+                          </select>
                         </label>
-                        <div className="project-schedule-lead-hint">
-                          Betrifft Uhrzeit, Termin-Typ, Bezeichnung und Team. Datum und
-                          Enddatum bleiben immer nur an diesem Termin.
-                        </div>
+                        <div className="project-schedule-lead-hint">{scopeHint(apptForm.scope)}</div>
+                        {apptForm.scope !== 'single' && (
+                          <div className="project-schedule-row">
+                            <label className="project-schedule-field">
+                              <span>Serie bis</span>
+                              <DateTimeInput
+                                type="date"
+                                className="admin-input"
+                                value={apptForm.seriesUntil}
+                                min={apptForm.startDate || undefined}
+                                onValueChange={v => setApptForm(a => a && ({ ...a, seriesUntil: v }))}
+                              />
+                            </label>
+                            {apptForm.scope === 'following' && (
+                              <label className="project-schedule-field">
+                                <span>Rhythmus ab hier</span>
+                                <select
+                                  className="admin-input"
+                                  value={apptForm.seriesRhythm}
+                                  onChange={e => setApptForm(a => a && ({ ...a, seriesRhythm: e.target.value as RepeatPreset }))}
+                                >
+                                  <option value="">Unverändert</option>
+                                  {(Object.keys(REPEAT_LABELS) as Exclude<RepeatPreset, ''>[]).map(k => (
+                                    <option key={k} value={k}>{REPEAT_LABELS[k]}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            )}
+                          </div>
+                        )}
+                        {apptForm.scope !== 'single' && apptForm.seriesUntil
+                          && apptForm.seriesUntilOriginal && apptForm.seriesUntil < apptForm.seriesUntilOriginal
+                          && !apptForm.seriesRhythm && (
+                          <div className="project-schedule-lead-hint">
+                            Verkürzen entfernt die Termine nach dem {fmtSlotDate(apptForm.seriesUntil)}.
+                            Termine, an denen schon rapportiert wurde, bleiben stehen — dann wird nicht gekürzt.
+                          </div>
+                        )}
+                        {apptForm.seriesRhythm && (
+                          <div className="project-schedule-lead-hint">
+                            Dieser und alle folgenden Termine werden durch eine neue Serie
+                            ersetzt — {REPEAT_LABELS[apptForm.seriesRhythm as Exclude<RepeatPreset, ''>]}
+                            {apptForm.seriesUntil ? ` bis ${fmtSlotDate(apptForm.seriesUntil)}` : ''}.
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1882,28 +2033,44 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
         />
       )}
 
-      {/* Drei Möglichkeiten (dieser / Serie / abbrechen) — der mittlere Knopf ist
-          die extraAction des ConfirmDialog. */}
+      {/* Reichweite wie beim Bearbeiten — Vorgabe «nur dieser»: die Serie ist
+          nicht wiederherstellbar, ein versehentliches «ganze Serie» schon gar nicht. */}
       {seriesDeletePrompt && (
         <ConfirmDialog
           title="Serientermin entfernen"
           message={
             <>
               <strong>{fmtApptRow(seriesDeletePrompt)}</strong> gehört zu einer Serie.
-              Soll nur dieser Termin entfernt werden oder die ganze Serie?
+              Was soll entfernt werden?
             </>
           }
-          warning="«Ganze Serie» entfernt auch die bereits vergangenen Termine der Serie und lässt sich nicht rückgängig machen."
-          extraAction={{
-            label: 'Nur dieser Termin',
-            onClick: () => void handleDeleteAppt(seriesDeletePrompt, 'single'),
-          }}
-          confirmLabel="Ganze Serie"
+          warning={seriesDeleteScope === 'series'
+            ? '«Ganze Serie» entfernt auch die bereits vergangenen Termine der Serie und lässt sich nicht rückgängig machen.'
+            : seriesDeleteScope === 'following'
+              ? 'Die früheren Termine der Serie bleiben stehen; die Serie endet vor diesem Termin.'
+              : undefined}
+          confirmLabel="Entfernen"
           variant="danger"
           busy={saving}
-          onConfirm={() => void handleDeleteAppt(seriesDeletePrompt, 'series')}
+          onConfirm={() => void handleDeleteAppt(seriesDeletePrompt, seriesDeleteScope)}
           onCancel={() => setSeriesDeletePrompt(null)}
-        />
+        >
+          <div role="radiogroup" aria-label="Was entfernen"
+               style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '4px 0 12px' }}>
+            {(Object.keys(SCOPE_LABELS) as AppointmentScope[]).map(s => (
+              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input
+                  type="radio"
+                  name="series-delete-scope"
+                  value={s}
+                  checked={seriesDeleteScope === s}
+                  onChange={() => setSeriesDeleteScope(s)}
+                />
+                {SCOPE_LABELS[s]}
+              </label>
+            ))}
+          </div>
+        </ConfirmDialog>
       )}
 
       {/* Absenz-Rückfrage: der Server hat den Schreibvorgang mit 409 abgelehnt,

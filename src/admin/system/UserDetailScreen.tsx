@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { anonymizeUser, generateUserPin, saveUser, setUserPassword } from '../../api/admin/users'
+import { anonymizeUser, generateUserPin, saveUser, setUserPassword, setUserPermissions } from '../../api/admin/users'
 import type { AuthUser } from '../../api/admin/users'
 import { assignableRoles, mayAnonymize } from './userRoles'
 import { BetaBadge } from '../../shared/BetaBadge'
@@ -28,9 +28,24 @@ interface Props {
   // Rolle des eingeloggten Benutzers — begrenzt die vergebbaren Rollen und die
   // Gefahrenzone (siehe userRoles.ts, Spiegel der Backend-Matrix).
   actingRole: string
+  /** Abschnitt «Zusatzrechte» zeigen — nur Management/Superadmin mit dem
+   *  Beta-Feature `ferien_freigabe_recht` (docs/specs/ferien-freigabe-recht.md). */
+  showPermissions?: boolean
   onClose: () => void
   onSaved: () => void
 }
+
+/** Die Zusatzrechte, die man hier vergeben kann. Ein zweites Recht
+ *  (`wareneingang`, Lieferschein) ist ein Eintrag mehr. */
+const PERMISSION_OPTIONS: { key: string; label: string; hint: string }[] = [
+  {
+    key: 'absence_approve',
+    label: 'Ferien freigeben',
+    hint: 'Darf Ferien- und Abwesenheitsanträge aller Mitarbeiter genehmigen oder ablehnen — '
+      + 'auch ohne Admin-Rolle (dann über die Kachel «Ferienanträge» in der App). '
+      + 'Den eigenen Antrag gibt jemand anderes frei.',
+  },
+]
 
 // Spiegelt services/password_policy.py — die verbindliche Prüfung passiert im Backend.
 const MIN_PASSWORD_LENGTH = 12
@@ -48,7 +63,7 @@ function fmtExpiry(iso: string): string {
   })
 }
 
-export default function UserDetailScreen({ user, actingRole, onClose, onSaved }: Props) {
+export default function UserDetailScreen({ user, actingRole, showPermissions = false, onClose, onSaved }: Props) {
   const [email, setEmail] = useState(user.email ?? '')
   const [displayName, setDisplayName] = useState(user.display_name ?? '')
   const [role, setRole] = useState(user.role)
@@ -65,6 +80,9 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
   // verlassen wird; ein Neuladen holt sie nicht zurück.
   const [pin, setPin] = useState<{ pin: string; expires_at: string } | null>(null)
   const [generatingPin, setGeneratingPin] = useState(false)
+
+  const [perms, setPerms] = useState<string[]>(user.permissions ?? [])
+  const [savingPerm, setSavingPerm] = useState<string | null>(null)
 
   const [confirmAnonymize, setConfirmAnonymize] = useState(false)
   const [acting, setActing] = useState(false)
@@ -126,6 +144,22 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
       setError(err instanceof Error && err.message ? err.message : 'Fehler beim Erzeugen der PIN')
     } finally {
       setGeneratingPin(false)
+    }
+  }
+
+  // Sofort speichern statt mit dem Formular: ein Recht ist eine eigene
+  // Entscheidung mit eigenem Audit-Eintrag, kein Feld der Kontodaten.
+  async function togglePermission(key: string) {
+    const next = perms.includes(key) ? perms.filter(p => p !== key) : [...perms, key]
+    setSavingPerm(key)
+    setError('')
+    try {
+      setPerms(await setUserPermissions(user.id, next))
+      showToast(next.includes(key) ? 'Recht vergeben' : 'Recht entzogen')
+    } catch (err: unknown) {
+      setError(err instanceof Error && err.message ? err.message : 'Fehler beim Speichern des Rechts')
+    } finally {
+      setSavingPerm(null)
     }
   }
 
@@ -280,6 +314,33 @@ export default function UserDetailScreen({ user, actingRole, onClose, onSaved }:
                 </button>
               </form>
             </div>
+
+            {showPermissions && (
+              <div className="admin-table-wrap" style={{ padding: 20 }}>
+                <div className="admin-section-title">Zusatzrechte <BetaBadge /></div>
+                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 14px' }}>
+                  Rechte neben der Rolle. Sie gelten sofort und werden protokolliert.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {PERMISSION_OPTIONS.map(opt => (
+                    <div key={opt.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <input
+                        type="checkbox"
+                        id={`perm-${opt.key}`}
+                        checked={perms.includes(opt.key)}
+                        disabled={savingPerm !== null}
+                        onChange={() => void togglePermission(opt.key)}
+                        style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--accent, #3b82f6)', cursor: 'pointer' }}
+                      />
+                      <label htmlFor={`perm-${opt.key}`} style={{ fontSize: 13.5, cursor: 'pointer' }}>
+                        {opt.label}
+                        <div className="admin-form-hint">{opt.hint}</div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Zugangs-PIN — der einzige Weg zu einem Passkey auf einem weiteren
                 Gerät: die Passkey-Registrierung verlangt eine gültige PIN

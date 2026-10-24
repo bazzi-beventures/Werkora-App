@@ -47,8 +47,18 @@ export interface ProjectAppointment {
   monteur_ids: string[] | null
   // Klammer über die Termine einer Serie; null = Einzeltermin. Die Termine einer
   // Serie sind echte Zeilen (siehe Migration 20260814b) — jeder lässt sich
-  // einzeln verschieben; nur Löschen/Ändern fragt nach «nur dieser / ganze Serie».
+  // einzeln verschieben; Löschen/Ändern fragt nach der Reichweite.
   series_id?: string | null
+  // Regel der Serie, auf jeder Zeile gleich (Migration 20261024). null bei
+  // Einzelterminen und bei Serien, die vorher angelegt wurden.
+  series_rule?: SeriesRule | null
+}
+
+// Gespeicherte Regel einer Serie: `until` = Startdatum des letzten Termins.
+export interface SeriesRule {
+  freq: RecurrenceFreq
+  interval: number
+  until: string | null
 }
 
 // ─── Serientermine ──────────────────────────────────────────
@@ -67,8 +77,9 @@ export interface AppointmentRecurrence {
   until?: string | null
 }
 
-// Anwendungsbereich einer Änderung an einem Serientermin.
-export type AppointmentScope = 'single' | 'series'
+// Reichweite einer Änderung an einem Serientermin — wie in jedem Kalender
+// (docs/specs/einsatzplanung-rueckmeldungen-2026-10.md §3).
+export type AppointmentScope = 'single' | 'following' | 'series'
 
 export async function listAppointments(dateFrom: string, dateTo: string): Promise<ProjectAppointment[]> {
   return apiFetch<ProjectAppointment[]>(
@@ -97,17 +108,34 @@ export async function createAppointment(
   })
 }
 
-// scope 'series' zieht Zeiten, Typ, Bezeichnung und Team auf alle Termine der
-// Serie nach. Die DATEN bleiben immer am einzelnen Termin — sie sind je
-// Wiederholung verschieden, ein gemeinsames Datum liesse die Serie auf einen
-// Tag zusammenfallen.
+// scope 'following'/'series' zieht Zeiten, Typ, Bezeichnung und Team auf die
+// betroffenen Termine nach; ein neues Startdatum verschiebt sie um gleich viele
+// Tage (nie auf dasselbe Datum — die Serie fiele sonst zusammen).
+// `series_until` verlängert oder verkürzt die Serie, `recurrence` (nur mit
+// 'following') wechselt den Rhythmus ab diesem Termin. Pro Anfrage eins davon.
+export interface SeriesExtras {
+  series_until?: string
+  recurrence?: AppointmentRecurrence
+}
+
+export type UpdatedAppointment = ProjectAppointment & {
+  series_updated?: number
+  series_created?: number
+  series_deleted?: number
+}
+
 export async function updateAppointment(
   id: string, data: Partial<ProjectAppointment> & AbsenceOverride, scope: AppointmentScope = 'single',
-): Promise<ProjectAppointment> {
-  return apiFetch<ProjectAppointment>(`/pwa/admin/appointments/${id}`, {
-    method: 'PATCH', body: JSON.stringify({ ...data, scope }),
+  extras: SeriesExtras = {},
+): Promise<UpdatedAppointment> {
+  return apiFetch<UpdatedAppointment>(`/pwa/admin/appointments/${id}`, {
+    method: 'PATCH', body: JSON.stringify({ ...data, scope, ...extras }),
   })
 }
+
+// Verkürzen löscht nie still, wo schon rapportiert wurde: 409 mit diesem Code
+// (agents/routers/admin_scheduling.py::admin_update_appointment).
+export const SERIES_ACTIVITY_CODE = 'series_has_activity'
 
 export async function deleteAppointment(id: string, scope: AppointmentScope = 'single'): Promise<void> {
   await apiFetch(`/pwa/admin/appointments/${id}?scope=${scope}`, { method: 'DELETE' })

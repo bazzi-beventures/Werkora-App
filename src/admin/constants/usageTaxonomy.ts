@@ -278,6 +278,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_update_user: 'Benutzer geändert',
   admin_anonymize_user: 'Benutzer anonymisiert',
   admin_set_beta_tester: 'Beta-Tester gesetzt',
+  admin_set_user_permissions: 'Zusatzrechte geändert',
   admin_set_user_password: 'Passwort gesetzt',
   admin_generate_pin: 'PIN erzeugt',
 

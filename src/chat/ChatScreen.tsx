@@ -18,6 +18,7 @@ import { LeaveWarning, rapportLeaveWarning } from './rapportStart'
 import { RAPPORT_CLOCK_IN_HINT, useRapportClockInBlocked } from '../shared/rapportClockIn'
 import { useOnline } from '../shared/useOnline'
 import { useConnectionDown } from '../shared/useConnectionDown'
+import { registerReloadBlocker } from '../api/reloadGuard'
 
 // Offline gesperrt statt nach dem Tippen abgelehnt (docs/specs/offline-modus.md
 // §4.1): jede Chat-Antwort braucht das LLM, offline gibt es keine. Der Entwurf
@@ -262,6 +263,9 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     window.addEventListener('beforeunload', onBeforeUnload)
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [])
+  // Dieselbe Frage stellt das App-Update, bevor es neu lädt
+  // (docs/specs/pwa-neuladen.md §3.1): ein angefangener Rapport hält es auf.
+  useEffect(() => registerReloadBlocker(() => leaveWarningRef.current !== null), [])
 
   // Nach abgeschlossenem Rapport (PDF geschlossen) auf einen frischen Stand
   // zurücksetzen — das löscht zugleich den Draft, weil der Zustand wieder leer ist.

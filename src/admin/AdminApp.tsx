@@ -304,7 +304,18 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'pricing-rules':return <PricingRulesScreen />
       case 'quote-templates': return <QuoteTemplatesScreen />
-      case 'users':        return <UsersScreen actingRole={user.role} />
+      case 'users':        return (
+        // «Zusatzrechte» (docs/specs/ferien-freigabe-recht.md §4): vergeben
+        // nur Management/Superadmin, und nur mit dem Beta-Feature — der
+        // Server lehnt beides sonst ohnehin ab.
+        <UsersScreen
+          actingRole={user.role}
+          showPermissions={
+            isFeatureEnabled(user, 'ferien_freigabe_recht')
+            && (user.role === 'management' || user.role === 'superadmin')
+          }
+        />
+      )
       case 'kpis':         return guard('kpis', <KpiScreen />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
       case 'settings':     return <SettingsScreen />

@@ -14,8 +14,9 @@ import { ColumnFilter, rangeValue } from '../components/ColumnFilter'
 import type { FilterOption, FilterSection, FilterValues } from '../components/ColumnFilter'
 import { MobileFilterSheet } from '../components/MobileFilterSheet'
 import { useListState } from '../hooks/useListState'
-import { addressLocality } from './scheduleShared'
-import { nextAppointmentSummary } from './projectAppointments'
+import { addressLocality, type StaffLite } from './scheduleShared'
+import ProjectTermine from './ProjectTermine'
+import { readSpalten, writeSpalten } from './projektlisteSpalten'
 import { useIsMobile } from '../useIsMobile'
 import { projectWarranty, warrantyBadge } from '../../shared/warranty'
 import type { WarrantyConfig } from '../../shared/warranty'
@@ -236,6 +237,16 @@ export default function ProjectsScreen({
   const [showProjektleiterCol, setShowProjektleiterCol] = useState(false)
   // Beschaffungs-Spalte (Feature `beschaffungsstatus`, Default aus).
   const [showBeschaffungCol, setShowBeschaffungCol] = useState(false)
+  // Personalstamm für die Kürzel-Chips der Spalte «Termine».
+  const [staffLite, setStaffLite] = useState<StaffLite[]>([])
+  // Spalte «Termine» ein/aus, gemerkt pro Browser
+  // (docs/specs/projektliste-termine-team.md §2.2). Aus = kein Termin-Fetch.
+  const [spalten, setSpalten] = useState(readSpalten)
+  const toggleTermine = () => setSpalten(prev => {
+    const next = { ...prev, termine: !prev.termine }
+    writeSpalten(next)
+    return next
+  })
   // null = Feature «garantiefall» aus (oder /me noch nicht da) → kein Vermerk.
   const [garantieConfig, setGarantieConfig] = useState<WarrantyConfig | null>(null)
 
@@ -243,6 +254,7 @@ export default function ProjectsScreen({
     getAdminStaff()
       .then(staff => {
         setStaffNameById(Object.fromEntries(staff.map(s => [s.id, s.name])))
+        setStaffLite(staff.map(s => ({ id: s.id, name: s.name, kuerzel: s.kuerzel })))
         setProjektleiterOptions(
           staff
             .filter(s => s.projektleiter)
@@ -372,12 +384,13 @@ export default function ProjectsScreen({
         phone,
         createdFrom,
         createdTo,
+        withAppointments: spalten.termine,
       }))
     } finally {
       setLoading(false)
     }
   }, [lifecycle, sortKey, sortDir, page, state.search, projektleiterIds, quoteStatus,
-      invoiceStatus, beschaffung, locality, address, phone, createdFrom, createdTo])
+      invoiceStatus, beschaffung, locality, address, phone, createdFrom, createdTo, spalten.termine])
 
   useEffect(() => { load() }, [load])
 
@@ -625,6 +638,15 @@ export default function ProjectsScreen({
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
+            type="button"
+            className={`admin-btn admin-btn-sm ${spalten.termine ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+            aria-pressed={spalten.termine}
+            title={spalten.termine ? 'Termine ausblenden' : 'Termine einblenden'}
+            onClick={toggleTermine}
+          >
+            {spalten.termine ? '👁' : '🚫'} Termine
+          </button>
+          <button
             className={`admin-btn admin-btn-sm ${showArchived ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
             onClick={() => patch({ lifecycle: showArchived ? DEFAULT_STATE.lifecycle : ['archiviert'], page: 1 })}
           >
@@ -742,10 +764,14 @@ export default function ProjectsScreen({
                   <div className="admin-card-meta">
                     {p.project_id_text || '—'} · {projectCustomerName(p) || '—'}{ort ? ` · ${ort}` : ''}
                   </div>
-                  {p.next_appointment && (() => {
-                    const n = nextAppointmentSummary(p.next_appointment)
-                    return <div className="admin-card-meta">Nächster Termin: {n.when} · {n.what}</div>
-                  })()}
+                  {/* Handy: der nächste Termin samt Kürzel als eine Zeile, gleicher Schalter. */}
+                  {spalten.termine && (p.upcoming_appointments?.length ?? 0) > 0 && (
+                    <div className="admin-card-meta">
+                      <ProjectTermine compact appointments={p.upcoming_appointments ?? []}
+                        total={p.upcoming_appointments_total ?? 0} staff={staffLite}
+                        onOpenSchedule={onOpenSchedule} />
+                    </div>
+                  )}
                   <div className="admin-card-meta">
                     Offerte: {p.quote ? projectQuoteText(p) : '—'} · Rechnung: {p.invoice ? p.invoice.status : '—'} · {new Date(p.created_at).toLocaleDateString('de-CH')}
                   </div>
@@ -777,9 +803,9 @@ export default function ProjectsScreen({
                     der View bringt den Beleg an der Projektzeile mit, sortiert wird
                     nach seinem Ablauf-Rang. Projekte ohne Beleg haengen in beiden
                     Richtungen hinten — "kein Beleg" ist keine Stufe des Ablaufs. */}
-                {/* Nicht sortierbar: der nächste Termin kommt aus einer eigenen
-                    Tabelle und wird erst nach dem Paging an die Zeilen gehängt. */}
-                <th>Nächster Termin</th>
+                {/* Nicht sortierbar: die Termine kommen aus einer eigenen Tabelle
+                    und werden erst nach dem Paging an die Zeilen gehängt. */}
+                {spalten.termine && <th>Termine</th>}
                 <th style={thStyle} onClick={() => toggleSort('quote')} title="Nach dem Stand der Offerte sortieren (Entwurf → gesendet → akzeptiert). Ohne Offerte zuletzt.">
                   Offerte <SortIcon active={sortKey === 'quote'} dir={sortDir} />
                   <ColumnFilter label="Offerte" sections={quoteSections} values={filterValues} onChange={applyFilter} />
@@ -806,7 +832,7 @@ export default function ProjectsScreen({
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={8 + (showProjektleiterCol ? 1 : 0) + (showBeschaffungCol ? 1 : 0)} className="admin-table-empty">Keine Projekte gefunden.</td></tr>
+                <tr><td colSpan={7 + (spalten.termine ? 1 : 0) + (showProjektleiterCol ? 1 : 0) + (showBeschaffungCol ? 1 : 0)} className="admin-table-empty">Keine Projekte gefunden.</td></tr>
               ) : rows.map(p => {
                 const effectiveStatus: ProjectStatus = p.status ?? (p.is_closed ? 'abgeschlossen' : 'offen')
                 const ort = projectLocality(p)
@@ -825,19 +851,13 @@ export default function ProjectsScreen({
                     {showProjektleiterCol && (
                       <td>{p.projektleiter_id ? (staffNameById[p.projektleiter_id] || '—') : '—'}</td>
                     )}
-                    <td>
-                      {p.next_appointment ? (() => {
-                        const n = nextAppointmentSummary(p.next_appointment)
-                        return (
-                          <>
-                            {n.when}
-                            <div style={{ color: 'var(--muted)', fontSize: 12 }}>{n.what}</div>
-                          </>
-                        )
-                      })() : (
-                        <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
-                      )}
-                    </td>
+                    {spalten.termine && (
+                      <td>
+                        <ProjectTermine appointments={p.upcoming_appointments ?? []}
+                          total={p.upcoming_appointments_total ?? 0} staff={staffLite}
+                          onOpenSchedule={onOpenSchedule} />
+                      </td>
+                    )}
                     <td>
                       {p.quote ? (
                         <span className={`admin-badge ${QUOTE_STATUS_BADGE[p.quote.status] || 'admin-badge-draft'}`}

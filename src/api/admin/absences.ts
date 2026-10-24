@@ -12,6 +12,17 @@ export interface Absence {
   end_date: string
   status: string
   note: string | null
+  /** Kann ICH über diesen Antrag entscheiden? `null` = ja; sonst warum nicht:
+   *  `own` (eigener Antrag) oder `no_right` (Modus «nur Berechtigte»).
+   *  Fehlt das Feld (älterer Server), gilt «ja». */
+  decide_block?: 'own' | 'no_right' | null
+}
+
+/** Warum ich über einen Antrag nicht entscheiden kann (`Absence.decide_block`).
+ *  Eine Liste für Admin-App und Mitarbeiter-App. */
+export const DECIDE_BLOCK_TEXT: Record<string, string> = {
+  own: 'Eigener Antrag — gibt jemand anderes frei',
+  no_right: 'Freigabe durch berechtigte Personen',
 }
 
 export async function getAdminAbsences(status?: string): Promise<Absence[]> {

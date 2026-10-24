@@ -2,6 +2,8 @@ import { apiFetch } from './client'
 import { clearOfflinePackages } from './offlineStore'
 import { resetConnectionHealth } from './connectionHealth'
 import { clearApiCache } from './swCache'
+import { setClientUpdateUrgent } from './reloadGuard'
+import { clearStartSnapshots } from './startSnapshot'
 
 export interface UserInfo {
   authorized_user_id: string
@@ -29,6 +31,14 @@ export interface UserInfo {
    *  die Berechtigung und der Einstieg: Ein Lagerist mit Rolle `user` sieht die
    *  Inventur-Kachel, sobald ihm eine Tranche gehört, und sonst nie
    *  (docs/specs/rollierende-inventur.md §6.5). */
+  /** Zusatzrechte neben der Rolle (docs/specs/ferien-freigabe-recht.md). */
+  permissions?: string[]
+  /** Darf dieses Konto Ferienanträge entscheiden? Vom Server fertig gerechnet
+   *  (Rolle, Recht, Modus, Beta) — die App rechnet es nicht nach. */
+  absence_approver?: boolean
+  /** Dringendes App-Update: eine wartende Version greift bei der nächsten
+   *  Rückkehr in die App ohne die 30 Minuten (docs/specs/pwa-neuladen.md §3.1). */
+  client_update_urgent?: boolean
   inventur_offen?: {
     count_id: string
     title: string | null
@@ -53,7 +63,11 @@ export async function validatePin(tenantSlug: string, authorizedUserId: string, 
 }
 
 export async function getMe(): Promise<UserInfo> {
-  return apiFetch<UserInfo>('/pwa/me')
+  const me = await apiFetch<UserInfo>('/pwa/me')
+  // Dringendes App-Update (docs/specs/pwa-neuladen.md §3.1) — hier, weil jede
+  // App ihr /pwa/me über diese eine Funktion holt.
+  setClientUpdateUrgent(me?.client_update_urgent === true)
+  return me
 }
 
 export async function logout(): Promise<void> {
@@ -65,6 +79,8 @@ export async function logout(): Promise<void> {
     // Dasselbe gilt für das Offline-Lesepaket — es hängt am Gerät, nicht an der
     // Session, und der Werkhof teilt sich ein Tablet.
     clearOfflinePackages()
+    // Ebenso der Start-Snapshot (/pwa/me + Branding, api/startSnapshot.ts).
+    clearStartSnapshots()
     // Der nächste Monteur am Werkhof-Tablet soll nicht die Netzgeschichte des
     // vorherigen erben — sonst bekäme er das Offline-Formular angeboten, weil
     // jemand anderes vor einer Minute im Funkloch stand.

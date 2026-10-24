@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { getMe, getTenantInfo, TenantInfo, UserInfo } from './api/auth'
 import { ApiError, apiUrl, resetSessionExpiredFlag } from './api/client'
 import { SK } from './api/storageKeys'
+import {
+  START_TIMEOUT_MS, loadStartSnapshot, saveBrandingSnapshot, saveMeSnapshot, withTimeout,
+} from './api/startSnapshot'
 import PinScreen from './auth/PinScreen'
 import LoginScreen from './auth/LoginScreen'
 import ConsentScreen from './auth/ConsentScreen'
@@ -16,6 +19,7 @@ import OffertenScreen from './screens/OffertenScreen'
 import ProjektEntwurfScreen from './screens/ProjektEntwurfScreen'
 import AbsenzenScreen from './screens/AbsenzenScreen'
 import InventurScreen from './inventur/InventurScreen'
+import FerienantraegeScreen from './screens/FerienantraegeScreen'
 import AdminApp from './admin/AdminApp'
 import { WerkoraMark } from './brand/WerkoraMark'
 import { derivePalette, paletteCss } from './brand/palette'
@@ -45,7 +49,7 @@ declare global {
   }
 }
 
-type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen' | 'inventur' | 'roadmap'
+type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen' | 'inventur' | 'roadmap' | 'ferienantraege'
 
 // Die Wahl der Schrift auf der Akzentfläche wohnt jetzt in brand/palette.ts,
 // zusammen mit der übrigen Farbableitung. Der Re-Export hält die Funktion an
@@ -120,6 +124,14 @@ export function TenantLogo({ logoUrl }: { logoUrl: string }) {
       <WerkoraMark title="Werkora" />
     </div>
   )
+}
+
+/** Kachel «Ferienanträge»: nur für ein Konto OHNE Admin-Rolle, das Anträge
+ *  entscheiden darf (Recht `absence_approve`, docs/specs/ferien-freigabe-recht.md
+ *  §3.3). Admins geben in der Admin-App frei. Den Entscheid rechnet der Server
+ *  (`/pwa/me.absence_approver`). */
+function showFerienantraege(u: UserInfo): boolean {
+  return !!u.absence_approver && !isAdminRole(u.role) && hasModule(u, 'hr')
 }
 
 function nextScreenAfterLogin(u: UserInfo): Screen {
@@ -442,52 +454,97 @@ export default function App() {
     go('rapport')
   }
 
+  const applyBranding = useCallback((info: TenantInfo) => {
+    applyTenantBranding(info)
+    // logo_url ist ein relativer Proxy-Pfad (/pwa/tenant-logo?...). Das Backend
+    // liegt auf anderer Origin als die PWA → absolut machen, damit <img src>
+    // aufs Backend zeigt und nicht auf die PWA-Origin.
+    setLogoUrl(info.logo_url ? apiUrl(info.logo_url) : '')
+    setLogoUrlDark(info.logo_url_dark ? apiUrl(info.logo_url_dark) : '')
+    setTenantName(info.name)
+    setCanton(info.canton || 'ZH')
+  }, [])
+
   const loadBranding = useCallback(async () => {
     const slug = localStorage.getItem(SK.TENANT_SLUG) ?? ''
     if (!slug) return
     try {
       const info = await getTenantInfo(slug)
-      applyTenantBranding(info)
-      // logo_url ist ein relativer Proxy-Pfad (/pwa/tenant-logo?...). Das Backend
-      // liegt auf anderer Origin als die PWA → absolut machen, damit <img src>
-      // aufs Backend zeigt und nicht auf die PWA-Origin.
-      setLogoUrl(info.logo_url ? apiUrl(info.logo_url) : '')
-      setLogoUrlDark(info.logo_url_dark ? apiUrl(info.logo_url_dark) : '')
-      setTenantName(info.name)
-      setCanton(info.canton || 'ZH')
+      applyBranding(info)
+      saveBrandingSnapshot(localStorage.getItem(SK.AUTHORIZED_USER_ID), info)
     } catch (err) {
       console.warn('[Branding] Fehler beim Laden:', err)
     }
-  }, [])
+  }, [applyBranding])
 
+  // Kaltstart (docs/specs/pwa-neuladen.md §3.5): liegt ein Stand vom letzten
+  // Start da, zeichnet die App daraus, sobald /pwa/me länger als 5 s braucht
+  // oder nicht durchkommt — und ersetzt ihn, wenn die Antwort da ist. Ohne
+  // Stand wie bisher: warten auf /pwa/me, aufs Branding höchstens 5 s.
   useEffect(() => {
-    Promise.all([
-      getMe().then(u => u).catch(err => ({ error: err })),
-      loadBranding(),
-    ]).then(([userResult]) => {
-      if ('error' in (userResult as object)) {
-        setScreen(hasStoredIdentity ? 'login' : 'pin')
-      } else {
-        const u = userResult as UserInfo
-        setUser(u)
-        setScreen(nextScreenAfterLogin(u))
-        // Offline-Lesepaket im Netz-Moment füllen (docs/specs/offline-modus.md
-        // §3.3). Erst hier, weil der Snapshot pro Mitarbeiter geschlüsselt ist
-        // und die id aus /pwa/me kommt. Läuft nebenher, gedrosselt auf 15
-        // Minuten, und wirft nie — der Start darf nicht daran hängen.
-        // `user_light` ist reiner Zeiterfasser und sieht gar keine Projekte:
-        // die Route antwortete mit 403, und ein erwarteter Fehler im
-        // Netzwerk-Log ist Lärm.
-        if (u.role !== 'user_light') {
-          void prefetchOfflinePackage(u.authorized_user_id, { scheduling: hasModule(u, 'scheduling') })
-          // Erster der drei Netz-Momente: wartende Rapporte hochladen und den
-          // Materialkatalog spiegeln (§4.5.5).
-          void syncOfflineRapporte(u.authorized_user_id, {
-            enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
-          })
-        }
+    const snap = loadStartSnapshot(localStorage.getItem(SK.AUTHORIZED_USER_ID))
+    if (snap?.branding) applyBranding(snap.branding)
+    const brandingDone = withTimeout(loadBranding(), START_TIMEOUT_MS)
+    const mePromise = getMe()
+    // Nur eine abgelehnte Sitzung schickt zum Login. Netz- oder Serverfehler
+    // mit Snapshot: die App bleibt benutzbar, der Server prüft ohnehin jeden Aufruf.
+    const abgelehnt = (err: unknown) =>
+      err instanceof ApiError && (err.status === 401 || err.status === 403)
+    const zumLogin = () => setScreen(hasStoredIdentity ? 'login' : 'pin')
+
+    const starte = (u: UserInfo, live: boolean) => {
+      setUser(u)
+      setScreen(nextScreenAfterLogin(u))
+      if (live) saveMeSnapshot(u)
+      // Offline-Lesepaket im Netz-Moment füllen (docs/specs/offline-modus.md
+      // §3.3). Erst hier, weil der Snapshot pro Mitarbeiter geschlüsselt ist
+      // und die id aus /pwa/me kommt. Läuft nebenher, gedrosselt auf 15
+      // Minuten, und wirft nie — der Start darf nicht daran hängen.
+      // `user_light` ist reiner Zeiterfasser und sieht gar keine Projekte:
+      // die Route antwortete mit 403, und ein erwarteter Fehler im
+      // Netzwerk-Log ist Lärm.
+      if (u.role !== 'user_light') {
+        void prefetchOfflinePackage(u.authorized_user_id, { scheduling: hasModule(u, 'scheduling') })
+        // Erster der drei Netz-Momente: wartende Rapporte hochladen und den
+        // Materialkatalog spiegeln (§4.5.5).
+        void syncOfflineRapporte(u.authorized_user_id, {
+          enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
+        })
       }
-    })
+    }
+
+    // Die echte Antwort nach einem Start aus dem Snapshot: Stand ersetzen,
+    // den Bildschirm aber lassen, wo der Nutzer inzwischen ist — ausser die
+    // Datenschutz-Zustimmung ist (neu) fällig.
+    const nachreichen = (u: UserInfo) => {
+      setUser(u)
+      saveMeSnapshot(u)
+      if (u.consent_required) setScreen('consent')
+    }
+
+    void (async () => {
+      if (snap?.me) {
+        const fallback = snap.me
+        try {
+          const res = await withTimeout(mePromise, START_TIMEOUT_MS)
+          if (!res.timedOut) { starte(res.value, true); return }
+        } catch (err) {
+          if (abgelehnt(err)) { zumLogin(); return }
+          starte(fallback, false)
+          return
+        }
+        starte(fallback, false)
+        mePromise.then(nachreichen).catch(err => { if (abgelehnt(err)) zumLogin() })
+        return
+      }
+      try {
+        const u = await mePromise
+        await brandingDone.catch(() => undefined)
+        starte(u, true)
+      } catch {
+        zumLogin()
+      }
+    })()
   }, [])
 
   // Der Umzugsstreifen sitzt zuoberst und schiebt die anderen Banner nach
@@ -595,7 +652,7 @@ export default function App() {
         onLoggedIn={() => {
           resetSessionExpiredFlag()
           setAuthExpiredAt(null)
-          getMe().then(u => { setUser(u); loadBranding(); resetTo(nextScreenAfterLogin(u)) }).catch(() => resetTo('pin'))
+          getMe().then(u => { setUser(u); saveMeSnapshot(u); loadBranding(); resetTo(nextScreenAfterLogin(u)) }).catch(() => resetTo('pin'))
         }}
       />
     )
@@ -606,7 +663,7 @@ export default function App() {
         onLoggedIn={() => {
           resetSessionExpiredFlag()
           setAuthExpiredAt(null)
-          getMe().then(u => { setUser(u); loadBranding(); resetTo(nextScreenAfterLogin(u)) }).catch(() => resetTo('pin'))
+          getMe().then(u => { setUser(u); saveMeSnapshot(u); loadBranding(); resetTo(nextScreenAfterLogin(u)) }).catch(() => resetTo('pin'))
         }}
       />
     )
@@ -638,6 +695,17 @@ export default function App() {
         onSwitchToAdmin={isAdminRole(user.role) ? () => go('admin') : undefined}
         inventur={user.inventur_offen ?? null}
         onNavInventur={() => go('inventur')}
+        onNavFerienantraege={showFerienantraege(user) ? () => go('ferienantraege') : undefined}
+      />
+    )
+  } else if (screen === 'ferienantraege' && user) {
+    if (!showFerienantraege(user)) { resetTo('home'); return null }
+    inner = (
+      <FerienantraegeScreen
+        logoUrl={effectiveLogo}
+        canton={canton}
+        onBack={() => go('home')}
+        onLoggedOut={goToAuth}
       />
     )
   } else if (screen === 'inventur' && user) {

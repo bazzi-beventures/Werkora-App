@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAdminAbsences, approveAbsence, rejectAbsence, Absence } from '../../api/admin'
+import { getAdminAbsences, approveAbsence, rejectAbsence, Absence, DECIDE_BLOCK_TEXT } from '../../api/admin'
 import AbsenceCalendar from './AbsenceCalendar'
 import { countWorkdays } from '../utils/calendarHelpers'
 import { AdminCardList } from '../components/AdminCardList'
@@ -48,6 +48,13 @@ function AbsenceActions({ a, acting, onApprove, onReject }: {
   onApprove: (id: string) => void
   onReject: (id: string) => void
 }) {
+  if (a.decide_block) {
+    return (
+      <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+        {DECIDE_BLOCK_TEXT[a.decide_block] ?? 'Keine Freigabe möglich'}
+      </span>
+    )
+  }
   return (
     <>
       <button

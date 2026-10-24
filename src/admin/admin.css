@@ -5089,3 +5089,50 @@ button.admin-user-row {
 }
 button.admin-user-row:hover,
 button.admin-user-row.active { background: var(--surface-2); }
+
+/* Spalte «Termine» der Projektliste (docs/specs/projektliste-termine-team.md).
+   Ein Termin je Zeile, als Knopf: der Klick springt in die Einsatzplanung.
+   Die Kürzel-Chips sind dieselben wie in der Planung; auf der hellen Tabelle
+   braucht der weisse Chip eine Kante, die er auf dem farbigen Balken nicht braucht. */
+.projektliste-termine {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.projektliste-termin {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+}
+
+button.projektliste-termin {
+  cursor: pointer;
+}
+
+button.projektliste-termin:hover {
+  text-decoration: underline;
+}
+
+.projektliste-termine-crew {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+.projektliste-termine-crew .schedule-crew-chip {
+  box-shadow: 0 0 0 1px var(--border, rgba(148, 163, 184, 0.4));
+}
+
+.projektliste-termine-mehr {
+  color: var(--muted);
+}

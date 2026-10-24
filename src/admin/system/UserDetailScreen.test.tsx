@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import UserDetailScreen from './UserDetailScreen'
-import { generateUserPin } from '../../api/admin/users'
+import { generateUserPin, setUserPermissions } from '../../api/admin/users'
 import type { AuthUser } from '../../api/admin/users'
 
 vi.mock('../../api/admin/users', () => ({
@@ -18,9 +18,11 @@ vi.mock('../../api/admin/users', () => ({
   generateUserPin: vi.fn(),
   saveUser: vi.fn(),
   setUserPassword: vi.fn(),
+  setUserPermissions: vi.fn(),
 }))
 
 const mockGeneratePin = vi.mocked(generateUserPin)
+const mockSetPermissions = vi.mocked(setUserPermissions)
 
 const USER = {
   id: 'au-7',
@@ -73,5 +75,36 @@ describe('UserDetailScreen — Zugangs-PIN', () => {
     await user.click(screen.getByRole('button', { name: 'PIN generieren' }))
 
     expect(await screen.findByText('user_not_editable')).toBeInTheDocument()
+  })
+})
+
+// docs/specs/ferien-freigabe-recht.md §5
+describe('UserDetailScreen — Zusatzrechte', () => {
+  it('fehlt ohne Freigabe von oben (kein Beta-Feature oder keine Management-Rolle)', () => {
+    renderScreen()
+    expect(screen.queryByText(/Zusatzrechte/)).toBeNull()
+  })
+
+  it('setzt «Ferien freigeben» sofort und mit der ganzen Liste', async () => {
+    mockSetPermissions.mockResolvedValue(['absence_approve'])
+    const user = userEvent.setup()
+    render(<UserDetailScreen user={USER} actingRole="management" showPermissions onClose={() => {}} onSaved={() => {}} />)
+
+    const box = screen.getByRole('checkbox', { name: /Ferien freigeben/ })
+    expect(box).not.toBeChecked()
+    await user.click(box)
+
+    expect(mockSetPermissions).toHaveBeenCalledWith('au-7', ['absence_approve'])
+    expect(await screen.findByRole('checkbox', { name: /Ferien freigeben/ })).toBeChecked()
+  })
+
+  it('entzieht ein vorhandenes Recht', async () => {
+    mockSetPermissions.mockResolvedValue([])
+    const user = userEvent.setup()
+    render(<UserDetailScreen user={{ ...USER, permissions: ['absence_approve'] }} actingRole="management"
+      showPermissions onClose={() => {}} onSaved={() => {}} />)
+
+    await user.click(screen.getByRole('checkbox', { name: /Ferien freigeben/ }))
+    expect(mockSetPermissions).toHaveBeenCalledWith('au-7', [])
   })
 })

@@ -3,6 +3,7 @@ import { apiFetch, ApiError, isOfflineError } from '../api/client'
 import { ModuleName } from '../api/modules'
 import { useOnline } from '../shared/useOnline'
 import { Theme, loadTheme, applyTheme, toggleTheme } from '../theme'
+import { BetaBadge } from '../shared/BetaBadge'
 
 interface Props {
   displayName: string
@@ -23,6 +24,10 @@ interface Props {
    *  (docs/specs/rollierende-inventur.md §10.5). */
   inventur?: { count_id: string; title: string | null; offen: number; ueberfaellig: boolean } | null
   onNavInventur?: () => void
+  /** Kachel «Ferienanträge» — nur für ein Konto ohne Admin-Rolle mit dem Recht
+   *  `absence_approve` (docs/specs/ferien-freigabe-recht.md §3.3). Fehlt der
+   *  Handler, fehlt die Kachel. */
+  onNavFerienantraege?: () => void
 }
 
 interface SessionStatus {
@@ -49,7 +54,7 @@ function formatClockIn(isoUtc: string): string {
   return dt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })
 }
 
-export default function HomeScreen({ displayName, logoUrl, role, enabledModules, onNavRapport, onNavArbeitszeit, onNavProjekte, onNavOfferten, onNavProjektEntwurf, onNavProfile, onLoggedOut, onSwitchToAdmin, inventur, onNavInventur }: Props) {
+export default function HomeScreen({ displayName, logoUrl, role, enabledModules, onNavRapport, onNavArbeitszeit, onNavProjekte, onNavOfferten, onNavProjektEntwurf, onNavProfile, onLoggedOut, onSwitchToAdmin, inventur, onNavInventur, onNavFerienantraege }: Props) {
   const firstName = displayName.split(' ')[0]
   const isLight = role === 'user_light'
   const has = (m: ModuleName) => enabledModules.includes(m)
@@ -165,6 +170,28 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
                   ? `${inventur.title ?? 'Zählung'} — überfällig`
                   : (inventur.title ?? 'Zählung zählen')}
               </div>
+            </div>
+            <div className="tile-arrow">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 8h10M9 4l4 4-4 4"/>
+              </svg>
+            </div>
+          </div>
+        )}
+
+        {onNavFerienantraege && (
+          <div className="tile tile-green tile-full" onClick={onNavFerienantraege}>
+            <div className="tile-icon tile-icon-green">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" strokeWidth="1.8">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <path d="M9 15l2 2 4-4"/>
+              </svg>
+            </div>
+            <div>
+              <div className="tile-label">Ferienanträge <BetaBadge /></div>
+              <div className="tile-desc">Anträge der Kollegen freigeben</div>
             </div>
             <div className="tile-arrow">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">

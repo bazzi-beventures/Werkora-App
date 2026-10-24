@@ -1,5 +1,6 @@
 import { trackApiError } from '../shared/breadcrumbs'
 import { noteNetworkFailure, noteRequestSuccess } from './connectionHealth'
+import { beginMutation, endMutation } from './reloadGuard'
 const BASE_URL = import.meta.env.VITE_API_URL ?? ''
 
 // Absolute URL für direkte Browser-Navigation (z.B. <a href> in neuem Tab).
@@ -138,6 +139,10 @@ export interface ApiFetchOptions extends RequestInit {
 // wo sie fehlt. Wer die Form nicht kennt, lässt `T` weg und bekommt `unknown`.
 export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptions = {}): Promise<T> {
   const { timeoutMs, ...init } = options
+  // Ein schreibender Request läuft: solange darf ein App-Update nicht neu
+  // laden (api/reloadGuard.ts) — sonst bricht Speichern oder Upload mittendrin ab.
+  const mutating = (init.method ?? 'GET').toUpperCase() !== 'GET'
+  if (mutating) beginMutation()
   const controller = timeoutMs !== undefined ? new AbortController() : null
   const timer = controller !== null ? setTimeout(() => controller.abort(), timeoutMs) : null
   try {
@@ -159,7 +164,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     // in der Tiefgarage als «trägt» melden und den Einstieg ins Offline-Formular
     // unterdrücken. Die Cache API speichert nur GETs, ein durchgekommenes POST
     // ist also immer echt. Ein 500 zählt dabei mit: der Server war erreichbar.
-    if ((init.method ?? 'GET').toUpperCase() !== 'GET') noteRequestSuccess()
+    if (mutating) noteRequestSuccess()
 
     if (!res.ok) {
       let { text, code } = await parseErrorDetail(res)
@@ -191,6 +196,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
     throw new ApiError(0, 'Keine Internetverbindung')
   } finally {
     if (timer !== null) clearTimeout(timer)
+    if (mutating) endMutation()
   }
 }
 
@@ -344,6 +350,7 @@ export async function* apiStreamFetch(
 // Multipart-Gegenstück zu apiFetch — `T` bedeutet dasselbe (erwartete Antwortform).
 export async function apiFormFetch<T = unknown>(path: string, form: FormData): Promise<T> {
   // No Content-Type header — browser sets it with the multipart boundary
+  beginMutation()
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       method: 'POST',
@@ -363,5 +370,7 @@ export async function apiFormFetch<T = unknown>(path: string, form: FormData): P
   } catch (e) {
     if (e instanceof ApiError) throw e
     throw new ApiError(0, 'Keine Internetverbindung')
+  } finally {
+    endMutation()
   }
 }

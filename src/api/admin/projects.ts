@@ -131,6 +131,11 @@ export interface Project {
   // mehrtägige zählen mit), null ohne offenen Termin. Anders als die vier
   // Spiegel-Felder oben (= Ersttermin) — siehe admin_projects.py::_attach_next_appointment.
   next_appointment?: ProjectNextAppointment | null
+  // Nur an GET /admin/projects/list?with=appointments: die ersten drei offenen
+  // Termine (aufsteigend) und wie viele es insgesamt sind — Spalte «Termine»,
+  // docs/specs/projektliste-termine-team.md.
+  upcoming_appointments?: ProjectUpcomingAppointment[]
+  upcoming_appointments_total?: number
   // Nur an GET /admin/projects/{id}: die Fristauskunft des Servers und die
   // Nacharbeiten, die auf dieses Projekt zeigen. In der Liste fehlen beide —
   // dort rechnet die App die Frist selbst (shared/warranty.ts).
@@ -149,6 +154,14 @@ export interface ProjectNextAppointment {
   end_time: string | null
   kind: AppointmentKind
   label: string | null
+}
+
+/** Offener Termin für die Spalte «Termine». `monteur_ids` ist das WIRKSAME
+ *  Team: das eigene Termin-Team, sonst das Projekt-Team (`own_team` sagt, welches). */
+export interface ProjectUpcomingAppointment extends ProjectNextAppointment {
+  id: string
+  monteur_ids: string[]
+  own_team: boolean
 }
 
 /** Der Garantiefall hinter einem Reparatur-Projekt (schmale Angabe für den Kopf). */
@@ -225,6 +238,8 @@ export interface ProjectsListQuery {
   /** "enthält" über alle Adressfelder bzw. alle Telefonnummern des Projekts. */
   address?: string
   phone?: string
+  /** Spalte «Termine» an: liefert `upcoming_appointments` mit. */
+  withAppointments?: boolean
 }
 
 export interface ProjectLocality {
@@ -259,6 +274,7 @@ export async function listProjects(q: ProjectsListQuery): Promise<ProjectsListRe
   if (q.createdTo) params.set('created_to', q.createdTo)
   if (q.address) params.set('address', q.address)
   if (q.phone) params.set('phone', q.phone)
+  if (q.withAppointments) params.set('with', 'appointments')
   return apiFetch<ProjectsListResponse>(`/pwa/admin/projects/list?${params.toString()}`)
 }
 

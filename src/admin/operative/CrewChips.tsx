@@ -9,7 +9,9 @@ import { crewShortLabels, type StaffLite } from './scheduleShared'
 import type { Project } from '../../api/admin/projects'
 
 export default function CrewChips({ entry, staff, className = 'schedule-crew' }: {
-  entry: Project
+  // Nur das Team zählt — so passt neben einem Kalender-Eintrag auch ein Termin
+  // der Projektliste (ProjectUpcomingAppointment) hinein.
+  entry: Pick<Project, 'monteur_ids'>
   staff: StaffLite[]
   className?: string
 }) {
