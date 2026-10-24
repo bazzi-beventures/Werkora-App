@@ -104,6 +104,16 @@ describe('LieferscheinScreen', () => {
     expect(screen.getByRole('button', { name: 'Senden' })).toBeTruthy()   // Foto bleibt, nochmal senden geht
   })
 
+  it('sagt bei der Upload-Bremse, dass es später wieder geht — das Foto bleibt', async () => {
+    uploadLieferschein.mockRejectedValue(new ApiError(429, 'rate_limited'))
+    const user = userEvent.setup()
+    render(<LieferscheinScreen userId="u1" onBack={vi.fn()} onLoggedOut={vi.fn()} />)
+    waehleFoto()
+    await user.click(screen.getByRole('button', { name: 'Senden' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('in ein paar Minuten')
+    expect(screen.getByRole('button', { name: 'Senden' })).toBeTruthy()
+  })
+
   it('offene eigene Lieferscheine lassen sich später zuordnen', async () => {
     listMeineLieferscheine.mockResolvedValue([{
       id: 'e9', status: 'offen', created_at: '2026-10-24T07:00:00Z', filename: 'a.jpg', mime_type: 'image/jpeg',

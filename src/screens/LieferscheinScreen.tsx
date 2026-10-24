@@ -48,6 +48,7 @@ const FEHLER: Record<number, string> = {
   403: 'Diesem Projekt kannst du keinen Lieferschein zuordnen.',
   404: 'Diesen Lieferschein oder dieses Projekt gibt es nicht (mehr).',
   409: 'Dieser Lieferschein ist schon zugeordnet.',
+  429: 'Gerade sehr viele Lieferscheine auf einmal. Bitte in ein paar Minuten erneut senden.',
 }
 
 function fmtWhen(iso: string): string {
