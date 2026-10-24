@@ -15,6 +15,8 @@ export interface AdminDashboard {
   pending_approvals: number
   projects_overdue: number
   pending_drafts: number
+  /** Offene Lieferscheine im Eingang — `null` ohne Modul `lieferschein_erfassung`. */
+  pending_delivery_notes?: number | null
   recently_accepted_quotes: number
   recently_rejected_quotes: number
   my_open_tasks?: number

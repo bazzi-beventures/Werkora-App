@@ -48,6 +48,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'admin', screen: 'quotes', module: 'quotes' },
   { app: 'admin', screen: 'invoices', module: 'invoicing' },
   { app: 'admin', screen: 'hagelschaden', module: 'hagelschaden' },
+  { app: 'admin', screen: 'delivery-notes', module: 'lieferschein_erfassung' },
   { app: 'admin', screen: 'payment-reconciliation', module: 'payment_matching' },
   { app: 'admin', screen: 'aftersales', module: 'aftersales' },
   { app: 'admin', screen: 'suppliers' },
@@ -69,6 +70,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'pwa', screen: 'projektEntwurf', noLight: true },
   { app: 'pwa', screen: 'profile' },
   { app: 'pwa', screen: 'roadmap', module: 'feature_requests', noLight: true },
+  { app: 'pwa', screen: 'lieferschein', module: 'lieferschein_erfassung' },
 ]
 
 // #/admin/<screen> bzw. #/app/<screen> — nichts dahinter (keine Unter-Reiter, D4).

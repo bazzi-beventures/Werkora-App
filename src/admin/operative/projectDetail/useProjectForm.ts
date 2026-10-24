@@ -22,6 +22,9 @@ import {
   changedAutosaveFields, disposalEmpty, hasEntsorgungsart, initialProjectForm, isProjectFormDirty,
   teamDirty,
 } from './projectForm'
+import {
+  TakeoverContext, loadSuppressed, markAsked, sessionAsked, shouldAskTakeover, suppressProject,
+} from './projektleiterRueckfrage'
 
 /** «Nummer — Name» eines Referenzprojekts, fuers Anzeigen im Feld. */
 export function referenceLabel(p: Pick<Project, 'project_id_text' | 'name'>): string {
@@ -57,6 +60,9 @@ export type TeamAnswer = 'keep' | 'apply' | 'cancel'
  * 'cancel' bricht das Speichern ab und lässt die Maske offen.
  */
 export type ProjektleiterAnswer = 'save' | 'cancel'
+
+/** Antwort auf «Projektleiter übernehmen?» (docs/specs/projektleiter-uebernahme.md §3.2). */
+export type TakeoverAnswer = 'take' | 'decline'
 
 export interface UseProjectForm {
   name: string
@@ -115,6 +121,13 @@ export interface UseProjectForm {
    */
   projektleiterQuestion: boolean
   answerProjektleiterQuestion: (answer: ProjektleiterAnswer) => void
+  /**
+   * Offene Frage «Möchtest du die Projektleitung übernehmen?» — kommt NACH dem
+   * Speichern (§3.2), hält also nichts auf. Wegklicken = «Nein».
+   */
+  takeoverQuestion: boolean
+  /** `dontAskAgain`: für dieses Projekt nicht mehr fragen (localStorage). */
+  answerTakeoverQuestion: (answer: TakeoverAnswer, dontAskAgain: boolean) => void
   kontakte: Kontakt[]
   addKontakt: () => void
   updateKontakt: (i: number, field: keyof Kontakt, value: string) => void
@@ -254,6 +267,11 @@ export function useProjectForm(opts: {
    * Öffnen (§3.8).
    */
   autosave?: boolean
+  /**
+   * Rückfrage «Projektleiter übernehmen?» (Feature `projektleiter_rueckfrage`,
+   * Beta). Fehlt sie, wird nie gefragt.
+   */
+  takeover?: TakeoverContext & { userId: string | null }
 }): UseProjectForm {
   const { project, customers, schedulingEnabled, focusDetails } = opts
   const autosave = !!opts.autosave && !!project
@@ -371,6 +389,37 @@ export function useProjectForm(opts: {
     setProjektleiterQuestion(false)
     projektleiterAnswer.current?.(answer)
     projektleiterAnswer.current = null
+  }
+
+  // «Projektleiter übernehmen?» — anders als die beiden Fragen oben KEIN
+  // Promise-Tor: gefragt wird erst, wenn schon gespeichert ist (§3.2). Ein «Ja»
+  // setzt den Projektleiter auf demselben Weg wie die Auswahl im Feld; der
+  // Autosave schreibt ihn samt Audit-Eintrag. Der bisherige Projektleiter
+  // bekommt keine Push (Entscheid §5).
+  const [takeoverQuestion, setTakeoverQuestion] = useState(false)
+
+  function maybeAskTakeover(fields: AutosaveField[], plAfterSave: string) {
+    const t = opts.takeover
+    if (!t || !project) return
+    const ask = shouldAskTakeover({
+      ctx: t,
+      projectId: project.id,
+      projektleiterId: plAfterSave,
+      fields,
+      askedThisSession: sessionAsked(),
+      suppressed: loadSuppressed(t.userId),
+    })
+    if (!ask) return
+    markAsked(project.id)
+    setTakeoverQuestion(true)
+  }
+
+  function answerTakeoverQuestion(answer: TakeoverAnswer, dontAskAgain: boolean) {
+    setTakeoverQuestion(false)
+    const t = opts.takeover
+    if (!t || !project) return
+    if (dontAskAgain) suppressProject(t.userId, project.id)
+    if (answer === 'take' && t.myStaffId) setProjektleiterIdNow(t.myStaffId)
   }
 
   const currentForm: ProjectFormValues = {
@@ -582,6 +631,10 @@ export function useProjectForm(opts: {
       if (answer === 'cancel') { focusDetails(); return false }
     }
 
+    // Für die Rückfrage «Projektleiter übernehmen?»: was dieses Speichern
+    // inhaltlich ändert — vor dem Speichern, danach ist es Ausgangsstand.
+    const changedBeforeSave = changedAutosaveFields(baseline, currentForm)
+
     setError('')
     setSaving(true)
     try {
@@ -721,6 +774,9 @@ export function useProjectForm(opts: {
         // (nachgeladenen) Terminstand.
         if (!created) return false
       }
+      // Nur bei einem bestehenden Projekt: ein neues bekommt seinen
+      // Projektleiter beim Anlegen im Feld.
+      if (!isNew) maybeAskTakeover(changedBeforeSave, projektleiterId)
       return created
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Fehler beim Speichern')
@@ -805,6 +861,7 @@ export function useProjectForm(opts: {
       return { payload: null, error: err instanceof Error && err.message ? err.message : 'Fehler beim Speichern' }
     }
     setBaseline(b => advanceBaseline(b, sent, fields))
+    maybeAskTakeover(fields, sent.projektleiterId)
     return { payload, error: '' }
   }
 
@@ -938,6 +995,7 @@ export function useProjectForm(opts: {
     appointments, changeAppointments, loadAppointments,
     teamQuestion, answerTeamQuestion,
     projektleiterQuestion, answerProjektleiterQuestion,
+    takeoverQuestion, answerTakeoverQuestion,
     kontakte, addKontakt, updateKontakt,
     pickKontaktCustomer: pickKontaktCustomerNow, removeKontakt: removeKontaktNow,
     toggleSiteContact: toggleSiteContactNow,

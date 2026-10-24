@@ -15,6 +15,7 @@ import { SendOrderConfirmationDialog, SendThankyouDialog } from './SendQuoteMail
 import { ProjectStatus } from '../constants/statuses'
 import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { BetaBadge } from '../../shared/BetaBadge'
 import { CommentsPanel } from './projectDetail/CommentsPanel'
 import { useProjectComments } from './projectDetail/useProjectComments'
 import { useProjectApprovals } from './projectDetail/useProjectApprovals'
@@ -122,7 +123,17 @@ export default function ProjectDetailScreen({
     schedulingEnabled: features.scheduling,
     focusDetails: () => setActiveTab('details'),
     autosave: autosaveOn,
+    // «Projektleiter übernehmen?» (Beta): nur wer selbst als Projektleiter
+    // markiert ist — sonst stünde er gar nicht in der Auswahl (Entscheid §5).
+    takeover: {
+      enabled: features.plRueckfrage,
+      userId: features.currentUserId,
+      myStaffId: features.currentStaffId,
+      iAmProjektleiter: staff.some(s => s.id === features.currentStaffId && s.projektleiter),
+    },
   })
+  // Häkchen «Für dieses Projekt nicht mehr fragen» im Übernehmen-Dialog.
+  const [plFrageAus, setPlFrageAus] = useState(false)
   const autosave = useProjectAutosave(
     form, autosaveOn, payload => onProjectUpdated?.(payload as Partial<Project>),
   )
@@ -743,6 +754,32 @@ export default function ProjectDetailScreen({
           onConfirm={() => form.answerProjektleiterQuestion('save')}
           onCancel={() => form.answerProjektleiterQuestion('cancel')}
         />
+      )}
+
+      {/* «Projektleiter übernehmen?» — kommt NACH dem Speichern, die Änderung
+          ist also schon da. Wegklicken (Esc/Backdrop) heisst «Nein». */}
+      {form.takeoverQuestion && (
+        <ConfirmDialog
+          title="Projektleitung übernehmen?"
+          message={<>
+            Dieses Projekt leitet aktuell{' '}
+            <b>{staff.find(s => s.id === form.projektleiterId)?.name ?? 'niemand'}</b>.
+            {' '}Möchtest du die Projektleitung übernehmen? <BetaBadge />
+          </>}
+          confirmLabel="Ja, übernehmen"
+          cancelLabel="Nein"
+          onConfirm={() => { form.answerTakeoverQuestion('take', plFrageAus); setPlFrageAus(false) }}
+          onCancel={() => { form.answerTakeoverQuestion('decline', plFrageAus); setPlFrageAus(false) }}
+        >
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12 }}>
+            <input
+              type="checkbox"
+              checked={plFrageAus}
+              onChange={e => setPlFrageAus(e.target.checked)}
+            />
+            Für dieses Projekt nicht mehr fragen
+          </label>
+        </ConfirmDialog>
       )}
 
       {comments.confirmDeleteId && (

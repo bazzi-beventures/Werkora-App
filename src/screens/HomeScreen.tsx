@@ -28,6 +28,11 @@ interface Props {
    *  `absence_approve` (docs/specs/ferien-freigabe-recht.md §3.3). Fehlt der
    *  Handler, fehlt die Kachel. */
   onNavFerienantraege?: () => void
+  /** Kachel «Lieferschein» — Modul `lieferschein_erfassung`
+   *  (docs/specs/lieferschein-erfassung.md §4). Fehlt der Handler, fehlt die Kachel. */
+  onNavLieferschein?: () => void
+  /** Wer den Wareneingang macht (Recht `wareneingang`), sieht die Kachel als erste. */
+  lieferscheinZuerst?: boolean
 }
 
 interface SessionStatus {
@@ -49,12 +54,34 @@ function getDateStr() {
   })
 }
 
+function LieferscheinTile({ onClick, full }: { onClick: () => void; full: boolean }) {
+  return (
+    <div className={`tile tile-accent${full ? ' tile-full' : ''}`} onClick={onClick}>
+      <div className="tile-icon tile-icon-accent">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.8">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <div className="tile-label">Lieferschein</div>
+        <div className="tile-desc">Fotografieren &amp; dem Projekt zuordnen</div>
+      </div>
+      <div className="tile-arrow">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 8h10M9 4l4 4-4 4"/>
+        </svg>
+      </div>
+    </div>
+  )
+}
+
 function formatClockIn(isoUtc: string): string {
   const dt = new Date(isoUtc)
   return dt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' })
 }
 
-export default function HomeScreen({ displayName, logoUrl, role, enabledModules, onNavRapport, onNavArbeitszeit, onNavProjekte, onNavOfferten, onNavProjektEntwurf, onNavProfile, onLoggedOut, onSwitchToAdmin, inventur, onNavInventur, onNavFerienantraege }: Props) {
+export default function HomeScreen({ displayName, logoUrl, role, enabledModules, onNavRapport, onNavArbeitszeit, onNavProjekte, onNavOfferten, onNavProjektEntwurf, onNavProfile, onLoggedOut, onSwitchToAdmin, inventur, onNavInventur, onNavFerienantraege, onNavLieferschein, lieferscheinZuerst = false }: Props) {
   const firstName = displayName.split(' ')[0]
   const isLight = role === 'user_light'
   const has = (m: ModuleName) => enabledModules.includes(m)
@@ -141,6 +168,10 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
       <div className="home-scroll">
       {/* Tiles */}
       <div className="tiles">
+        {onNavLieferschein && lieferscheinZuerst && (
+          <LieferscheinTile onClick={onNavLieferschein} full />
+        )}
+
         {inventur && onNavInventur && (
           // Zuoberst, solange sie offen ist: Eine zugeteilte Tranche ist eine
           // Aufgabe mit Frist, und sie verschwindet von selbst, sobald sie
@@ -284,6 +315,10 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
               </svg>
             </div>
           </div>
+        )}
+
+        {onNavLieferschein && !lieferscheinZuerst && (
+          <LieferscheinTile onClick={onNavLieferschein} full={isLight} />
         )}
 
         {!isLight && (

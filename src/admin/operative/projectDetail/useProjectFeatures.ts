@@ -66,6 +66,14 @@ export interface ProjectFeatures {
   currentUserId: string | null
   /** Seine Rolle — Management darf fremde Erinnerungen ändern. */
   currentUserRole: string | null
+  /** Sein Mitarbeiter — wer «Projektleiter übernehmen» wählt, wird damit eingetragen. */
+  currentStaffId: string | null
+  /**
+   * Feature «projektleiter_rueckfrage» (Beta): nach dem Speichern fragen, ob
+   * der Projektleiter das Projekt übernehmen will
+   * (docs/specs/projektleiter-uebernahme.md).
+   */
+  plRueckfrage: boolean
 }
 
 const NONE: ProjectFeatures = {
@@ -83,6 +91,8 @@ const NONE: ProjectFeatures = {
   allgAbzuege: null,
   currentUserId: null,
   currentUserRole: null,
+  currentStaffId: null,
+  plRueckfrage: false,
 }
 
 export function useProjectFeatures(): ProjectFeatures {
@@ -113,6 +123,8 @@ export function useProjectFeatures(): ProjectFeatures {
           : null,
         currentUserId: me.authorized_user_id,
         currentUserRole: me.role,
+        currentStaffId: me.staff_id ?? null,
+        plRueckfrage: isFeatureEnabled(me, 'projektleiter_rueckfrage'),
       })
     }).catch(() => {})
   }, [])

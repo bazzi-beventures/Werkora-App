@@ -64,6 +64,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // Erinnerungen (docs/specs/erinnerungen.md). Exakt statt /reminder/: die
   // Offerten-Erinnerung `admin_send_quote_reminder` gehört zu den Offerten.
   { test: /^admin_(create|update|delete)_reminder$/, module: 'reminders' },
+  // Lieferschein (docs/specs/lieferschein-erfassung.md) — vor /project/:
+  // die Zuordnung hängt am Projekt, gehört aber zum Modul.
+  { test: /delivery_note/,                       module: 'lieferschein_erfassung' },
   // Hagelschaden (docs/specs/hagelschaden-dashboard.md) — vor /project/.
   { test: /hagelschaden/,                        module: 'hagelschaden' },
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
@@ -240,6 +243,8 @@ const ACTION_LABELS: Record<string, string> = {
   admin_create_warranty_project: 'Reparatur-Projekt aus Garantiefall angelegt',
   // ── Hagelschaden ──
   admin_update_hagelschaden: 'Hagelschaden-Fall bearbeitet',
+  delivery_note_assign: 'Lieferschein einem Projekt zugeordnet',
+  admin_discard_delivery_note: 'Lieferschein im Eingang verworfen',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
   admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',

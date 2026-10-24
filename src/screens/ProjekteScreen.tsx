@@ -347,6 +347,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   const [aggregateError, setAggregateError] = useState<string | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [uploading, setUploading] = useState(false)
+  // Sichtbarer Fehler je Karte (Lieferschein vs. übrige Dateien) — bis
+  // 20261024 wurde ein gescheiterter Upload still geschluckt, und der Monteur
+  // hielt den Lieferschein für abgelegt (docs/specs/lieferschein-erfassung.md §2.1).
+  const [uploadError, setUploadError] = useState<{ lieferschein: boolean; text: string } | null>(null)
   const [uploadCategory, setUploadCategory] = useState<FileCategory>('fotos')
   const [newComment, setNewComment] = useState('')
   const [addingComment, setAddingComment] = useState(false)
@@ -605,14 +609,20 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     const filesToUpload = Array.from(e.target.files)
     const input = e.target
     setUploading(true)
+    setUploadError(null)
     try {
       // Backend nimmt eine Datei pro Request → sequentiell hochladen
       for (const file of filesToUpload) {
         await uploadProjectFile(SCOPE, selected.id, file, category)
       }
       setFiles(await listProjectFiles(SCOPE, selected.id))
-    } catch {
-      // silently ignore upload errors in user view
+    } catch (err) {
+      setUploadError({
+        lieferschein: category === LIEFERSCHEIN_CATEGORY,
+        text: err instanceof ApiError && err.status === 400 && err.message
+          ? err.message
+          : 'Hochladen fehlgeschlagen — die Datei ist nicht abgelegt. Bitte erneut versuchen.',
+      })
     } finally {
       setUploading(false)
       input.value = ''  // gleiche Datei erneut auswählbar machen
@@ -1713,6 +1723,9 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 </div>
               </div>
               {!online && <div className="projekte-offline-hint">{OFFLINE_UPLOAD_HINT}</div>}
+              {uploadError && !uploadError.lieferschein && (
+                <div role="alert" className="projekte-offline-hint" style={{ color: 'var(--accent-red)' }}>{uploadError.text}</div>
+              )}
               {otherFiles.length === 0 && (
                 <div className="projekte-detail-empty">Noch keine Dateien hochgeladen.</div>
               )}
@@ -1736,6 +1749,9 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                     accept={PROJECT_FILE_ACCEPT}
                     multiple
                     aria-label="Lieferschein hochladen"
+                    // Direkt die Kamera: der Lieferschein liegt auf der Baustelle
+                    // in der Hand, nicht in der Galerie.
+                    capture="environment"
                     style={{ display: 'none' }}
                     onChange={e => handleUpload(e, LIEFERSCHEIN_CATEGORY)}
                   />
@@ -1751,6 +1767,9 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   </button>
                 </div>
               </div>
+              {uploadError?.lieferschein && (
+                <div role="alert" className="projekte-offline-hint" style={{ color: 'var(--accent-red)' }}>{uploadError.text}</div>
+              )}
               {lieferscheine.length === 0 && (
                 <div className="projekte-detail-empty">Noch kein Lieferschein vorhanden.</div>
               )}

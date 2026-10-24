@@ -35,11 +35,11 @@ interface Props {
   // Rolle des eingeloggten Benutzers — entscheidet, welche Konten er öffnen und
   // welche Rollen er vergeben darf (Spiegel der Backend-Matrix, siehe userRoles.ts).
   actingRole: string
-  /** Abschnitt «Zusatzrechte» im Konto (Beta `ferien_freigabe_recht`). */
-  showPermissions?: boolean
+  /** Zusatzrechte, die hier vergeben werden können (leer = kein Abschnitt). */
+  permissionOptions?: string[]
 }
 
-export default function UsersScreen({ actingRole, showPermissions = false }: Props) {
+export default function UsersScreen({ actingRole, permissionOptions = [] }: Props) {
   const isMobile = useIsMobile()
   const [users, setUsers] = useState<AuthUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -90,7 +90,7 @@ export default function UsersScreen({ actingRole, showPermissions = false }: Pro
       <UserDetailScreen
         user={selected}
         actingRole={actingRole}
-        showPermissions={showPermissions}
+        permissionOptions={permissionOptions}
         onClose={() => setSelected(null)}
         onSaved={() => { setSelected(null); load() }}
       />

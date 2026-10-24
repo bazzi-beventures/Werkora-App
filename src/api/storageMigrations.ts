@@ -7,7 +7,7 @@
 
 import { SK } from './storageKeys'
 
-export const APP_DATA_VERSION = 24
+export const APP_DATA_VERSION = 25
 const STORAGE_VERSION_KEY = 'app_data_version'
 
 // Zentrale Whitelist: Keys, die als "aktiv genutzt" gelten. Alles andere
@@ -52,6 +52,9 @@ function isKnownKey(k: string): boolean {
   // Eingeblendete Zusatzspalten der Projektliste, z.B. { termine: true }
   // (docs/specs/projektliste-termine-team.md §2.2).
   if (k === 'projektliste-spalten') return true
+  // Projekte, für die «Projektleiter übernehmen?» nicht mehr kommen soll, pro
+  // Konto (docs/specs/projektleiter-uebernahme.md §3.2). Eingeführt mit v25.
+  if (k.startsWith('pl-frage-aus:')) return true
   // Infrastruktur
   if (k === STORAGE_VERSION_KEY) return true
   if (k === 'app_build_id') return true
@@ -368,7 +371,18 @@ const migration_23_to_24: Migration = {
   },
 }
 
-const MIGRATIONS: Migration[] = [migration_0_to_1, migration_1_to_2, migration_2_to_3, migration_3_to_4, migration_4_to_5, migration_5_to_6, migration_6_to_7, migration_7_to_8, migration_8_to_9, migration_9_to_10, migration_10_to_11, migration_11_to_12, migration_12_to_13, migration_13_to_14, migration_14_to_15, migration_15_to_16, migration_16_to_17, migration_17_to_18, migration_18_to_19, migration_19_to_20, migration_20_to_21, migration_21_to_22, migration_22_to_23, migration_23_to_24]
+// v24 → v25: neuer Key `pl-frage-aus:<userId>` (Projekte, für die die
+// Rückfrage «Projektleiter übernehmen?» nicht mehr kommt). Additiv; der
+// Schritt hält die Versionskette lückenlos, `isKnownKey` kennt den Key.
+const migration_24_to_25: Migration = {
+  from: 24,
+  to: 25,
+  run: () => {
+    // no-op
+  },
+}
+
+const MIGRATIONS: Migration[] = [migration_0_to_1, migration_1_to_2, migration_2_to_3, migration_3_to_4, migration_4_to_5, migration_5_to_6, migration_6_to_7, migration_7_to_8, migration_8_to_9, migration_9_to_10, migration_10_to_11, migration_11_to_12, migration_12_to_13, migration_13_to_14, migration_14_to_15, migration_15_to_16, migration_16_to_17, migration_17_to_18, migration_18_to_19, migration_19_to_20, migration_20_to_21, migration_21_to_22, migration_22_to_23, migration_23_to_24, migration_24_to_25]
 
 function readVersion(): number {
   const raw = localStorage.getItem(STORAGE_VERSION_KEY)

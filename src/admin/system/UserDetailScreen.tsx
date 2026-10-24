@@ -28,22 +28,31 @@ interface Props {
   // Rolle des eingeloggten Benutzers — begrenzt die vergebbaren Rollen und die
   // Gefahrenzone (siehe userRoles.ts, Spiegel der Backend-Matrix).
   actingRole: string
-  /** Abschnitt «Zusatzrechte» zeigen — nur Management/Superadmin mit dem
-   *  Beta-Feature `ferien_freigabe_recht` (docs/specs/ferien-freigabe-recht.md). */
-  showPermissions?: boolean
+  /** Zusatzrechte, die der Handelnde hier vergeben kann — nur Management/Superadmin,
+   *  je Recht nach Feature bzw. Modul (docs/specs/ferien-freigabe-recht.md,
+   *  lieferschein-erfassung.md §3.5). Leer = kein Abschnitt. */
+  permissionOptions?: string[]
   onClose: () => void
   onSaved: () => void
 }
 
-/** Die Zusatzrechte, die man hier vergeben kann. Ein zweites Recht
- *  (`wareneingang`, Lieferschein) ist ein Eintrag mehr. */
-const PERMISSION_OPTIONS: { key: string; label: string; hint: string }[] = [
+/** Die Zusatzrechte, die es gibt. Welche davon hier erscheinen, sagt
+ *  `permissionOptions` (Feature bzw. Modul des Mandanten). */
+const PERMISSION_OPTIONS: { key: string; label: string; hint: string; beta?: boolean }[] = [
   {
     key: 'absence_approve',
     label: 'Ferien freigeben',
     hint: 'Darf Ferien- und Abwesenheitsanträge aller Mitarbeiter genehmigen oder ablehnen — '
       + 'auch ohne Admin-Rolle (dann über die Kachel «Ferienanträge» in der App). '
       + 'Den eigenen Antrag gibt jemand anderes frei.',
+    beta: true,
+  },
+  {
+    key: 'wareneingang',
+    label: 'Wareneingang',
+    hint: 'Darf fotografierte Lieferscheine jedem offenen Projekt zuordnen, nicht nur den eigenen — '
+      + 'für die, die die Ware annehmen und einräumen. Gezeigt werden dabei nur Nummer, Name, '
+      + 'Kunde und Ort des Projekts.',
   },
 ]
 
@@ -63,7 +72,8 @@ function fmtExpiry(iso: string): string {
   })
 }
 
-export default function UserDetailScreen({ user, actingRole, showPermissions = false, onClose, onSaved }: Props) {
+export default function UserDetailScreen({ user, actingRole, permissionOptions = [], onClose, onSaved }: Props) {
+  const visiblePermissions = PERMISSION_OPTIONS.filter(o => permissionOptions.includes(o.key))
   const [email, setEmail] = useState(user.email ?? '')
   const [displayName, setDisplayName] = useState(user.display_name ?? '')
   const [role, setRole] = useState(user.role)
@@ -315,14 +325,14 @@ export default function UserDetailScreen({ user, actingRole, showPermissions = f
               </form>
             </div>
 
-            {showPermissions && (
+            {visiblePermissions.length > 0 && (
               <div className="admin-table-wrap" style={{ padding: 20 }}>
-                <div className="admin-section-title">Zusatzrechte <BetaBadge /></div>
+                <div className="admin-section-title">Zusatzrechte</div>
                 <p style={{ fontSize: 13, color: 'var(--muted)', margin: '10px 0 14px' }}>
                   Rechte neben der Rolle. Sie gelten sofort und werden protokolliert.
                 </p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {PERMISSION_OPTIONS.map(opt => (
+                  {visiblePermissions.map(opt => (
                     <div key={opt.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                       <input
                         type="checkbox"
@@ -333,7 +343,7 @@ export default function UserDetailScreen({ user, actingRole, showPermissions = f
                         style={{ width: 16, height: 16, marginTop: 2, accentColor: 'var(--accent, #3b82f6)', cursor: 'pointer' }}
                       />
                       <label htmlFor={`perm-${opt.key}`} style={{ fontSize: 13.5, cursor: 'pointer' }}>
-                        {opt.label}
+                        {opt.label}{opt.beta && <> <BetaBadge /></>}
                         <div className="admin-form-hint">{opt.hint}</div>
                       </label>
                     </div>

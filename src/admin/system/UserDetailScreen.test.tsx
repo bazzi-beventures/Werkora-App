@@ -88,7 +88,7 @@ describe('UserDetailScreen — Zusatzrechte', () => {
   it('setzt «Ferien freigeben» sofort und mit der ganzen Liste', async () => {
     mockSetPermissions.mockResolvedValue(['absence_approve'])
     const user = userEvent.setup()
-    render(<UserDetailScreen user={USER} actingRole="management" showPermissions onClose={() => {}} onSaved={() => {}} />)
+    render(<UserDetailScreen user={USER} actingRole="management" permissionOptions={['absence_approve']} onClose={() => {}} onSaved={() => {}} />)
 
     const box = screen.getByRole('checkbox', { name: /Ferien freigeben/ })
     expect(box).not.toBeChecked()
@@ -102,9 +102,22 @@ describe('UserDetailScreen — Zusatzrechte', () => {
     mockSetPermissions.mockResolvedValue([])
     const user = userEvent.setup()
     render(<UserDetailScreen user={{ ...USER, permissions: ['absence_approve'] }} actingRole="management"
-      showPermissions onClose={() => {}} onSaved={() => {}} />)
+      permissionOptions={['absence_approve']} onClose={() => {}} onSaved={() => {}} />)
 
     await user.click(screen.getByRole('checkbox', { name: /Ferien freigeben/ }))
     expect(mockSetPermissions).toHaveBeenCalledWith('au-7', [])
+  })
+
+  // docs/specs/lieferschein-erfassung.md §3.5
+  it('zeigt nur die vergebbaren Rechte — «Wareneingang» ohne das Ferien-Feature', async () => {
+    mockSetPermissions.mockResolvedValue(['absence_approve', 'wareneingang'])
+    const user = userEvent.setup()
+    render(<UserDetailScreen user={{ ...USER, permissions: ['absence_approve'] }} actingRole="management"
+      permissionOptions={['wareneingang']} onClose={() => {}} onSaved={() => {}} />)
+
+    expect(screen.queryByRole('checkbox', { name: /Ferien freigeben/ })).toBeNull()
+    await user.click(screen.getByRole('checkbox', { name: /Wareneingang/ }))
+    // Das vorhandene, hier nicht vergebbare Recht geht mit — der Server lässt es stehen.
+    expect(mockSetPermissions).toHaveBeenCalledWith('au-7', ['absence_approve', 'wareneingang'])
   })
 })

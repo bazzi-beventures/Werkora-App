@@ -26,6 +26,8 @@ interface Props {
     tasks?: number
     /** Wünsche & Roadmap: ungelesene Nachrichten plus offene Rückfragen. */
     wishes?: number
+    /** Lieferschein-Eingang: offene, noch keinem Projekt zugeordnete Lieferscheine. */
+    deliveryNotes?: number
   }
 }
 
@@ -123,6 +125,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         )}
         {has('hagelschaden') && (
           <NavItem label="Hagelschaden" target="hagelschaden" current={screen} onNav={onNav} icon={<IconHail />} />
+        )}
+        {has('lieferschein_erfassung') && (
+          <NavItem label="Lieferschein-Eingang" target="delivery-notes" current={screen} onNav={onNav} icon={<IconDocument />} badge={badges?.deliveryNotes} />
         )}
         {has('payment_matching') && (
           <NavItem label="Zahlungsabgleich" target="payment-reconciliation" current={screen} onNav={onNav} icon={<IconCash />} />

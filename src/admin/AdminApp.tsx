@@ -59,6 +59,7 @@ import './mobile.css'
 const CustomersScreen = lazy(() => import('./operative/CustomersScreen'))
 const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
 const HagelschadenScreen = lazy(() => import('./operative/hagelschaden/HagelschadenScreen'))
+const DeliveryNotesScreen = lazy(() => import('./operative/DeliveryNotesScreen'))
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -167,6 +168,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     drafts: dashboard?.pending_drafts ?? 0,
     tasks: dashboard?.my_open_tasks ?? 0,
     wishes: hasModule(user, 'feature_requests') ? wishAttention : 0,
+    deliveryNotes: dashboard?.pending_delivery_notes ?? 0,
   }
 
   const isManagement = isManagementRole(user.role)
@@ -269,6 +271,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'quotes':       return guard('quotes', <QuotesScreen initialStatus={detailId} onConsumed={clearDetail} />)
       case 'invoices':     return guard('invoicing', <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav} />)
+      case 'delivery-notes': return guard('lieferschein_erfassung', (
+        <DeliveryNotesScreen onChanged={loadDashboard} />
+      ))
       case 'hagelschaden': return guard('hagelschaden', (
         <HagelschadenScreen
           userId={user.authorized_user_id}
@@ -305,14 +310,20 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'pricing-rules':return <PricingRulesScreen />
       case 'quote-templates': return <QuoteTemplatesScreen />
       case 'users':        return (
-        // «Zusatzrechte» (docs/specs/ferien-freigabe-recht.md §4): vergeben
-        // nur Management/Superadmin, und nur mit dem Beta-Feature — der
-        // Server lehnt beides sonst ohnehin ab.
+        // «Zusatzrechte» (docs/specs/ferien-freigabe-recht.md §4,
+        // lieferschein-erfassung.md §3.5): vergeben nur Management/Superadmin,
+        // und jedes Recht nur dort, wo es wirkt — «Ferien freigeben» mit dem
+        // Beta-Feature, «Wareneingang» mit dem Modul. Der Server lehnt den
+        // Rest ohnehin ab (services/permissions.py::grantable_permissions).
         <UsersScreen
           actingRole={user.role}
-          showPermissions={
-            isFeatureEnabled(user, 'ferien_freigabe_recht')
-            && (user.role === 'management' || user.role === 'superadmin')
+          permissionOptions={
+            (user.role === 'management' || user.role === 'superadmin')
+              ? [
+                  ...(isFeatureEnabled(user, 'ferien_freigabe_recht') ? ['absence_approve'] : []),
+                  ...(hasModule(user, 'lieferschein_erfassung') ? ['wareneingang'] : []),
+                ]
+              : []
           }
         />
       )

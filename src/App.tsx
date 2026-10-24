@@ -20,6 +20,7 @@ import ProjektEntwurfScreen from './screens/ProjektEntwurfScreen'
 import AbsenzenScreen from './screens/AbsenzenScreen'
 import InventurScreen from './inventur/InventurScreen'
 import FerienantraegeScreen from './screens/FerienantraegeScreen'
+import LieferscheinScreen from './screens/LieferscheinScreen'
 import AdminApp from './admin/AdminApp'
 import { WerkoraMark } from './brand/WerkoraMark'
 import { derivePalette, paletteCss } from './brand/palette'
@@ -32,6 +33,7 @@ import { trackNav } from './shared/breadcrumbs'
 import { hasModule, isFeatureEnabled } from './api/modules'
 import { prefetchOfflinePackage } from './api/offlineStore'
 import { syncOfflineRapporte } from './api/rapportSync'
+import { sendeWartendeLieferscheine } from './api/lieferscheinQueue'
 import type { PendingRapport } from './api/rapportQueue'
 import OfflineRapportScreen from './screens/rapportOffline/OfflineRapportScreen'
 import { applyTheme, loadTheme, useTheme } from './theme'
@@ -49,7 +51,7 @@ declare global {
   }
 }
 
-type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen' | 'inventur' | 'roadmap' | 'ferienantraege'
+type Screen = 'loading' | 'login' | 'pin' | 'consent' | 'home' | 'rapport' | 'rapportOffline' | 'arbeitszeit' | 'profile' | 'bericht' | 'projekte' | 'offerten' | 'projektEntwurf' | 'admin' | 'absenzen' | 'inventur' | 'roadmap' | 'ferienantraege' | 'lieferschein'
 
 // Die Wahl der Schrift auf der Akzentfläche wohnt jetzt in brand/palette.ts,
 // zusammen mit der übrigen Farbableitung. Der Re-Export hält die Funktion an
@@ -202,6 +204,8 @@ export default function App() {
         void syncOfflineRapporte(u.authorized_user_id, {
           enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
         })
+        // Lieferscheine aus dem Funkloch landen im Eingang (lieferschein-erfassung.md §3.4).
+        if (hasModule(u, 'lieferschein_erfassung')) void sendeWartendeLieferscheine(u.authorized_user_id)
       }
     }
     const goOffline = () => setIsOffline(true)
@@ -511,6 +515,8 @@ export default function App() {
           enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
         })
       }
+      // Ausserhalb der Weiche oben: auch `user_light` darf Lieferscheine fotografieren.
+      if (live && hasModule(u, 'lieferschein_erfassung')) void sendeWartendeLieferscheine(u.authorized_user_id)
     }
 
     // Die echte Antwort nach einem Start aus dem Snapshot: Stand ersetzen,
@@ -696,6 +702,18 @@ export default function App() {
         inventur={user.inventur_offen ?? null}
         onNavInventur={() => go('inventur')}
         onNavFerienantraege={showFerienantraege(user) ? () => go('ferienantraege') : undefined}
+        onNavLieferschein={hasModule(user, 'lieferschein_erfassung') ? () => go('lieferschein') : undefined}
+        lieferscheinZuerst={(user.permissions ?? []).includes('wareneingang')}
+      />
+    )
+  } else if (screen === 'lieferschein' && user) {
+    if (!hasModule(user, 'lieferschein_erfassung')) { resetTo('home'); return null }
+    inner = (
+      <LieferscheinScreen
+        userId={user.authorized_user_id}
+        logoUrl={effectiveLogo}
+        onBack={() => go('home')}
+        onLoggedOut={goToAuth}
       />
     )
   } else if (screen === 'ferienantraege' && user) {

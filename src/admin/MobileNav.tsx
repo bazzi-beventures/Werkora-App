@@ -27,6 +27,8 @@ interface Props {
     tasks?: number
     /** Wünsche & Roadmap: ungelesene Nachrichten plus offene Rückfragen. */
     wishes?: number
+    /** Lieferschein-Eingang: offene, noch keinem Projekt zugeordnete Lieferscheine. */
+    deliveryNotes?: number
   }
   /** Die dem Konto zugeteilte offene Zählung. Sie ist zugleich die Berechtigung
    *  und der Einstieg: Der Eintrag erscheint, sobald eine Tranche ihm gehört —
@@ -69,6 +71,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
   const has = (m: ModuleName) => enabledModules.includes(m)
   const isMoreActive = !PRIMARY_TABS.includes(screen)
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
+    || (has('lieferschein_erfassung') && (badges?.deliveryNotes ?? 0) > 0)
     || (has('feature_requests') && (badges?.wishes ?? 0) > 0)
 
   function navigate(target: AdminScreen, detailId?: string) {
@@ -214,6 +217,14 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 {has('hagelschaden') && (
                   <button className={`admin-mobile-drawer-item${screen === 'hagelschaden' ? ' active' : ''}`} onClick={() => navigate('hagelschaden')}>
                     <IconHail /><span>Hagelschaden</span>
+                  </button>
+                )}
+                {has('lieferschein_erfassung') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'delivery-notes' ? ' active' : ''}`} onClick={() => navigate('delivery-notes')}>
+                    <IconDocument /><span>Lieferschein-Eingang</span>
+                    {(badges?.deliveryNotes ?? 0) > 0 && (
+                      <span className="admin-mobile-drawer-item-badge">{badges!.deliveryNotes}</span>
+                    )}
                   </button>
                 )}
                 {has('hr') && (
