@@ -31,6 +31,9 @@ import {
 } from './projekte/taskQueue'
 import { sortProjectsNewestFirst } from './projekte/sortProjects'
 import { filterProjectsBySearch } from './projekte/searchProjects'
+import {
+  countByTab, projectsForTab, REITER_LABELS, type ProjektReiter,
+} from './projekte/projectTabs'
 import { PROJECT_FILE_ACCEPT } from '../shared/projectFileTypes'
 import { FileThumb } from '../shared/FileThumb'
 import { selectBaseName } from '../shared/selectBaseName'
@@ -302,7 +305,16 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
   // hängt nur die Beschriftung daran — "Meine Projekte" und "Du bist keinem Projekt
   // zugewiesen" wären damit schlicht falsch.
   const alleProjekteSichtbar = isFeatureEnabled(user, 'projects_show_all_to_staff')
-  const gefilterteProjekte = filterProjectsBySearch(projects, search)
+  // Reiter «Aktuell» / «Bearbeitet» (projekte/projectTabs.ts). Für jeden Mandanten,
+  // ohne Feature: Vergangenes soll der Monteur wiederfinden — Fotos nachreichen,
+  // Rapport ansehen —, ohne dass es die heutigen Einsätze zuschüttet. Die Suche
+  // läuft über beide Reiter; die Zahlen auf den Reitern zählen die Treffer, damit
+  // ein Projekt im anderen Reiter nicht wie «nicht gefunden» aussieht.
+  const [reiter, setReiter] = useState<ProjektReiter>('aktuell')
+  const suchTreffer = filterProjectsBySearch(projects, search)
+  const trefferJeReiter = countByTab(suchTreffer)
+  const gefilterteProjekte = projectsForTab(suchTreffer, reiter)
+  const andererReiter: ProjektReiter = reiter === 'aktuell' ? 'bearbeitet' : 'aktuell'
   // Ohne Einsatzplanung gibt es keine Termine — dann bleibt es bei den Kacheln,
   // und der Umschalter entfällt ganz (die Route /pwa/schedule/week ist ebenso gated).
   const showWochenplan = hasModule(user, 'scheduling')
@@ -1899,6 +1911,24 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
           der Fall, in dem man sie braucht. Bewusst ohne Mindest-Listenlänge: ein
           Feld, das mal da ist und mal nicht, sucht man beim nächsten Mal zuerst. */}
       {viewMode === 'grid' && !loading && projects.length > 0 && (
+        <div className="projekte-reiter" role="tablist" aria-label="Projekte filtern">
+          {(['aktuell', 'bearbeitet'] as const).map(r => (
+            <button
+              key={r}
+              type="button"
+              role="tab"
+              aria-selected={reiter === r}
+              className={`projekte-reiter-btn ${reiter === r ? 'active' : ''}`}
+              onClick={() => setReiter(r)}
+            >
+              {REITER_LABELS[r]}
+              <span className="projekte-reiter-zahl">{trefferJeReiter[r]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {viewMode === 'grid' && !loading && projects.length > 0 && (
         <div className="projekte-suche">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
             <circle cx="7" cy="7" r="4.5"/>
@@ -1961,18 +1991,34 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
         )}
 
         {/* Treffer-Null ist nicht dasselbe wie Liste-leer: hier hilft kein
-            "erneut versuchen", sondern ein anderer Suchbegriff. */}
+            "erneut versuchen", sondern ein anderer Suchbegriff — oder der andere
+            Reiter, wenn das Projekt dort steht. */}
         {!loading && listError === null && projects.length > 0 && gefilterteProjekte.length === 0 && (
           <div className="projekte-empty">
-            Kein Projekt gefunden für «{search.trim()}».
-            <div style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="projekte-kontakt-link-btn"
-                onClick={() => setSearch('')}
-              >
-                Suche zurücksetzen
-              </button>
+            {search.trim() !== ''
+              ? <>Kein Projekt gefunden für «{search.trim()}» unter «{REITER_LABELS[reiter]}».</>
+              : reiter === 'aktuell'
+                ? 'Zurzeit hast du keine aktuellen Einsätze.'
+                : 'Noch keine bearbeiteten offenen Projekte.'}
+            <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              {trefferJeReiter[andererReiter] > 0 && (
+                <button
+                  type="button"
+                  className="projekte-kontakt-link-btn"
+                  onClick={() => setReiter(andererReiter)}
+                >
+                  {trefferJeReiter[andererReiter]} unter «{REITER_LABELS[andererReiter]}» zeigen
+                </button>
+              )}
+              {search.trim() !== '' && (
+                <button
+                  type="button"
+                  className="projekte-kontakt-link-btn"
+                  onClick={() => setSearch('')}
+                >
+                  Suche zurücksetzen
+                </button>
+              )}
             </div>
           </div>
         )}

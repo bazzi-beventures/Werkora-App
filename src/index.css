@@ -1653,6 +1653,50 @@ input, textarea { font-family: var(--font); color: var(--text); }
   -webkit-appearance: none;
   appearance: none;
 }
+/* Reiter «Aktuell» / «Bearbeitet» über der Kachelliste (projekte/projectTabs.ts).
+   Unterstrichen statt als Pille: der Kacheln/Wochenplan-Umschalter darüber wechselt
+   die Darstellung, diese Reiter die Auswahl — zwei Bedienelemente, die nicht gleich
+   aussehen sollen. */
+.projekte-reiter {
+  display: flex;
+  margin: 8px 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.projekte-reiter-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.projekte-reiter-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.projekte-reiter-zahl {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+}
+.projekte-reiter-btn.active .projekte-reiter-zahl {
+  background: var(--accent);
+  color: #fff;
+}
+
 .projekte-suche-clear {
   flex-shrink: 0;
   border: none;

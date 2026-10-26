@@ -168,4 +168,8 @@ export interface MonteurProject {
   // Server-seitig aus projektleiter_id aufgelöst — wen der Monteur bei Rückfragen
   // anruft. Null/fehlend, wenn dem Projekt kein Projektleiter zugewiesen ist.
   projektleiter_name?: string | null
+  // Reiter «Bearbeitet» statt «Aktuell» (screens/projekte/projectTabs.ts): erledigt
+  // oder mit eigenen Stunden, aber gerade nicht eingeplant. Fehlt in Offline-
+  // Snapshots von vor 20261026 — dann gilt das Projekt als aktuell.
+  bearbeitet?: boolean
 }
