@@ -16,6 +16,7 @@ vi.mock('../api/lieferscheine', () => ({
   assignLieferschein: (...a: unknown[]) => assignLieferschein(...a),
   listMeineLieferscheine: () => listMeineLieferscheine(),
   searchLieferscheinProjekte: (q: string) => searchLieferscheinProjekte(q),
+  lieferscheinBildUrl: (id: string) => `/pwa/lieferscheine/${id}/image`,
 }))
 
 const enqueueLieferschein = vi.fn()
@@ -35,7 +36,7 @@ const P2: LieferscheinProjekt = { project_id: 'p2', number: '2600600', name: 'Da
 
 beforeEach(() => {
   uploadLieferschein.mockReset().mockResolvedValue({
-    inbox_id: 'e1', entry: {}, candidates: [P1], recent: [P2],
+    inbox_id: 'e1', entry: { mime_type: 'image/jpeg' }, candidates: [P1],
   })
   assignLieferschein.mockReset().mockResolvedValue({ status: 'ok', project: P1 })
   listMeineLieferscheine.mockReset().mockResolvedValue([])
@@ -73,9 +74,11 @@ describe('LieferscheinScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Senden' }))
     expect(uploadLieferschein).toHaveBeenCalledWith(file, 'ls.jpg')
 
-    // Vorschlag zuoberst und markiert, darunter die eigenen Projekte.
+    // Vorschlag markiert; sonst keine Projekte, bis gesucht wird.
     expect(await screen.findByText('auf dem Lieferschein gefunden')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /2600600 Dach Huber/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /2600600 Dach Huber/ })).toBeNull()
+    // Das Foto steht beim Zuordnen dabei — vom Server, nicht die Vorschau.
+    expect(screen.getByAltText('Foto des Lieferscheins').getAttribute('src')).toBe('/pwa/lieferscheine/e1/image')
     // Nichts wird ohne Tippen zugeordnet.
     expect(assignLieferschein).not.toHaveBeenCalled()
 
@@ -114,6 +117,51 @@ describe('LieferscheinScreen', () => {
     expect(screen.getByRole('button', { name: 'Senden' })).toBeTruthy()
   })
 
+  it('Suchfeld steht über den Vorschlägen und zeigt erst nach Eingabe Projekte', async () => {
+    uploadLieferschein.mockResolvedValue({ inbox_id: 'e1', entry: { mime_type: 'image/jpeg' }, candidates: [] })
+    searchLieferscheinProjekte.mockResolvedValue([P2])
+    const user = userEvent.setup()
+    render(<LieferscheinScreen userId="u1" onBack={vi.fn()} onLoggedOut={vi.fn()} />)
+    waehleFoto()
+    await user.click(screen.getByRole('button', { name: 'Senden' }))
+    const suche = await screen.findByRole('searchbox')
+    expect(screen.getByText(/keine Projektnummer erkannt/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Dach Huber/ })).toBeNull()
+    expect(searchLieferscheinProjekte).not.toHaveBeenCalled()
+
+    await user.type(suche, 'Hub')
+    expect(await screen.findByRole('button', { name: /2600600 Dach Huber/ })).toBeTruthy()
+    expect(searchLieferscheinProjekte).toHaveBeenCalledWith('Hub')
+  })
+
+  it('zeigt beim Zuordnen, dass es läuft', async () => {
+    let fertig: (v: unknown) => void = () => {}
+    assignLieferschein.mockReturnValue(new Promise(r => { fertig = r }))
+    const user = userEvent.setup()
+    render(<LieferscheinScreen userId="u1" onBack={vi.fn()} onLoggedOut={vi.fn()} />)
+    waehleFoto()
+    await user.click(screen.getByRole('button', { name: 'Senden' }))
+    await user.click(await screen.findByRole('button', { name: /2600515 Bad Muster/ }))
+    expect(screen.getByText('Wird zugeordnet…')).toBeTruthy()
+    expect((screen.getByRole('button', { name: /ans Büro/ }) as HTMLButtonElement).disabled).toBe(true)
+    fertig({ status: 'ok', project: P1 })
+    expect(await screen.findByText(/Liegt jetzt bei/)).toBeTruthy()
+  })
+
+  it('zugeordnete Lieferscheine zeigen beim Antippen das Foto', async () => {
+    listMeineLieferscheine.mockResolvedValue([{
+      id: 'e7', status: 'zugeordnet', created_at: '2026-10-26T19:50:00Z', filename: 'a.jpg', mime_type: 'image/jpeg',
+      uploaded_by_name: 'Ich', candidates: [], assigned_project: P1, assigned_at: null, assigned_by_name: null,
+    }])
+    const user = userEvent.setup()
+    render(<LieferscheinScreen userId="u1" onBack={vi.fn()} onLoggedOut={vi.fn()} />)
+    await user.click(await screen.findByRole('button', { name: /2600515 Bad Muster/ }))
+    const bild = screen.getByRole('img', { name: /Lieferschein vom/ })
+    expect(bild.getAttribute('src')).toBe('/pwa/lieferscheine/e7/image')
+    await user.click(screen.getByRole('button', { name: 'Zurück' }))
+    expect(screen.getByText('Meine Lieferscheine')).toBeTruthy()
+  })
+
   it('offene eigene Lieferscheine lassen sich später zuordnen', async () => {
     listMeineLieferscheine.mockResolvedValue([{
       id: 'e9', status: 'offen', created_at: '2026-10-24T07:00:00Z', filename: 'a.jpg', mime_type: 'image/jpeg',
@@ -122,6 +170,7 @@ describe('LieferscheinScreen', () => {
     const user = userEvent.setup()
     render(<LieferscheinScreen userId="u1" onBack={vi.fn()} onLoggedOut={vi.fn()} />)
     await user.click(await screen.findByRole('button', { name: /Noch ohne Projekt/ }))
+    expect(screen.getByAltText('Foto des Lieferscheins').getAttribute('src')).toBe('/pwa/lieferscheine/e9/image')
     await user.click(screen.getByRole('button', { name: /2600515 Bad Muster/ }))
     await waitFor(() => expect(assignLieferschein).toHaveBeenCalledWith('e9', 'p1'))
   })

@@ -35,8 +35,6 @@ export interface UploadLieferscheinResult {
   entry: LieferscheinEintrag
   /** Auf dem Lieferschein gefundene, existierende Projekte (OCR). */
   candidates: LieferscheinProjekt[]
-  /** Offene Projekte, in denen ich selbst stehe — Abkürzung vor der Suche. */
-  recent: LieferscheinProjekt[]
 }
 
 export async function uploadLieferschein(file: Blob, filename = 'lieferschein.jpg'): Promise<UploadLieferscheinResult> {

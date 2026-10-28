@@ -61,11 +61,13 @@ export async function sendQuoteThankyou(
  * zweite Mail aus.
  */
 export async function sendQuoteOrderConfirmation(
-  quoteId: number | string, recipientEmail: string, resend = false,
+  quoteId: number | string, recipientEmail: string, resend = false, ccRecipients: string[] = [],
 ): Promise<{ message?: string }> {
+  // `cc_recipients` nur, wenn es welche gibt — der Body ohne CC bleibt wie bisher.
+  const cc = ccRecipients.map(a => a.trim()).filter(Boolean)
   return apiFetch<{ message?: string }>(`/pwa/admin/quotes/${quoteId}/send-order-confirmation`, {
     method: 'POST',
-    body: JSON.stringify({ recipient_email: recipientEmail, resend }),
+    body: JSON.stringify({ recipient_email: recipientEmail, resend, ...(cc.length ? { cc_recipients: cc } : {}) }),
   })
 }
 
@@ -152,6 +154,8 @@ export interface Quote {
   id: number
   quote_number: string
   project_name: string
+  /** Null bei einer freistehenden Offerte ohne Projekt. */
+  project_id?: string | null
   total_amount: number
   status: string
   created_at: string

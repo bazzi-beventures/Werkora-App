@@ -4,6 +4,7 @@ import { getQuoteSendAttachments, getQuoteSendGroup, sendQuote } from '../../api
 import type { QuoteSendGroupMember, SendAttachmentsInfo } from '../../api/admin/quotes'
 import { uploadProjectFile } from '../../api/admin/projects'
 import { backdropCloseProps } from '../../shared/backdropClose'
+import { EmailRow } from './EmailRow'
 import { fmtCHF } from '../utils/format'
 
 interface Props {
@@ -17,46 +18,6 @@ interface Props {
 const EMPTY_INFO: SendAttachmentsInfo = {
   enabled: false, fotos_enabled: false, project_id: null,
   projekt_anhaenge: [], vorlagen: [], projekt_fotos: [],
-}
-
-// Eine Adress-Zeile unter dem Standard-Empfänger: Eingabefeld + Entfernen-Knopf.
-// `prefix` markiert CC-Zeilen sichtbar, damit man sie in der Liste nicht mit einem
-// weiteren Haupt-Empfänger verwechselt.
-function EmailRow({ value, label, prefix, disabled, onChange, onRemove }: {
-  value: string
-  label: string
-  prefix?: string
-  disabled: boolean
-  onChange: (v: string) => void
-  onRemove: () => void
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-      {prefix && (
-        <span style={{ fontSize: 12, color: 'var(--muted)', width: 24, flexShrink: 0 }}>{prefix}</span>
-      )}
-      <input
-        className="admin-form-input"
-        style={{ flex: 1, minWidth: 0 }}
-        type="email"
-        value={value}
-        aria-label={label}
-        placeholder="weitere@example.com"
-        disabled={disabled}
-        onChange={e => onChange(e.target.value)}
-      />
-      <button
-        type="button"
-        className="admin-btn admin-btn-danger admin-btn-sm"
-        title="Entfernen"
-        aria-label={`${label} entfernen`}
-        disabled={disabled}
-        onClick={onRemove}
-      >
-        ✕
-      </button>
-    </div>
-  )
 }
 
 // Gemeinsamer Versand-Dialog für Offerten (Offerten-Liste + Projekt-Detail) mit

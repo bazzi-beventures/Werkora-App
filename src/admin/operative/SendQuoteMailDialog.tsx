@@ -4,6 +4,7 @@ import {
 } from '../../api/admin/quotes'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { fmtDate } from '../utils/format'
+import { EmailRow } from './EmailRow'
 
 interface BaseProps {
   quoteId: number
@@ -19,7 +20,12 @@ interface Props extends BaseProps {
   /** Optionaler Hinweis unter dem Empfängerfeld (z.B. welches Dokument mitgeht). */
   note?: string
   fallbackMessage: (email: string) => string
-  send: (quoteId: number, email: string) => Promise<{ message?: string }>
+  send: (quoteId: number, email: string, cc: string[]) => Promise<{ message?: string }>
+  /**
+   * Blendet «+ CC» ein (Verwaltung, Bauleitung mitlesen lassen). Nur wo der Server
+   * die Adressen auch mitschickt — die Auftragsbestätigung, nicht die Danke-Mail.
+   */
+  withCc?: boolean
   /**
    * Optionaler zweiter Weg ohne Mail (z.B. «Nur PDF erstellen»). Braucht keine
    * Empfänger-Adresse; die zurückgegebene Meldung geht wie beim Versand an `onSent`.
@@ -35,9 +41,11 @@ interface Props extends BaseProps {
 // Die beiden Mails unterscheiden sich nur in Beschriftung und Endpoint; der Ablauf
 // (Adresse prüfen, senden, Backend-Fehler im Dialog zeigen, offen bleiben) ist derselbe.
 export function SendQuoteMailDialog(
-  { quoteId, header, defaultEmail, onClose, onSent, title, sendLabel, note, fallbackMessage, send, altAction }: Props,
+  { quoteId, header, defaultEmail, onClose, onSent, title, sendLabel, note, fallbackMessage, send, altAction, withCc }: Props,
 ) {
   const [email, setEmail] = useState(defaultEmail ?? '')
+  // Leer, bis jemand auf «+ CC» klickt; leere Zeilen filtert der API-Aufruf weg.
+  const [ccEmails, setCcEmails] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [runningAlt, setRunningAlt] = useState(false)
   const [error, setError] = useState('')
@@ -48,7 +56,7 @@ export function SendQuoteMailDialog(
     setSending(true)
     setError('')
     try {
-      const res = await send(quoteId, email)
+      const res = await send(quoteId, email, ccEmails)
       onSent(res.message || fallbackMessage(email))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Versand fehlgeschlagen')
@@ -83,6 +91,31 @@ export function SendQuoteMailDialog(
             onChange={e => setEmail(e.target.value)}
             placeholder="kunde@example.com"
           />
+          {withCc && (
+            <>
+              {ccEmails.map((v, i) => (
+                <EmailRow
+                  key={`cc-${i}`}
+                  value={v}
+                  label={`CC ${i + 1}`}
+                  prefix="CC"
+                  disabled={busy}
+                  onChange={next => setCcEmails(prev => prev.map((x, j) => (j === i ? next : x)))}
+                  onRemove={() => setCcEmails(prev => prev.filter((_, j) => j !== i))}
+                />
+              ))}
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-secondary admin-btn-sm"
+                  disabled={busy}
+                  onClick={() => setCcEmails(prev => [...prev, ''])}
+                >
+                  + CC
+                </button>
+              </div>
+            </>
+          )}
           {note && (
             <div style={{ marginTop: 6, fontSize: 12, color: 'var(--muted)' }}>{note}</div>
           )}
@@ -147,7 +180,8 @@ export function SendOrderConfirmationDialog({ alreadySentAt, ...props }: BasePro
         ? `Bereits gesendet am ${fmtDate(alreadySentAt)}. Der Kunde erhält dasselbe Dokument noch einmal; die Ablage beim Projekt wird überschrieben statt verdoppelt.`
         : 'Das Dokument «Auftragsbestätigung» (Inhalt der Offerte) geht als PDF mit und wird beim Projekt unter «Offerten» abgelegt. «Nur PDF erstellen» lädt es herunter, ohne etwas zu senden.'}
       fallbackMessage={email => `Auftragsbestätigung an ${email} gesendet`}
-      send={(quoteId, email) => sendQuoteOrderConfirmation(quoteId, email, isResend)}
+      send={(quoteId, email, cc) => sendQuoteOrderConfirmation(quoteId, email, isResend, cc)}
+      withCc
       altAction={{
         label: 'Nur PDF erstellen',
         busyLabel: 'Wird erstellt…',

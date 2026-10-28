@@ -118,3 +118,41 @@ describe('QuotesScreen — Offerte per Klick öffnen', () => {
     expect(getQuoteDetail).not.toHaveBeenCalled()
   })
 })
+
+// WW-41: aus der Offerte direkt ins Projekt, statt in den Projekten nach dem Namen
+// zu suchen. Der Link ist ein Knopf in der Zeile — er darf die Offerte nicht
+// zusätzlich öffnen, und ohne project_id (freistehende Offerte) gibt es ihn nicht.
+describe('QuotesScreen — Sprung ins Projekt', () => {
+  it('öffnet das Projekt über den Projektnamen, nicht die Offerte', async () => {
+    listQuotes.mockResolvedValue([quote({ project_id: 'p-42' })])
+    const onOpenProject = vi.fn()
+    const user = userEvent.setup()
+    render(<QuotesScreen onOpenProject={onOpenProject} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Bollmann Seuzach HS' }))
+
+    expect(onOpenProject).toHaveBeenCalledWith('p-42')
+    expect(getQuoteDetail).not.toHaveBeenCalled()
+  })
+
+  it('auch am Handy, ohne die Karte zu öffnen', async () => {
+    mobile = true
+    listQuotes.mockResolvedValue([quote({ project_id: 'p-42' })])
+    const onOpenProject = vi.fn()
+    const user = userEvent.setup()
+    render(<QuotesScreen onOpenProject={onOpenProject} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Bollmann Seuzach HS' }))
+
+    expect(onOpenProject).toHaveBeenCalledWith('p-42')
+    expect(getQuoteDetail).not.toHaveBeenCalled()
+  })
+
+  it('ohne Projekt bleibt der Name reiner Text', async () => {
+    listQuotes.mockResolvedValue([quote({ project_id: null })])
+    render(<QuotesScreen onOpenProject={vi.fn()} />)
+    await screen.findByText('Bollmann Seuzach HS')
+
+    expect(screen.queryByRole('button', { name: 'Bollmann Seuzach HS' })).toBeNull()
+  })
+})

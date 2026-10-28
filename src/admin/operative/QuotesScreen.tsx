@@ -29,9 +29,32 @@ const STATUS_LABELS = QUOTE_STATUS_LABELS
 interface QuotesScreenProps {
   initialStatus?: string | null
   onConsumed?: () => void
+  /** Sprung ins Projekt der Offerte (WW-41) — sonst hiess es: raus aus den
+   *  Offerten, in die Projekte, nach dem Namen suchen. */
+  onOpenProject?: (projectId: string) => void
 }
 
-export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreenProps = {}) {
+// Projektname als Link ins Projekt. Nur mit `project_id`: eine freistehende Offerte
+// hat kein Projekt, und ein Sprung über den Namen träfe bei zwei gleichnamigen
+// Liegenschaften die falsche.
+function ProjectName({ quote: q, onOpenProject }: { quote: Quote; onOpenProject?: (projectId: string) => void }) {
+  if (!q.project_id || !onOpenProject) return <strong>{q.project_name}</strong>
+  const projectId = q.project_id
+  return (
+    <button
+      type="button"
+      className="admin-link-btn"
+      style={{ padding: 0, background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', font: 'inherit', fontWeight: 700, textAlign: 'left' }}
+      title="Projekt öffnen"
+      // Zeile bzw. Karte öffnen beim Klick die Offerte — der Link darf das nicht auch noch.
+      onClick={e => { e.stopPropagation(); onOpenProject(projectId) }}
+    >
+      {q.project_name}
+    </button>
+  )
+}
+
+export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject }: QuotesScreenProps = {}) {
   const isMobile = useIsMobile()
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [loading, setLoading] = useState(true)
@@ -273,7 +296,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                   <span className="admin-card-title" style={{ fontFamily: 'var(--mono)', fontSize: 13 }}>{q.quote_number}</span>
                   <QuoteStatusCell quote={q} flags={flags} />
                 </div>
-                <div className="admin-card-meta"><strong>{q.project_name}</strong></div>
+                <div className="admin-card-meta"><ProjectName quote={q} onOpenProject={onOpenProject} /></div>
                 <div className="admin-card-meta">
                   {q.customer_name ? `${q.customer_name} · ` : ''}{fmtCHF(q.total_amount)} · erstellt {fmtDate(q.created_at)}
                   {projektleiterName(q) ? ` · ${projektleiterName(q)}` : ''}
@@ -318,7 +341,7 @@ export default function QuotesScreen({ initialStatus, onConsumed }: QuotesScreen
                   style={openable ? { cursor: 'pointer' } : undefined}
                 >
                   <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{q.quote_number}</td>
-                  <td><strong>{q.project_name}</strong></td>
+                  <td><ProjectName quote={q} onOpenProject={onOpenProject} /></td>
                   <td style={{ color: 'var(--muted)' }}>{q.customer_name || '—'}</td>
                   <td style={{ color: 'var(--muted)' }}>{projektleiterName(q) || '—'}</td>
                   <td style={{ fontWeight: 700 }}>{fmtCHF(q.total_amount)}</td>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ApiError, isNetworkError } from '../api/client'
 import {
   assignLieferschein,
+  lieferscheinBildUrl,
   listMeineLieferscheine,
   uploadLieferschein,
   type LieferscheinEintrag,
@@ -21,6 +22,10 @@ import { useOnline } from '../shared/useOnline'
  *
  * Ohne Netz (§3.4) geht das Foto in den Puffer (`lieferscheinQueue.ts`) und wird
  * gesendet, sobald wieder Netz da ist — dann ohne Zuordnung, also in den Eingang.
+ *
+ * Beim Zuordnen und unter «Meine Lieferscheine» steht das Foto selbst dabei:
+ * wer später einen offenen Eintrag antippt, muss sehen, welcher Lieferschein es
+ * war (Rückmeldung 2026-10-26).
  */
 
 interface Props {
@@ -33,7 +38,8 @@ interface Props {
 type Schritt =
   | { art: 'start' }
   | { art: 'vorschau'; file: File; url: string }
-  | { art: 'zuordnen'; entryId: string; candidates: LieferscheinProjekt[]; recent: LieferscheinProjekt[] }
+  | { art: 'zuordnen'; entryId: string; mime: string | null; candidates: LieferscheinProjekt[] }
+  | { art: 'ansehen'; eintrag: LieferscheinEintrag }
   | { art: 'fertig'; projekt: LieferscheinProjekt | null }
   | { art: 'gepuffert' }
 
@@ -49,6 +55,43 @@ const FEHLER: Record<number, string> = {
   404: 'Diesen Lieferschein oder dieses Projekt gibt es nicht (mehr).',
   409: 'Dieser Lieferschein ist schon zugeordnet.',
   429: 'Gerade sehr viele Lieferscheine auf einmal. Bitte in ein paar Minuten erneut senden.',
+}
+
+/** Das Foto eines Eintrags vom Server — mit sichtbarem Laden und Fehler. */
+function LieferscheinBild({ entryId, mime, alt }: { entryId: string; mime: string | null; alt: string }) {
+  const [stand, setStand] = useState<'laedt' | 'da' | 'fehler'>('laedt')
+  const url = lieferscheinBildUrl(entryId)
+  if (mime === 'application/pdf') {
+    return (
+      <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: 14 }}>
+        PDF öffnen
+      </a>
+    )
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" title="In voller Grösse öffnen"
+       style={{ display: 'block', position: 'relative' }}>
+      {stand === 'laedt' && (
+        <div style={{ fontSize: 13, color: 'var(--muted)', padding: '8px 0' }}>Foto wird geladen…</div>
+      )}
+      {stand === 'fehler' && (
+        <div role="alert" style={{ fontSize: 13, color: 'var(--accent-red, #ef4444)', padding: '8px 0' }}>
+          Das Foto konnte nicht geladen werden.
+        </div>
+      )}
+      <img
+        src={url}
+        alt={alt}
+        onLoad={() => setStand('da')}
+        onError={() => setStand('fehler')}
+        style={{
+          display: stand === 'fehler' ? 'none' : 'block',
+          width: '100%', maxHeight: '40vh', objectFit: 'contain', borderRadius: 8,
+          border: '1px solid var(--border, #e5e7eb)',
+        }}
+      />
+    </a>
+  )
 }
 
 function fmtWhen(iso: string): string {
@@ -131,7 +174,7 @@ export default function LieferscheinScreen({ userId, logoUrl, onBack, onLoggedOu
     try {
       if (!online) { await puffern(file); return }
       const res = await uploadLieferschein(file, file.name || 'lieferschein.jpg')
-      setSchritt({ art: 'zuordnen', entryId: res.inbox_id, candidates: res.candidates, recent: res.recent })
+      setSchritt({ art: 'zuordnen', entryId: res.inbox_id, mime: res.entry?.mime_type ?? file.type ?? null, candidates: res.candidates })
       void ladeMeine()
     } catch (err) {
       // Funkloch zwischen Antippen und Antwort: nicht scheitern, sondern puffern.
@@ -227,15 +270,34 @@ export default function LieferscheinScreen({ userId, logoUrl, onBack, onLoggedOu
             <div style={{ fontSize: 14 }}>
               Gesendet. <strong>Zu welchem Projekt gehört der Lieferschein?</strong>
             </div>
+            <LieferscheinBild entryId={schritt.entryId} mime={schritt.mime} alt="Foto des Lieferscheins" />
             <LieferscheinProjektAuswahl
               candidates={schritt.candidates}
-              recent={schritt.recent}
               busy={busy}
               onPick={p => void zuordnen(schritt.entryId, p)}
             />
             <button className="btn-secondary" disabled={busy}
                     onClick={() => setSchritt({ art: 'fertig', projekt: null })}>
               Weiss nicht → ans Büro
+            </button>
+          </>
+        )}
+
+        {schritt.art === 'ansehen' && (
+          <>
+            <div style={{ fontSize: 14.5 }}>
+              {schritt.eintrag.assigned_project
+                ? <>Liegt bei <strong>{schritt.eintrag.assigned_project.number} {schritt.eintrag.assigned_project.name}</strong>.</>
+                : 'Zugeordnet.'}
+              <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
+                Fotografiert {fmtWhen(schritt.eintrag.created_at)}
+              </div>
+            </div>
+            <LieferscheinBild entryId={schritt.eintrag.id} mime={schritt.eintrag.mime_type}
+                              alt={`Lieferschein vom ${fmtWhen(schritt.eintrag.created_at)}`} />
+            <button className="btn-secondary" style={{ marginTop: 0 }}
+                    onClick={() => setSchritt({ art: 'start' })}>
+              Zurück
             </button>
           </>
         )}
@@ -276,18 +338,20 @@ export default function LieferscheinScreen({ userId, logoUrl, onBack, onLoggedOu
             {offene.map(e => (
               <button key={e.id} type="button" className="menu-item"
                       style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, textAlign: 'left' }}
-                      onClick={() => setSchritt({ art: 'zuordnen', entryId: e.id, candidates: e.candidates, recent: [] })}>
+                      onClick={() => setSchritt({ art: 'zuordnen', entryId: e.id, mime: e.mime_type, candidates: e.candidates })}>
                 <span style={{ fontWeight: 600 }}>Noch ohne Projekt · {fmtWhen(e.created_at)}</span>
                 <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Antippen, um ein Projekt zu wählen</span>
               </button>
             ))}
             {erledigte.map(e => (
-              <div key={e.id} className="menu-item" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2 }}>
+              <button key={e.id} type="button" className="menu-item"
+                      style={{ flexDirection: 'column', alignItems: 'stretch', gap: 2, textAlign: 'left' }}
+                      onClick={() => { setError(null); setSchritt({ art: 'ansehen', eintrag: e }) }}>
                 <span style={{ fontWeight: 600 }}>
                   {e.assigned_project ? `${e.assigned_project.number} ${e.assigned_project.name}` : 'Zugeordnet'}
                 </span>
-                <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{fmtWhen(e.created_at)}</span>
-              </div>
+                <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{fmtWhen(e.created_at)} · Foto ansehen</span>
+              </button>
             ))}
           </div>
         )}

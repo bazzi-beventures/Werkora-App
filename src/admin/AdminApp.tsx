@@ -245,8 +245,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           onOpenCustomer={id => guardedNav('customers', id)}
           // Doppelklick in der Einsatzplanung → Maske → Zurück landet wieder
           // in der Planung (einsatzplanung-rueckmeldungen-2026-10.md §2).
-          onReturnFromJump={previous?.screen === 'project-schedule'
-            ? () => guardedNav('project-schedule') : undefined}
+          // Dasselbe für den Projekt-Link in der Offerten-Liste (WW-41).
+          onReturnFromJump={previous?.screen === 'project-schedule' || previous?.screen === 'quotes'
+            ? () => guardedNav(previous.screen) : undefined}
           // Gegenrichtung: Kachel «Termine» → Einsatzplanung auf der Woche des
           // Termins. Das Datum geht über die gemerkte Ansicht der Planung
           // (scheduleViewState.ts), nicht über einen weiteren Nav-Parameter.
@@ -269,7 +270,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           onConsumedCustomerId={clearDetail}
         />
       )
-      case 'quotes':       return guard('quotes', <QuotesScreen initialStatus={detailId} onConsumed={clearDetail} />)
+      case 'quotes':       return guard('quotes', (
+        <QuotesScreen initialStatus={detailId} onConsumed={clearDetail}
+          onOpenProject={id => guardedNav('projects', id)} />
+      ))
       case 'invoices':     return guard('invoicing', <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav} />)
       case 'delivery-notes': return guard('lieferschein_erfassung', (
         <DeliveryNotesScreen onChanged={loadDashboard} />

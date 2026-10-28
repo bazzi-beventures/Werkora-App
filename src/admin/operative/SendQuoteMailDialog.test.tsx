@@ -117,6 +117,30 @@ describe('SendOrderConfirmationDialog', () => {
       .toEqual({ recipient_email: 'kunde@example.ch', resend: false })
   })
 
+  // WW-42: Verwaltung/Bauleitung mitlesen lassen. Leere CC-Zeilen fallen weg, damit
+  // ein «+ CC» ohne Eintrag nicht als Adresse beim Server ankommt.
+  it('schickt CC-Adressen mit, leere Zeilen nicht', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockResolvedValue({ status: 'ok', message: 'gesendet' })
+    const onSent = renderOrderConfirmation()
+
+    await user.click(screen.getByRole('button', { name: '+ CC' }))
+    await user.click(screen.getByRole('button', { name: '+ CC' }))
+    await user.type(screen.getByRole('textbox', { name: 'CC 1' }), 'bauleitung@example.ch')
+    await user.click(screen.getByRole('button', { name: 'Auftragsbestätigung senden' }))
+
+    await waitFor(() => expect(onSent).toHaveBeenCalled())
+    const call = mockFetch.mock.calls.find(c => c[0] === '/pwa/admin/quotes/7/send-order-confirmation')!
+    expect(JSON.parse((call[1] as RequestInit).body as string)).toEqual({
+      recipient_email: 'kunde@example.ch', resend: false, cc_recipients: ['bauleitung@example.ch'],
+    })
+  })
+
+  it('bietet bei der Danke-Mail kein CC an', () => {
+    renderDialog()
+    expect(screen.queryByRole('button', { name: '+ CC' })).not.toBeInTheDocument()
+  })
+
   it('zeigt den Backend-Fehler an und bleibt offen', async () => {
     const user = userEvent.setup()
     mockFetch.mockRejectedValue(new Error('Auftragsbestätigung wurde für diese Offerte bereits versendet.'))

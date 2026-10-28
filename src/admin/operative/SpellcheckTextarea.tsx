@@ -1,11 +1,17 @@
 import { useState, type ReactNode } from 'react'
 import { checkSpelling, composeQuoteDescription } from '../../api/admin/spellcheck'
+import { AutoGrowTextarea } from '../components/AutoGrowTextarea'
 
 interface Props {
   value: string
   onChange: (v: string) => void
   placeholder?: string
+  /** Mindesthöhe in Zeilen — darunter schrumpft das Feld nicht. */
   rows?: number
+  /** Ab hier wächst das Feld nicht weiter mit, der Inhalt scrollt. Grosszügig,
+   *  weil eine Produktbeschreibung schnell zehn Zeilen hat und man sie beim
+   *  Prüfen am Stück sehen will, nicht durch ein Guckloch. */
+  maxRows?: number
   /** Zweiter Knopf «Beschreibung formulieren»: macht aus den Stichworten den
    *  Fliesstext, der in die Offerte kommt. Nur dort sinnvoll, wo der Inhalt des
    *  Felds am Ende beim Kunden landet — deshalb ein Schalter und kein Default. */
@@ -56,7 +62,7 @@ const SUGGESTION_TITLE: Record<SuggestionKind, string> = {
  * Beide zeigen ihren Vorschlag im selben Popup und übernehmen ihn erst nach
  * Bestätigung — was beim Kunden landet, entsteht nie ungesehen.
  */
-export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, compose = false }: Props) {
+export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, maxRows = 30, compose = false }: Props) {
   const [busy, setBusy] = useState<SuggestionKind | null>(null)
   const [error, setError] = useState('')
   const [noErrors, setNoErrors] = useState(false)
@@ -99,10 +105,10 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, com
 
   return (
     <div>
-      <textarea
+      <AutoGrowTextarea
         className="admin-form-input"
-        rows={rows}
-        style={{ resize: 'vertical', minHeight: 100 }}
+        minRows={rows}
+        maxRows={maxRows}
         value={value}
         onChange={e => { onChange(e.target.value); setNoErrors(false) }}
         placeholder={placeholder}
