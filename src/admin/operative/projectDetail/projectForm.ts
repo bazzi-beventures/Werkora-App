@@ -1,4 +1,4 @@
-import type { Kontakt, Eigentuemer, Project, DisposalDetails } from '../../../api/admin/projects'
+import type { Kontakt, Eigentuemer, Project, DisposalDetails, RechnungsReferenz } from '../../../api/admin/projects'
 import { AppointmentDraft, emptyDraft, normalizeDrafts } from '../projectAppointments'
 import { NewProjectPrefill } from '../newProjectPrefill'
 
@@ -8,6 +8,7 @@ import { NewProjectPrefill } from '../newProjectPrefill'
 // DetailsForm; diese Datei ist die gemeinsame, direkt testbare Grundlage.
 
 const EMPTY_EIGENTUEMER: Eigentuemer = { name: '', adresse: '', telefon: '', email: '' }
+const EMPTY_REFERENZ: RechnungsReferenz = { label: '', wert: '' }
 const EMPTY_DISPOSAL: DisposalDetails = { material: '', menge: '', entsorger: '', nachweis_url: '', bemerkung: '' }
 
 /**
@@ -40,6 +41,8 @@ export interface ProjectFormValues {
   appointments: AppointmentDraft[]
   kontakte: Kontakt[]
   eigentuemer: Eigentuemer
+  /** Referenz des Auftraggebers für den Rechnungskopf (WW-54/WW-50). */
+  rechnungsReferenz: RechnungsReferenz
   disposal: DisposalDetails
   wartungInterval: string
   wartungLastAt: string
@@ -113,6 +116,7 @@ export function initialProjectForm(
     appointments: slot ? [slotToDraft(slot)] : [],
     kontakte: project?.kontakte ?? [],
     eigentuemer: project?.eigentuemer ?? EMPTY_EIGENTUEMER,
+    rechnungsReferenz: project?.rechnungs_referenz ?? EMPTY_REFERENZ,
     disposal: project?.disposal_details ?? EMPTY_DISPOSAL,
     wartungInterval: project?.wartung_interval_months?.toString() ?? '',
     wartungLastAt: project?.wartung_last_at ?? '',
@@ -149,6 +153,12 @@ function normalizeForm(v: ProjectFormValues) {
       adresse: v.eigentuemer?.adresse ?? '',
       telefon: v.eigentuemer?.telefon ?? '',
       email: v.eigentuemer?.email ?? '',
+    },
+    // Getrimmt: ein angehängtes Leerzeichen ist keine Änderung, die der Server
+    // speichern müsste (er trimmt beim Lesen ohnehin).
+    rechnungsReferenz: {
+      label: (v.rechnungsReferenz?.label ?? '').trim(),
+      wert: (v.rechnungsReferenz?.wert ?? '').trim(),
     },
     disposal: {
       material: v.disposal?.material ?? '',
@@ -194,14 +204,14 @@ export function isProjectFormDirty(baseline: ProjectFormValues, current: Project
 export type AutosaveField =
   | 'name' | 'customerId' | 'objectName' | 'objectAddress' | 'billing'
   | 'artDerArbeit' | 'bemerkung' | 'geruestfaecher' | 'projektleiterId'
-  | 'kontakte' | 'eigentuemer' | 'disposal'
+  | 'kontakte' | 'eigentuemer' | 'rechnungsReferenz' | 'disposal'
   | 'wartungInterval' | 'wartungLastAt' | 'wartungNextDueAt'
   | 'parentProjectId' | 'completedAt' | 'isWarranty'
 
 export const AUTOSAVE_FIELDS: readonly AutosaveField[] = [
   'name', 'customerId', 'objectName', 'objectAddress', 'billing',
   'artDerArbeit', 'bemerkung', 'geruestfaecher', 'projektleiterId',
-  'kontakte', 'eigentuemer', 'disposal',
+  'kontakte', 'eigentuemer', 'rechnungsReferenz', 'disposal',
   'wartungInterval', 'wartungLastAt', 'wartungNextDueAt',
   'parentProjectId', 'completedAt', 'isWarranty',
 ]
@@ -299,6 +309,12 @@ export function autosavePatch(
       case 'projektleiterId': p.projektleiter_id = current.projektleiterId; break
       case 'kontakte': p.kontakte = current.kontakte.filter(k => !isKontaktLeer(k)); break
       case 'eigentuemer': p.eigentuemer = current.eigentuemer; break
+      case 'rechnungsReferenz':
+        p.rechnungs_referenz = {
+          label: current.rechnungsReferenz.label.trim(),
+          wert: current.rechnungsReferenz.wert.trim(),
+        }
+        break
       case 'disposal': p.disposal_details = current.disposal; break
       case 'wartungInterval': {
         const n = parseInt(current.wartungInterval, 10)

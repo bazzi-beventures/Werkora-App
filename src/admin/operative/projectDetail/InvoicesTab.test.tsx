@@ -213,7 +213,7 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
     await userEvent.clear(feld)
     await userEvent.type(feld, 'Lieferung und Montage gemäss Offerte')
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, 'Lieferung und Montage gemäss Offerte')
+    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, 'Lieferung und Montage gemäss Offerte', false)
   })
 
   it('Häkchen weg → leerer Text, der Block entfällt auf dem PDF', async () => {
@@ -223,7 +223,7 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Ausgeführte Arbeiten auf der Rechnung' }))
     expect(screen.queryByLabelText('Ausgeführte Arbeiten')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, '')
+    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, '', false)
   })
 
   it('Vorschlag nicht geladen → nichts mitschicken, der Server leitet ab', async () => {
@@ -231,6 +231,51 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
     await screen.findByPlaceholderText(/Vorschlag nicht geladen/)
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, undefined)
+    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, undefined, false)
+  })
+})
+
+describe('InvoicesTab — weitere Rechnung (WW-39/WW-47)', () => {
+  function renderWith(invoices: ProjectInvoice[]) {
+    const onGenerateInvoice = vi.fn().mockResolvedValue(true)
+    const loadWorkDescription = vi.fn().mockResolvedValue('')
+    const loadQuoteCoverage = vi.fn().mockResolvedValue(null)
+    render(
+      <InvoicesTab
+        invoices={invoices}
+        useAcceptedQuote={false}
+        generatingInvoice={false}
+        defaultEmail=""
+        hasSignedReport={true}
+        onUseAcceptedQuoteChange={vi.fn()}
+        onGenerateInvoice={onGenerateInvoice}
+        loadQuoteCoverage={loadQuoteCoverage}
+        loadWorkDescription={loadWorkDescription}
+        onMarkPaid={vi.fn().mockResolvedValue(true)}
+        onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
+        onArchive={vi.fn().mockResolvedValue(undefined)}
+        onSendInvoice={vi.fn().mockResolvedValue(true)}
+        onMarkSentByPost={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+    return { onGenerateInvoice, loadWorkDescription, loadQuoteCoverage }
+  }
+
+  it('ohne gültige Rechnung keine Frage', async () => {
+    renderWith([makeInvoice({ status: 'archiviert' })])
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    expect(screen.queryByRole('radio', { name: /Weitere Rechnung/ })).not.toBeInTheDocument()
+  })
+
+  it('weitere Rechnung lädt die Vorschläge neu und schickt additional mit', async () => {
+    const { onGenerateInvoice, loadWorkDescription, loadQuoteCoverage } = renderWith([makeInvoice()])
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    expect(screen.getByRole('radio', { name: /Neue Version/ })).toBeChecked()
+    await userEvent.click(screen.getByRole('radio', { name: /Weitere Rechnung/ }))
+    expect(loadWorkDescription).toHaveBeenLastCalledWith(true)
+    expect(loadQuoteCoverage).toHaveBeenLastCalledWith(true)
+    await screen.findByPlaceholderText(/Eigenen Text schreiben/)
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', undefined, undefined, '', true)
   })
 })

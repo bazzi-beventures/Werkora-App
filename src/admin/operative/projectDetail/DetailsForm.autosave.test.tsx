@@ -35,6 +35,7 @@ function formStub(over: Partial<UseProjectForm> = {}): UseProjectForm {
     kontakte: [ANNA], addKontakt: vi.fn(), updateKontakt: vi.fn(), pickKontaktCustomer: vi.fn(),
     removeKontakt: vi.fn(), toggleSiteContact: vi.fn(), kontakteOhneKundenstamm: () => [ANNA],
     eigentuemer: {}, updateEigentuemer: vi.fn(),
+    rechnungsReferenz: { label: '', wert: '' }, updateRechnungsReferenz: vi.fn(),
     disposal: {}, updateDisposal: vi.fn(),
     wartungInterval: '', setWartungInterval: vi.fn(),
     wartungLastAt: '', setWartungLastAt: vi.fn(),

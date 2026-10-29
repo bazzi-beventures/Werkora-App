@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../api/client'
 import {
   archiveInvoice, generateInvoice, getInvoiceQuoteCoverage, getInvoiceWorkDescription,
@@ -23,6 +23,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { QuoteCoverageSelect } from '../components/QuoteCoverageSelect'
 import { GeneralDeductionFields } from '../components/GeneralDeductionFields'
 import { WorkDescriptionField } from '../components/WorkDescriptionField'
+import { InvoiceModeField } from '../components/InvoiceModeField'
+import { hasActiveInvoice, invoiceModePayload, type InvoiceMode } from '../utils/invoiceMode'
 import {
   INITIAL_WORK_DESCRIPTION, workDescriptionPayload, type WorkDescriptionState,
 } from '../utils/workDescription'
@@ -118,6 +120,11 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // dann verhält sich der Dialog exakt wie bisher (Automatik).
   const [genCoverage, setGenCoverage] = useState<InvoiceQuoteCoverage | null>(null)
   const [genCheckedQuotes, setGenCheckedQuotes] = useState<number[]>([])
+  // Neue Version oder weitere Rechnung (WW-39/WW-47); gefragt wird nur, wenn das
+  // gewählte Projekt schon eine gültige Rechnung hat.
+  const [genMode, setGenMode] = useState<InvoiceMode>('replace')
+  // Zähler gegen überholte Antworten (Projekt- oder Art-Wechsel während des Ladens).
+  const genLoadSeq = useRef(0)
   // Send invoice
   const [sendInvoice, setSendInvoice] = useState<Invoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
@@ -157,6 +164,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setGenProjectName('')
     setGenUseQuote(false)
     setHasAcceptedQuote(false)
+    setGenMode('replace')
     setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
     setGenRemark('')
     setGenAbzug(initialGeneralDeduction(abzugCfg))
@@ -167,29 +175,55 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     const projectName = projects.find(p => p.id === projectId)?.name ?? ''
     setGenProject(projectId)
     setGenProjectName(projectName)
-    setGenCoverage(null)
-    if (!projectId) { setHasAcceptedQuote(false); setGenWorkDesc(INITIAL_WORK_DESCRIPTION); return }
-    // Offerten-Auswahl nachladen, nicht blockierend: scheitert der Aufruf, bleibt
-    // der Dialog ohne Auswahl und die Rechnung entsteht über die Automatik.
-    void getInvoiceQuoteCoverage(projectId)
-      .then(c => { setGenCoverage(c); setGenCheckedQuotes(defaultCheckedIds(c)) })
-      .catch(() => setGenCoverage(null))
+    // Ein anderes Projekt hat andere Rechnungen — die Frage beginnt von vorn.
+    setGenMode('replace')
+    if (!projectId) {
+      genLoadSeq.current++
+      setGenCoverage(null)
+      setHasAcceptedQuote(false)
+      setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
+      return
+    }
+    loadGenSuggestions(projectId, projectName, 'replace')
     try {
       setHasAcceptedQuote(await fetchHasAcceptedQuote(projectId, projectName))
     } catch {
       setHasAcceptedQuote(false)
     }
+  }
+
+  // Offerten-Auswahl und Vorschlag «Ausgeführte Arbeiten» hängen an Projekt UND Art
+  // der Rechnung: eine weitere Rechnung lässt aus, was schon auf einer offenen steht.
+  function loadGenSuggestions(projectId: string, projectName: string, mode: InvoiceMode) {
+    const seq = ++genLoadSeq.current
+    const additional = mode === 'additional'
+    setGenCoverage(null)
+    // Offerten-Auswahl nachladen, nicht blockierend: scheitert der Aufruf, bleibt
+    // der Dialog ohne Auswahl und die Rechnung entsteht über die Automatik.
+    void getInvoiceQuoteCoverage(projectId, additional)
+      .then(c => {
+        if (seq !== genLoadSeq.current) return
+        setGenCoverage(c)
+        setGenCheckedQuotes(defaultCheckedIds(c))
+      })
+      .catch(() => { if (seq === genLoadSeq.current) setGenCoverage(null) })
     // Vorschlag laden, nicht blockierend: schlaegt er fehl, bleibt das Feld leer und
     // der Server leitet beim Erstellen selbst ab (workDescriptionPayload). Das
-    // Häkchen bleibt, wie es gesetzt war — ein Projektwechsel setzt nur den Text neu.
+    // Häkchen bleibt, wie es gesetzt war — ein Wechsel setzt nur den Text neu.
     setGenWorkDesc(s => ({ ...s, text: '', loading: true, failed: false }))
-    try {
-      const text = await getInvoiceWorkDescription(projectName, projectId)
-      setGenWorkDesc(s => ({ ...s, text, loading: false }))
-    } catch {
-      setGenWorkDesc(s => ({ ...s, loading: false, failed: true }))
-    }
+    getInvoiceWorkDescription(projectName, projectId, additional).then(
+      text => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, text, loading: false })) },
+      () => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, loading: false, failed: true })) },
+    )
   }
+
+  function handleGenModeChange(mode: InvoiceMode) {
+    setGenMode(mode)
+    if (genProject) loadGenSuggestions(genProject, genProjectName, mode)
+  }
+
+  const genModeVisible = !!genProject
+    && hasActiveInvoice(invoices.filter(i => i.project_id === genProject))
 
   async function handleGenerate() {
     if (!genProject) return
@@ -207,6 +241,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
         quote_ids: genCoverage && showQuoteSelection(genCoverage)
           ? selectionPayload(genCoverage, genCheckedQuotes)
           : undefined,
+        ...invoiceModePayload(genModeVisible ? genMode : 'replace'),
       })
       showToast(
         `Rechnung ${res.invoice_number} erstellt (${fmtCHF(res.total_amount)})`
@@ -766,6 +801,14 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                 ))}
               </select>
             </div>
+            {genModeVisible && (
+              <InvoiceModeField
+                idPrefix="gen"
+                value={genMode}
+                onChange={handleGenModeChange}
+                disabled={generating}
+              />
+            )}
             {hasAcceptedQuote && (
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>

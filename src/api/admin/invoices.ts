@@ -59,6 +59,10 @@ export interface GenerateInvoiceInput {
   // Weglassen = kein Abzug. Gesetzt ohne Freischaltung antwortet das Backend 403.
   general_deduction_pct?: number
   general_deduction_sections?: GeneralDeductionSection[]
+  // «Weitere Rechnung» (WW-39/WW-47): eigene Rechnung neben den bestehenden statt
+  // Neufassung der jüngsten. Nichts wird archiviert; was schon auf einer offenen
+  // Rechnung steht, kommt nicht noch einmal drauf. Weglassen = Neufassung.
+  additional?: boolean
 }
 
 /** Basis der Allg. Abzüge; `material` umfasst die weiteren Produkte. */
@@ -135,10 +139,13 @@ export async function generateFreeInvoice(
   return result
 }
 
-export async function getInvoiceWorkDescription(projectName: string, projectId: string): Promise<string> {
+export async function getInvoiceWorkDescription(
+  projectName: string, projectId: string, additional = false,
+): Promise<string> {
   const res = await apiFetch<{ work_description: string }>(
     `/pwa/admin/invoices/work-description?project_name=${encodeURIComponent(projectName)}`
-    + `&project_id=${encodeURIComponent(projectId)}`,
+    + `&project_id=${encodeURIComponent(projectId)}`
+    + (additional ? '&additional=true' : ''),
   )
   return res.work_description || ''
 }
@@ -166,9 +173,12 @@ export interface InvoiceQuoteCoverage {
  * schlägt der Aufruf fehl, zeigt der Dialog keine Auswahl und die Rechnung entsteht
  * wie bisher über die automatische Auflösung.
  */
-export async function getInvoiceQuoteCoverage(projectId: string): Promise<InvoiceQuoteCoverage> {
+export async function getInvoiceQuoteCoverage(
+  projectId: string, additional = false,
+): Promise<InvoiceQuoteCoverage> {
   return apiFetch<InvoiceQuoteCoverage>(
-    `/pwa/admin/invoices/quote-coverage?project_id=${encodeURIComponent(projectId)}`,
+    `/pwa/admin/invoices/quote-coverage?project_id=${encodeURIComponent(projectId)}`
+    + (additional ? '&additional=true' : ''),
   )
 }
 

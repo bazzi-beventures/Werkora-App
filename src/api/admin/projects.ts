@@ -41,6 +41,14 @@ export interface Eigentuemer {
   email: string
 }
 
+// Referenz des Auftraggebers für den Rechnungskopf (WW-54/WW-50): freie
+// Bezeichnung + Wert, z. B. «Gebäudeversicherungs-Nr.: 2600674». Leerer Wert =
+// keine Referenz (services/rechnungs_referenz.py).
+export interface RechnungsReferenz {
+  label: string
+  wert: string
+}
+
 export interface DisposalDetails {
   material: string
   menge: string
@@ -89,6 +97,7 @@ export interface Project {
   monteur_ids: string[]
   kontakte: Kontakt[]
   eigentuemer: Eigentuemer | null
+  rechnungs_referenz?: RechnungsReferenz | null
   disposal_details: DisposalDetails | null
   is_warranty?: boolean
   wartung_interval_months?: number | null

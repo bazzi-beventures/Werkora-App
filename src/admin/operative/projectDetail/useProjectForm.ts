@@ -4,7 +4,7 @@ import {
 } from '../../../api/admin'
 import { saveProjectForm } from '../../../api/admin/projects'
 import { customerAttentionLine, customerRecipientName, type Customer } from '../../../api/admin/customers'
-import type { DisposalDetails, Eigentuemer, Kontakt, Project } from '../../../api/admin/projects'
+import type { DisposalDetails, Eigentuemer, Kontakt, Project, RechnungsReferenz } from '../../../api/admin/projects'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, apptToDraft, diffAppointments, draftPayload,
   isDraftDirty, mergeAfterSync, pinProjectTeam, teamlessFollowersError, teamsDiffer, validateDraft,
@@ -143,6 +143,8 @@ export interface UseProjectForm {
   kontakteOhneKundenstamm: () => Kontakt[]
   eigentuemer: Eigentuemer
   updateEigentuemer: (field: keyof Eigentuemer, value: string) => void
+  rechnungsReferenz: RechnungsReferenz
+  updateRechnungsReferenz: (field: keyof RechnungsReferenz, value: string) => void
   disposal: DisposalDetails
   updateDisposal: (field: keyof DisposalDetails, value: string) => void
   wartungInterval: string
@@ -356,6 +358,9 @@ export function useProjectForm(opts: {
   const seededKontakt = useRef<Kontakt | null>(null)
   // Eigentümer des Objekts — eigene Rolle, kein Kontakt. Kann pro Projekt ein Dritter sein.
   const [eigentuemer, setEigentuemer] = useState<Eigentuemer>(baseline.eigentuemer)
+  // Referenz für den Rechnungskopf (WW-54/WW-50) — gehört zum Auftrag, wird
+  // deshalb anders als der Eigentümer nicht vom Referenzprojekt geerbt.
+  const [rechnungsReferenz, setRechnungsReferenz] = useState<RechnungsReferenz>(baseline.rechnungsReferenz)
   const [disposal, setDisposal] = useState<DisposalDetails>(baseline.disposal)
   const [wartungInterval, setWartungInterval] = useState<string>(baseline.wartungInterval)
   const [wartungLastAt, setWartungLastAt] = useState<string>(baseline.wartungLastAt)
@@ -438,6 +443,7 @@ export function useProjectForm(opts: {
     appointments,
     kontakte,
     eigentuemer,
+    rechnungsReferenz,
     disposal,
     wartungInterval,
     wartungLastAt,
@@ -452,6 +458,8 @@ export function useProjectForm(opts: {
     setArtDerArbeit(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value])
   const updateEigentuemer = (field: keyof Eigentuemer, value: string) =>
     setEigentuemer(prev => ({ ...prev, [field]: value }))
+  const updateRechnungsReferenz = (field: keyof RechnungsReferenz, value: string) =>
+    setRechnungsReferenz(prev => ({ ...prev, [field]: value }))
   const updateDisposal = (field: keyof DisposalDetails, value: string) =>
     setDisposal(prev => ({ ...prev, [field]: value }))
 
@@ -709,6 +717,9 @@ export function useProjectForm(opts: {
         // Immer mitschicken (auch leer), damit ein geleertes Feld auch persistiert
         // wird — das Backend filtert null-Werte weg (kein Clear möglich).
         eigentuemer,
+        rechnungs_referenz: {
+          label: rechnungsReferenz.label.trim(), wert: rechnungsReferenz.wert.trim(),
+        },
         disposal_details: entsorgungsart && !disposalEmpty(disposal) ? disposal : null,
         wartung_interval_months: wartungInterval ? parseInt(wartungInterval, 10) : null,
         wartung_last_at: wartungLastAt || null,
@@ -1000,7 +1011,8 @@ export function useProjectForm(opts: {
     pickKontaktCustomer: pickKontaktCustomerNow, removeKontakt: removeKontaktNow,
     toggleSiteContact: toggleSiteContactNow,
     kontakteOhneKundenstamm: kontakteOhneKundenstammNow,
-    eigentuemer, updateEigentuemer, disposal, updateDisposal,
+    eigentuemer, updateEigentuemer, rechnungsReferenz, updateRechnungsReferenz,
+    disposal, updateDisposal,
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,
     wartungNextDueAt, setWartungNextDueAt,

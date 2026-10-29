@@ -274,7 +274,9 @@ export default function ProjectScheduleGantt({
   }
 
 
-  function renderRow(rowId: string | null, label: string) {
+  // `zebra`: jede zweite Mitarbeiter-Zeile hellblau hinterlegt (WW-57) — bei
+  // einem Einsatz weit rechts verrutscht man sonst leicht in die Nachbarzeile.
+  function renderRow(rowId: string | null, label: string, zebra = false) {
     const perDay = days.map(d => cellEntries(rowId, d))
     const lanesPerDay = perDay.map(list => computeGanttLanes(list))
     const rowLanes = Math.max(1, ...lanesPerDay.map(laneCount))
@@ -286,7 +288,7 @@ export default function ProjectScheduleGantt({
     const cellKey = rowId ?? ''
 
     return (
-      <div key={cellKey || '∅'} className="project-cal-gantt-row" style={{ height }}>
+      <div key={cellKey || '∅'} className={`project-cal-gantt-row${zebra ? ' zebra' : ''}`} style={{ height }}>
         <div className={`project-cal-gantt-name${rowId === null ? ' unassigned' : ''}`}>
           <span className="project-cal-gantt-name-text">{label}</span>
         </div>
@@ -404,7 +406,7 @@ export default function ProjectScheduleGantt({
             <div className="project-cal-gantt-util" title="Auslastungsgrad im sichtbaren Zeitraum">%</div>
           </div>
 
-          {rowStaff.map(s => renderRow(s.id, s.name))}
+          {rowStaff.map((s, i) => renderRow(s.id, s.name, i % 2 === 1))}
           {hasUnassigned && renderRow(null, 'Ohne Monteur')}
           {rowStaff.length === 0 && !hasUnassigned && (
             <div className="admin-empty">Keine Mitarbeiter sichtbar.</div>

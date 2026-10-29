@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { apiUrl } from '../../../api/client'
 import { fmtCHF, fmtDate, todayISO } from '../../utils/format'
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_BADGE } from '../../constants/statuses'
@@ -9,6 +9,8 @@ import { QuoteCoverageSelect } from '../../components/QuoteCoverageSelect'
 import { defaultCheckedIds, selectionPayload, showQuoteSelection } from '../../utils/quoteSelection'
 import { GeneralDeductionFields } from '../../components/GeneralDeductionFields'
 import { WorkDescriptionField } from '../../components/WorkDescriptionField'
+import { InvoiceModeField } from '../../components/InvoiceModeField'
+import { hasActiveInvoice, type InvoiceMode } from '../../utils/invoiceMode'
 import {
   INITIAL_WORK_DESCRIPTION, workDescriptionPayload, type WorkDescriptionState,
 } from '../../utils/workDescription'
@@ -35,16 +37,18 @@ interface InvoicesTabProps {
   // `quoteIds` die explizite Offerten-Auswahl (undefined = Automatik wie bisher),
   // `deduction` die Allg. Abzüge (leer = keine), `workDescription` der Block
   // «Ausgeführte Arbeiten» (undefined = Server leitet ab, '' = kein Block, siehe
-  // utils/workDescription.ts). Liefert true bei Erfolg — der Dialog schliesst nur dann.
+  // utils/workDescription.ts), `additional` = weitere Rechnung statt neuer Version
+  // (WW-39/WW-47). Liefert true bei Erfolg — der Dialog schliesst nur dann.
   onGenerateInvoice: (
     remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
-    workDescription?: string,
+    workDescription?: string, additional?: boolean,
   ) => Promise<boolean>
   // Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52). Wirft bei Fehler.
-  loadWorkDescription: () => Promise<string>
+  // `additional`: ohne die Rapporte, die schon auf einer offenen Rechnung stehen.
+  loadWorkDescription: (additional?: boolean) => Promise<string>
   // Offerten-Auswahl fuer den Erstellen-Dialog; null = keine Auswahl anzeigen
   // (Laden gescheitert oder nur eine Offerte) — der Dialog bleibt wie bisher.
-  loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
+  loadQuoteCoverage: (additional?: boolean) => Promise<InvoiceQuoteCoverage | null>
   // Bezahlt-Markierung; `paidDate` ist der Tag des Zahlungseingangs (ISO),
   // nachtragbar statt automatisch «heute». Liefert true bei Erfolg — der Dialog
   // schliesst nur dann.
@@ -76,6 +80,10 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Laden scheiterte) — dann verhaelt sich der Dialog exakt wie bisher.
   const [genCoverage, setGenCoverage] = useState<InvoiceQuoteCoverage | null>(null)
   const [genCheckedQuotes, setGenCheckedQuotes] = useState<number[]>([])
+  const [genMode, setGenMode] = useState<InvoiceMode>('replace')
+  // Zähler gegen überholte Antworten: wer die Art der Rechnung umschaltet, während
+  // der Vorschlag noch lädt, bekäme sonst den Umfang der anderen Art angezeigt.
+  const genLoadSeq = useRef(0)
   const [confirmArchive, setConfirmArchive] = useState<ProjectInvoice | null>(null)
   const [confirmUnpay, setConfirmUnpay] = useState<ProjectInvoice | null>(null)
   const [acting, setActing] = useState(false)
@@ -140,23 +148,41 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   function handleGenerateClick() {
     setGenRemark('')
     setGenAbzug(initialGeneralDeduction(generalDeduction))
-    setGenCoverage(null)
     setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
+    setGenMode('replace')
     setShowGenerate(true)
-    // Vorschlag «Ausgeführte Arbeiten» ebenso nachladen. Funktionale Updates: wer
-    // während des Ladens das Häkchen abwählt, verliert es nicht an die Antwort.
-    loadWorkDescription().then(
-      text => setGenWorkDesc(s => ({ ...s, text, loading: false })),
-      () => setGenWorkDesc(s => ({ ...s, loading: false, failed: true })),
+    loadGenSuggestions('replace')
+  }
+
+  // Vorschlag «Ausgeführte Arbeiten» und Offerten-Auswahl hängen an der Art der
+  // Rechnung: eine weitere Rechnung lässt aus, was schon auf einer offenen steht.
+  function loadGenSuggestions(mode: InvoiceMode) {
+    const seq = ++genLoadSeq.current
+    const additional = mode === 'additional'
+    setGenCoverage(null)
+    setGenWorkDesc(s => ({ ...s, text: '', loading: true, failed: false }))
+    // Funktionale Updates: wer während des Ladens das Häkchen abwählt, verliert es
+    // nicht an die Antwort.
+    loadWorkDescription(additional).then(
+      text => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, text, loading: false })) },
+      () => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, loading: false, failed: true })) },
     )
     // Auswahl nachladen, nicht blockierend: der Dialog steht sofort, die
     // Checkboxen erscheinen, sobald die Vorschau da ist. Scheitert das Laden
     // (null), bleibt der Dialog ohne Auswahl — Automatik wie bisher.
-    void loadQuoteCoverage().then(c => {
+    void loadQuoteCoverage(additional).then(c => {
+      if (seq !== genLoadSeq.current) return
       setGenCoverage(c)
       if (c) setGenCheckedQuotes(defaultCheckedIds(c))
     })
   }
+
+  function handleGenModeChange(mode: InvoiceMode) {
+    setGenMode(mode)
+    loadGenSuggestions(mode)
+  }
+
+  const genModeVisible = hasActiveInvoice(invoices)
 
   const genSelectionVisible = showQuoteSelection(genCoverage)
 
@@ -167,7 +193,10 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
       ? selectionPayload(genCoverage, genCheckedQuotes)
       : undefined
     const deduction = generalDeduction ? generalDeductionPayload(genAbzug) : undefined
-    const ok = await onGenerateInvoice(genRemark, quoteIds, deduction, workDescriptionPayload(genWorkDesc))
+    const ok = await onGenerateInvoice(
+      genRemark, quoteIds, deduction, workDescriptionPayload(genWorkDesc),
+      genModeVisible && genMode === 'additional',
+    )
     if (ok) setShowGenerate(false)
   }
 
@@ -343,6 +372,14 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           onCancel={() => { if (!generatingInvoice) setShowGenerate(false) }}
           onConfirm={() => void handleGenerateConfirm()}
         >
+          {genModeVisible && (
+            <InvoiceModeField
+              idPrefix="proj-gen"
+              value={genMode}
+              onChange={handleGenModeChange}
+              disabled={generatingInvoice}
+            />
+          )}
           {genSelectionVisible && genCoverage && (
             <QuoteCoverageSelect
               coverage={genCoverage}

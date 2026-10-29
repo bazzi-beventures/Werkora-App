@@ -30,6 +30,7 @@ function formStub(selectedCustomer: Customer | null): UseProjectForm {
     kontakte: [], addKontakt: vi.fn(), updateKontakt: vi.fn(), pickKontaktCustomer: vi.fn(),
     removeKontakt: vi.fn(), toggleSiteContact: vi.fn(), kontakteOhneKundenstamm: () => [],
     eigentuemer: {}, updateEigentuemer: vi.fn(),
+    rechnungsReferenz: { label: '', wert: '' }, updateRechnungsReferenz: vi.fn(),
     disposal: {}, updateDisposal: vi.fn(),
     wartungInterval: '', setWartungInterval: vi.fn(),
     wartungLastAt: '', setWartungLastAt: vi.fn(),

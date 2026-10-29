@@ -27,6 +27,7 @@ import {
   neededDistancePairs, overlapConflictIds, pillBg, pillClass, pillExtraLines,
   projectCoversDay, projectMonteurNames, readDragPayload, reassignTeam, rowEntries,
   scheduledDayIsoSet, setDragPayload, terminLegend, useHoverCard, useScheduleDistances,
+  visibleWeekDays, weekendOnlyEntries,
   type CalendarEntry, type StaffLite,
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
@@ -265,7 +266,7 @@ function MonthView({
 
 function WeekView({
   projects, staff, fields, currentDate, onSelect, onOpenProject, onReschedule, onCreateSlot, holidays,
-  greyAfter, greyUntil, hourHeight, absences, absenceStaff, staffMode = false,
+  greyAfter, greyUntil, hourHeight, absences, absenceStaff, staffMode = false, hideWeekend = false,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -289,8 +290,10 @@ function WeekView({
   // Mitarbeiter-Ansicht: die Spalte eines Abwesenheitstags wird zusätzlich
   // schraffiert — der Plan gehört genau dieser einen Person.
   staffMode?: boolean
+  // Sa/So ausblenden (WW-56).
+  hideWeekend?: boolean
 }) {
-  const days = getWeekDays(currentDate)
+  const days = visibleWeekDays(getWeekDays(currentDate), hideWeekend)
   const absentOn = absenceLookup(absences ?? [])
   const absentByDay: DayAbsence[][] = days.map(d => absencesOnDay(absentOn, absenceStaff, toDateStr(d)))
   const [hoverDayISO, setHoverDayISO] = useState<string | null>(null)
@@ -504,7 +507,8 @@ function WeekView({
   }
 
   return (
-    <div className="project-cal-week">
+    // --cal-days: Spaltenzahl der drei Raster (admin.css), 5 ohne Wochenende.
+    <div className="project-cal-week" style={{ '--cal-days': days.length } as React.CSSProperties}>
       {/* Header */}
       <div className="project-cal-week-header">
         <div className="project-cal-week-corner" />
@@ -639,7 +643,7 @@ function WeekView({
 
 function PlantafelView({
   projects, staff, rowStaff, fields, currentDate, onSelect, onOpenProject, onReschedule, onCreateCell, holidays,
-  showDistances, absences,
+  showDistances, absences, hideWeekend = false,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -659,8 +663,10 @@ function PlantafelView({
   showDistances?: boolean
   // Genehmigte Absenzen im geladenen Fenster (leer = Modul aus oder nichts los).
   absences?: ScheduleAbsence[]
+  // Sa/So ausblenden (WW-56).
+  hideWeekend?: boolean
 }) {
-  const days = getWeekDays(currentDate)
+  const days = visibleWeekDays(getWeekDays(currentDate), hideWeekend)
   // Hover-Zelle beim Drag: `${dayISO}|${rowId}` (rowId '' = «Ohne Monteur»).
   const [hoverCell, setHoverCell] = useState<string | null>(null)
   const projById = new Map(projects.map(p => [p.id, p]))
@@ -732,9 +738,11 @@ function PlantafelView({
     )
   }
 
-  function renderRow(rowId: string | null, label: string) {
+  // `zebra`: jede zweite Monteur-Zeile hellblau hinterlegt (WW-57) — bei einem
+  // Einsatz am rechten Rand verrutscht man sonst leicht in die Nachbarzeile.
+  function renderRow(rowId: string | null, label: string, zebra = false) {
     return (
-      <div key={rowId ?? '∅'} className="project-cal-board-row">
+      <div key={rowId ?? '∅'} className={`project-cal-board-row${zebra ? ' zebra' : ''}`}>
         <div className={`project-cal-board-staff${rowId === null ? ' unassigned' : ''}`}>{label}</div>
         {days.map(d => {
           const dayISO = toDateStr(d)
@@ -788,7 +796,7 @@ function PlantafelView({
   }
 
   return (
-    <div className="project-cal-board">
+    <div className="project-cal-board" style={{ '--cal-days': days.length } as React.CSSProperties}>
       <div className="project-cal-board-row project-cal-board-header">
         <div className="project-cal-board-staff">Monteur</div>
         {days.map(d => {
@@ -802,7 +810,7 @@ function PlantafelView({
           )
         })}
       </div>
-      {rowStaff.map(s => renderRow(s.id, s.name))}
+      {rowStaff.map((s, i) => renderRow(s.id, s.name, i % 2 === 1))}
       {hasUnassigned && renderRow(null, 'Ohne Monteur')}
       {rowStaff.length === 0 && !hasUnassigned && (
         <div className="admin-empty">Keine Monteure sichtbar.</div>
@@ -914,6 +922,17 @@ function readGanttZoom(): number {
   return readStoredLevel(GANTT_ZOOM_KEY, GANTT_ZOOM_LEVELS.length, GANTT_ZOOM_DEFAULT)
 }
 
+// Sa/So ausblenden (WW-56), pro Browser gemerkt.
+const HIDE_WEEKEND_KEY = 'schedule-hide-weekend'
+
+function readHideWeekend(): boolean {
+  try {
+    return window.localStorage.getItem(HIDE_WEEKEND_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 function readGanttSpan(): number {
   try {
     const raw = window.localStorage.getItem(GANTT_SPAN_KEY)
@@ -957,6 +976,19 @@ export default function ProjectScheduleCalendar({
   // Sichtbare Tage im Tagesplan (1 / 3 / 5), pro Browser gemerkt.
   const [ganttSpan, setGanttSpan] = useState<number>(readGanttSpan)
   const [hiddenStaff, setHiddenStaff] = useState<Set<string>>(() => new Set(saved.hiddenStaff ?? []))
+  // Sa/So in Woche, Mitarbeiter und Plantafel ausblenden (WW-56) — Vorliebe pro
+  // Browser wie Zoom und Zeitraum, nicht pro Sitzung.
+  const [hideWeekend, setHideWeekend] = useState<boolean>(readHideWeekend)
+  const weekendToggleVisible = view === 'week' || view === 'staff' || view === 'plantafel'
+  const weekendHiddenCount = hideWeekend && weekendToggleVisible
+    ? weekendOnlyEntries(projects, getWeekDays(currentDate))
+    : 0
+
+  function toggleHideWeekend(next: boolean) {
+    setHideWeekend(next)
+    // Private-Mode / voller Storage darf die Auswahl nicht blockieren.
+    try { window.localStorage.setItem(HIDE_WEEKEND_KEY, next ? '1' : '0') } catch { /* egal */ }
+  }
 
   // Zoom-Stufe der gerade aktiven Ansicht: Wochenraster = Zeilenhöhe,
   // Tagesplan = Stundenbreite.
@@ -1263,6 +1295,26 @@ export default function ProjectScheduleCalendar({
         </div>
       )}
 
+      {!busy && !isMobile && weekendToggleVisible && (
+        <div className="project-cal-zoom">
+          <label className="project-cal-filter-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={hideWeekend}
+              onChange={e => toggleHideWeekend(e.target.checked)}
+            />
+            Wochenende ausblenden
+          </label>
+          {weekendHiddenCount > 0 && (
+            <span className="project-cal-weekend-hint" role="status">
+              {weekendHiddenCount === 1
+                ? '1 Einsatz am Wochenende ausgeblendet'
+                : `${weekendHiddenCount} Einsätze am Wochenende ausgeblendet`}
+            </span>
+          )}
+        </div>
+      )}
+
       {!busy && !isMobile && (view === 'week' || view === 'staff' || view === 'gantt') && (
         <div className="project-cal-zoom">
           {view === 'gantt' && (
@@ -1369,6 +1421,7 @@ export default function ProjectScheduleCalendar({
           holidays={holidays}
           showDistances={schedulingConfig?.show_distances !== false}
           absences={absences}
+          hideWeekend={hideWeekend}
         />
       ) : view === 'month' ? (
         <MonthView
@@ -1400,6 +1453,7 @@ export default function ProjectScheduleCalendar({
           absences={absences}
           absenceStaff={absenceStaff}
           staffMode={view === 'staff'}
+          hideWeekend={hideWeekend}
         />
       )}
 

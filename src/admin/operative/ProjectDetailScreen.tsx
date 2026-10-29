@@ -283,9 +283,9 @@ export default function ProjectDetailScreen({
   // deshalb bleibt sie im Screen und geht hier an den Hook.
   function handleGenerateInvoice(
     remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
-    workDescription?: string,
+    workDescription?: string, additional?: boolean,
   ): Promise<boolean> {
-    return billing.generate(remark, useAcceptedQuote, quoteIds, deduction, workDescription)
+    return billing.generate(remark, useAcceptedQuote, quoteIds, deduction, workDescription, additional)
   }
 
   // Abfrage offen, weil „Zurück"/„Abbrechen" bei ungespeicherten Änderungen gedrückt wurde.

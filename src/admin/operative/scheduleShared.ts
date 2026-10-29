@@ -639,3 +639,31 @@ export function readDragPayload(
   const [projectId, grabDayISO, grabOffset, sourceRowId] = raw.split('|')
   return { projectId, grabDayISO, grabOffset: Number(grabOffset) || 0, sourceRowId: sourceRowId || '' }
 }
+
+// ─── Wochenende ausblenden (Feature-Anfrage WW-56) ──────────────────────────
+// Wer nie am Wochenende arbeitet, hat in Woche und Plantafel zwei leere Spalten,
+// die den Werktagen Breite wegnehmen. Ausgeblendet werden Sa und So gemeinsam —
+// ein Betrieb, der samstags arbeitet, lässt den Schalter aus.
+
+export function isWeekendDay(d: Date): boolean {
+  const dow = d.getDay()
+  return dow === 0 || dow === 6
+}
+
+/** Die sichtbaren Tage einer Woche — ohne Sa/So, wenn ausgeblendet. */
+export function visibleWeekDays(days: Date[], hideWeekend: boolean): Date[] {
+  return hideWeekend ? days.filter(d => !isWeekendDay(d)) : days
+}
+
+/**
+ * Einsätze, die nur auf dem ausgeblendeten Wochenende liegen — die sähe sonst
+ * niemand. Ein Einsatz von Freitag bis Montag bleibt an den Werktagen sichtbar
+ * und zählt nicht.
+ */
+export function weekendOnlyEntries(projects: Project[], days: Date[]): number {
+  const weekend = days.filter(isWeekendDay)
+  const workdays = days.filter(d => !isWeekendDay(d))
+  return projects.filter(p =>
+    weekend.some(d => projectCoversDay(p, d)) && !workdays.some(d => projectCoversDay(p, d)),
+  ).length
+}

@@ -3000,6 +3000,9 @@ button.admin-list-item {
 /* Wochen-Zeitraster ──────────────────────────────────────── */
 
 .project-cal-week {
+  /* Spaltenzahl der Tagesraster; 5, wenn das Wochenende ausgeblendet ist
+     (WW-56) — die Komponente setzt sie inline. */
+  --cal-days: 7;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -3008,7 +3011,7 @@ button.admin-list-item {
 
 .project-cal-week-header {
   display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
+  grid-template-columns: 60px repeat(var(--cal-days), 1fr);
   border-bottom: 1px solid var(--border);
   background: var(--bg);
 }
@@ -3058,7 +3061,7 @@ button.admin-list-item {
 
 .project-cal-week-allday-row {
   display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
+  grid-template-columns: 60px repeat(var(--cal-days), 1fr);
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   min-height: 32px;
@@ -3089,7 +3092,7 @@ button.admin-list-item {
 
 .project-cal-week-body {
   display: grid;
-  grid-template-columns: 60px repeat(7, 1fr);
+  grid-template-columns: 60px repeat(var(--cal-days), 1fr);
   position: relative;
 }
 
@@ -3600,6 +3603,9 @@ button.admin-list-item {
 /* overflow: clip statt hidden — clip erzeugt keinen Scroll-Container, dadurch
    funktioniert die sticky Kopfzeile weiterhin relativ zum Seiten-Scroll. */
 .project-cal-board {
+  /* Spaltenzahl der Tagesraster; 5, wenn das Wochenende ausgeblendet ist
+     (WW-56) — die Komponente setzt sie inline. */
+  --cal-days: 7;
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: clip;
@@ -3608,12 +3614,30 @@ button.admin-list-item {
 
 .project-cal-board-row {
   display: grid;
-  grid-template-columns: 150px repeat(7, 1fr);
+  grid-template-columns: 150px repeat(var(--cal-days), 1fr);
   border-bottom: 1px solid var(--border);
 }
 
 .project-cal-board-row:last-child {
   border-bottom: none;
+}
+
+/* Jede zweite Monteur-Zeile hellblau (WW-57): man verrutscht sonst beim Planen
+   am rechten Rand in die Nachbarzeile. Die Namenszelle bleibt deckend (sie hat
+   einen eigenen Hintergrund), deshalb die Tönung als Schicht über --bg. */
+.project-cal-board-row.zebra,
+.project-cal-gantt-row.zebra {
+  background: var(--primary-soft);
+}
+
+.project-cal-board-row.zebra > .project-cal-board-staff,
+.project-cal-gantt-row.zebra > .project-cal-gantt-name {
+  background: linear-gradient(var(--primary-soft), var(--primary-soft)), var(--bg);
+}
+
+.project-cal-weekend-hint {
+  font-size: 12px;
+  color: var(--warning-ink);
 }
 
 /* Kopfzeile bleibt beim Scrollen durch die (hohen) Monteur-Zeilen sichtbar. */

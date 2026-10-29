@@ -78,7 +78,8 @@ export function DetailsForm({
     projektleiterId, setProjektleiterId, monteurIds, toggleMonteur,
     appointments, changeAppointments: handleAppointmentsChange,
     kontakte, addKontakt, updateKontakt, pickKontaktCustomer, removeKontakt, toggleSiteContact,
-    eigentuemer, updateEigentuemer, disposal, updateDisposal,
+    eigentuemer, updateEigentuemer, rechnungsReferenz, updateRechnungsReferenz,
+    disposal, updateDisposal,
     wartungInterval, setWartungInterval,
     wartungLastAt, setWartungLastAt,
     wartungNextDueAt, setWartungNextDueAt,
@@ -426,6 +427,47 @@ export function DetailsForm({
                 {eigentuemerFeldFehler('email', eigentuemer.email) && (
                   <div className="admin-form-error" role="alert">{eigentuemerFeldFehler('email', eigentuemer.email)}</div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Referenz auf der Rechnung (WW-54/WW-50) ───────── */}
+          <div className="admin-table-wrap" style={{ padding: 24 }}>
+            <div className="admin-section-title">Referenz auf der Rechnung</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+              Optional: eine Nummer, die der Auftraggeber auf der Rechnung sehen will — z.B.
+              Gebäudeversicherungs-Nr. oder Projektnummer der Verwaltung. Steht im Rechnungskopf
+              als «Bezeichnung: Wert».
+            </div>
+            <div className="admin-form-row">
+              <div className="admin-form-group" style={{ margin: 0 }}>
+                <label className="admin-form-label" htmlFor="proj-referenz-label">Bezeichnung</label>
+                <input
+                  id="proj-referenz-label"
+                  className="admin-form-input"
+                  list="proj-referenz-vorschlaege"
+                  maxLength={60}
+                  value={rechnungsReferenz.label}
+                  onChange={e => updateRechnungsReferenz('label', e.target.value)}
+                  placeholder="z.B. Gebäudeversicherungs-Nr."
+                />
+                <datalist id="proj-referenz-vorschlaege">
+                  <option value="Gebäudeversicherungs-Nr." />
+                  <option value="Projekt-Nr. Verwaltung" />
+                  <option value="Ihre Referenz" />
+                  <option value="Bestell-Nr." />
+                </datalist>
+              </div>
+              <div className="admin-form-group" style={{ margin: 0 }}>
+                <label className="admin-form-label" htmlFor="proj-referenz-wert">Wert</label>
+                <input
+                  id="proj-referenz-wert"
+                  className="admin-form-input"
+                  maxLength={120}
+                  value={rechnungsReferenz.wert}
+                  onChange={e => updateRechnungsReferenz('wert', e.target.value)}
+                  placeholder="z.B. 2600674"
+                />
               </div>
             </div>
           </div>

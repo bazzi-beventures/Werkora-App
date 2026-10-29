@@ -58,12 +58,12 @@ export interface UseProjectBilling {
   markQuoteSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
   generate: (
     remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
-    deduction?: GeneralDeductionPayload, workDescription?: string,
+    deduction?: GeneralDeductionPayload, workDescription?: string, additional?: boolean,
   ) => Promise<boolean>
   /** Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52); wirft bei Fehler. */
-  loadWorkDescription: () => Promise<string>
+  loadWorkDescription: (additional?: boolean) => Promise<string>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
-  loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
+  loadQuoteCoverage: (additional?: boolean) => Promise<InvoiceQuoteCoverage | null>
   markPaid: (invoiceId: number, paidDate: string, paidAmount?: number | null) => Promise<boolean>
   unmarkPaid: (invoiceId: number) => Promise<void>
   archive: (invoiceId: number) => Promise<void>
@@ -269,7 +269,7 @@ export function useProjectBilling(
 
   async function generate(
     remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
-    deduction?: GeneralDeductionPayload, workDescription?: string,
+    deduction?: GeneralDeductionPayload, workDescription?: string, additional?: boolean,
   ): Promise<boolean> {
     if (!project) return false
     // Fehlt ein verrechenbarer Rapport (unterschrieben ODER manuell erfasst,
@@ -293,6 +293,8 @@ export function useProjectBilling(
         remark,
         // Allg. Abzüge: leer, solange das Häkchen aus ist.
         ...deduction,
+        // Weitere Rechnung (WW-39/WW-47); weggelassen = neue Version wie bisher.
+        ...(additional ? { additional: true } : {}),
       })
       cb.onToast(
         'Rechnung erstellt'
@@ -313,15 +315,15 @@ export function useProjectBilling(
   // Offerten-Auswahl für den Erstellen-Dialog. Nicht blockierend: schlägt der
   // Aufruf fehl, zeigt der Dialog keine Auswahl und die Rechnung entsteht wie
   // bisher über die automatische Auflösung.
-  async function loadWorkDescription(): Promise<string> {
+  async function loadWorkDescription(additional = false): Promise<string> {
     if (!project) return ''
-    return getInvoiceWorkDescription(project.name, project.id)
+    return getInvoiceWorkDescription(project.name, project.id, additional)
   }
 
-  async function loadQuoteCoverage(): Promise<InvoiceQuoteCoverage | null> {
+  async function loadQuoteCoverage(additional = false): Promise<InvoiceQuoteCoverage | null> {
     if (!project) return null
     try {
-      return await getInvoiceQuoteCoverage(project.id)
+      return await getInvoiceQuoteCoverage(project.id, additional)
     } catch {
       return null
     }

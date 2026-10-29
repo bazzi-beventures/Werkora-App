@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjectScheduleCalendar, { CalendarEntry } from './ProjectScheduleCalendar'
@@ -282,5 +282,40 @@ describe('Plantafel', () => {
     for (const label of ['Monat', 'Woche', 'Mitarbeiter', 'Plantafel', 'Tagesplan']) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument()
     }
+  })
+})
+
+describe('Plantafel — Wochenende und Zeilen (WW-56, WW-57)', () => {
+  afterEach(() => { window.localStorage.removeItem('schedule-hide-weekend') })
+
+  it('blendet Sa/So aus, merkt sich das und meldet ausgeblendete Einsätze', async () => {
+    const user = userEvent.setup()
+    const SAT = toDateStr(week[5])
+    const { container, unmount } = renderCal({
+      config: CONFIG_ALL,
+      entries: [entry({}), entry({ id: 'sa', name: 'Samstagseinsatz', start_date: SAT, end_date: SAT })],
+    })
+    await user.click(screen.getByRole('button', { name: 'Plantafel' }))
+    expect(boardRows(container)[0].querySelectorAll('.project-cal-board-cell')).toHaveLength(7)
+
+    await user.click(screen.getByRole('checkbox', { name: 'Wochenende ausblenden' }))
+    expect(boardRows(container)[0].querySelectorAll('.project-cal-board-cell')).toHaveLength(5)
+    expect(screen.getByRole('status')).toHaveTextContent('1 Einsatz am Wochenende ausgeblendet')
+    expect(screen.queryByText('Samstagseinsatz')).not.toBeInTheDocument()
+
+    unmount()
+    const again = renderCal({ config: CONFIG_ALL })
+    await user.click(screen.getByRole('button', { name: 'Plantafel' }))
+    expect(screen.getByRole('checkbox', { name: 'Wochenende ausblenden' })).toBeChecked()
+    expect(boardRows(again.container)[0].querySelectorAll('.project-cal-board-cell')).toHaveLength(5)
+  })
+
+  it('hinterlegt jede zweite Monteur-Zeile', async () => {
+    const user = userEvent.setup()
+    const { container } = renderCal({ config: CONFIG_ALL })
+    await user.click(screen.getByRole('button', { name: 'Plantafel' }))
+    const rows = boardRows(container)
+    expect(rows[0]).not.toHaveClass('zebra')
+    expect(rows[1]).toHaveClass('zebra')
   })
 })
