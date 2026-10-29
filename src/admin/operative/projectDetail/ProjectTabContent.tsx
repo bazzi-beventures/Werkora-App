@@ -17,7 +17,8 @@ import type { UseProjectApprovals } from './useProjectApprovals'
 import type { UseProjectBilling } from './useProjectBilling'
 import type { UseProjectDocuments } from './useProjectDocuments'
 import type { UseProjectTasks } from './useProjectTasks'
-import type { GeneralDeductionConfig, GeneralDeductionPayload } from '../../utils/generalDeduction'
+import type { GeneralDeductionConfig } from '../../utils/generalDeduction'
+import type { GenerateInvoiceOptions } from '../../utils/invoiceMode'
 
 // Welcher Reiter was zeigt (Charge H, H3) — ohne den Detail-Reiter, der als
 // eigene Maske in DetailsForm liegt.
@@ -86,10 +87,7 @@ export function ProjectTabContent({
   onSendQuote: (q: ProjectQuote) => void
   onSendThankyou: (q: ProjectQuote) => void
   onSendOrderConfirmation: (q: ProjectQuote) => void
-  onGenerateInvoice: (
-    remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
-    workDescription?: string, additional?: boolean,
-  ) => Promise<boolean>
+  onGenerateInvoice: (remark: string, opts: GenerateInvoiceOptions) => Promise<boolean>
   onShowApprovalForm: () => void
   status: ProjectStatus
   settingStatus: boolean
@@ -191,6 +189,8 @@ export function ProjectTabContent({
           onGenerateInvoice={onGenerateInvoice}
           loadQuoteCoverage={billing.loadQuoteCoverage}
           loadWorkDescription={billing.loadWorkDescription}
+          loadBillableReports={billing.loadBillableReports}
+          loadAnzahlungen={billing.loadAnzahlungen}
           onMarkPaid={billing.markPaid}
           onUnmarkPaid={billing.unmarkPaid}
           onArchive={billing.archive}

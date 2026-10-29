@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import {
-  archiveInvoice, generateInvoice, getInvoiceQuoteCoverage, getInvoiceWorkDescription, markInvoicePaid,
-  markInvoiceSentByPost, sendInvoice, unmarkInvoicePaid,
-  type InvoiceQuoteCoverage,
+  archiveInvoice, generateInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
+  getInvoiceWorkDescription, markInvoicePaid, markInvoiceSentByPost, sendInvoice, unmarkInvoicePaid,
+  type BillableReport, type InvoiceQuoteCoverage, type OpenAnzahlung,
 } from '../../../api/admin/invoices'
 import {
   listProjectInvoices, listProjectQuotes, listProjectReports,
@@ -18,7 +18,7 @@ import {
 import type { ProjectInvoice, ProjectQuote, ProjectReport } from './types'
 import { hasBillableReport } from './billingRules'
 import { invoiceWarningHint, sammelrechnungHint } from '../../utils/invoiceHints'
-import type { GeneralDeductionPayload } from '../../utils/generalDeduction'
+import { generateOptionsPayload, type GenerateInvoiceOptions } from '../../utils/invoiceMode'
 
 // Belege eines Projekts (Charge H, H3): Offerten, Rechnungen, Rapporte — Listen
 // und die Aktionen darauf. Der grösste Block des Projekt-Details und der einzige,
@@ -56,14 +56,14 @@ export interface UseProjectBilling {
   sendRejection: (quoteId: number) => Promise<void>
   /** Offerte ohne E-Mail als versendet erfassen (Postversand). false = Backend hat abgelehnt. */
   markQuoteSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
-  generate: (
-    remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
-    deduction?: GeneralDeductionPayload, workDescription?: string, additional?: boolean,
-  ) => Promise<boolean>
+  generate: (remark: string, useAcceptedQuote: boolean, opts: GenerateInvoiceOptions) => Promise<boolean>
   /** Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52); wirft bei Fehler. */
-  loadWorkDescription: (additional?: boolean) => Promise<string>
+  loadWorkDescription: (additional?: boolean, reportIds?: number[]) => Promise<string>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
   loadQuoteCoverage: (additional?: boolean) => Promise<InvoiceQuoteCoverage | null>
+  /** Rapport-Auswahl bzw. offene Anzahlungen; null, wenn das Laden scheitert (Automatik). */
+  loadBillableReports: (additional?: boolean) => Promise<BillableReport[] | null>
+  loadAnzahlungen: (additional?: boolean) => Promise<OpenAnzahlung[] | null>
   markPaid: (invoiceId: number, paidDate: string, paidAmount?: number | null) => Promise<boolean>
   unmarkPaid: (invoiceId: number) => Promise<void>
   archive: (invoiceId: number) => Promise<void>
@@ -268,8 +268,7 @@ export function useProjectBilling(
   }
 
   async function generate(
-    remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
-    deduction?: GeneralDeductionPayload, workDescription?: string, additional?: boolean,
+    remark: string, useAcceptedQuote: boolean, opts: GenerateInvoiceOptions,
   ): Promise<boolean> {
     if (!project) return false
     // Fehlt ein verrechenbarer Rapport (unterschrieben ODER manuell erfasst,
@@ -282,22 +281,13 @@ export function useProjectBilling(
         project_name: project.name,
         project_id: project.id,
         use_quote: useQuote,
-        // Explizite Offerten-Auswahl aus dem Dialog; undefined = Automatik (der
-        // Normalfall, siehe utils/quoteSelection.selectionPayload).
-        quote_ids: quoteIds,
-        // Das Backend unterscheidet `undefined` (= aus den Rapporten ableiten) von
-        // `''` (= bewusst geleert, kein Block auf dem PDF). Seit WW-52 hat auch dieser
-        // Dialog Häkchen und Textfeld; undefined bleibt der Fall «Vorschlag nicht
-        // geladen» (utils/workDescription.ts). JSON.stringify lässt es dann weg.
-        work_description: workDescription,
         remark,
-        // Allg. Abzüge: leer, solange das Häkchen aus ist.
-        ...deduction,
-        // Weitere Rechnung (WW-39/WW-47); weggelassen = neue Version wie bisher.
-        ...(additional ? { additional: true } : {}),
+        // Offerten-Auswahl, Arbeitsbeschrieb, Rapport-Auswahl, Anzahlung, Art der
+        // Rechnung — eine Regel für beide Dialoge (utils/invoiceMode.ts).
+        ...generateOptionsPayload(opts),
       })
       cb.onToast(
-        'Rechnung erstellt'
+        (res?.kind === 'anzahlung' ? 'Anzahlungsrechnung erstellt' : 'Rechnung erstellt')
         + sammelrechnungHint(res?.quote_numbers)
         + invoiceWarningHint(res?.warnings),
       )
@@ -315,9 +305,27 @@ export function useProjectBilling(
   // Offerten-Auswahl für den Erstellen-Dialog. Nicht blockierend: schlägt der
   // Aufruf fehl, zeigt der Dialog keine Auswahl und die Rechnung entsteht wie
   // bisher über die automatische Auflösung.
-  async function loadWorkDescription(additional = false): Promise<string> {
+  async function loadWorkDescription(additional = false, reportIds?: number[]): Promise<string> {
     if (!project) return ''
-    return getInvoiceWorkDescription(project.name, project.id, additional)
+    return getInvoiceWorkDescription(project.name, project.id, additional, reportIds)
+  }
+
+  async function loadBillableReports(additional = false): Promise<BillableReport[] | null> {
+    if (!project) return null
+    try {
+      return await getBillableReports(project.id, additional)
+    } catch {
+      return null
+    }
+  }
+
+  async function loadAnzahlungen(additional = false): Promise<OpenAnzahlung[] | null> {
+    if (!project) return null
+    try {
+      return await getAnzahlungen(project.id, additional)
+    } catch {
+      return null
+    }
   }
 
   async function loadQuoteCoverage(additional = false): Promise<InvoiceQuoteCoverage | null> {
@@ -413,7 +421,7 @@ export function useProjectBilling(
     reloadQuotes, reloadInvoices, reloadReports, loadQuoteDetail, deleteReport,
     regenerateReportPdf: regenerateReportPdfFor,
     aggregateReports, dissolveAggregate, acceptAggregate, markPartial,
-    regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage, loadWorkDescription,
+    regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen,
     markPaid, unmarkPaid, archive, send, markSentByPost,
     markQuoteSentByPost: markQuoteSentByPostFor,
   }

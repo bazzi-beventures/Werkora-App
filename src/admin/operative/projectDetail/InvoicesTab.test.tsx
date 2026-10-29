@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { InvoicesTab } from './tabs'
 import type { ProjectInvoice } from './tabs'
 import { todayISO } from '../../utils/format'
+import type { BillableReport, OpenAnzahlung } from '../../../api/admin/invoices'
 
 function makeInvoice(over: Partial<ProjectInvoice> = {}): ProjectInvoice {
   return {
@@ -36,6 +37,8 @@ function renderTab(
       onGenerateInvoice={vi.fn().mockResolvedValue(true)}
       loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
       loadWorkDescription={vi.fn().mockResolvedValue('')}
+      loadBillableReports={vi.fn().mockResolvedValue(null)}
+      loadAnzahlungen={vi.fn().mockResolvedValue(null)}
       onMarkPaid={onMarkPaid}
       onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
       onArchive={vi.fn().mockResolvedValue(undefined)}
@@ -185,6 +188,8 @@ describe('InvoicesTab — bezahlt markieren', () => {
 describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
   function renderGenerate(loadWorkDescription: () => Promise<string>) {
     const onGenerateInvoice = vi.fn().mockResolvedValue(true)
+    const loadBillableReports = vi.fn().mockResolvedValue(null)
+    const loadAnzahlungen = vi.fn().mockResolvedValue(null)
     render(
       <InvoicesTab
         invoices={[]}
@@ -196,6 +201,8 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
         onGenerateInvoice={onGenerateInvoice}
         loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
         loadWorkDescription={loadWorkDescription}
+        loadBillableReports={loadBillableReports}
+        loadAnzahlungen={loadAnzahlungen}
         onMarkPaid={vi.fn().mockResolvedValue(true)}
         onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
         onArchive={vi.fn().mockResolvedValue(undefined)}
@@ -213,7 +220,7 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
     await userEvent.clear(feld)
     await userEvent.type(feld, 'Lieferung und Montage gemäss Offerte')
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, 'Lieferung und Montage gemäss Offerte', false)
+    expect(onGenerate).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'replace', workDescription: 'Lieferung und Montage gemäss Offerte' }))
   })
 
   it('Häkchen weg → leerer Text, der Block entfällt auf dem PDF', async () => {
@@ -223,7 +230,7 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Ausgeführte Arbeiten auf der Rechnung' }))
     expect(screen.queryByLabelText('Ausgeführte Arbeiten')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, '', false)
+    expect(onGenerate).toHaveBeenCalledWith('', expect.objectContaining({ workDescription: '' }))
   })
 
   it('Vorschlag nicht geladen → nichts mitschicken, der Server leitet ab', async () => {
@@ -231,15 +238,20 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
     await screen.findByPlaceholderText(/Vorschlag nicht geladen/)
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, undefined, false)
+    expect(onGenerate).toHaveBeenCalledWith('', expect.objectContaining({ workDescription: undefined }))
   })
 })
 
 describe('InvoicesTab — weitere Rechnung (WW-39/WW-47)', () => {
-  function renderWith(invoices: ProjectInvoice[]) {
+  function renderWith(
+    invoices: ProjectInvoice[],
+    opts: { reports?: BillableReport[]; anzahlungen?: OpenAnzahlung[] } = {},
+  ) {
     const onGenerateInvoice = vi.fn().mockResolvedValue(true)
     const loadWorkDescription = vi.fn().mockResolvedValue('')
     const loadQuoteCoverage = vi.fn().mockResolvedValue(null)
+    const loadBillableReports = vi.fn().mockResolvedValue(opts.reports ?? null)
+    const loadAnzahlungen = vi.fn().mockResolvedValue(opts.anzahlungen ?? null)
     render(
       <InvoicesTab
         invoices={invoices}
@@ -251,6 +263,8 @@ describe('InvoicesTab — weitere Rechnung (WW-39/WW-47)', () => {
         onGenerateInvoice={onGenerateInvoice}
         loadQuoteCoverage={loadQuoteCoverage}
         loadWorkDescription={loadWorkDescription}
+        loadBillableReports={loadBillableReports}
+        loadAnzahlungen={loadAnzahlungen}
         onMarkPaid={vi.fn().mockResolvedValue(true)}
         onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
         onArchive={vi.fn().mockResolvedValue(undefined)}
@@ -272,10 +286,121 @@ describe('InvoicesTab — weitere Rechnung (WW-39/WW-47)', () => {
     await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
     expect(screen.getByRole('radio', { name: /Neue Version/ })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: /Weitere Rechnung/ }))
-    expect(loadWorkDescription).toHaveBeenLastCalledWith(true)
+    expect(loadWorkDescription).toHaveBeenLastCalledWith(true, undefined)
     expect(loadQuoteCoverage).toHaveBeenLastCalledWith(true)
     await screen.findByPlaceholderText(/Eigenen Text schreiben/)
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
-    expect(onGenerateInvoice).toHaveBeenCalledWith('', undefined, undefined, '', true)
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'additional', workDescription: '' }))
+  })
+})
+
+describe('InvoicesTab — Rapport-Auswahl und Anzahlung', () => {
+  function renderTabWith(invoices: ProjectInvoice[], opts: {
+    reports?: BillableReport[]; anzahlungen?: OpenAnzahlung[]
+  } = {}) {
+    const onGenerateInvoice = vi.fn().mockResolvedValue(true)
+    const loadWorkDescription = vi.fn().mockResolvedValue('')
+    render(
+      <InvoicesTab
+        invoices={invoices}
+        useAcceptedQuote={false}
+        generatingInvoice={false}
+        defaultEmail=""
+        hasSignedReport={true}
+        onUseAcceptedQuoteChange={vi.fn()}
+        onGenerateInvoice={onGenerateInvoice}
+        loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
+        loadWorkDescription={loadWorkDescription}
+        loadBillableReports={vi.fn().mockResolvedValue(opts.reports ?? null)}
+        loadAnzahlungen={vi.fn().mockResolvedValue(opts.anzahlungen ?? null)}
+        onMarkPaid={vi.fn().mockResolvedValue(true)}
+        onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
+        onArchive={vi.fn().mockResolvedValue(undefined)}
+        onSendInvoice={vi.fn().mockResolvedValue(true)}
+        onMarkSentByPost={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+    return { onGenerateInvoice, loadWorkDescription }
+  }
+
+  const R = (id: number, date: string): BillableReport => ({
+    id, report_date: date, created_by: 'Monteur', description: 'Montage', hours: 4, signed: true,
+  })
+
+  it('abgewählter Rapport bleibt offen und der Vorschlag lädt neu', async () => {
+    const { onGenerateInvoice, loadWorkDescription } = renderTabWith([], {
+      reports: [R(1, '2026-10-01'), R(2, '2026-10-02')],
+    })
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Rapport vom 02.10.2026' }))
+    expect(screen.getByText(/1 Rapport bleibt für eine spätere Rechnung offen/)).toBeInTheDocument()
+    expect(loadWorkDescription).toHaveBeenLastCalledWith(false, [1])
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ reportIds: [1] }))
+  })
+
+  it('alle Rapporte angehakt → keine Auswahl (Automatik)', async () => {
+    const { onGenerateInvoice } = renderTabWith([], { reports: [R(1, '2026-10-01'), R(2, '2026-10-02')] })
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await screen.findByRole('checkbox', { name: 'Rapport vom 01.10.2026' })
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ reportIds: undefined }))
+  })
+
+  it('Anzahlung schickt Art und Satz', async () => {
+    const { onGenerateInvoice } = renderTabWith([])
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Anzahlung/ }))
+    const pct = screen.getByLabelText('Anzahlung in %')
+    await userEvent.clear(pct)
+    await userEvent.type(pct, '30')
+    expect(screen.queryByRole('checkbox', { name: 'Ausgeführte Arbeiten auf der Rechnung' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Anzahlung erstellen' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'anzahlung', anzahlungPct: 30 }))
+  })
+
+  it('offene Anzahlung ist zum Abzug vorbelegt und abwählbar', async () => {
+    const { onGenerateInvoice } = renderTabWith([], {
+      anzahlungen: [{ id: 10, invoice_number: 'RE-10', total_amount: 540.55, status: 'bezahlt',
+        created_at: '2026-10-01T09:00:00Z', anzahlung_pct: 50 }],
+    })
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    const box = await screen.findByRole('checkbox', { name: /RE-10/ })
+    expect(box).toBeChecked()
+    await userEvent.click(box)
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ anzahlungIds: [] }))
+  })
+})
+
+describe('InvoicesTab — Fahrzeitkosten', () => {
+  it('abwählbar, angehakt als Vorgabe', async () => {
+    const onGenerateInvoice = vi.fn().mockResolvedValue(true)
+    render(
+      <InvoicesTab
+        invoices={[]}
+        useAcceptedQuote={false}
+        generatingInvoice={false}
+        defaultEmail=""
+        hasSignedReport={true}
+        onUseAcceptedQuoteChange={vi.fn()}
+        onGenerateInvoice={onGenerateInvoice}
+        loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
+        loadWorkDescription={vi.fn().mockResolvedValue('')}
+        loadBillableReports={vi.fn().mockResolvedValue(null)}
+        loadAnzahlungen={vi.fn().mockResolvedValue(null)}
+        onMarkPaid={vi.fn().mockResolvedValue(true)}
+        onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
+        onArchive={vi.fn().mockResolvedValue(undefined)}
+        onSendInvoice={vi.fn().mockResolvedValue(true)}
+        onMarkSentByPost={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    const box = screen.getByRole('checkbox', { name: 'Fahrzeitkosten verrechnen' })
+    expect(box).toBeChecked()
+    await userEvent.click(box)
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ includeTravel: false }))
   })
 })

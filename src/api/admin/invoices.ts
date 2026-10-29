@@ -36,6 +36,8 @@ export interface Invoice {
   /** Freitext auf der Rechnung. Auf der freien Rechnung ist er das, was sonst der
    *  Projektname erklären würde — die Betreiber-Liste zeigt ihn als «Beschreibung». */
   remark?: string | null
+  /** 'anzahlung' = Anzahlungsrechnung (WW-47), null = gewöhnliche Rechnung. */
+  invoice_kind?: string | null
 }
 
 export interface GenerateInvoiceInput {
@@ -63,6 +65,16 @@ export interface GenerateInvoiceInput {
   // Neufassung der jüngsten. Nichts wird archiviert; was schon auf einer offenen
   // Rechnung steht, kommt nicht noch einmal drauf. Weglassen = Neufassung.
   additional?: boolean
+  // Rapport-Auswahl (getBillableReports). Weglassen = alle verrechenbaren; das
+  // Backend validiert hart (409).
+  report_ids?: number[]
+  // Abzuziehende Anzahlungen (getAnzahlungen). Weglassen = alle offenen, [] = keine.
+  anzahlung_ids?: number[]
+  // Anzahlungsrechnung über `anzahlung_pct` % des Offerten-Nettos (WW-47).
+  kind?: 'rechnung' | 'anzahlung'
+  anzahlung_pct?: number
+  // false = Fahrzeitkosten abgewählt. Weglassen = Vorgabe von Projekt/Offerte.
+  include_travel?: boolean
 }
 
 /** Basis der Allg. Abzüge; `material` umfasst die weiteren Produkte. */
@@ -76,6 +88,9 @@ export interface GenerateInvoiceResult {
   quote_numbers?: string[]
   // Allg. Abzüge: abgezogener Betrag (netto) oder null.
   general_deduction_amount?: number | null
+  // Abgezogene Anzahlungen (brutto) oder null; 'anzahlung' bei einer Anzahlungsrechnung.
+  anzahlung_total?: number | null
+  kind?: string
   // Hinweise, die den Erfolg nicht in Frage stellen (z.B. ein Rapport ohne Preis).
   warnings?: unknown
 }
@@ -140,12 +155,13 @@ export async function generateFreeInvoice(
 }
 
 export async function getInvoiceWorkDescription(
-  projectName: string, projectId: string, additional = false,
+  projectName: string, projectId: string, additional = false, reportIds?: number[],
 ): Promise<string> {
   const res = await apiFetch<{ work_description: string }>(
     `/pwa/admin/invoices/work-description?project_name=${encodeURIComponent(projectName)}`
     + `&project_id=${encodeURIComponent(projectId)}`
-    + (additional ? '&additional=true' : ''),
+    + (additional ? '&additional=true' : '')
+    + (reportIds && reportIds.length ? `&report_ids=${reportIds.join(',')}` : ''),
   )
   return res.work_description || ''
 }
@@ -180,6 +196,42 @@ export async function getInvoiceQuoteCoverage(
     `/pwa/admin/invoices/quote-coverage?project_id=${encodeURIComponent(projectId)}`
     + (additional ? '&additional=true' : ''),
   )
+}
+
+/** Ein verrechenbarer Rapport in der Auswahl des Erstellen-Dialogs. */
+export interface BillableReport {
+  id: number
+  report_date: string | null
+  created_by: string | null
+  description: string
+  hours: number
+  signed: boolean
+}
+
+export async function getBillableReports(projectId: string, additional = false): Promise<BillableReport[]> {
+  const res = await apiFetch<{ reports: BillableReport[] }>(
+    `/pwa/admin/invoices/billable-reports?project_id=${encodeURIComponent(projectId)}`
+    + (additional ? '&additional=true' : ''),
+  )
+  return res.reports || []
+}
+
+/** Eine Anzahlungsrechnung, die eine neue Rechnung abziehen kann (WW-47). */
+export interface OpenAnzahlung {
+  id: number
+  invoice_number: string
+  total_amount: number
+  status: string
+  created_at: string
+  anzahlung_pct: number | null
+}
+
+export async function getAnzahlungen(projectId: string, additional = false): Promise<OpenAnzahlung[]> {
+  const res = await apiFetch<{ anzahlungen: OpenAnzahlung[] }>(
+    `/pwa/admin/invoices/anzahlungen?project_id=${encodeURIComponent(projectId)}`
+    + (additional ? '&additional=true' : ''),
+  )
+  return res.anzahlungen || []
 }
 
 export async function sendInvoice(invoiceId: number, recipientEmail: string): Promise<void> {

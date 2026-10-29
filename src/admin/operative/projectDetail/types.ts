@@ -34,6 +34,8 @@ export interface ProjectInvoice {
   paid_amount?: number | null
   storage_path?: string | null
   created_without_report?: boolean
+  /** 'anzahlung' = Anzahlungsrechnung (WW-47). */
+  invoice_kind?: string | null
 }
 
 export interface ProjectReport {

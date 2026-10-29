@@ -53,7 +53,7 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // 'installation_template' tragen das Wort "quote" nicht im Namen.
   { test: /quote|variant|special_position|installation_template/, module: 'quotes' },
   { test: /camt|reconcile/,                      module: 'payment_matching' },
-  { test: /invoice|mahnung|zahlungserinnerung/,  module: 'invoicing' },
+  { test: /invoice|anzahlung|mahnung|zahlungserinnerung/,  module: 'invoicing' },
   { test: /absence|vacation/,                    module: 'hr' },
   { test: /correction|clock_in|clock_out|timesheet|zeit_/, module: 'timekeeping' },
   // Aufgaben-Vorlagen vor /project/, sonst zählen sie als Grundfunktion.
@@ -169,6 +169,7 @@ const ACTION_LABELS: Record<string, string> = {
 
   // ── Rechnungen ──
   admin_generate_invoice: 'Rechnung erzeugt',
+  admin_generate_anzahlung: 'Anzahlungsrechnung erzeugt',
   // Rechnung ohne Projekt und ohne Rapport (docs/specs/admin-werkora-ch.md §8.2 a).
   // Eigener Eintrag statt derselbe Text: im Nutzungs-Dashboard soll sichtbar
   // bleiben, wie oft der Rapport-Zwang umgangen wurde.

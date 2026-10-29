@@ -33,7 +33,7 @@ import { ProjectDetailHeader } from './projectDetail/ProjectDetailHeader'
 import { ProjectStatusDialog, ProjectStatusDialogs, ReopenReason } from './projectDetail/ProjectStatusDialogs'
 import { ProjectMaskDialogs } from './projectDetail/ProjectMaskDialogs'
 import { ProjectTabContent } from './projectDetail/ProjectTabContent'
-import type { GeneralDeductionPayload } from '../utils/generalDeduction'
+import type { GenerateInvoiceOptions } from '../utils/invoiceMode'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { useUnsavedChangesGuard } from '../unsavedChanges'
 import { SCREEN_BACK_DEPTH, useScreenBack } from '../../shared/backButton'
@@ -281,11 +281,8 @@ export default function ProjectDetailScreen({
 
   // `useAcceptedQuote` ist die Checkbox der Rechnungs-Maske, kein Belegzustand —
   // deshalb bleibt sie im Screen und geht hier an den Hook.
-  function handleGenerateInvoice(
-    remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
-    workDescription?: string, additional?: boolean,
-  ): Promise<boolean> {
-    return billing.generate(remark, useAcceptedQuote, quoteIds, deduction, workDescription, additional)
+  function handleGenerateInvoice(remark: string, opts: GenerateInvoiceOptions): Promise<boolean> {
+    return billing.generate(remark, useAcceptedQuote, opts)
   }
 
   // Abfrage offen, weil „Zurück"/„Abbrechen" bei ungespeicherten Änderungen gedrückt wurde.
