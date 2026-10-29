@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { PROJECT_FILE_ACCEPT, projectFileIcon } from './projectFileTypes'
+import { PROJECT_FILE_ACCEPT, projectFileIcon, projectFileTooLarge } from './projectFileTypes'
 
 const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
@@ -40,5 +40,36 @@ describe('projectFileIcon', () => {
   it('nimmt ohne jeden Hinweis das Bild-Icon (bisheriges Verhalten)', () => {
     expect(projectFileIcon(null, null)).toBe('🖼️')
     expect(projectFileIcon(null, 'foto_ohne_endung')).toBe('🖼️')
+  })
+})
+
+describe('E-Mails und Videos (WW-53, WW-45)', () => {
+  it('nimmt E-Mails über die Endung und Videos in den Picker auf', () => {
+    const tokens = PROJECT_FILE_ACCEPT.split(',')
+    for (const token of ['.eml', '.msg', 'video/mp4', 'video/quicktime', '.mov']) {
+      expect(tokens).toContain(token)
+    }
+  })
+
+  it('zeigt eigene Symbole — auch beim Altbestand ohne MIME-Typ', () => {
+    expect(projectFileIcon('video/quicktime')).toBe('🎬')
+    expect(projectFileIcon('message/rfc822')).toBe('✉️')
+    expect(projectFileIcon('application/vnd.ms-outlook')).toBe('✉️')
+    expect(projectFileIcon(null, 'Rückfrage.MSG')).toBe('✉️')
+    expect(projectFileIcon(null, 'Geraeusch.mp4')).toBe('🎬')
+  })
+})
+
+describe('projectFileTooLarge', () => {
+  const MB = 1024 * 1024
+  it('lässt Videos bis 50 MB zu, andere Dateien bis 20 MB', () => {
+    expect(projectFileTooLarge({ name: 'a.mov', type: 'video/quicktime', size: 45 * MB })).toBeNull()
+    expect(projectFileTooLarge({ name: 'a.mov', type: 'video/quicktime', size: 51 * MB })).toMatch(/50 MB/)
+    expect(projectFileTooLarge({ name: 'a.pdf', type: 'application/pdf', size: 19 * MB })).toBeNull()
+    expect(projectFileTooLarge({ name: 'a.pdf', type: 'application/pdf', size: 21 * MB })).toMatch(/20 MB/)
+  })
+
+  it('erkennt ein Video auch ohne gemeldeten Typ an der Endung', () => {
+    expect(projectFileTooLarge({ name: 'clip.MP4', type: '', size: 30 * MB })).toBeNull()
   })
 })

@@ -28,6 +28,7 @@ export interface StaffMember {
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
   autosave, onCreateCustomerFromKontakt, onOpenCustomer, onOpenSchedule, projectId = null,
+  linkCustomer,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -57,6 +58,8 @@ export function DetailsForm({
   onCreateCustomerFromKontakt?: (k: Kontakt) => void
   /** Sprung auf die Kundenstammseite des gewählten Kunden (WW-9). */
   onOpenCustomer?: (customerId: string) => void
+  /** Ziel dieses Sprungs (customerLinkTarget.ts) — fehlt es, der Kunde aus der Maske. */
+  linkCustomer?: { id: string; name: string } | null
   /** Sprung in die Einsatzplanung (Kachel «Termine»). */
   onOpenSchedule?: (date: string) => void
   /** Gespeichertes Projekt: dann stehen die Skill-Pillen in der Karte Einsatzplanung. */
@@ -216,8 +219,8 @@ export function DetailsForm({
                   <label className="admin-form-label">Kunde (Rechnungsempfänger)</label>
                   {/* Das Feld selbst ist eine Suche — ein Klick darauf öffnet die
                       Vorschlagsliste. Der Weg in den Kundenstamm steht deshalb daneben. */}
-                  {selectedCustomer && onOpenCustomer && (
-                    <CustomerLink customerId={selectedCustomer.id} onOpen={onOpenCustomer} style={{ fontSize: 12 }}>
+                  {(linkCustomer ?? selectedCustomer) && onOpenCustomer && (
+                    <CustomerLink customerId={(linkCustomer ?? selectedCustomer)!.id} onOpen={onOpenCustomer} style={{ fontSize: 12 }}>
                       Im Kundenstamm öffnen →
                     </CustomerLink>
                   )}

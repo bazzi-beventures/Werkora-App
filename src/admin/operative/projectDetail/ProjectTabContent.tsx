@@ -88,6 +88,7 @@ export function ProjectTabContent({
   onSendOrderConfirmation: (q: ProjectQuote) => void
   onGenerateInvoice: (
     remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
+    workDescription?: string,
   ) => Promise<boolean>
   onShowApprovalForm: () => void
   status: ProjectStatus
@@ -189,6 +190,7 @@ export function ProjectTabContent({
           onUseAcceptedQuoteChange={onUseAcceptedQuoteChange}
           onGenerateInvoice={onGenerateInvoice}
           loadQuoteCoverage={billing.loadQuoteCoverage}
+          loadWorkDescription={billing.loadWorkDescription}
           onMarkPaid={billing.markPaid}
           onUnmarkPaid={billing.unmarkPaid}
           onArchive={billing.archive}

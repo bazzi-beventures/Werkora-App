@@ -8,6 +8,10 @@ import { AutoGrowTextarea } from '../../components/AutoGrowTextarea'
 import { QuoteCoverageSelect } from '../../components/QuoteCoverageSelect'
 import { defaultCheckedIds, selectionPayload, showQuoteSelection } from '../../utils/quoteSelection'
 import { GeneralDeductionFields } from '../../components/GeneralDeductionFields'
+import { WorkDescriptionField } from '../../components/WorkDescriptionField'
+import {
+  INITIAL_WORK_DESCRIPTION, workDescriptionPayload, type WorkDescriptionState,
+} from '../../utils/workDescription'
 import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../../utils/paidAmount'
 import { PaidAmountField } from '../PaidAmountField'
 import {
@@ -29,11 +33,15 @@ interface InvoicesTabProps {
   onUseAcceptedQuoteChange: (v: boolean) => void
   // Erzeugt die Rechnung; `remark` ist die Bemerkung fuers PDF (leer = kein Block),
   // `quoteIds` die explizite Offerten-Auswahl (undefined = Automatik wie bisher),
-  // `deduction` die Allg. Abzüge (leer = keine). Liefert true bei Erfolg — der
-  // Dialog schliesst nur dann.
+  // `deduction` die Allg. Abzüge (leer = keine), `workDescription` der Block
+  // «Ausgeführte Arbeiten» (undefined = Server leitet ab, '' = kein Block, siehe
+  // utils/workDescription.ts). Liefert true bei Erfolg — der Dialog schliesst nur dann.
   onGenerateInvoice: (
     remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
+    workDescription?: string,
   ) => Promise<boolean>
+  // Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52). Wirft bei Fehler.
+  loadWorkDescription: () => Promise<string>
   // Offerten-Auswahl fuer den Erstellen-Dialog; null = keine Auswahl anzeigen
   // (Laden gescheitert oder nur eine Offerte) — der Dialog bleibt wie bisher.
   loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
@@ -49,7 +57,7 @@ interface InvoicesTabProps {
   onMarkSentByPost: (invoiceId: number, sentDate: string) => Promise<boolean>
 }
 
-export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost }: InvoicesTabProps) {
+export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, loadWorkDescription, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost }: InvoicesTabProps) {
   const [sendInvoice, setSendInvoice] = useState<ProjectInvoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -62,6 +70,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Rapport) den frueheren Bestaetigungs-Hinweis — ein Dialog statt zwei.
   const [showGenerate, setShowGenerate] = useState(false)
   const [genRemark, setGenRemark] = useState('')
+  const [genWorkDesc, setGenWorkDesc] = useState<WorkDescriptionState>(INITIAL_WORK_DESCRIPTION)
   const [genAbzug, setGenAbzug] = useState<GeneralDeductionState>(() => initialGeneralDeduction(null))
   // Offerten-Auswahl im Generieren-Dialog: null solange nicht geladen (oder das
   // Laden scheiterte) — dann verhaelt sich der Dialog exakt wie bisher.
@@ -132,7 +141,14 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
     setGenRemark('')
     setGenAbzug(initialGeneralDeduction(generalDeduction))
     setGenCoverage(null)
+    setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
     setShowGenerate(true)
+    // Vorschlag «Ausgeführte Arbeiten» ebenso nachladen. Funktionale Updates: wer
+    // während des Ladens das Häkchen abwählt, verliert es nicht an die Antwort.
+    loadWorkDescription().then(
+      text => setGenWorkDesc(s => ({ ...s, text, loading: false })),
+      () => setGenWorkDesc(s => ({ ...s, loading: false, failed: true })),
+    )
     // Auswahl nachladen, nicht blockierend: der Dialog steht sofort, die
     // Checkboxen erscheinen, sobald die Vorschau da ist. Scheitert das Laden
     // (null), bleibt der Dialog ohne Auswahl — Automatik wie bisher.
@@ -151,7 +167,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
       ? selectionPayload(genCoverage, genCheckedQuotes)
       : undefined
     const deduction = generalDeduction ? generalDeductionPayload(genAbzug) : undefined
-    const ok = await onGenerateInvoice(genRemark, quoteIds, deduction)
+    const ok = await onGenerateInvoice(genRemark, quoteIds, deduction, workDescriptionPayload(genWorkDesc))
     if (ok) setShowGenerate(false)
   }
 
@@ -335,6 +351,12 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
               disabled={generatingInvoice}
             />
           )}
+          <WorkDescriptionField
+            idPrefix="proj-gen"
+            value={genWorkDesc}
+            onChange={setGenWorkDesc}
+            disabled={generatingInvoice}
+          />
           <div style={{ marginBottom: 12 }}>
             <label className="admin-form-label" htmlFor="proj-gen-remark">
               Bemerkung

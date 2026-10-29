@@ -35,6 +35,7 @@ function renderTab(
       onUseAcceptedQuoteChange={vi.fn()}
       onGenerateInvoice={vi.fn().mockResolvedValue(true)}
       loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
+      loadWorkDescription={vi.fn().mockResolvedValue('')}
       onMarkPaid={onMarkPaid}
       onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
       onArchive={vi.fn().mockResolvedValue(undefined)}
@@ -178,5 +179,58 @@ describe('InvoicesTab — bezahlt markieren', () => {
 
     expect(onMarkPaid).not.toHaveBeenCalled()
     expect(screen.queryByText('Rechnung als bezahlt markieren?')).not.toBeInTheDocument()
+  })
+})
+
+describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
+  function renderGenerate(loadWorkDescription: () => Promise<string>) {
+    const onGenerateInvoice = vi.fn().mockResolvedValue(true)
+    render(
+      <InvoicesTab
+        invoices={[]}
+        useAcceptedQuote={false}
+        generatingInvoice={false}
+        defaultEmail=""
+        hasSignedReport={true}
+        onUseAcceptedQuoteChange={vi.fn()}
+        onGenerateInvoice={onGenerateInvoice}
+        loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
+        loadWorkDescription={loadWorkDescription}
+        onMarkPaid={vi.fn().mockResolvedValue(true)}
+        onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
+        onArchive={vi.fn().mockResolvedValue(undefined)}
+        onSendInvoice={vi.fn().mockResolvedValue(true)}
+        onMarkSentByPost={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+    return onGenerateInvoice
+  }
+
+  it('zeigt den Vorschlag aus den Rapporten und schickt den bearbeiteten Text mit', async () => {
+    const onGenerate = renderGenerate(vi.fn().mockResolvedValue('07.10.2026 — Montage Plissee'))
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    const feld = await screen.findByDisplayValue('07.10.2026 — Montage Plissee')
+    await userEvent.clear(feld)
+    await userEvent.type(feld, 'Lieferung und Montage gemäss Offerte')
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, 'Lieferung und Montage gemäss Offerte')
+  })
+
+  it('Häkchen weg → leerer Text, der Block entfällt auf dem PDF', async () => {
+    const onGenerate = renderGenerate(vi.fn().mockResolvedValue('07.10.2026 — Montage Plissee'))
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await screen.findByDisplayValue('07.10.2026 — Montage Plissee')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Ausgeführte Arbeiten auf der Rechnung' }))
+    expect(screen.queryByLabelText('Ausgeführte Arbeiten')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, '')
+  })
+
+  it('Vorschlag nicht geladen → nichts mitschicken, der Server leitet ab', async () => {
+    const onGenerate = renderGenerate(vi.fn().mockRejectedValue(new Error('offline')))
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await screen.findByPlaceholderText(/Vorschlag nicht geladen/)
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerate).toHaveBeenCalledWith('', undefined, undefined, undefined)
   })
 })

@@ -2,6 +2,8 @@ import { useState } from 'react'
 import {
   deleteProjectFile, listProjectFiles, renameProjectFile, uploadProjectFile,
 } from '../../../api/admin/projects'
+import { ApiError } from '../../../api/client'
+import { projectFileTooLarge } from '../../../shared/projectFileTypes'
 import type { ProjectFile, ProjectFileCategory } from './types'
 
 // Dateien am Projekt (Charge H, H3): Liste, Upload je Kategorie, Umbenennen,
@@ -49,6 +51,9 @@ export function useProjectDocuments(
 
   async function upload(category: ProjectFileCategory, filesToUpload: File[]) {
     if (!projectId || !filesToUpload.length) return
+    // Zu grosse Datei (meist ein zu langes Video) gar nicht erst losschicken.
+    const tooLarge = filesToUpload.map(projectFileTooLarge).find(Boolean)
+    if (tooLarge) { cb.onError(tooLarge); return }
     setUploading(true)
     setUploadingCategory(category)
     try {
@@ -65,8 +70,9 @@ export function useProjectDocuments(
           ? `Hochgeladen · Beschaffung: ${advancedTo}`
           : filesToUpload.length > 1 ? `${filesToUpload.length} Dateien hochgeladen` : 'Datei hochgeladen',
       )
-    } catch {
-      cb.onError('Fehler beim Hochladen')
+    } catch (err) {
+      // 400 trägt die Begründung des Backends (falscher Typ, keine echte .msg …).
+      cb.onError(err instanceof ApiError && err.status === 400 && err.message ? err.message : 'Fehler beim Hochladen')
     } finally {
       setUploading(false)
       setUploadingCategory(null)

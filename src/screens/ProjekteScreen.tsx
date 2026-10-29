@@ -34,7 +34,7 @@ import { filterProjectsBySearch } from './projekte/searchProjects'
 import {
   countByTab, projectsForTab, REITER_LABELS, type ProjektReiter,
 } from './projekte/projectTabs'
-import { PROJECT_FILE_ACCEPT } from '../shared/projectFileTypes'
+import { LIEFERSCHEIN_FILE_ACCEPT, PROJECT_FILE_ACCEPT, projectFileTooLarge } from '../shared/projectFileTypes'
 import { FileThumb } from '../shared/FileThumb'
 import { selectBaseName } from '../shared/selectBaseName'
 import { mapsUrl } from '../shared/mapsLink'
@@ -620,6 +620,13 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     if (!selected || !e.target.files?.length) return
     const filesToUpload = Array.from(e.target.files)
     const input = e.target
+    // Zu grosse Datei (meist ein zu langes Video) gar nicht erst losschicken.
+    const tooLarge = filesToUpload.map(projectFileTooLarge).find(Boolean)
+    if (tooLarge) {
+      setUploadError({ lieferschein: category === LIEFERSCHEIN_CATEGORY, text: tooLarge })
+      input.value = ''
+      return
+    }
     setUploading(true)
     setUploadError(null)
     try {
@@ -1758,7 +1765,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                   <input
                     ref={lieferscheinInputRef}
                     type="file"
-                    accept={PROJECT_FILE_ACCEPT}
+                    accept={LIEFERSCHEIN_FILE_ACCEPT}
                     multiple
                     aria-label="Lieferschein hochladen"
                     // Direkt die Kamera: der Lieferschein liegt auf der Baustelle

@@ -10,7 +10,7 @@
 // Kann der Browser das Format nicht anzeigen (HEIC vom iPhone) oder fehlt die
 // Datei, fällt die Miniatur auf das Emoji zurück statt ein kaputtes Bild zu zeigen.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { projectFileIcon } from './projectFileTypes'
 
 const THUMB_PX = 40
@@ -29,6 +29,28 @@ interface Props {
 }
 
 export function FileThumb({ url, mimeType, filename, hoverPreview = false, iconSize = 18 }: Props) {
+  const icon = <span style={{ fontSize: iconSize, flexShrink: 0 }}>{projectFileIcon(mimeType ?? null, filename)}</span>
+  if (!url || !(mimeType ?? '').startsWith('image/')) return icon
+  return <ImageThumb url={url} label={filename} hoverPreview={hoverPreview} fallback={icon} />
+}
+
+interface ImageThumbProps {
+  url: string
+  /** Name des Bildes — die Vorschau heisst «Vorschau <label>». */
+  label: string
+  hoverPreview?: boolean
+  /** Kantenlänge der Miniatur. */
+  size?: number
+  /** Was statt der Miniatur steht, wenn das Bild nicht lädt (null = nichts). */
+  fallback?: ReactNode
+}
+
+/**
+ * Miniatur eines Bildes mit Vorschau beim Überfahren. Auch ausserhalb der
+ * Projektdateien gebraucht: die Artikelbilder der Material-Preisliste
+ * (Feature-Anfrage WW-49, «wie bei den Fotos von Projekten»).
+ */
+export function ImageThumb({ url, label, hoverPreview = false, size = THUMB_PX, fallback = null }: ImageThumbProps) {
   const [failed, setFailed] = useState(false)
   const [preview, setPreview] = useState<{ top: number; left: number } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -36,10 +58,7 @@ export function FileThumb({ url, mimeType, filename, hoverPreview = false, iconS
 
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current) }, [])
 
-  const isImage = !!url && (mimeType ?? '').startsWith('image/') && !failed
-  if (!isImage) {
-    return <span style={{ fontSize: iconSize, flexShrink: 0 }}>{projectFileIcon(mimeType ?? null, filename)}</span>
-  }
+  if (failed) return <>{fallback}</>
 
   function show() {
     const rect = anchor.current?.getBoundingClientRect()
@@ -66,21 +85,21 @@ export function FileThumb({ url, mimeType, filename, hoverPreview = false, iconS
 
   return (
     <span ref={anchor} onPointerEnter={enter} onPointerLeave={leave}
-      style={{ display: 'inline-flex', flexShrink: 0, width: THUMB_PX, height: THUMB_PX }}>
+      style={{ display: 'inline-flex', flexShrink: 0, width: size, height: size }}>
       <img
         src={url}
         alt=""
         loading="lazy"
         onError={() => setFailed(true)}
         style={{
-          width: THUMB_PX, height: THUMB_PX, objectFit: 'cover',
+          width: size, height: size, objectFit: 'cover',
           borderRadius: 4, border: '1px solid var(--border)', background: 'var(--surface-2)',
         }}
       />
       {preview && (
         <span
           role="img"
-          aria-label={`Vorschau ${filename}`}
+          aria-label={`Vorschau ${label}`}
           style={{
             position: 'fixed', top: preview.top, left: preview.left, zIndex: 1000,
             width: PREVIEW_PX, padding: 4, borderRadius: 6, pointerEvents: 'none',

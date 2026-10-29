@@ -22,6 +22,10 @@ import { AutoGrowTextarea } from '../components/AutoGrowTextarea'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { QuoteCoverageSelect } from '../components/QuoteCoverageSelect'
 import { GeneralDeductionFields } from '../components/GeneralDeductionFields'
+import { WorkDescriptionField } from '../components/WorkDescriptionField'
+import {
+  INITIAL_WORK_DESCRIPTION, workDescriptionPayload, type WorkDescriptionState,
+} from '../utils/workDescription'
 import { defaultCheckedIds, selectionPayload, showQuoteSelection } from '../utils/quoteSelection'
 import {
   generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
@@ -103,9 +107,9 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [generating, setGenerating] = useState(false)
   // Arbeitsbeschrieb ("Ausgeführte Arbeiten") — Vorschlag aus den Rapporten, vom
   // Projektleiter editierbar. Rapport-Texte sind Monteur-Sprache ("TB gerissen an
-  // Lam."), auf einer Kundenrechnung oft zu knapp.
-  const [genWorkDesc, setGenWorkDesc] = useState('')
-  const [loadingWorkDesc, setLoadingWorkDesc] = useState(false)
+  // Lam."), auf einer Kundenrechnung oft zu knapp. Mit Häkchen, ob der Block
+  // überhaupt erscheint (WW-52, utils/workDescription.ts).
+  const [genWorkDesc, setGenWorkDesc] = useState<WorkDescriptionState>(INITIAL_WORK_DESCRIPTION)
   // Bemerkung auf der Rechnung (z.B. Referenz/Projekt-Nr. des Kunden) — reiner
   // Freitext, leer = kein Block auf dem PDF.
   const [genRemark, setGenRemark] = useState('')
@@ -153,7 +157,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setGenProjectName('')
     setGenUseQuote(false)
     setHasAcceptedQuote(false)
-    setGenWorkDesc('')
+    setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
     setGenRemark('')
     setGenAbzug(initialGeneralDeduction(abzugCfg))
     setShowGenerate(true)
@@ -164,7 +168,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setGenProject(projectId)
     setGenProjectName(projectName)
     setGenCoverage(null)
-    if (!projectId) { setHasAcceptedQuote(false); setGenWorkDesc(''); return }
+    if (!projectId) { setHasAcceptedQuote(false); setGenWorkDesc(INITIAL_WORK_DESCRIPTION); return }
     // Offerten-Auswahl nachladen, nicht blockierend: scheitert der Aufruf, bleibt
     // der Dialog ohne Auswahl und die Rechnung entsteht über die Automatik.
     void getInvoiceQuoteCoverage(projectId)
@@ -176,14 +180,14 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
       setHasAcceptedQuote(false)
     }
     // Vorschlag laden, nicht blockierend: schlaegt er fehl, bleibt das Feld leer und
-    // die Rechnung entsteht ohne den Block.
-    setLoadingWorkDesc(true)
+    // der Server leitet beim Erstellen selbst ab (workDescriptionPayload). Das
+    // Häkchen bleibt, wie es gesetzt war — ein Projektwechsel setzt nur den Text neu.
+    setGenWorkDesc(s => ({ ...s, text: '', loading: true, failed: false }))
     try {
-      setGenWorkDesc(await getInvoiceWorkDescription(projectName, projectId))
+      const text = await getInvoiceWorkDescription(projectName, projectId)
+      setGenWorkDesc(s => ({ ...s, text, loading: false }))
     } catch {
-      setGenWorkDesc('')
-    } finally {
-      setLoadingWorkDesc(false)
+      setGenWorkDesc(s => ({ ...s, loading: false, failed: true }))
     }
   }
 
@@ -195,7 +199,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
         project_name: genProjectName,
         project_id: genProject,
         use_quote: genUseQuote,
-        work_description: genWorkDesc,
+        work_description: workDescriptionPayload(genWorkDesc),
         remark: genRemark,
         ...(abzugCfg ? generalDeductionPayload(genAbzug) : {}),
         // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
@@ -782,25 +786,12 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
               />
             )}
             {genProject && (
-              <div style={{ marginBottom: 12 }}>
-                <label className="admin-form-label" htmlFor="gen-work-desc">
-                  Ausgeführte Arbeiten
-                </label>
-                <AutoGrowTextarea
-                  id="gen-work-desc"
-                  className="admin-form-input"
-                  minRows={5}
-                  maxLength={4000}
-                  value={genWorkDesc}
-                  placeholder={loadingWorkDesc ? 'Wird geladen…' : 'Erscheint auf der Rechnung über den Positionen. Leer lassen, um den Block wegzulassen.'}
-                  onChange={e => setGenWorkDesc(e.target.value)}
-                  disabled={loadingWorkDesc || generating}
-                />
-                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-                  Vorschlag aus den Rapporten dieses Projekts — vor dem Erstellen anpassen,
-                  der Text steht so auf der Rechnung.
-                </div>
-              </div>
+              <WorkDescriptionField
+                idPrefix="gen"
+                value={genWorkDesc}
+                onChange={setGenWorkDesc}
+                disabled={generating}
+              />
             )}
             {genProject && (
               <div style={{ marginBottom: 12 }}>

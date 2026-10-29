@@ -26,6 +26,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
 import { useIsMobile } from '../useIsMobile'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { vkFromEk } from '../utils/quotePricing'
+import { ImageThumb } from '../../shared/FileThumb'
 
 interface StockModalProps {
   material: Material
@@ -753,7 +754,8 @@ function MaterialInventoryPanel({ user }: { user: UserInfo }) {
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{m.art_nr}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {m.image_url ? <img src={m.image_url} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 5, flexShrink: 0 }} /> : null}
+                        {/* Vorschau beim Überfahren wie bei den Projektfotos (WW-49). */}
+                        {m.image_url ? <ImageThumb url={m.image_url} label={m.name} size={28} hoverPreview /> : null}
                         <span>
                           <strong>{m.name}</strong>
                           {supplierName ? <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: 12 }}>{supplierName}</span> : null}

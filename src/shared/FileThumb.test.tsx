@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { FileThumb, PREVIEW_DELAY_MS } from './FileThumb'
+import { FileThumb, ImageThumb, PREVIEW_DELAY_MS } from './FileThumb'
 
 // Miniatur + Vorschau beim Überfahren für Projektfotos
 // (docs/specs/kleinkorrekturen-2026-10.md §1).
@@ -72,5 +72,23 @@ describe('FileThumb', () => {
     fireEvent.pointerEnter(bild(container)!.parentElement!, { pointerType: 'mouse' })
     act(() => { vi.advanceTimersByTime(PREVIEW_DELAY_MS * 2) })
     expect(screen.queryByRole('img', { name: 'Vorschau a.png' })).toBeNull()
+  })
+})
+
+describe('ImageThumb (Artikelbilder der Preisliste, WW-49)', () => {
+  it('zeigt die Miniatur in der gewünschten Grösse und die Vorschau beim Überfahren', () => {
+    vi.useFakeTimers()
+    const { container } = render(<ImageThumb url="/m/1.jpg" label="Plissee" size={28} hoverPreview />)
+    const img = bild(container)!
+    expect(img.style.width).toBe('28px')
+    fireEvent.pointerEnter(img.parentElement!, { pointerType: 'mouse' })
+    act(() => { vi.advanceTimersByTime(PREVIEW_DELAY_MS) })
+    expect(screen.getByRole('img', { name: 'Vorschau Plissee' })).toBeInTheDocument()
+  })
+
+  it('verschwindet ohne Ersatz, wenn das Bild nicht lädt', () => {
+    const { container } = render(<ImageThumb url="/m/kaputt.jpg" label="x" />)
+    fireEvent.error(bild(container)!)
+    expect(container.innerHTML).toBe('')
   })
 })

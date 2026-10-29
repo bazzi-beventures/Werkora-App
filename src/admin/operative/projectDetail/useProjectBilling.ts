@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  archiveInvoice, generateInvoice, getInvoiceQuoteCoverage, markInvoicePaid,
+  archiveInvoice, generateInvoice, getInvoiceQuoteCoverage, getInvoiceWorkDescription, markInvoicePaid,
   markInvoiceSentByPost, sendInvoice, unmarkInvoicePaid,
   type InvoiceQuoteCoverage,
 } from '../../../api/admin/invoices'
@@ -58,8 +58,10 @@ export interface UseProjectBilling {
   markQuoteSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
   generate: (
     remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
-    deduction?: GeneralDeductionPayload,
+    deduction?: GeneralDeductionPayload, workDescription?: string,
   ) => Promise<boolean>
+  /** Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52); wirft bei Fehler. */
+  loadWorkDescription: () => Promise<string>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
   loadQuoteCoverage: () => Promise<InvoiceQuoteCoverage | null>
   markPaid: (invoiceId: number, paidDate: string, paidAmount?: number | null) => Promise<boolean>
@@ -267,7 +269,7 @@ export function useProjectBilling(
 
   async function generate(
     remark: string, useAcceptedQuote: boolean, quoteIds?: number[],
-    deduction?: GeneralDeductionPayload,
+    deduction?: GeneralDeductionPayload, workDescription?: string,
   ): Promise<boolean> {
     if (!project) return false
     // Fehlt ein verrechenbarer Rapport (unterschrieben ODER manuell erfasst,
@@ -283,12 +285,11 @@ export function useProjectBilling(
         // Explizite Offerten-Auswahl aus dem Dialog; undefined = Automatik (der
         // Normalfall, siehe utils/quoteSelection.selectionPayload).
         quote_ids: quoteIds,
-        // work_description bewusst NICHT mitschicken: das Backend unterscheidet
-        // `undefined` (= aus den Rapporten ableiten) von `''` (= bewusst geleert, kein
-        // Block auf dem PDF). Hier stand ein hartes '' — dieser Dialog hat kein
-        // Beschrieb-Feld, also unterdrückte er den Block «Ausgeführte Arbeiten» auf
-        // JEDER Rechnung aus dem Projektdetail, während der Rechnungen-Screen (mit
-        // Textarea) ihn immer zeigte.
+        // Das Backend unterscheidet `undefined` (= aus den Rapporten ableiten) von
+        // `''` (= bewusst geleert, kein Block auf dem PDF). Seit WW-52 hat auch dieser
+        // Dialog Häkchen und Textfeld; undefined bleibt der Fall «Vorschlag nicht
+        // geladen» (utils/workDescription.ts). JSON.stringify lässt es dann weg.
+        work_description: workDescription,
         remark,
         // Allg. Abzüge: leer, solange das Häkchen aus ist.
         ...deduction,
@@ -312,6 +313,11 @@ export function useProjectBilling(
   // Offerten-Auswahl für den Erstellen-Dialog. Nicht blockierend: schlägt der
   // Aufruf fehl, zeigt der Dialog keine Auswahl und die Rechnung entsteht wie
   // bisher über die automatische Auflösung.
+  async function loadWorkDescription(): Promise<string> {
+    if (!project) return ''
+    return getInvoiceWorkDescription(project.name, project.id)
+  }
+
   async function loadQuoteCoverage(): Promise<InvoiceQuoteCoverage | null> {
     if (!project) return null
     try {
@@ -405,7 +411,7 @@ export function useProjectBilling(
     reloadQuotes, reloadInvoices, reloadReports, loadQuoteDetail, deleteReport,
     regenerateReportPdf: regenerateReportPdfFor,
     aggregateReports, dissolveAggregate, acceptAggregate, markPartial,
-    regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage,
+    regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage, loadWorkDescription,
     markPaid, unmarkPaid, archive, send, markSentByPost,
     markQuoteSentByPost: markQuoteSentByPostFor,
   }

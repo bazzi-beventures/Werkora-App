@@ -41,6 +41,7 @@ import {
   DocumentsTab, SupplierDocumentsTab, QuotesTab, ReportsTab, InvoicesTab, ApprovalsTab, TasksTab,
   ProjectQuote,
 } from './projectDetail/tabs'
+import { customerLinkTarget } from './projectDetail/customerLinkTarget'
 
 // Nachgeladen: nur mit Modul `reminders` gebraucht, und der Haupt-Chunk der
 // Mandanten-App steht an der 2-MiB-Grenze des Precache (siehe AdminApp).
@@ -132,6 +133,7 @@ export default function ProjectDetailScreen({
       iAmProjektleiter: staff.some(s => s.id === features.currentStaffId && s.projektleiter),
     },
   })
+  const linkCustomer = customerLinkTarget(form.selectedCustomer, project?.customer, form.customerId)
   // Häkchen «Für dieses Projekt nicht mehr fragen» im Übernehmen-Dialog.
   const [plFrageAus, setPlFrageAus] = useState(false)
   const autosave = useProjectAutosave(
@@ -281,8 +283,9 @@ export default function ProjectDetailScreen({
   // deshalb bleibt sie im Screen und geht hier an den Hook.
   function handleGenerateInvoice(
     remark: string, quoteIds?: number[], deduction?: GeneralDeductionPayload,
+    workDescription?: string,
   ): Promise<boolean> {
-    return billing.generate(remark, useAcceptedQuote, quoteIds, deduction)
+    return billing.generate(remark, useAcceptedQuote, quoteIds, deduction, workDescription)
   }
 
   // Abfrage offen, weil „Zurück"/„Abbrechen" bei ungespeicherten Änderungen gedrückt wurde.
@@ -573,7 +576,8 @@ export default function ProjectDetailScreen({
         onOpenProject={onOpenProject ? requestOpenProject : undefined}
         // Der Kunde aus der Maske, nicht `project.customer`: nach einem
         // Kundenwechsel (selbst speichernde Maske) trüge das Embed noch den alten.
-        customer={form.selectedCustomer}
+        // Das Embed nur, wenn die Auswahlliste den Kunden nicht kennt (WW-51).
+        customer={linkCustomer}
         onOpenCustomer={onOpenCustomer}
         onBack={requestClose}
       />
@@ -610,6 +614,7 @@ export default function ProjectDetailScreen({
           autosave={autosaveOn ? autosave : null}
           onCreateCustomerFromKontakt={autosaveOn ? k => setKontaktCustomer(k) : undefined}
           onOpenCustomer={onOpenCustomer}
+          linkCustomer={linkCustomer}
           onOpenSchedule={onOpenSchedule}
           projectId={!isNew && project ? project.id : null}
         />
