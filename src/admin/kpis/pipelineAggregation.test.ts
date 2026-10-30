@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { aggregatePipeline, leiterName, OHNE_PL } from './pipelineAggregation'
+import { aggregatePipeline, leiterName, OHNE_PL, pipelineStufen, MIN_ENTSCHIEDEN } from './pipelineAggregation'
 import type { PipelineFilter } from './pipelineAggregation'
 import type { PipelineProjektRow } from './types'
 
@@ -247,5 +247,76 @@ describe('aggregatePipeline — Projektleiter-/Suchfilter', () => {
     expect(aggregatePipeline(rows, { ...ALLE, search: '2600200' }).perProjekt).toHaveLength(1)
     expect(aggregatePipeline(rows, { ...ALLE, search: 'projekt a' }).perProjekt).toHaveLength(1)
     expect(aggregatePipeline(rows, { ...ALLE, search: 'xyz' }).perProjekt).toHaveLength(0)
+  })
+})
+
+describe('pipelineStufen — Cashflow ohne Überschneidung', () => {
+  // 10 entschiedene Offerten: 6 angenommen à 1000, 4 abgelehnt à 1000 -> Quote 60 %
+  const entschieden = [
+    ...Array.from({ length: 6 }, () => offerte('akzeptiert', 1000)),
+    ...Array.from({ length: 4 }, () => offerte('abgelehnt', 1000)),
+  ]
+
+  it('verteilt jeden Franken auf genau eine Stufe', () => {
+    const rows = [
+      row({ projekt_name: 'Offen', offerten: [offerte('gesendet', 5000)] }),
+      row({ projekt_name: 'Auftrag', offerten: [offerte('akzeptiert', 2000)] }),
+      row({ projekt_name: 'Fakturiert', offerten: [offerte('akzeptiert', 3000)], rechnungen: [rechnung({ betrag: 3000 })] }),
+      row({
+        projekt_name: 'Bezahlt',
+        offerten: [offerte('akzeptiert', 700)],
+        rechnungen: [rechnung({ status: 'bezahlt', betrag: 700, bezahlt_am: '2026-06-20', bezahlt_betrag: 700 })],
+      }),
+    ]
+    const s = pipelineStufen(aggregatePipeline(rows, ALLE).perLeiter)
+    expect(s.beimKundenChf).toBe(5000)
+    expect(s.auftragChf).toBe(2000)
+    expect(s.fakturiertOffenChf).toBe(3000)
+    expect(s.bezahltChf).toBe(700)
+    expect(s.gesichertChf).toBe(5000) // Auftrag + fakturiert offen
+  })
+
+  it('gewichtet offene Offerten mit der Annahmequote nach Betrag', () => {
+    const rows = [
+      row({ projekt_name: 'Historie', offerten: entschieden }),
+      row({ projekt_name: 'Offen', offerten: [offerte('gesendet', 10000)] }),
+    ]
+    const s = pipelineStufen(aggregatePipeline(rows, ALLE).perLeiter)
+    expect(s.entschieden).toBe(10)
+    expect(s.annahmequote).toBeCloseTo(0.6)
+    expect(s.beimKundenErwartetChf).toBeCloseTo(6000)
+    // Historie-Projekt: 6000 angenommen ohne Rechnung -> Auftrag
+    expect(s.nochZuErwartenChf).toBeCloseTo(6000 + 6000)
+  })
+
+  it('Quote nach Betrag, nicht nach Anzahl', () => {
+    const rows = [row({
+      offerten: [
+        ...Array.from({ length: 9 }, () => offerte('akzeptiert', 100)),
+        offerte('abgelehnt', 2700),
+      ],
+    })]
+    const s = pipelineStufen(aggregatePipeline(rows, ALLE).perLeiter)
+    expect(s.annahmequote).toBeCloseTo(900 / 3600)
+  })
+
+  it(`ohne ${MIN_ENTSCHIEDEN} entschiedene Offerten keine Quote und keine Schätzung`, () => {
+    const rows = [row({ offerten: [offerte('akzeptiert', 1000), offerte('abgelehnt', 1000), offerte('gesendet', 5000)] })]
+    const s = pipelineStufen(aggregatePipeline(rows, ALLE).perLeiter)
+    expect(s.entschieden).toBe(2)
+    expect(s.annahmequote).toBeNull()
+    expect(s.beimKundenErwartetChf).toBeNull()
+    expect(s.nochZuErwartenChf).toBe(s.gesichertChf)
+  })
+
+  it('offene Rechnung = versendet im Zeitraum, nicht bezahlt', () => {
+    const rows = [
+      row({ projekt_name: 'A', rechnungen: [rechnung({ betrag: 400 })] }),
+      row({ projekt_name: 'B', rechnungen: [rechnung({ status: 'bezahlt', betrag: 900, bezahlt_am: '2026-06-10', bezahlt_betrag: 900 })] }),
+      row({ projekt_name: 'C', rechnungen: [rechnung({ status: 'ausstehend', gesendet_am: null, betrag: 1500 })] }),
+    ]
+    const { perLeiter } = aggregatePipeline(rows, ALLE)
+    expect(perLeiter[0].rechnungenOffen).toBe(1)
+    expect(perLeiter[0].rechnungenOffenChf).toBe(400)
   })
 })

@@ -28,10 +28,15 @@ export interface PipelineLeiterAgg {
   // «akzeptiert», der noch nicht in «Rechnungen versendet» steckt.
   offertenNichtFakturiert: number
   offertenNichtFakturiertChf: number
+  offertenAbgelehnt: number
+  offertenAbgelehntChf: number
   projekteMitRapport: number
   rapporte: number
   rechnungenVersendet: number
   rechnungenChf: number
+  // Versendet (im Zeitraum) und noch nicht bezahlt — die offenen Forderungen.
+  rechnungenOffen: number
+  rechnungenOffenChf: number
   rechnungenBezahlt: number
   bezahltChf: number
 }
@@ -107,9 +112,11 @@ export function aggregatePipeline(
     // weil das Modell 1 Projekt = 1 Rechnung ist (Backend liefert nur die aktuellste).
     const fakturiert = row.rechnungen.some((r) => Boolean(r.gesendet_am))
     const nichtFakturiert = fakturiert ? [] : akzeptiert
+    const abgelehnt = offerten.filter((o) => o.status === 'abgelehnt')
     const rapporte = row.rapporte.filter((d): d is string => inRange(d, from, to))
     const reVersendet = row.rechnungen.filter((r) => inRange(r.gesendet_am, from, to))
     const reBezahlt = row.rechnungen.filter((r) => inRange(r.bezahlt_am, from, to))
+    const reOffen = reVersendet.filter((r) => !r.bezahlt_am)
     // Rechnungen fürs Drill-down: alle im Zeitraum (nach Versand- ODER Zahldatum).
     const reDetail = row.rechnungen.filter(
       (r) => inRange(r.gesendet_am, from, to) || inRange(r.bezahlt_am, from, to),
@@ -157,10 +164,14 @@ export function aggregatePipeline(
         offertenAkzeptiertChf: 0,
         offertenNichtFakturiert: 0,
         offertenNichtFakturiertChf: 0,
+        offertenAbgelehnt: 0,
+        offertenAbgelehntChf: 0,
         projekteMitRapport: 0,
         rapporte: 0,
         rechnungenVersendet: 0,
         rechnungenChf: 0,
+        rechnungenOffen: 0,
+        rechnungenOffenChf: 0,
         rechnungenBezahlt: 0,
         bezahltChf: 0,
       }
@@ -174,13 +185,90 @@ export function aggregatePipeline(
     agg.offertenAkzeptiertChf += sum(akzeptiert.map((o) => o.betrag))
     agg.offertenNichtFakturiert += nichtFakturiert.length
     agg.offertenNichtFakturiertChf += sum(nichtFakturiert.map((o) => o.betrag))
+    agg.offertenAbgelehnt += abgelehnt.length
+    agg.offertenAbgelehntChf += sum(abgelehnt.map((o) => o.betrag))
     agg.projekteMitRapport += rapporte.length > 0 ? 1 : 0
     agg.rapporte += rapporte.length
     agg.rechnungenVersendet += reVersendet.length
     agg.rechnungenChf += sum(reVersendet.map((r) => r.betrag))
+    agg.rechnungenOffen += reOffen.length
+    agg.rechnungenOffenChf += sum(reOffen.map((r) => r.betrag))
     agg.rechnungenBezahlt += reBezahlt.length
     agg.bezahltChf += sum(reBezahlt.map((r) => r.bezahlt_betrag))
   }
 
   return { perLeiter: Array.from(byLeiter.values()), perProjekt }
+}
+
+// ── Stufen für die Cashflow-Sicht ───────────────────────────────────────────
+//
+// Vier Stufen, die sich NICHT überschneiden — jeder Franken steht in genau
+// einer, deshalb darf man sie addieren (anders als «Offerten akzeptiert» und
+// «Rechnungen versendet», die einen fakturierten Auftrag beide zählen):
+//   beim Kunden   versendete Offerten ohne Entscheid
+//   Auftrag       akzeptierte Offerten auf Projekten ohne versendete Rechnung
+//   fakturiert    versendete, noch nicht bezahlte Rechnungen
+//   bezahlt       Zahlungen im Zeitraum
+//
+// Gewichtung der offenen Offerten mit der Annahmequote NACH BETRAG:
+// angenommen ÷ (angenommen + abgelehnt), Offerten im gewählten Zeitraum. Offene
+// zählen nicht in den Nenner (Spec offerten-varianten.md, «Annahmequote»). Unter
+// MIN_ENTSCHIEDEN entschiedenen Offerten gibt es keine Quote — eine aus drei
+// Entscheiden wäre eine Behauptung, keine Erfahrung.
+
+export const MIN_ENTSCHIEDEN = 10
+
+export interface PipelineStufen {
+  beimKunden: number
+  beimKundenChf: number
+  auftrag: number
+  auftragChf: number
+  fakturiertOffen: number
+  fakturiertOffenChf: number
+  bezahlt: number
+  bezahltChf: number
+  /** 0..1, null = zu wenige entschiedene Offerten */
+  annahmequote: number | null
+  entschieden: number
+  /** beimKundenChf × annahmequote, null ohne Quote */
+  beimKundenErwartetChf: number | null
+  /** beauftragt, aber noch nicht bezahlt: auftragChf + fakturiertOffenChf */
+  gesichertChf: number
+  /** gesichert + erwartet aus offenen Offerten (ohne Quote: nur gesichert) */
+  nochZuErwartenChf: number
+}
+
+export function pipelineStufen(perLeiter: PipelineLeiterAgg[]): PipelineStufen {
+  const t = (f: (l: PipelineLeiterAgg) => number) => sum(perLeiter.map(f))
+  const akzeptiert = t((l) => l.offertenAkzeptiert)
+  const abgelehnt = t((l) => l.offertenAbgelehnt)
+  const akzeptiertChf = t((l) => l.offertenAkzeptiertChf)
+  const abgelehntChf = t((l) => l.offertenAbgelehntChf)
+  const entschieden = akzeptiert + abgelehnt
+  const annahmequote =
+    entschieden >= MIN_ENTSCHIEDEN && akzeptiertChf + abgelehntChf > 0
+      ? akzeptiertChf / (akzeptiertChf + abgelehntChf)
+      : null
+
+  const beimKundenChf = t((l) => l.offertenOffenChf)
+  const auftragChf = t((l) => l.offertenNichtFakturiertChf)
+  const fakturiertOffenChf = t((l) => l.rechnungenOffenChf)
+  const beimKundenErwartetChf = annahmequote === null ? null : beimKundenChf * annahmequote
+  const gesichertChf = auftragChf + fakturiertOffenChf
+
+  return {
+    beimKunden: t((l) => l.offertenOffen),
+    beimKundenChf,
+    auftrag: t((l) => l.offertenNichtFakturiert),
+    auftragChf,
+    fakturiertOffen: t((l) => l.rechnungenOffen),
+    fakturiertOffenChf,
+    bezahlt: t((l) => l.rechnungenBezahlt),
+    bezahltChf: t((l) => l.bezahltChf),
+    annahmequote,
+    entschieden,
+    beimKundenErwartetChf,
+    gesichertChf,
+    nochZuErwartenChf: gesichertChf + (beimKundenErwartetChf ?? 0),
+  }
 }

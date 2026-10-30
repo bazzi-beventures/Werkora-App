@@ -337,6 +337,68 @@
   color: var(--text-muted);
 }
 
+/* ── Cashflow-Stufen (Projekt-Pipeline) ──────────────── */
+
+.kpi-cashflow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kpi-cashflow-satz {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: var(--text-strong);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.kpi-cashflow-satz p {
+  margin: 0;
+}
+
+.kpi-cashflow-fuss {
+  margin-top: 6px !important;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Ein Balken, vier Segmente proportional zum Betrag (flex-grow = CHF). */
+.kpi-cashflow-bar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.kpi-cashflow-seg {
+  display: flex;
+  min-width: 3px;
+  flex-basis: 0;
+}
+
+.kpi-cashflow-seg > div {
+  flex-basis: 0;
+}
+
+.kpi-cashflow-stufen {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.kpi-cashflow-stufe {
+  border-top-width: 4px;
+}
+
+.kpi-cashflow-summen {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 /* ── Date Preset Buttons ─────────────────────────────── */
 
 .kpi-date-presets {
@@ -620,6 +682,11 @@
 
   .kpi-bi-exec-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kpi-cashflow-stufen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
   /* ── Datumsfilter (LLM-Kosten / KPI) ─────────────────────

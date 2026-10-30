@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchProjektPipeline } from '../../../api/kpiViews'
 import type { ColumnDef, PipelineProjektRow } from '../types'
-import { aggregatePipeline, leiterName } from '../pipelineAggregation'
+import { aggregatePipeline, leiterName, pipelineStufen } from '../pipelineAggregation'
 import type { PipelineLeiterAgg, PipelineProjektAgg } from '../pipelineAggregation'
-import KpiCards from '../components/KpiCards'
+import CashflowStufen from '../components/CashflowStufen'
 import DataTable from '../components/DataTable'
 import BiBarChart from '../components/BiBarChart'
 import MultiDropdown from '../components/MultiDropdown'
@@ -122,30 +122,17 @@ export default function PipelineTab() {
     [data, from, to, plSel, search],
   )
 
-  const cards = useMemo(() => {
-    const t = perLeiter.reduce(
-      (acc, l) => ({
-        offen: acc.offen + l.offertenOffen,
-        offenChf: acc.offenChf + l.offertenOffenChf,
-        akzeptiert: acc.akzeptiert + l.offertenAkzeptiert,
-        akzeptiertChf: acc.akzeptiertChf + l.offertenAkzeptiertChf,
-        nichtFakt: acc.nichtFakt + l.offertenNichtFakturiert,
-        nichtFaktChf: acc.nichtFaktChf + l.offertenNichtFakturiertChf,
-        rechnungen: acc.rechnungen + l.rechnungenVersendet,
-        rechnungenChf: acc.rechnungenChf + l.rechnungenChf,
-        bezahlt: acc.bezahlt + l.rechnungenBezahlt,
-        bezahltChf: acc.bezahltChf + l.bezahltChf,
-      }),
-      { offen: 0, offenChf: 0, akzeptiert: 0, akzeptiertChf: 0, nichtFakt: 0, nichtFaktChf: 0, rechnungen: 0, rechnungenChf: 0, bezahlt: 0, bezahltChf: 0 },
-    )
-    return [
-      { label: 'Offerten noch nicht angenommen', value: String(t.offen), sub: chf(t.offenChf) },
-      { label: 'Offerten akzeptiert', value: String(t.akzeptiert), sub: chf(t.akzeptiertChf) },
-      { label: 'Angenommen, nicht fakturiert', value: String(t.nichtFakt), sub: chf(t.nichtFaktChf) },
-      { label: 'Rechnungen versendet', value: String(t.rechnungen), sub: chf(t.rechnungenChf) },
-      { label: 'Bezahlt', value: String(t.bezahlt), sub: chf(t.bezahltChf), color: 'var(--success)' },
-    ]
-  }, [perLeiter])
+  const stufen = useMemo(() => pipelineStufen(perLeiter), [perLeiter])
+  const summen = useMemo(() => ({
+    akzeptiert: {
+      anzahl: perLeiter.reduce((a, l) => a + l.offertenAkzeptiert, 0),
+      betrag: perLeiter.reduce((a, l) => a + l.offertenAkzeptiertChf, 0),
+    },
+    versendet: {
+      anzahl: perLeiter.reduce((a, l) => a + l.rechnungenVersendet, 0),
+      betrag: perLeiter.reduce((a, l) => a + l.rechnungenChf, 0),
+    },
+  }), [perLeiter])
 
   const chartData = useMemo(
     () =>
@@ -211,7 +198,12 @@ export default function PipelineTab() {
         />
       </div>
 
-      <KpiCards cards={cards} columns={5} />
+      <CashflowStufen
+        stufen={stufen}
+        akzeptiert={summen.akzeptiert}
+        versendet={summen.versendet}
+        zeitraumEingeschraenkt={datePreset !== 'all'}
+      />
 
       {/* Filter bar */}
       <div className="kpi-filter-bar">
