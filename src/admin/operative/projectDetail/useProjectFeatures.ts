@@ -74,6 +74,12 @@ export interface ProjectFeatures {
    * (docs/specs/projektleiter-uebernahme.md).
    */
   plRueckfrage: boolean
+  /**
+   * Modul «termin_bestaetigung»: Termin per Mail mit Kalendereintrag an den Kunden
+   * (docs/specs/termin-bestaetigung-kunde.md). Steht das Modul im Betatest, ist
+   * es in /pwa/me schon pro Konto gefiltert.
+   */
+  terminBestaetigung: boolean
 }
 
 const NONE: ProjectFeatures = {
@@ -93,6 +99,7 @@ const NONE: ProjectFeatures = {
   currentUserRole: null,
   currentStaffId: null,
   plRueckfrage: false,
+  terminBestaetigung: false,
 }
 
 export function useProjectFeatures(): ProjectFeatures {
@@ -125,6 +132,7 @@ export function useProjectFeatures(): ProjectFeatures {
         currentUserRole: me.role,
         currentStaffId: me.staff_id ?? null,
         plRueckfrage: isFeatureEnabled(me, 'projektleiter_rueckfrage'),
+        terminBestaetigung: hasModule(me, 'termin_bestaetigung'),
       })
     }).catch(() => {})
   }, [])

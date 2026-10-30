@@ -84,6 +84,34 @@ describe('aggregatePipeline — Gruppierung', () => {
     expect(perProjekt[0].offertenOffenChf).toBe(300)
   })
 
+  it('angenommen, nicht fakturiert: nur akzeptierte Offerten auf Projekten ohne versendete Rechnung', () => {
+    const rows = [
+      // angenommen, noch keine Rechnung -> zählt
+      row({ projekt_name: 'A', offerten: [offerte('akzeptiert', 1000), offerte('gesendet', 50)] }),
+      // angenommen, Rechnung erstellt aber nicht versendet -> zählt
+      row({ projekt_name: 'B', offerten: [offerte('akzeptiert', 400)], rechnungen: [rechnung({ status: 'ausstehend', gesendet_am: null })] }),
+      // angenommen und fakturiert -> zählt nicht
+      row({ projekt_name: 'C', offerten: [offerte('akzeptiert', 2000)], rechnungen: [rechnung()] }),
+      // Rechnung ohne Offerte -> zählt nicht
+      row({ projekt_name: 'D', rechnungen: [rechnung()] }),
+    ]
+    const { perLeiter } = aggregatePipeline(rows, ALLE)
+    expect(perLeiter[0].offertenAkzeptiert).toBe(3)
+    expect(perLeiter[0].offertenNichtFakturiert).toBe(2)
+    expect(perLeiter[0].offertenNichtFakturiertChf).toBe(1400)
+  })
+
+  it('angenommen, nicht fakturiert: Rechnung ausserhalb des Zeitraums gilt trotzdem als fakturiert', () => {
+    const rows = [row({
+      offerten: [offerte('akzeptiert', 1000, '2026-05-10')],
+      rechnungen: [rechnung({ gesendet_am: '2026-06-15' })],
+    })]
+    const mai = { ...ALLE, from: '2026-05-01', to: '2026-05-31' }
+    const { perLeiter } = aggregatePipeline(rows, mai)
+    expect(perLeiter[0].offertenAkzeptiert).toBe(1)
+    expect(perLeiter[0].offertenNichtFakturiert).toBe(0)
+  })
+
   it('zählt Projekte mit Rapport nur einmal, Rapporte aber alle', () => {
     const rows = [
       row({ rapporte: ['2026-05-03', '2026-05-04'] }),

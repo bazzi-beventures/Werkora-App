@@ -13,7 +13,7 @@
 // (Validierung, Diff, «nächster Termin») unit-testbar sind.
 
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, ProjectAppointment } from '../../api/admin'
-import type { ProjectNextAppointment } from '../../api/admin'
+import type { AppointmentNoticeSnapshot, ProjectNextAppointment } from '../../api/admin'
 
 export interface AppointmentDraft {
   // Stabiler React-Key: bei gespeicherten Terminen die id, sonst ein Client-Key.
@@ -33,6 +33,15 @@ export interface AppointmentDraft {
   // true = eigenes Team nur für diesen Termin; false = Projekt-Team gilt.
   ownTeam: boolean
   monteurIds: string[]
+  // Terminbestätigung an den Kunden: was zuletzt gesendet wurde. Nie Teil eines
+  // Payloads oder des Dirty-Vergleichs (canonicalDraft kennt das Feld nicht).
+  notice?: AppointmentNotice | null
+}
+
+export interface AppointmentNotice {
+  sentAt: string
+  to: string
+  snapshot: AppointmentNoticeSnapshot | null
 }
 
 let draftSeq = 0
@@ -55,7 +64,32 @@ export function apptToDraft(a: ProjectAppointment): AppointmentDraft {
     label: a.label ?? '',
     ownTeam: team.length > 0,
     monteurIds: team,
+    notice: a.customer_notice_sent_at
+      ? { sentAt: a.customer_notice_sent_at, to: a.customer_notice_to ?? '', snapshot: a.customer_notice_snapshot ?? null }
+      : null,
   }
+}
+
+/** Der Termin, wie er dem Kunden gesendet würde — dieselbe Normalform wie der Server
+ *  (services/appointment_ics.py::snapshot_of): leer = null, Zeiten HH:MM. */
+export function noticeSnapshot(d: AppointmentDraft): AppointmentNoticeSnapshot {
+  const v = (s: string) => (s.trim() ? s.trim() : null)
+  return {
+    start_date: v(d.startDate), end_date: v(d.endDate),
+    start_time: v(d.startTime.slice(0, 5)), end_time: v(d.endTime.slice(0, 5)),
+    kind: d.kind, label: v(d.label),
+  }
+}
+
+/** Liegt der Termin anders als dem Kunden gesendet? Ohne Versand: nein. Ein Versand ohne
+ *  Schnappschuss gilt als geändert — lieber einmal zu viel «Aktualisierung senden». */
+export function noticeChanged(d: AppointmentDraft): boolean {
+  if (!d.notice) return false
+  const sent = d.notice.snapshot
+  if (!sent) return true
+  const now = noticeSnapshot(d)
+  return (Object.keys(now) as (keyof AppointmentNoticeSnapshot)[])
+    .some(k => (now[k] ?? null) !== (sent[k] ?? null))
 }
 
 export function emptyDraft(kind: AppointmentKind = 'montage'): AppointmentDraft {

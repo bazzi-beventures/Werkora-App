@@ -30,6 +30,7 @@ export type ModuleName =
   | 'reminders'
   | 'hagelschaden'
   | 'lieferschein_erfassung'
+  | 'termin_bestaetigung'
 
 export function hasModule(user: UserInfo | null, name: ModuleName): boolean {
   if (!user) return false

@@ -52,6 +52,22 @@ export interface ProjectAppointment {
   // Regel der Serie, auf jeder Zeile gleich (Migration 20261024). null bei
   // Einzelterminen und bei Serien, die vorher angelegt wurden.
   series_rule?: SeriesRule | null
+  // Terminbestätigung an den Kunden (docs/specs/termin-bestaetigung-kunde.md):
+  // was dem Kunden zuletzt gesendet wurde. null = nie.
+  customer_notice_sent_at?: string | null
+  customer_notice_to?: string | null
+  customer_notice_snapshot?: AppointmentNoticeSnapshot | null
+}
+
+// Datum/Zeit/Art, wie sie dem Kunden gesendet wurden (Server-Normalform: Zeiten HH:MM,
+// leere Felder null) — Vergleich in projectAppointments.ts::noticeChanged.
+export interface AppointmentNoticeSnapshot {
+  start_date: string | null
+  end_date: string | null
+  start_time: string | null
+  end_time: string | null
+  kind: string | null
+  label: string | null
 }
 
 // Gespeicherte Regel einer Serie: `until` = Startdatum des letzten Termins.
@@ -136,6 +152,28 @@ export async function updateAppointment(
 // Verkürzen löscht nie still, wo schon rapportiert wurde: 409 mit diesem Code
 // (agents/routers/admin_scheduling.py::admin_update_appointment).
 export const SERIES_ACTIVITY_CODE = 'series_has_activity'
+
+export interface AppointmentNoticeResult {
+  to: string
+  sent_at: string
+  is_update: boolean
+  // false = Mail ist raus, aber der Versandstand liess sich nicht speichern.
+  recorded: boolean
+}
+
+/** Terminbestätigung (bzw. Aktualisierung) per Mail an den Kunden, mit Kalendereintrag.
+ *  Modul `termin_bestaetigung`; leere Adresse = Kunden-E-Mail. */
+export async function sendAppointmentNotice(
+  id: string, body: { recipient_email?: string; cc_recipients?: string[]; message?: string },
+): Promise<AppointmentNoticeResult> {
+  return apiFetch<AppointmentNoticeResult>(`/pwa/admin/appointments/${id}/customer-notice`, {
+    method: 'POST',
+    body: JSON.stringify({
+      ...body,
+      cc_recipients: (body.cc_recipients ?? []).map(a => a.trim()).filter(Boolean),
+    }),
+  })
+}
 
 export async function deleteAppointment(id: string, scope: AppointmentScope = 'single'): Promise<void> {
   await apiFetch(`/pwa/admin/appointments/${id}?scope=${scope}`, { method: 'DELETE' })

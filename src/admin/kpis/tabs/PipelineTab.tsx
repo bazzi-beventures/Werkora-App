@@ -129,16 +129,19 @@ export default function PipelineTab() {
         offenChf: acc.offenChf + l.offertenOffenChf,
         akzeptiert: acc.akzeptiert + l.offertenAkzeptiert,
         akzeptiertChf: acc.akzeptiertChf + l.offertenAkzeptiertChf,
+        nichtFakt: acc.nichtFakt + l.offertenNichtFakturiert,
+        nichtFaktChf: acc.nichtFaktChf + l.offertenNichtFakturiertChf,
         rechnungen: acc.rechnungen + l.rechnungenVersendet,
         rechnungenChf: acc.rechnungenChf + l.rechnungenChf,
         bezahlt: acc.bezahlt + l.rechnungenBezahlt,
         bezahltChf: acc.bezahltChf + l.bezahltChf,
       }),
-      { offen: 0, offenChf: 0, akzeptiert: 0, akzeptiertChf: 0, rechnungen: 0, rechnungenChf: 0, bezahlt: 0, bezahltChf: 0 },
+      { offen: 0, offenChf: 0, akzeptiert: 0, akzeptiertChf: 0, nichtFakt: 0, nichtFaktChf: 0, rechnungen: 0, rechnungenChf: 0, bezahlt: 0, bezahltChf: 0 },
     )
     return [
-      { label: 'Offerten offen', value: String(t.offen), sub: chf(t.offenChf) },
+      { label: 'Offerten noch nicht angenommen', value: String(t.offen), sub: chf(t.offenChf) },
       { label: 'Offerten akzeptiert', value: String(t.akzeptiert), sub: chf(t.akzeptiertChf) },
+      { label: 'Angenommen, nicht fakturiert', value: String(t.nichtFakt), sub: chf(t.nichtFaktChf) },
       { label: 'Rechnungen versendet', value: String(t.rechnungen), sub: chf(t.rechnungenChf) },
       { label: 'Bezahlt', value: String(t.bezahlt), sub: chf(t.bezahltChf), color: 'var(--success)' },
     ]
@@ -208,7 +211,7 @@ export default function PipelineTab() {
         />
       </div>
 
-      <KpiCards cards={cards} columns={4} />
+      <KpiCards cards={cards} columns={5} />
 
       {/* Filter bar */}
       <div className="kpi-filter-bar">

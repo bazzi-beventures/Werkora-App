@@ -28,7 +28,7 @@ export interface StaffMember {
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
   autosave, onCreateCustomerFromKontakt, onOpenCustomer, onOpenSchedule, projectId = null,
-  linkCustomer,
+  linkCustomer, customerNotice = false,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -64,6 +64,11 @@ export function DetailsForm({
   onOpenSchedule?: (date: string) => void
   /** Gespeichertes Projekt: dann stehen die Skill-Pillen in der Karte Einsatzplanung. */
   projectId?: string | null
+  /**
+   * Modul «termin_bestaetigung» und ein gespeichertes Kundenprojekt: «Termin an
+   * Kunden senden» an jedem gespeicherten Termin (docs/specs/termin-bestaetigung-kunde.md).
+   */
+  customerNotice?: boolean
 }) {
   // Verbatim aus dem Screen uebernommen: die Felder heissen hier wie dort, damit
   // der Umzug am JSX nichts geaendert hat und im Diff nachvollziehbar bleibt.
@@ -649,6 +654,9 @@ export function DetailsForm({
               staff={staff}
               projectTeam={monteurIds}
               onOpenSchedule={onOpenSchedule}
+              notice={customerNotice && autosave
+                ? { customerEmail: selectedCustomer?.email ?? '', objectAddress: objectAddress.trim() || undefined }
+                : undefined}
               autosave={autosave ? {
                 commit: key => autosave.run(f => f.commitAppointment(key)),
                 remove: key => autosave.run(f => f.removeAppointmentNow(key)),

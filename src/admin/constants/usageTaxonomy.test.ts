@@ -20,6 +20,7 @@ const KNOWN_MODULES = [
   'aftersales', 'document_backup',
   'rapport_check_mail', 'task_board', 'newsletter', 'support', 'supplier_wiki',
   'feature_requests', 'warranty', 'reminders', 'hagelschaden', 'lieferschein_erfassung',
+  'termin_bestaetigung',
 ]
 
 describe('moduleOfAction', () => {

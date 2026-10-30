@@ -37,6 +37,9 @@ const ALLOWED: Record<string, number> = {
   // Garantiefall melden + Fall-Ansicht (Formular-Overlays, beide mit
   // backdropCloseProps und Dirty-Sperre; docs/specs/garantiefall.md §6).
   'admin/operative/projectDetail/WarrantyTab.tsx': 2,
+  // Terminbestätigung an den Kunden: Versand-Formular wie SendQuoteMailDialog,
+  // mit backdropCloseProps (docs/specs/termin-bestaetigung-kunde.md).
+  'admin/operative/projectDetail/AppointmentNoticeDialog.tsx': 1,
 }
 
 function countByFile(): Record<string, number> {

@@ -69,6 +69,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   { test: /delivery_note/,                       module: 'lieferschein_erfassung' },
   // Hagelschaden (docs/specs/hagelschaden-dashboard.md) — vor /project/.
   { test: /hagelschaden/,                        module: 'hagelschaden' },
+  // Terminbestätigung (docs/specs/termin-bestaetigung-kunde.md) — vor /appointment/:
+  // der Versand hängt am Termin, gehört aber zum eigenen Modul.
+  { test: /appointment_notice/,                  module: 'termin_bestaetigung' },
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
   { test: /schedul|appointment/,                 module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
@@ -200,6 +203,7 @@ const ACTION_LABELS: Record<string, string> = {
   // ── Einsatzplanung ──
   admin_create_appointment: 'Termin angelegt',
   admin_update_appointment: 'Termin geändert',
+  admin_send_appointment_notice: 'Termin an Kunden gesendet',
   admin_delete_appointment: 'Termin gelöscht',
 
   // ── Material & Lager ──

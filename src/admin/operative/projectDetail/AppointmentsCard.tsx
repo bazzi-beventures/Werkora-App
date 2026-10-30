@@ -12,8 +12,9 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateTimeInput } from '../../components/DateTimeInput'
 import {
   AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, effectiveTeamIds, fmtDraftWhen,
-  newAppointmentDraft, nextAppointment, todayISO,
+  newAppointmentDraft, nextAppointment, noticeChanged, noticeSnapshot, todayISO,
 } from '../projectAppointments'
+import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
 
 interface Props {
   appointments: AppointmentDraft[]
@@ -39,9 +40,23 @@ interface Props {
   /** Sprung in die Einsatzplanung auf die Woche des Termins (YYYY-MM-DD) —
    *  die Gegenrichtung zum Doppelklick dort (einsatzplanung-rueckmeldungen-2026-10.md §2.2). */
   onOpenSchedule?: (date: string) => void
+  /**
+   * Modul «termin_bestaetigung» an und ein Kundenprojekt: dann trägt
+   * jeder gespeicherte Termin «Termin an Kunden senden»
+   * (docs/specs/termin-bestaetigung-kunde.md). Nur zusammen mit `autosave` —
+   * gesendet wird der gespeicherte Stand, nie ein Entwurf.
+   */
+  notice?: { customerEmail: string; objectAddress?: string }
 }
 
-export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave, onOpenSchedule }: Props) {
+/** «30.10., 14:12» — wann der Kunde die Bestätigung bekam. */
+function fmtSentAt(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave, onOpenSchedule, notice }: Props) {
   // Nur ein Termin ist gleichzeitig aufgeklappt — sonst wird die Kachel bei
   // vier Terminen unübersichtlich lang.
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -50,6 +65,9 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [confirmRemove, setConfirmRemove] = useState<AppointmentDraft | null>(null)
+  // Offener Dialog «Termin an Kunden senden» und die Bestätigung danach.
+  const [noticeFor, setNoticeFor] = useState<AppointmentDraft | null>(null)
+  const [noticeInfo, setNoticeInfo] = useState<Record<string, string>>({})
 
   /** Den offenen Termin speichern, falls geändert. false = ungültig/fehlgeschlagen, er bleibt offen. */
   async function commitOpen(): Promise<boolean> {
@@ -338,6 +356,37 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
               {autosave && !open && errors[d.key] && (
                 <div className="admin-form-error" role="alert">{errors[d.key]}</div>
               )}
+              {autosave && notice && d.id && (() => {
+                // Gesendet wird der gespeicherte Stand: mit ungespeicherten Änderungen
+                // bekäme der Kunde etwas anderes, als in der Planung steht.
+                const dirty = autosave.isDirty(d)
+                const changed = noticeChanged(d)
+                const label = !d.notice ? 'Termin an Kunden senden'
+                  : changed ? 'Aktualisierung senden' : 'Erneut senden'
+                return (
+                  <div className="project-appt-notice"
+                       style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+                                fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
+                    {d.notice && (
+                      <span style={changed ? { color: 'var(--danger)' } : undefined}>
+                        {changed
+                          ? 'Seit dem Versand an den Kunden geändert — er hat noch den alten Stand.'
+                          : `An Kunden gesendet am ${fmtSentAt(d.notice.sentAt)}`}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="admin-btn admin-btn-sm admin-btn-secondary"
+                      disabled={dirty}
+                      title={dirty ? 'Zuerst den Termin speichern' : undefined}
+                      onClick={() => setNoticeFor(d)}
+                    >
+                      {label}
+                    </button>
+                    {noticeInfo[d.key] && <span role="status">{noticeInfo[d.key]}</span>}
+                  </div>
+                )
+              })()}
             </div>
           )
         })}
@@ -358,11 +407,39 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
           message={<>
             {draftTitle(confirmRemove)} · {fmtDraftWhen(confirmRemove)} wird sofort entfernt.
             Betroffene Monteure werden benachrichtigt.
+            {confirmRemove.notice && (
+              <> Der Kunde hat eine Terminbestätigung erhalten — informieren Sie ihn über die Absage.</>
+            )}
           </>}
           confirmLabel="Entfernen"
           variant="danger"
           onCancel={() => setConfirmRemove(null)}
           onConfirm={() => { void confirmRemoveNow() }}
+        />
+      )}
+
+      {noticeFor && notice && (
+        <AppointmentNoticeDialog
+          draft={noticeFor}
+          defaultEmail={notice.customerEmail}
+          isUpdate={noticeChanged(noticeFor)}
+          objectAddress={notice.objectAddress}
+          onClose={() => setNoticeFor(null)}
+          onSent={result => {
+            const sent = noticeFor
+            setNoticeFor(null)
+            // Versandstand lokal nachführen — der Server hat ihn gespeichert, die Liste
+            // muss dafür nicht neu geladen werden.
+            onChange(prev => prev.map(x => x.key === sent.key
+              ? { ...x, notice: { sentAt: result.sent_at, to: result.to, snapshot: noticeSnapshot(x) } }
+              : x))
+            setNoticeInfo(info => ({
+              ...info,
+              [sent.key]: result.recorded
+                ? `Gesendet an ${result.to}.`
+                : `Gesendet an ${result.to} — der Versandstand liess sich nicht speichern.`,
+            }))
+          }}
         />
       )}
     </div>

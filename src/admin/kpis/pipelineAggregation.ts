@@ -24,6 +24,10 @@ export interface PipelineLeiterAgg {
   offertenEntwurf: number // noch nicht versendet — zählt NICHT zu offen
   offertenAkzeptiert: number
   offertenAkzeptiertChf: number
+  // Akzeptierte Offerten auf Projekten ohne versendete Rechnung: der Teil von
+  // «akzeptiert», der noch nicht in «Rechnungen versendet» steckt.
+  offertenNichtFakturiert: number
+  offertenNichtFakturiertChf: number
   projekteMitRapport: number
   rapporte: number
   rechnungenVersendet: number
@@ -97,6 +101,12 @@ export function aggregatePipeline(
     const offen = offerten.filter((o) => o.status === 'gesendet')
     const entwurf = offerten.filter((o) => o.status === 'entwurf')
     const akzeptiert = offerten.filter((o) => o.status === 'akzeptiert')
+    // Fakturiert heisst: das Projekt hat eine versendete Rechnung — unabhängig
+    // vom Datumsfilter. Sonst gälte eine im Mai angenommene, im Juni fakturierte
+    // Offerte unter «Letzter Monat = Mai» als nicht fakturiert. Auf Projektebene,
+    // weil das Modell 1 Projekt = 1 Rechnung ist (Backend liefert nur die aktuellste).
+    const fakturiert = row.rechnungen.some((r) => Boolean(r.gesendet_am))
+    const nichtFakturiert = fakturiert ? [] : akzeptiert
     const rapporte = row.rapporte.filter((d): d is string => inRange(d, from, to))
     const reVersendet = row.rechnungen.filter((r) => inRange(r.gesendet_am, from, to))
     const reBezahlt = row.rechnungen.filter((r) => inRange(r.bezahlt_am, from, to))
@@ -145,6 +155,8 @@ export function aggregatePipeline(
         offertenEntwurf: 0,
         offertenAkzeptiert: 0,
         offertenAkzeptiertChf: 0,
+        offertenNichtFakturiert: 0,
+        offertenNichtFakturiertChf: 0,
         projekteMitRapport: 0,
         rapporte: 0,
         rechnungenVersendet: 0,
@@ -160,6 +172,8 @@ export function aggregatePipeline(
     agg.offertenEntwurf += entwurf.length
     agg.offertenAkzeptiert += akzeptiert.length
     agg.offertenAkzeptiertChf += sum(akzeptiert.map((o) => o.betrag))
+    agg.offertenNichtFakturiert += nichtFakturiert.length
+    agg.offertenNichtFakturiertChf += sum(nichtFakturiert.map((o) => o.betrag))
     agg.projekteMitRapport += rapporte.length > 0 ? 1 : 0
     agg.rapporte += rapporte.length
     agg.rechnungenVersendet += reVersendet.length

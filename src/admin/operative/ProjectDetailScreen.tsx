@@ -614,6 +614,8 @@ export default function ProjectDetailScreen({
           linkCustomer={linkCustomer}
           onOpenSchedule={onOpenSchedule}
           projectId={!isNew && project ? project.id : null}
+          // Interne Einsätze haben keinen Kunden (Spec E7).
+          customerNotice={features.terminBestaetigung && !isNew && (project?.kind ?? 'project') === 'project'}
         />
       )}
 
