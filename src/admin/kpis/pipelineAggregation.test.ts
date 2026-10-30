@@ -52,8 +52,9 @@ describe('aggregatePipeline — Gruppierung', () => {
     expect(perLeiter).toHaveLength(2)
     const hans = perLeiter.find((l) => l.projektleiter === 'Hans Muster')!
     expect(hans.projekte).toBe(2)
-    expect(hans.offertenOffen).toBe(2)
-    expect(hans.offertenVersendet).toBe(1)
+    // Nur die versendete zählt als offen, der Entwurf steht separat
+    expect(hans.offertenOffen).toBe(1)
+    expect(hans.offertenEntwurf).toBe(1)
   })
 
   it('zählt akzeptierte Offerten mit Betrag', () => {
@@ -62,8 +63,25 @@ describe('aggregatePipeline — Gruppierung', () => {
     expect(perLeiter[0].offertenAkzeptiert).toBe(1)
     expect(perLeiter[0].offertenAkzeptiertChf).toBe(1081)
     expect(perLeiter[0].offertenOffenChf).toBe(500)
-    // Pro Projekt: Offertenbetrag = Summe der offenen Offerten (Entwurf + Gesendet)
+    // Pro Projekt: Offertenbetrag = Summe der offenen (versendeten) Offerten
     expect(perProjekt[0].offertenOffenChf).toBe(500)
+  })
+
+  it('offen = versendet minus angenommen/abgelehnt; Entwürfe zählen nicht mit', () => {
+    const rows = [row({
+      offerten: [
+        offerte('gesendet', 300),
+        offerte('akzeptiert', 1000),
+        offerte('abgelehnt', 700),
+        offerte('entwurf', 5000),
+      ],
+    })]
+    const { perLeiter, perProjekt } = aggregatePipeline(rows, ALLE)
+    expect(perLeiter[0].offertenOffen).toBe(1)
+    expect(perLeiter[0].offertenOffenChf).toBe(300)
+    expect(perLeiter[0].offertenEntwurf).toBe(1)
+    expect(perLeiter[0].offertenAkzeptiertChf).toBe(1000)
+    expect(perProjekt[0].offertenOffenChf).toBe(300)
   })
 
   it('zählt Projekte mit Rapport nur einmal, Rapporte aber alle', () => {

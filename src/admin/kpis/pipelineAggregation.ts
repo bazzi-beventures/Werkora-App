@@ -19,9 +19,9 @@ export interface PipelineFilter {
 export interface PipelineLeiterAgg {
   projektleiter: string
   projekte: number
-  offertenOffen: number // Status entwurf + gesendet
+  offertenOffen: number // versendet, noch nicht angenommen/abgelehnt (Status gesendet)
   offertenOffenChf: number
-  offertenVersendet: number // davon Status gesendet
+  offertenEntwurf: number // noch nicht versendet — zählt NICHT zu offen
   offertenAkzeptiert: number
   offertenAkzeptiertChf: number
   projekteMitRapport: number
@@ -41,7 +41,7 @@ export interface PipelineProjektAgg {
   projektleiter: string
   offertenOffen: number
   offertenOffenChf: number
-  offertenVersendet: number
+  offertenEntwurf: number
   offertenAkzeptiert: number
   rapporte: number
   rechnungenVersendet: number
@@ -90,8 +90,12 @@ export function aggregatePipeline(
     }
 
     const offerten = row.offerten.filter((o) => inRange(o.datum, from, to))
-    const offen = offerten.filter((o) => o.status === 'entwurf' || o.status === 'gesendet')
-    const versendet = offen.filter((o) => o.status === 'gesendet')
+    // Offen = beim Kunden, Entscheid ausstehend. Angenommene tragen hier schon
+    // 'akzeptiert' (Backend folgt accepted_at, nicht dem Rohstatus), abgelehnte
+    // 'abgelehnt'. Entwürfe waren nie beim Kunden und gehören nicht in den
+    // erwartbaren Umsatz — sie stehen separat.
+    const offen = offerten.filter((o) => o.status === 'gesendet')
+    const entwurf = offerten.filter((o) => o.status === 'entwurf')
     const akzeptiert = offerten.filter((o) => o.status === 'akzeptiert')
     const rapporte = row.rapporte.filter((d): d is string => inRange(d, from, to))
     const reVersendet = row.rechnungen.filter((r) => inRange(r.gesendet_am, from, to))
@@ -117,7 +121,7 @@ export function aggregatePipeline(
       projektleiter: pl,
       offertenOffen: offen.length,
       offertenOffenChf: sum(offen.map((o) => o.betrag)),
-      offertenVersendet: versendet.length,
+      offertenEntwurf: entwurf.length,
       offertenAkzeptiert: akzeptiert.length,
       rapporte: rapporte.length,
       rechnungenVersendet: reVersendet.length,
@@ -138,7 +142,7 @@ export function aggregatePipeline(
         projekte: 0,
         offertenOffen: 0,
         offertenOffenChf: 0,
-        offertenVersendet: 0,
+        offertenEntwurf: 0,
         offertenAkzeptiert: 0,
         offertenAkzeptiertChf: 0,
         projekteMitRapport: 0,
@@ -153,7 +157,7 @@ export function aggregatePipeline(
     agg.projekte += 1
     agg.offertenOffen += offen.length
     agg.offertenOffenChf += sum(offen.map((o) => o.betrag))
-    agg.offertenVersendet += versendet.length
+    agg.offertenEntwurf += entwurf.length
     agg.offertenAkzeptiert += akzeptiert.length
     agg.offertenAkzeptiertChf += sum(akzeptiert.map((o) => o.betrag))
     agg.projekteMitRapport += rapporte.length > 0 ? 1 : 0

@@ -57,7 +57,7 @@ const LEITER_COLUMNS: ColumnDef<PipelineLeiterAgg>[] = [
   { key: 'projektleiter', label: 'Projektleiter' },
   { key: 'projekte', label: 'Projekte', align: 'right' },
   { key: 'offertenOffen', label: 'Offerten offen', align: 'right', render: (_, r) => nChf(r.offertenOffen, r.offertenOffenChf) },
-  { key: 'offertenVersendet', label: 'davon versendet', align: 'right' },
+  { key: 'offertenEntwurf', label: 'Entwürfe', align: 'right' },
   { key: 'offertenAkzeptiert', label: 'Akzeptiert', align: 'right', render: (_, r) => nChf(r.offertenAkzeptiert, r.offertenAkzeptiertChf) },
   { key: 'projekteMitRapport', label: 'Mit Rapport', align: 'right' },
   { key: 'rechnungenVersendet', label: 'Rechnungen', align: 'right', render: (_, r) => nChf(r.rechnungenVersendet, r.rechnungenChf) },
