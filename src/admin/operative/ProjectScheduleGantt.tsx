@@ -11,7 +11,7 @@ import type { Project } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import {
   CalendarEntry, StaffLite,
-  absenceLookup, addressLocality, useHoverCard, entryTitle, fmtTimeRange,
+  absenceEntryLookup, isVacation, addressLocality, useHoverCard, entryTitle, fmtTimeRange,
   hasUnassignedEntries, kindSymbol, neededDistancePairs, overlapConflictIds,
   pillBg, pillClass, projectCoversDay, readDragPayload, reassignTeam, rowEntries,
   setDragPayload, useScheduleDistances,
@@ -42,7 +42,7 @@ interface Props {
   rowStaff: StaffLite[]
   fields?: Record<string, boolean>
   currentDate: Date
-  // Anzahl sichtbarer Tage (1 / 3 / 5).
+  // Anzahl sichtbarer Tage (1 / 3 / 5 / 6).
   span: number
   // Breite einer Stunde in px (Zoom-Stufe). Wirkt als Mindestbreite — ist der
   // Bildschirm breiter als das Raster, wird die Stunde bis zur vollen Breite gestreckt.
@@ -65,17 +65,19 @@ interface Props {
   // Genehmigte Absenzen: schraffiertes Band über den Tag der Zeile
   // (einsatzplanung-rueckmeldungen-2026-10.md §7).
   absences?: ScheduleAbsence[]
+  // Schalter «Wochenende ausblenden»: die Achse zählt nur Werktage.
+  hideWeekend?: boolean
 }
 
 export default function ProjectScheduleGantt({
   projects, staff, rowStaff, fields, currentDate, span, hourWidth,
   onSelect, onOpenProject, onReschedule, onCreateSlot, holidays, greyAfter, greyUntil,
-  dayCapacityHours, showDistances, absences,
+  dayCapacityHours, showDistances, absences, hideWeekend = false,
 }: Props) {
   const { hover, bind } = useHoverCard()
   // Zeile, über der gerade ein Balken schwebt: rowId ('' = «Ohne Monteur»).
   const [hoverRow, setHoverRow] = useState<string | null>(null)
-  const days = ganttDays(currentDate, span)
+  const days = ganttDays(currentDate, span, hideWeekend)
   const staffIds = new Set(staff.map(s => s.id))
 
   // Breite des Scroll-Containers beobachten: ist der Bildschirm breiter als das
@@ -102,7 +104,7 @@ export default function ProjectScheduleGantt({
   }
 
   const hasUnassigned = hasUnassignedEntries(projects, staffIds, days)
-  const absentOn = absenceLookup(absences ?? [])
+  const absentOn = absenceEntryLookup(absences ?? [])
 
   const distBetween = useScheduleDistances(
     showDistances ? neededDistancePairs(projects, staffIds, rowStaff, days) : [],
@@ -202,7 +204,10 @@ export default function ProjectScheduleGantt({
         key={`${p.id}@${dayISO}`}
         className={
           `project-cal-gantt-bar${allDay ? ' allday' : ''}` +
-          `${conflict ? ' conflict' : ''}${pillClass(p)}`
+          `${conflict ? ' conflict' : ''}${pillClass(p)}` +
+          // Ferientag des Zeilen-Mitarbeiters: Balken tritt zurück, das grüne
+          // Ferien-Band dahinter bleibt sichtbar (WW-59).
+          `${rowId !== null && isVacation(absentOn(rowId, dayISO)) ? ' on-vacation' : ''}`
         }
         draggable
         onDragStart={e => setDragPayload(e, p.id, dayISO, rowId ?? '', 'x')}
@@ -313,12 +318,16 @@ export default function ProjectScheduleGantt({
             const isHoliday = holidays.has(toDateStr(d))
             const dim = greyLeft !== null && dow >= 1 && dow <= 5 && greyRight > greyLeft
             // «Ohne Monteur» ist niemand — dort gibt es auch keine Abwesenheit.
-            const absence = rowId !== null ? absentOn(rowId, toDateStr(d)) : null
+            const absenceEntry = rowId !== null ? absentOn(rowId, toDateStr(d)) : null
+            const absence = absenceEntry?.label ?? null
             return (
               <div key={i} className="project-cal-gantt-day-bg" style={{ left: i * dayW, width: dayW }} aria-hidden="true">
                 {(dow === 0 || dow === 6 || isHoliday) && <div className="project-cal-gantt-offday" />}
                 {absence && (
-                  <div className="project-cal-gantt-absence" data-testid="gantt-absence">
+                  <div
+                    className={`project-cal-gantt-absence${isVacation(absenceEntry) ? ' vacation' : ''}`}
+                    data-testid="gantt-absence"
+                  >
                     <span className="project-cal-gantt-absence-label">{absence}</span>
                   </div>
                 )}

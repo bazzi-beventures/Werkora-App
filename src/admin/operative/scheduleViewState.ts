@@ -23,6 +23,12 @@ export interface ScheduleViewState {
    *  Reihenfolge der Liste kann sich zwischen zwei Besuchen ändern. */
   staffId?: string | null
   hiddenStaff?: string[]
+  /** Ersatz-Ansichten, falls `view` beim Mandanten ausgeschaltet ist — in dieser
+   *  Reihenfolge. Für Sprünge von aussen, die eine bestimmte Art von Ansicht
+   *  brauchen (WW-58: aus der Ferien-Freigabe «wer ist sonst noch weg» →
+   *  Plantafel, sonst Tagesplan, sonst Woche), ohne die Mandanten-Config zu
+   *  kennen. Ohne Eintrag gilt wie bisher die erste erlaubte Ansicht. */
+  viewFallback?: SchedulingViewKey[]
 }
 
 export function readScheduleView(): ScheduleViewState {

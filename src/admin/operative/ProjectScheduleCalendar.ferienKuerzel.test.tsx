@@ -131,6 +131,51 @@ describe('Ferien in allen Ansichten (§7)', () => {
 
 })
 
+describe('Ferien grün, Einsätze im Hintergrund (WW-59)', () => {
+  const TODAY = toDateStr(new Date())
+  const GANZE_WOCHE: ScheduleAbsence = { ...FERIEN, date_start: toDateStr(week[0]), date_end: toDateStr(week[6]) }
+  const KRANK: ScheduleAbsence = { ...GANZE_WOCHE, staff_id: 's1', staff_name: 'Anna Muster', type: 'sick', label: 'Krank' }
+
+  it('Tagesplan: Ferien-Band grün, Krank bleibt grau; Balken am Ferientag blass', async () => {
+    const { container } = renderCal({
+      entries: [entry({ start_date: TODAY, end_date: TODAY, name: 'Büro', start_time: null, end_time: null })],
+      absences: [GANZE_WOCHE, KRANK],
+    })
+    await zeige('Tagesplan')
+    const baender = screen.getAllByTestId('gantt-absence')
+    const ferien = baender.filter(b => b.textContent?.startsWith('Ferien'))
+    const krank = baender.filter(b => b.textContent === 'Krank')
+    expect(ferien.length).toBeGreaterThan(0)
+    expect(ferien.every(b => b.classList.contains('vacation'))).toBe(true)
+    expect(krank.length).toBeGreaterThan(0)
+    expect(krank.some(b => b.classList.contains('vacation'))).toBe(false)
+    // «Büro» liegt bei Anna (krank) und Beat (Ferien) — nur Beats Balken tritt zurück.
+    const bars = [...container.querySelectorAll('.project-cal-gantt-bar')]
+    const beat = bars.filter(b => within(b.closest('.project-cal-gantt-row') as HTMLElement).queryByText('Beat Beispiel'))
+    const anna = bars.filter(b => within(b.closest('.project-cal-gantt-row') as HTMLElement).queryByText('Anna Muster'))
+    expect(beat.length).toBe(1)
+    expect(beat[0]).toHaveClass('on-vacation')
+    expect(anna.length).toBe(1)
+    expect(anna[0]).not.toHaveClass('on-vacation')
+  })
+
+  it('Plantafel: Ferienzelle grün markiert, andere Absenz nicht', async () => {
+    const { container } = renderCal({ absences: [GANZE_WOCHE, KRANK] })
+    await zeige('Plantafel')
+    expect(container.querySelectorAll('.project-cal-board-cell.absent.vacation')).toHaveLength(7)
+    expect(container.querySelectorAll('.project-cal-board-cell.absent:not(.vacation)')).toHaveLength(7)
+  })
+
+  it('Woche: Ferien-Chip grün, Mitarbeiter-Ansicht färbt den Tag', async () => {
+    const { container } = renderCal()
+    await zeige('Woche')
+    expect(screen.getByText('BB Ferien')).toHaveClass('vacation')
+    await zeige('Mitarbeiter')
+    await userEvent.selectOptions(screen.getByRole('combobox'), ['s2'])
+    expect(container.querySelectorAll('.project-cal-week-day-col.absent.vacation')).toHaveLength(1)
+  })
+})
+
 describe('Kürzel statt Namen (§4)', () => {
   it('Woche und Mitarbeiter-Ansicht zeigen die Crew als Kürzel-Chips, Lead zuerst', async () => {
     const { container } = renderCal({ absences: [] })

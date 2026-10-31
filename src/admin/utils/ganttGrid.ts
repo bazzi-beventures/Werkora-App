@@ -23,15 +23,50 @@ export const GANTT_ZOOM_DEFAULT = 2
 
 // ─── Sichtbarer Zeitraum ─────────────────────────────────────────────────────
 
-// Wählbare Anzahl Tage auf der Achse (wie im Screenshot: Tag / 3 Tage / 5 Tage).
-export const GANTT_SPANS = [1, 3, 5] as const
-export const GANTT_SPAN_LABELS: Record<number, string> = { 1: 'Tag', 3: '3 Tage', 5: '5 Tage' }
+// Wählbare Anzahl Tage auf der Achse (Tag / 3 / 5 / 6 Tage). «6 Tage» bringt ab
+// Montag die ganze Arbeitswoche inkl. Samstag auf den Schirm (WW-60).
+export const GANTT_SPANS = [1, 3, 5, 6] as const
+export const GANTT_SPAN_LABELS: Record<number, string> = { 1: 'Tag', 3: '3 Tage', 5: '5 Tage', 6: '6 Tage' }
 export const GANTT_SPAN_DEFAULT = 5
 
-export function ganttDays(start: Date, span: number): Date[] {
+function isWeekend(d: Date): boolean {
+  const dow = d.getDay()
+  return dow === 0 || dow === 6
+}
+
+/**
+ * Die Tage auf der Achse ab `start`. Mit `skipWeekend` (Schalter «Wochenende
+ * ausblenden») zählen nur Werktage: «5 Tage» sind dann fünf Werktage, und ein
+ * Start am Samstag beginnt am Montag.
+ */
+export function ganttDays(start: Date, span: number, skipWeekend = false): Date[] {
   const out: Date[] = []
-  for (let i = 0; i < span; i++) out.push(addDays(start, i))
+  for (let d = start; out.length < span; d = addDays(d, 1)) {
+    if (!skipWeekend || !isWeekend(d)) out.push(d)
+  }
   return out
+}
+
+/**
+ * Startdatum nach einem Pfeil-Klick. Ohne Wochenend-Schalter einfach ±span
+ * Tage; mit ihm schliesst der nächste Zeitraum lückenlos an die sichtbaren
+ * Werktage an (Fr + «3 Tage» → Mo–Mi, zurück wieder Fr), statt halb im
+ * Wochenende zu landen.
+ */
+export function ganttStepStart(
+  current: Date, span: number, direction: 1 | -1, skipWeekend = false,
+): Date {
+  if (!skipWeekend) return addDays(current, direction * span)
+  const visible = ganttDays(current, span, true)
+  // Vorwärts gleich auf den nächsten Werktag, damit das Startdatum immer ein
+  // sichtbarer Tag ist (Fr → Mo, nicht Fr → Sa).
+  if (direction === 1) return ganttDays(addDays(visible[visible.length - 1], 1), 1, true)[0]
+  let d = visible[0]
+  for (let n = 0; n < span; ) {
+    d = addDays(d, -1)
+    if (!isWeekend(d)) n++
+  }
+  return d
 }
 
 // ─── Balken-Geometrie ────────────────────────────────────────────────────────

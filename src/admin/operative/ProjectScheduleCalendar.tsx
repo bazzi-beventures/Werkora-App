@@ -19,10 +19,11 @@ import {
   GANTT_DAY_CAPACITY_FALLBACK_H as DAY_CAPACITY_FALLBACK_H,
   GANTT_SPANS, GANTT_SPAN_DEFAULT, GANTT_SPAN_LABELS,
   GANTT_ZOOM_DEFAULT, GANTT_ZOOM_LABELS, GANTT_ZOOM_LEVELS,
+  ganttDays, ganttStepStart,
 } from '../utils/ganttGrid'
 import ProjectScheduleGantt from './ProjectScheduleGantt'
 import {
-  absenceKind, absenceLookup, absencesOnDay, staffShortLabel, type DayAbsence,
+  absenceKind, absenceEntryLookup, absencesOnDay, isVacation, staffShortLabel, type DayAbsence,
   crewMembers, entryTitle, fmtTime, fmtTimeRange, hasUnassignedEntries, kindSymbol,
   neededDistancePairs, overlapConflictIds, pillBg, pillClass, pillExtraLines,
   projectCoversDay, projectMonteurNames, readDragPayload, reassignTeam, rowEntries,
@@ -139,7 +140,7 @@ function AbsenceChips({ list, withName }: { list: DayAbsence[]; withName: boolea
       {list.map(a => (
         <span
           key={a.staff.id}
-          className="project-cal-absence-chip"
+          className={`project-cal-absence-chip${a.vacation ? ' vacation' : ''}`}
           title={`${a.staff.name}: ${a.label}`}
         >
           {withName ? `${staffShortLabel(a.staff)} ${absenceKind(a.label)}` : a.label}
@@ -167,7 +168,7 @@ function MonthView({
   // Wessen Abwesenheit zählt (sichtbare Mitarbeiter bzw. der fokussierte).
   absenceStaff: StaffLite[]
 }) {
-  const absentOn = absenceLookup(absences ?? [])
+  const absentOn = absenceEntryLookup(absences ?? [])
   const days = getMonthDays(currentDate)
   const DOW = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
   const [hoverDay, setHoverDay] = useState<string | null>(null)
@@ -294,7 +295,7 @@ function WeekView({
   hideWeekend?: boolean
 }) {
   const days = visibleWeekDays(getWeekDays(currentDate), hideWeekend)
-  const absentOn = absenceLookup(absences ?? [])
+  const absentOn = absenceEntryLookup(absences ?? [])
   const absentByDay: DayAbsence[][] = days.map(d => absencesOnDay(absentOn, absenceStaff, toDateStr(d)))
   const [hoverDayISO, setHoverDayISO] = useState<string | null>(null)
   const { hover, bind } = useHoverCard()
@@ -529,7 +530,7 @@ function WeekView({
         <div className="project-cal-week-allday-row project-cal-week-absent-row">
           <div className="project-cal-week-allday-label">Abwesend</div>
           {days.map((d, i) => (
-            <div key={i} className={`project-cal-week-allday-cell${absentByDay[i].length ? ' absent' : ''}`}>
+            <div key={i} className={`project-cal-week-allday-cell${absentByDay[i].length ? ' absent' : ''}${absentByDay[i].some(a => a.vacation) ? ' vacation' : ''}`}>
               <AbsenceChips list={absentByDay[i]} withName={!staffMode} />
             </div>
           ))}
@@ -546,7 +547,11 @@ function WeekView({
             return (
               <div
                 key={i}
-                className={`project-cal-week-allday-cell${hoverDayISO === dayISO ? ' project-cal-drop-hover' : ''}`}
+                className={
+                  `project-cal-week-allday-cell${hoverDayISO === dayISO ? ' project-cal-drop-hover' : ''}` +
+                  // Ganztägiges «Büro» am Ferientag tritt zurück (WW-59).
+                  `${staffMode && absentByDay[i].some(a => a.vacation) ? ' vacation' : ''}`
+                }
                 onDragOver={e => { e.preventDefault(); setHoverDayISO(dayISO) }}
                 onDragLeave={() => setHoverDayISO(prev => prev === dayISO ? null : prev)}
                 onDrop={e => handleAllDayDrop(e, d)}
@@ -580,7 +585,9 @@ function WeekView({
               key={i}
               className={
                 `project-cal-week-day-col${dropPreview?.dayISO === dayISO ? ' project-cal-drop-hover' : ''}` +
-                `${onCreateSlot ? ' creatable' : ''}${staffMode && absentByDay[i].length ? ' absent' : ''}`
+                `${onCreateSlot ? ' creatable' : ''}${staffMode && absentByDay[i].length ? ' absent' : ''}` +
+                // Mitarbeiter-Ansicht: ein Ferientag wird grün, seine Einsätze blass (WW-59).
+                `${staffMode && absentByDay[i].some(a => a.vacation) ? ' vacation' : ''}`
               }
               onMouseDown={e => beginCreate(e, dayISO)}
               onDragOver={e => {
@@ -684,7 +691,7 @@ function PlantafelView({
     showDistances ? neededDistancePairs(projects, staffIds, rowStaff, days) : [],
   )
 
-  const absentOn = absenceLookup(absences ?? [])
+  const absentOn = absenceEntryLookup(absences ?? [])
 
 
   function handleDrop(e: React.DragEvent, day: Date, rowId: string | null) {
@@ -750,14 +757,15 @@ function PlantafelView({
           const entries = cellEntries(rowId, d)
           const conflicts = rowId !== null ? overlapConflictIds(entries) : new Set<string>()
           // «Ohne Monteur» ist niemand — dort gibt es auch keine Abwesenheit.
-          const absence = rowId !== null ? absentOn(rowId, dayISO) : null
+          const absenceEntry = rowId !== null ? absentOn(rowId, dayISO) : null
+          const absence = absenceEntry?.label ?? null
           return (
             <div
               key={dayISO}
               className={
                 `project-cal-board-cell${isToday(d) ? ' today' : ''}` +
                 `${holidays.has(dayISO) ? ' holiday' : ''}` +
-                `${absence ? ' absent' : ''}` +
+                `${absence ? ' absent' : ''}${isVacation(absenceEntry) ? ' vacation' : ''}` +
                 `${hoverCell === cellKey ? ' project-cal-drop-hover' : ''}` +
                 `${onCreateCell ? ' creatable' : ''}`
               }
@@ -842,7 +850,7 @@ function AgendaView({
 }) {
   const days = getWeekDays(currentDate)
   const projectsByDay: CalendarEntry[][] = days.map(d => projects.filter(p => projectCoversDay(p, d)))
-  const absentOn = absenceLookup(absences ?? [])
+  const absentOn = absenceEntryLookup(absences ?? [])
   return (
     <div className="project-cal-agenda">
       {days.map((day, i) => {
@@ -900,7 +908,7 @@ function AgendaView({
 // sonst räumt der Schema-Wechsel sie als Legacy-Müll weg.
 const ZOOM_KEY = 'schedule-week-zoom'
 const GANTT_ZOOM_KEY = 'schedule-gantt-zoom'
-// Sichtbarer Zeitraum des Tagesplans (1 / 3 / 5 Tage) — gleiche Logik wie der
+// Sichtbarer Zeitraum des Tagesplans (1 / 3 / 5 / 6 Tage) — gleiche Logik wie der
 // Zoom: reine Anzeige-Vorliebe pro Browser, defensiv geparst.
 const GANTT_SPAN_KEY = 'schedule-gantt-span'
 
@@ -960,7 +968,14 @@ export default function ProjectScheduleCalendar({
   // abgeleitet statt per Effect, damit auch die async nachladende Config sofort wirkt.
   const viewEnabled = (k: SchedulingViewKey) => schedulingConfig?.views?.[k] !== false
   const availableViews = SCHEDULING_VIEWS.filter(v => viewEnabled(v.key))
-  const view: SchedulingViewKey = viewEnabled(viewMode) ? viewMode : (availableViews[0]?.key ?? 'month')
+  // Ersatz-Reihenfolge aus einem Sprung von aussen (scheduleViewState.viewFallback);
+  // nur bekannte Ansichten — ein fehlender views-Key gälte sonst als «an».
+  const [viewFallback] = useState<SchedulingViewKey[]>(() =>
+    (Array.isArray(saved.viewFallback) ? saved.viewFallback : [])
+      .filter(k => SCHEDULING_VIEWS.some(v => v.key === k)))
+  const view: SchedulingViewKey = viewEnabled(viewMode)
+    ? viewMode
+    : (viewFallback.find(viewEnabled) ?? availableViews[0]?.key ?? 'month')
   // Solange die Config fehlt, steht `view` nur auf dem Default und nicht auf der
   // Ansicht, die der Mandant tatsächlich zuerst sieht — alles, was daran hängt
   // (Reiter, Filterzeilen, Zoom, Inhalt), wartet deshalb wie beim Datenladen.
@@ -973,15 +988,26 @@ export default function ProjectScheduleCalendar({
   const [currentDate, setCurrentDate] = useState(() => parseViewDate(saved.date) ?? new Date())
   const [zoom, setZoom] = useState(readZoom)
   const [ganttZoom, setGanttZoom] = useState(readGanttZoom)
-  // Sichtbare Tage im Tagesplan (1 / 3 / 5), pro Browser gemerkt.
+  // Sichtbare Tage im Tagesplan (1 / 3 / 5 / 6), pro Browser gemerkt.
   const [ganttSpan, setGanttSpan] = useState<number>(readGanttSpan)
   const [hiddenStaff, setHiddenStaff] = useState<Set<string>>(() => new Set(saved.hiddenStaff ?? []))
-  // Sa/So in Woche, Mitarbeiter und Plantafel ausblenden (WW-56) — Vorliebe pro
-  // Browser wie Zoom und Zeitraum, nicht pro Sitzung.
+  // Sa/So in Woche, Mitarbeiter, Plantafel und Tagesplan ausblenden (WW-56) —
+  // Vorliebe pro Browser wie Zoom und Zeitraum, nicht pro Sitzung. Ein Haken für
+  // alle Ansichten: wer ihn in der Woche setzt, will das Wochenende auch im
+  // Tagesplan nicht sehen.
   const [hideWeekend, setHideWeekend] = useState<boolean>(readHideWeekend)
-  const weekendToggleVisible = view === 'week' || view === 'staff' || view === 'plantafel'
+  const weekendToggleVisible =
+    view === 'week' || view === 'staff' || view === 'plantafel' || view === 'gantt'
+  // Sichtbare Tage des Tagesplans — mit Haken nur Werktage (Sa-Start → ab Mo).
+  const ganttVisibleDays = ganttDays(currentDate, ganttSpan, hideWeekend)
+  // Gemeldet wird, was im gewählten Zeitraum am Wochenende verschwindet: in der
+  // Woche die ganze Woche, im Tagesplan vom gewählten Tag bis zum letzten
+  // sichtbaren Werktag (ein Wochenende dazwischen oder davor zählt mit).
+  const weekendCheckDays = view === 'gantt'
+    ? ganttDays(currentDate, diffDays(toDateStr(currentDate), toDateStr(ganttVisibleDays[ganttVisibleDays.length - 1])) + 1)
+    : getWeekDays(currentDate)
   const weekendHiddenCount = hideWeekend && weekendToggleVisible
-    ? weekendOnlyEntries(projects, getWeekDays(currentDate))
+    ? weekendOnlyEntries(projects, weekendCheckDays)
     : 0
 
   function toggleHideWeekend(next: boolean) {
@@ -1034,8 +1060,9 @@ export default function ProjectScheduleCalendar({
       // Solange die Liste noch lädt, bleibt der gemerkte Mitarbeiter stehen.
       staffId: focusedStaff?.id ?? pendingStaffIdRef.current,
       hiddenStaff: [...hiddenStaff],
+      viewFallback,
     })
-  }, [viewMode, currentDate, focusedStaff, hiddenStaff])
+  }, [viewMode, currentDate, focusedStaff, hiddenStaff, viewFallback])
 
   function stepStaff(delta: number) {
     if (staff.length === 0) return
@@ -1120,7 +1147,7 @@ export default function ProjectScheduleCalendar({
   // Auf Mobile ist die Ansicht immer die Wochen-Agenda → Navigation wochenweise,
   // unabhängig vom (dort ausgeblendeten) Monatsmodus.
   const monthNav = view === 'month' && !isMobile
-  // Der Tagesplan navigiert in seinem eigenen Zeitraum (1/3/5 Tage), nicht wochenweise.
+  // Der Tagesplan navigiert in seinem eigenen Zeitraum (1/3/5/6 Tage), nicht wochenweise.
   const ganttNav = view === 'gantt' && !isMobile
 
   function stepDays(days: number) {
@@ -1129,13 +1156,13 @@ export default function ProjectScheduleCalendar({
 
   function handlePrev() {
     if (monthNav) setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))
-    else if (ganttNav) stepDays(-ganttSpan)
+    else if (ganttNav) setCurrentDate(d => ganttStepStart(d, ganttSpan, -1, hideWeekend))
     else stepDays(-7)
   }
 
   function handleNext() {
     if (monthNav) setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))
-    else if (ganttNav) stepDays(ganttSpan)
+    else if (ganttNav) setCurrentDate(d => ganttStepStart(d, ganttSpan, 1, hideWeekend))
     else stepDays(7)
   }
 
@@ -1150,11 +1177,14 @@ export default function ProjectScheduleCalendar({
     ? currentDate.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' })
     : ganttNav
     ? (() => {
-        const from = currentDate.toLocaleDateString('de-CH', {
+        // Titel nach den sichtbaren Tagen: mit ausgeblendetem Wochenende und
+        // Samstag als Start steht hier der Montag, nicht der Samstag.
+        const first = ganttVisibleDays[0]
+        const from = first.toLocaleDateString('de-CH', {
           weekday: 'short', day: '2-digit', month: '2-digit', year: ganttSpan > 1 ? undefined : 'numeric',
         })
         if (ganttSpan === 1) return from
-        const last = addDays(currentDate, ganttSpan - 1)
+        const last = ganttVisibleDays[ganttVisibleDays.length - 1]
         return `${from} – ${last.toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}`
       })()
     : (() => {
@@ -1393,6 +1423,7 @@ export default function ProjectScheduleCalendar({
           fields={fields}
           currentDate={currentDate}
           span={ganttSpan}
+          hideWeekend={hideWeekend}
           hourWidth={GANTT_ZOOM_LEVELS[ganttZoom]}
           onSelect={onSelect}
           onOpenProject={onOpenProject}

@@ -229,7 +229,21 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'my-time':      return guard('timekeeping', <MyTimeScreen user={user} onLoggedOut={onLoggedOut} />)
       case 'staff':        return <StaffScreen actingRole={user.role} />
       case 'bulk-clockin': return guard('timekeeping', <BulkClockInScreen />)
-      case 'absences':     return guard('hr', <AbsencesScreen onBadgeChange={loadDashboard} canton={canton} />)
+      case 'absences':     return guard('hr', (
+        <AbsencesScreen
+          onBadgeChange={loadDashboard}
+          canton={canton}
+          // WW-58: Datum anklicken → Einsatzplanung auf diesem Tag, in einer
+          // Ansicht mit allen Mitarbeitern (Plantafel, sonst Tagesplan, sonst
+          // Woche) und ohne ausgeblendete — gefragt ist «wer ist sonst noch weg».
+          onOpenSchedule={hasModule(user, 'scheduling') ? date => {
+            writeScheduleView({
+              ...readScheduleView(), date, view: 'plantafel', viewFallback: ['gantt', 'week'], hiddenStaff: [],
+            })
+            guardedNav('project-schedule')
+          } : undefined}
+        />
+      ))
       case 'corrections':  return guard('timekeeping', <CorrectionsScreen onBadgeChange={loadDashboard} />)
       case 'hr-reports':   return guard('hr', <HrReportsScreen />)
       case 'vacation':     return guard('hr', <VacationOverviewScreen />)

@@ -77,7 +77,29 @@ function AbsenceActions({ a, acting, onApprove, onReject }: {
 
 type TabType = 'requested' | 'approved' | 'rejected' | 'calendar'
 
-export default function AbsencesScreen({ onBadgeChange, canton = 'ZH' }: { onBadgeChange?: () => void; canton?: string }) {
+// Datum als Sprung in die Einsatzplanung (WW-58): wer Ferien freigibt, will
+// sehen, wer im selben Zeitraum sonst noch weg ist. Ohne Planungs-Modul bleibt
+// es reiner Text.
+function DateLink({ iso, onOpen }: { iso: string; onOpen?: (iso: string) => void }) {
+  if (!onOpen) return <>{fmt(iso)}</>
+  return (
+    <button
+      type="button"
+      className="admin-link-btn"
+      title="In der Einsatzplanung zeigen, wer sonst abwesend ist"
+      onClick={() => onOpen(iso)}
+    >
+      {fmt(iso)}
+    </button>
+  )
+}
+
+export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSchedule }: {
+  onBadgeChange?: () => void
+  canton?: string
+  /** Sprung in die Einsatzplanung auf dieses Datum (YYYY-MM-DD). */
+  onOpenSchedule?: (dateISO: string) => void
+}) {
   const [absences, setAbsences] = useState<Absence[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabType>('requested')
@@ -194,7 +216,7 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH' }: { onBad
                   </div>
                   <div className="admin-card-meta">{TYPE_LABELS[a.absence_type] ?? a.absence_type}</div>
                   <div className="admin-card-meta">
-                    {fmt(a.start_date)} – {fmt(a.end_date)} · {dayCount(a.start_date, a.end_date, canton)}
+                    <DateLink iso={a.start_date} onOpen={onOpenSchedule} /> – <DateLink iso={a.end_date} onOpen={onOpenSchedule} /> · {dayCount(a.start_date, a.end_date, canton)}
                   </div>
                   {tab === 'requested' && (
                     <div className="admin-card-actions">
@@ -224,8 +246,8 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH' }: { onBad
                   <tr key={a.id}>
                     <td><strong>{a.staff_name}</strong></td>
                     <td>{TYPE_LABELS[a.absence_type] ?? a.absence_type}</td>
-                    <td>{fmt(a.start_date)}</td>
-                    <td>{fmt(a.end_date)}</td>
+                    <td><DateLink iso={a.start_date} onOpen={onOpenSchedule} /></td>
+                    <td><DateLink iso={a.end_date} onOpen={onOpenSchedule} /></td>
                     <td style={{ color: 'var(--muted)' }}>{dayCount(a.start_date, a.end_date, canton)}</td>
                     <td><StatusBadge status={a.status} /></td>
                     {tab === 'requested' && (

@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { Absence } from '../../api/admin/absences'
 
 vi.mock('../useIsMobile', () => ({ useIsMobile: () => false }))
@@ -58,5 +59,24 @@ describe('AbsencesScreen — wer darf entscheiden', () => {
     render(<AbsencesScreen />)
     expect(await screen.findByText('Freigabe durch berechtigte Personen')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ablehnen/ })).toBeNull()
+  })
+})
+
+describe('AbsencesScreen — Datum führt in die Einsatzplanung (WW-58)', () => {
+  it('Von/Bis sind Links, die das Datum übergeben', async () => {
+    getAdminAbsences.mockResolvedValue([absenz({})])
+    const onOpenSchedule = vi.fn()
+    render(<AbsencesScreen onOpenSchedule={onOpenSchedule} />)
+    await userEvent.click(await screen.findByRole('button', { name: '10.08.2026' }))
+    expect(onOpenSchedule).toHaveBeenCalledWith('2026-08-10')
+    await userEvent.click(screen.getByRole('button', { name: '14.08.2026' }))
+    expect(onOpenSchedule).toHaveBeenLastCalledWith('2026-08-14')
+  })
+
+  it('ohne Planungs-Modul bleibt das Datum reiner Text', async () => {
+    getAdminAbsences.mockResolvedValue([absenz({})])
+    render(<AbsencesScreen />)
+    expect(await screen.findByText('10.08.2026')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '10.08.2026' })).toBeNull()
   })
 })

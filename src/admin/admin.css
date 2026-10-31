@@ -3799,6 +3799,50 @@ button.admin-list-item {
   white-space: nowrap;
 }
 
+/* Ferien (WW-59): grün statt grau, und die Einsätze des Tages treten blass in
+   den Hintergrund — hinter einem ganztägigen «Büro» sah man die Schraffur sonst
+   kaum. Andere Absenzen (Krank, Militär …) bleiben grau schraffiert. Die blassen
+   Einsätze bleiben klick- und ziehbar; beim Darüberfahren kommen sie zurück. */
+.project-cal-gantt-absence.vacation,
+.project-cal-board-cell.absent.vacation,
+.project-cal-week-allday-cell.absent.vacation,
+.project-cal-week-day-col.absent.vacation {
+  background: var(--success-soft);
+}
+
+.project-cal-gantt-absence.vacation {
+  border-top: 3px solid var(--success);
+}
+
+.project-cal-gantt-absence.vacation .project-cal-gantt-absence-label,
+.project-cal-board-cell.vacation > .project-cal-board-absence {
+  color: var(--success-ink);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.project-cal-absence-chip.vacation {
+  background: var(--success-soft);
+  border: 1px solid var(--success);
+  color: var(--success-ink);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.project-cal-gantt-bar.on-vacation,
+.project-cal-board-cell.vacation .project-cal-board-chip,
+.project-cal-week-allday-cell.vacation .project-cal-week-event,
+.project-cal-week-day-col.vacation .project-cal-week-event {
+  opacity: 0.4;
+}
+
+.project-cal-gantt-bar.on-vacation:hover,
+.project-cal-board-cell.vacation .project-cal-board-chip:hover,
+.project-cal-week-allday-cell.vacation .project-cal-week-event:hover,
+.project-cal-week-day-col.vacation .project-cal-week-event:hover {
+  opacity: 1;
+}
+
 /* Monat: ein Marker je Tag statt Bänder — die Kachel ist zu klein. */
 .project-cal-month-absent {
   font-size: 10px;

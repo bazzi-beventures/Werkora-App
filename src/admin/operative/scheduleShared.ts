@@ -467,6 +467,14 @@ export function reassignTeam(
  * zuordnen und fallen still weg — der Server sperrt sie trotzdem.
  */
 export function absenceLookup(absences: ScheduleAbsence[]): (staffId: string, dayISO: string) => string | null {
+  const find = absenceEntryLookup(absences)
+  return (staffId, dayISO) => find(staffId, dayISO)?.label ?? null
+}
+
+/** Wie `absenceLookup`, liefert aber die ganze Absenz (Art, Zeitraum, Label). */
+export function absenceEntryLookup(
+  absences: ScheduleAbsence[],
+): (staffId: string, dayISO: string) => ScheduleAbsence | null {
   const byStaff = new Map<string, ScheduleAbsence[]>()
   // Defensiv: seit 2026-10 lesen auch Woche, Monat, Tagesplan und Agenda die
   // Liste (vorher nur die Plantafel). Eine kaputte Antwort darf dort keinen
@@ -482,16 +490,26 @@ export function absenceLookup(absences: ScheduleAbsence[]): (staffId: string, da
       // Beide Ränder zählen mit — date_end ist der letzte Absenztag, nicht der
       // erste Arbeitstag danach (gleiche Konvention wie serverseitig in
       // services/scheduling_conflicts.py::spans_overlap).
-      if (dayISO >= a.date_start && dayISO <= (a.date_end || a.date_start)) return a.label
+      if (dayISO >= a.date_start && dayISO <= (a.date_end || a.date_start)) return a
     }
     return null
   }
+}
+
+/**
+ * Ferien (WW-59): grün statt grau schraffiert, und die Einsätze des Tages treten
+ * blass zurück — sonst sieht man hinter einem ganztägigen «Büro» kaum, dass
+ * jemand in den Ferien ist. Andere Absenzen (Krank, Militär …) bleiben grau.
+ */
+export function isVacation(a: Pick<ScheduleAbsence, 'type'> | null | undefined): boolean {
+  return a?.type === 'vacation'
 }
 
 /** Eine Abwesenheit an einem Tag, aufgelöst auf den Mitarbeiter. */
 export interface DayAbsence {
   staff: StaffLite
   label: string
+  vacation: boolean
 }
 
 /**
@@ -502,14 +520,14 @@ export interface DayAbsence {
  * Zurückziehen der Ferien stehen bliebe. Reihenfolge wie `staffList`.
  */
 export function absencesOnDay(
-  lookup: (staffId: string, dayISO: string) => string | null,
+  lookup: (staffId: string, dayISO: string) => ScheduleAbsence | null,
   staffList: StaffLite[],
   dayISO: string,
 ): DayAbsence[] {
   const out: DayAbsence[] = []
   for (const s of staffList) {
-    const label = lookup(s.id, dayISO)
-    if (label) out.push({ staff: s, label })
+    const a = lookup(s.id, dayISO)
+    if (a) out.push({ staff: s, label: a.label, vacation: isVacation(a) })
   }
   return out
 }

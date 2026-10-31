@@ -47,7 +47,7 @@ function isKnownKey(k: string): boolean {
   if (k.startsWith('roadmap-seen:')) return true
   if (k === 'schedule-week-zoom') return true  // Zoom-Stufe des Wochen-Zeitrasters
   if (k === 'schedule-gantt-zoom') return true  // Zoom-Stufe des Tagesplans (Gantt)
-  if (k === 'schedule-gantt-span') return true  // Sichtbarer Zeitraum des Tagesplans (1/3/5 Tage)
+  if (k === 'schedule-gantt-span') return true  // Sichtbarer Zeitraum des Tagesplans (1/3/5/6 Tage)
   if (k === 'schedule-map-period') return true  // Zeitraum der Auftragskarte (Wochen ab heute)
   // Eingeblendete Zusatzspalten der Projektliste, z.B. { termine: true }
   // (docs/specs/projektliste-termine-team.md §2.2).

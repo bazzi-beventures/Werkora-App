@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   GANTT_BAR_H, GANTT_LANE_GAP, GANTT_MIN_BAR_PX, GANTT_ROW_PAD,
-  barMetrics, computeGanttLanes, dayWidthPx, ganttDays, laneCount,
+  barMetrics, computeGanttLanes, dayWidthPx, ganttDays, ganttStepStart, laneCount,
   plannedMinutes, rowHeightPx, timeOffsetX, utilizationPct, utilizationTone,
   xToDayIndex, xToSnappedTime,
 } from './ganttGrid'
@@ -18,6 +18,26 @@ describe('ganttGrid — Achse', () => {
   it('ganttDays liefert aufeinanderfolgende Tage', () => {
     const days = ganttDays(new Date(2026, 7, 6), 3)
     expect(days.map(d => d.getDate())).toEqual([6, 7, 8])
+  })
+
+  it('ganttDays mit skipWeekend zählt nur Werktage', () => {
+    // Do 06.08.2026 + 5 Werktage → Do, Fr, Mo, Di, Mi.
+    expect(ganttDays(new Date(2026, 7, 6), 5, true).map(d => d.getDate())).toEqual([6, 7, 10, 11, 12])
+    // Start am Samstag → ab Montag.
+    expect(ganttDays(new Date(2026, 7, 8), 1, true).map(d => d.getDate())).toEqual([10])
+  })
+
+  it('ganttStepStart schliesst lückenlos an die sichtbaren Werktage an', () => {
+    const fri = new Date(2026, 7, 7)
+    // Ohne Schalter: ±span Kalendertage.
+    expect(ganttStepStart(fri, 3, 1).getDate()).toBe(10)
+    // Fr + 3 Werktage = Fr, Mo, Di → weiter ab Mi; zurück wieder ab Fr.
+    const next = ganttStepStart(fri, 3, 1, true)
+    expect(next.getDate()).toBe(12)
+    expect(ganttStepStart(next, 3, -1, true).getDate()).toBe(7)
+    // Tag-Ansicht: Fr → Mo → Fr.
+    expect(ganttStepStart(fri, 1, 1, true).getDate()).toBe(10)
+    expect(ganttStepStart(new Date(2026, 7, 10), 1, -1, true).getDate()).toBe(7)
   })
 
   it('dayWidthPx/timeOffsetX rechnen Uhrzeit in px', () => {

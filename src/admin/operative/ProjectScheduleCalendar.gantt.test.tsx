@@ -212,6 +212,54 @@ describe('Tagesplan (Gantt)', () => {
     expect(screen.getByText(/10\.08\. – .*12\.08\.2026/)).toBeInTheDocument()
   })
 
+  it('Wochenende ausblenden: 5 Tage sind fünf Werktage, Pfeile springen übers Wochenende', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('schedule-gantt-span', '5')
+    const SAT = toDateStr(new Date(2026, 7, 8))
+    const { container } = renderGantt({
+      entries: [entry({}), entry({ id: 'sa', name: 'Samstagseinsatz', start_date: SAT, end_date: SAT })],
+    })
+    const heads = () => [...container.querySelectorAll('.project-cal-gantt-day-title')]
+      .map(h => h.textContent?.match(/\d{2}\.\d{2}/)?.[0])
+    // Ohne Haken: Do 06. bis Mo 10., Sa/So mitten drin.
+    expect(heads()).toEqual(['06.08', '07.08', '08.08', '09.08', '10.08'])
+
+    await user.click(screen.getByRole('checkbox', { name: 'Wochenende ausblenden' }))
+    expect(heads()).toEqual(['06.08', '07.08', '10.08', '11.08', '12.08'])
+    expect(screen.getByText(/06\.08\. – .*12\.08\.2026/)).toBeInTheDocument()
+    expect(screen.queryByText('Samstagseinsatz')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('1 Einsatz am Wochenende ausgeblendet')
+    // Derselbe Key wie in Woche/Plantafel: ein Haken für alle Ansichten.
+    expect(localStorage.getItem('schedule-hide-weekend')).toBe('1')
+
+    await user.click(screen.getByRole('button', { name: '→' }))
+    expect(heads()).toEqual(['13.08', '14.08', '17.08', '18.08', '19.08'])
+    await user.click(screen.getByRole('button', { name: '←' }))
+    expect(heads()).toEqual(['06.08', '07.08', '10.08', '11.08', '12.08'])
+  })
+
+  it('Wochenende ausblenden: ein Start am Samstag zeigt ab Montag', async () => {
+    localStorage.setItem('schedule-hide-weekend', '1')
+    vi.setSystemTime(new Date(2026, 7, 8))
+    const { container } = renderGantt({ entries: [] })
+    const title = container.querySelector('.project-cal-gantt-day-title')
+    expect(title?.textContent).toMatch(/10\.08/)
+    expect(screen.getByRole('checkbox', { name: 'Wochenende ausblenden' })).toBeChecked()
+  })
+
+  it('«6 Tage» zeigt ab Montag die Woche bis Samstag und wird gemerkt (WW-60)', async () => {
+    const user = userEvent.setup()
+    vi.setSystemTime(new Date(2026, 7, 3))
+    const { container } = renderGantt({ entries: [] })
+    await user.click(screen.getByRole('button', { name: '6 Tage' }))
+    expect(container.querySelectorAll('.project-cal-gantt-day-head')).toHaveLength(6)
+    expect(screen.getByText(/03\.08\. – .*08\.08\.2026/)).toBeInTheDocument()
+    expect(localStorage.getItem('schedule-gantt-span')).toBe('6')
+    // Weiter geht es in Sechs-Tages-Schritten.
+    await user.click(screen.getByRole('button', { name: '→' }))
+    expect(screen.getByText(/09\.08\. – .*14\.08\.2026/)).toBeInTheDocument()
+  })
+
   it('startet ohne gemerkten Zeitraum mit 5 Tagen', () => {
     localStorage.removeItem('schedule-gantt-span')
     const { container } = renderGantt({ entries: [] })
