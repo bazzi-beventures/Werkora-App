@@ -244,3 +244,129 @@ export function getKpiView<T = Record<string, unknown>>(
 }
 
 export type { FeatureRegistryEntry }
+
+// ─── bexio-Anbindung (docs/specs/bexio-anbindung.md §8.1) ───────────────────
+
+export interface BexioCatalogAccount { id: number; account_no: string; name: string; is_active: boolean }
+export interface BexioCatalog {
+  user_id: number | null
+  user_email?: string | null
+  company_id: number | null
+  company_name: string | null
+  numbering_automatic: boolean | null
+  taxes: { id: number; code: string | null; value: number | null; name?: string | null }[]
+  accounts: BexioCatalogAccount[]
+  units: { id: number; name: string }[]
+  banks: { id: number; name: string; iban: string; qr_iban: string }[]
+}
+
+/** Die Verbindung ohne Geheimnis — `secret_enc` kommt nie über die Leitung. */
+export interface BexioConnection {
+  auth_kind: 'api_token' | 'oauth'
+  secret_set: boolean
+  secret_set_at: string | null
+  secret_expires_at: string | null
+  bexio_company_name: string | null
+  bexio_user_id: number | null
+  default_account_id: number | null
+  account_by_work_type: Record<string, number>
+  default_tax_id: number | null
+  default_tax_id_zero: number | null
+  default_unit_id_hours: number | null
+  default_unit_id_piece: number | null
+  default_unit_id_flat: number | null
+  default_bank_account_id: number | null
+  payments_push: boolean
+  payments_pull: boolean
+  status: 'ok' | 'error' | 'disabled'
+  last_ok_at: string | null
+  last_error: string | null
+}
+
+export interface BexioView {
+  key_configured: boolean
+  module_enabled: boolean
+  connection: BexioConnection | null
+  catalog: BexioCatalog | null
+  work_types: string[]
+  readiness: string[]
+  queue_counts: Record<string, number>
+  findings?: string[]
+}
+
+export interface BexioJob {
+  id: number
+  kind: 'customer_upsert' | 'invoice_issue' | 'payment_sync' | 'invoice_cancelled'
+  local_id: string
+  status: 'pending' | 'running' | 'done' | 'error' | 'needs_attention'
+  attempts: number
+  last_error: string | null
+  created_at: string
+  finished_at: string | null
+}
+
+export type BexioDefaults = Pick<BexioConnection,
+  'default_account_id' | 'account_by_work_type' | 'default_tax_id' | 'default_tax_id_zero'
+  | 'default_unit_id_hours' | 'default_unit_id_piece' | 'default_unit_id_flat'
+  | 'default_bank_account_id' | 'payments_push' | 'payments_pull'>
+
+const bexioBase = (tenantId: string) => `${tenantBase(tenantId)}/bexio`
+
+export function getBexio(tenantId: string): Promise<BexioView> {
+  return apiFetch<BexioView>(bexioBase(tenantId))
+}
+
+export function setBexioToken(tenantId: string, token: string, createdOn?: string): Promise<BexioView> {
+  return apiFetch<BexioView>(`${bexioBase(tenantId)}/token`, {
+    method: 'PUT',
+    body: JSON.stringify({ token, created_on: createdOn || null }),
+  })
+}
+
+export function testBexio(tenantId: string): Promise<BexioView> {
+  return apiFetch<BexioView>(`${bexioBase(tenantId)}/test`, { method: 'POST' })
+}
+
+export function setBexioDefaults(tenantId: string, defaults: BexioDefaults): Promise<BexioView> {
+  return apiFetch<BexioView>(`${bexioBase(tenantId)}/defaults`, {
+    method: 'PUT',
+    body: JSON.stringify(defaults),
+  })
+}
+
+/** «Mit bexio verbinden»: Adresse der Anmeldung bei bexio, 15 Minuten gültig, einmal einlösbar. */
+export function startBexioOAuth(tenantId: string): Promise<{ authorize_url: string; expires_in_minutes: number }> {
+  return apiFetch(`${bexioBase(tenantId)}/oauth/start`, { method: 'POST' })
+}
+
+export function deleteBexio(tenantId: string): Promise<BexioView> {
+  return apiFetch<BexioView>(bexioBase(tenantId), { method: 'DELETE' })
+}
+
+export async function listBexioJobs(tenantId: string, status?: string): Promise<BexioJob[]> {
+  const q = status ? `?status=${encodeURIComponent(status)}` : ''
+  const res = await apiFetch<{ jobs: BexioJob[] }>(`${bexioBase(tenantId)}/queue${q}`)
+  return res.jobs
+}
+
+export function retryBexioJob(tenantId: string, jobId: number) {
+  return apiFetch(`${bexioBase(tenantId)}/queue/${jobId}/retry`, { method: 'POST' })
+}
+
+export function linkBexioContact(tenantId: string, jobId: number, bexioContactId: number) {
+  return apiFetch(`${bexioBase(tenantId)}/queue/${jobId}/link-contact`, {
+    method: 'POST',
+    body: JSON.stringify({ bexio_contact_id: bexioContactId }),
+  })
+}
+
+export function cancelInBexio(tenantId: string, jobId: number) {
+  return apiFetch(`${bexioBase(tenantId)}/queue/${jobId}/cancel-in-bexio`, { method: 'POST' })
+}
+
+export function enqueueBexioInvoice(tenantId: string, invoiceNumber: string) {
+  return apiFetch(`${bexioBase(tenantId)}/invoices/enqueue`, {
+    method: 'POST',
+    body: JSON.stringify({ invoice_number: invoiceNumber }),
+  })
+}

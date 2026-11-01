@@ -31,6 +31,7 @@ export type ModuleName =
   | 'hagelschaden'
   | 'lieferschein_erfassung'
   | 'termin_bestaetigung'
+  | 'bexio'
 
 export function hasModule(user: UserInfo | null, name: ModuleName): boolean {
   if (!user) return false

@@ -35,7 +35,7 @@ export function ProjectTabContent({
   quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
   verlaufEnabled, warrantyEnabled, warranty, onToast, onOpenProject,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
-  allgAbzuege, currentUserId,
+  allgAbzuege, currentUserId, bexioEnabled = false,
   onShowQuoteForm, onShowReportForm, onAddNextEinsatz, onEditReport, onEditQuote,
   onSendQuote, onSendThankyou, onSendOrderConfirmation, onGenerateInvoice, onShowApprovalForm,
   status, settingStatus, reopening, onStatusAction,
@@ -76,6 +76,8 @@ export function ProjectTabContent({
   /** Feature «allgemeine_abzuege»; null = kein Häkchen im Generieren-Dialog. */
   allgAbzuege?: GeneralDeductionConfig | null
   currentUserId: string | null
+  /** Modul «bexio»: Pille an den Rechnungen. */
+  bexioEnabled?: boolean
   onShowQuoteForm: () => void
   onShowReportForm: () => void
   // «Weiterer Einsatz» an einem bestehenden Rapport: nimmt ihn in die
@@ -196,6 +198,7 @@ export function ProjectTabContent({
           onArchive={billing.archive}
           onSendInvoice={billing.send}
           onMarkSentByPost={billing.markSentByPost}
+          bexioOn={bexioEnabled}
         />
       )}
 

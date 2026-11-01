@@ -267,3 +267,27 @@ export async function markInvoiceSentByPost(id: number, sentDate: string): Promi
 export async function archiveInvoice(id: number): Promise<void> {
   await apiFetch(`/pwa/admin/invoices/${id}/archive`, { method: 'POST' })
 }
+
+// ─── bexio-Badge (docs/specs/bexio-anbindung.md §8.2) ───────────────────────
+
+export type BexioBadgeState = 'in_bexio' | 'wird_uebertragen' | 'fehler' | 'storniert' | 'storno_offen'
+/** `confirmed` nur bei `storno_offen`: der Betrieb hat bestätigt, der Lauf führt es aus. */
+export interface BexioBadge { state: BexioBadgeState; bexio_id?: number; message?: string; confirmed?: boolean }
+
+/**
+ * Der Betrieb bestätigt das Storno einer archivierten Rechnung in bexio (§6.7).
+ * Ausgeführt wird es im nächsten Lauf (wenige Minuten) — die Route spricht nie
+ * selbst mit bexio.
+ */
+export async function cancelInBexio(id: number): Promise<void> {
+  await apiFetch(`/pwa/admin/invoices/${id}/bexio-cancel`, { method: 'POST' })
+}
+
+/** Zustand in bexio für die sichtbaren Rechnungen — eine Anfrage für die ganze Liste. */
+export async function getBexioStatus(ids: number[]): Promise<Record<string, BexioBadge>> {
+  if (ids.length === 0) return {}
+  const res = await apiFetch<{ states: Record<string, BexioBadge> }>(
+    `/pwa/admin/invoices/bexio-status?ids=${ids.slice(0, 500).join(',')}`,
+  )
+  return res.states ?? {}
+}

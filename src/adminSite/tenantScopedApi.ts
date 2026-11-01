@@ -183,3 +183,13 @@ export function getKpiView<T = Record<string, unknown>>(
 ) {
   return platform.getKpiView<T>(tenantId, viewName, filters)
 }
+
+// ─── bexio-Anbindung (docs/specs/bexio-anbindung.md §8.1) ─────────────────
+
+export {
+  getBexio, setBexioToken, testBexio, setBexioDefaults, deleteBexio, startBexioOAuth,
+  listBexioJobs, retryBexioJob, linkBexioContact, cancelInBexio, enqueueBexioInvoice,
+} from '../api/platform'
+export type {
+  BexioView, BexioJob, BexioDefaults, BexioConnection, BexioCatalog,
+} from '../api/platform'

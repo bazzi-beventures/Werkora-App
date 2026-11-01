@@ -3,6 +3,7 @@ import { loginWithPassword, requestPasswordReset } from '../api/admin'
 import { ApiError } from '../api/client'
 import { TenantLogo } from '../App'
 import { SK } from '../api/storageKeys'
+import { passkeySetupErrorMessage, passkeySupported, registerPasskey, rememberPasskeyAccount } from './webauthn'
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -35,6 +36,10 @@ interface Props {
 }
 
 export default function PinScreen({ logoUrl, tenantName, onLoggedIn }: Props) {
+  // 'password' = Anmeldung mit Benutzername + Passwort (Standard),
+  // 'setup'    = Passkey einrichten mit Benutzername + Einmal-PIN (Handbuch §2.2).
+  const [mode, setMode] = useState<'password' | 'setup'>('password')
+  const [pin, setPin] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -85,6 +90,116 @@ export default function PinScreen({ logoUrl, tenantName, onLoggedIn }: Props) {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleSetup(e: React.FormEvent) {
+    e.preventDefault()
+    if (!username || pin.length !== 6) return
+    setError('')
+    setLoading(true)
+    try {
+      const account = await registerPasskey(username, pin, navigator.userAgent.slice(0, 50))
+      rememberPasskeyAccount(account)
+      onLoggedIn()
+    } catch (err) {
+      setError(passkeySetupErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function switchMode(next: 'password' | 'setup') {
+    setMode(next)
+    setError('')
+    setPassword('')
+    setPin('')
+    setShowForgot(false)
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: 'var(--surface, #1a1f2e)',
+    border: '1px solid var(--border, #2a3148)',
+    borderRadius: 'var(--radius-md)',
+    padding: '12px 14px',
+    fontSize: 15,
+    color: 'var(--text)',
+    outline: 'none',
+    width: '100%',
+    boxSizing: 'border-box',
+  }
+  const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }
+  const linkStyle: React.CSSProperties = {
+    background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer',
+    fontSize: 13, textDecoration: 'underline', padding: '6px 0', marginTop: 6, alignSelf: 'center',
+  }
+
+  if (mode === 'setup') {
+    const supported = passkeySupported()
+    return (
+      <div className="auth-screen">
+        <TenantLogo logoUrl={logoUrl} />
+        <div className="auth-title">Passkey<br />einrichten</div>
+        <div className="auth-sub">
+          Gib deinen Benutzernamen und die 6-stellige Einmal-PIN von deinem Admin ein.
+          Danach fragt dein Gerät nach Face ID, Fingerabdruck oder Geräte-PIN.
+        </div>
+
+        <form onSubmit={handleSetup} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={labelStyle} htmlFor="setup-username">Benutzername</label>
+            <input
+              id="setup-username"
+              type="text"
+              value={username}
+              onChange={e => setUsername(e.target.value.toLowerCase())}
+              placeholder="benutzername"
+              autoComplete="username"
+              autoCapitalize="none"
+              required
+              style={inputStyle}
+            />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={labelStyle} htmlFor="setup-pin">Einmal-PIN</label>
+            <input
+              id="setup-pin"
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={6}
+              value={pin}
+              onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="123456"
+              required
+              style={{ ...inputStyle, letterSpacing: '0.3em' }}
+            />
+          </div>
+
+          {!supported && (
+            <p className="error-msg">
+              Dieser Browser unterstützt keine Passkeys. Bitte die App in Safari (iPhone) bzw.
+              Chrome (Android) öffnen — oder mit Benutzername und Passwort anmelden.
+            </p>
+          )}
+          {error && <p className="error-msg">{error}</p>}
+
+          <button
+            type="submit"
+            className="btn-fingerprint"
+            disabled={loading || !supported || !username || pin.length !== 6}
+          >
+            {loading ? <><Spinner />Warte auf Bestätigung…</> : 'Passkey einrichten'}
+          </button>
+        </form>
+
+        <button type="button" onClick={() => switchMode('password')} style={linkStyle}>
+          Zurück zur Anmeldung mit Passwort
+        </button>
+
+        <p className="auth-footer">Alle Daten verschlüsselt übertragen</p>
+      </div>
+    )
   }
 
   return (
@@ -223,6 +338,10 @@ export default function PinScreen({ logoUrl, tenantName, onLoggedIn }: Props) {
           </div>
         </form>
       )}
+
+      <button type="button" onClick={() => switchMode('setup')} style={linkStyle}>
+        Erstes Mal auf diesem Gerät? Passkey mit Einmal-PIN einrichten
+      </button>
 
       <p className="auth-footer">Alle Daten verschlüsselt übertragen</p>
     </div>

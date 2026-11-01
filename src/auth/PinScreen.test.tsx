@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event'
 import PinScreen from './PinScreen'
 import { ApiError } from '../api/client'
 import { loginWithPassword, requestPasswordReset } from '../api/admin'
+import { passkeySupported, registerPasskey } from './webauthn'
+import { SK } from '../api/storageKeys'
 
 // Nur die Auth-API mocken. TenantLogo wird aus ../App importiert (zieht sonst die
 // gesamte App in den Test) → durch einen leichten Stub ersetzen.
@@ -12,15 +14,25 @@ vi.mock('../api/admin', () => ({
   requestPasswordReset: vi.fn(),
 }))
 vi.mock('../App', () => ({ TenantLogo: () => null }))
+// Nur die Browser-Zeremonie mocken — Fehlertexte und das Merken der Identität
+// laufen echt, die sind ja der Gegenstand.
+vi.mock('./webauthn', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./webauthn')>()),
+  registerPasskey: vi.fn(),
+  passkeySupported: vi.fn(() => true),
+}))
 
 const mockLogin = vi.mocked(loginWithPassword)
 const mockReset = vi.mocked(requestPasswordReset)
+const mockRegister = vi.mocked(registerPasskey)
+const mockSupported = vi.mocked(passkeySupported)
 
 const PW_PLACEHOLDER = '••••••••'
 
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
+  mockSupported.mockReturnValue(true)
 })
 
 function renderScreen() {
@@ -133,5 +145,91 @@ describe('PinScreen — Begrüssung folgt dem Logo', () => {
     // `logoUrl`: der Name ist das Signal «Mandant bekannt», nicht das Bild.
     render(<PinScreen logoUrl="logo.png" onLoggedIn={vi.fn()} />)
     expect(screen.getByText(/Willkommen bei/)).toBeInTheDocument()
+  })
+})
+
+
+describe('PinScreen — Passkey mit Einmal-PIN einrichten', () => {
+  // Bis 20261101 gab es diesen Weg nicht: die Einrichtungsmaske war nirgends
+  // eingebunden, und kein Code merkte sich die Identität für den Passkey-Login.
+  // Ein Konto ohne Passwort («nur Passkey-Login») kam damit gar nicht hinein.
+
+  const SETUP_LINK = 'Erstes Mal auf diesem Gerät? Passkey mit Einmal-PIN einrichten'
+
+  async function openSetup() {
+    const ctx = renderScreen()
+    await ctx.user.click(screen.getByRole('button', { name: SETUP_LINK }))
+    return ctx
+  }
+
+  it('richtet den Passkey ein, merkt sich die Identität und meldet an', async () => {
+    mockRegister.mockResolvedValue({ authorizedUserId: 'u-1', tenantSlug: 'acme', displayName: 'Peter Muster' })
+    const { onLoggedIn, user } = await openSetup()
+
+    await user.type(screen.getByLabelText('Benutzername'), 'PMuster')
+    await user.type(screen.getByLabelText('Einmal-PIN'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Passkey einrichten' }))
+
+    await waitFor(() => expect(onLoggedIn).toHaveBeenCalled())
+    expect(mockRegister).toHaveBeenCalledWith('pmuster', '123456', expect.any(String))
+    // Genau das fehlte: ohne diese Schlüssel bietet der nächste Start keinen Passkey-Login an.
+    expect(localStorage.getItem(SK.AUTHORIZED_USER_ID)).toBe('u-1')
+    expect(localStorage.getItem(SK.TENANT_SLUG)).toBe('acme')
+    expect(localStorage.getItem(SK.DISPLAY_NAME)).toBe('Peter Muster')
+    expect(mockLogin).not.toHaveBeenCalled()
+  })
+
+  it('nimmt nur sechs Ziffern an und gibt den Knopf erst dann frei', async () => {
+    const { user } = await openSetup()
+    const button = screen.getByRole('button', { name: 'Passkey einrichten' })
+
+    await user.type(screen.getByLabelText('Benutzername'), 'pmuster')
+    await user.type(screen.getByLabelText('Einmal-PIN'), '12a34')
+    expect(screen.getByLabelText('Einmal-PIN')).toHaveValue('1234')
+    expect(button).toBeDisabled()
+
+    await user.type(screen.getByLabelText('Einmal-PIN'), '5678')
+    expect(screen.getByLabelText('Einmal-PIN')).toHaveValue('123456')
+    expect(button).toBeEnabled()
+  })
+
+  it('erklärt eine ungültige oder abgelaufene PIN und merkt sich nichts', async () => {
+    mockRegister.mockRejectedValue(new ApiError(400, 'invalid_pin'))
+    const { onLoggedIn, user } = await openSetup()
+
+    await user.type(screen.getByLabelText('Benutzername'), 'pmuster')
+    await user.type(screen.getByLabelText('Einmal-PIN'), '000000')
+    await user.click(screen.getByRole('button', { name: 'Passkey einrichten' }))
+
+    expect(await screen.findByText(/Benutzername oder PIN ungültig/)).toBeInTheDocument()
+    expect(onLoggedIn).not.toHaveBeenCalled()
+    expect(localStorage.getItem(SK.AUTHORIZED_USER_ID)).toBeNull()
+  })
+
+  it('meldet einen abgebrochenen Biometrie-Dialog verständlich', async () => {
+    mockRegister.mockRejectedValue(new DOMException('cancel', 'NotAllowedError'))
+    const { user } = await openSetup()
+
+    await user.type(screen.getByLabelText('Benutzername'), 'pmuster')
+    await user.type(screen.getByLabelText('Einmal-PIN'), '123456')
+    await user.click(screen.getByRole('button', { name: 'Passkey einrichten' }))
+
+    expect(await screen.findByText(/Einrichtung abgebrochen/)).toBeInTheDocument()
+  })
+
+  it('sagt ohne Passkey-Unterstützung, was stattdessen geht', async () => {
+    mockSupported.mockReturnValue(false)
+    const { user } = await openSetup()
+
+    await user.type(screen.getByLabelText('Benutzername'), 'pmuster')
+    await user.type(screen.getByLabelText('Einmal-PIN'), '123456')
+    expect(screen.getByText(/unterstützt keine Passkeys/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Passkey einrichten' })).toBeDisabled()
+  })
+
+  it('führt zurück zur Anmeldung mit Passwort', async () => {
+    const { user } = await openSetup()
+    await user.click(screen.getByRole('button', { name: 'Zurück zur Anmeldung mit Passwort' }))
+    expect(screen.getByPlaceholderText(PW_PLACEHOLDER)).toBeInTheDocument()
   })
 })

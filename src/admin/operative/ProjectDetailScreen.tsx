@@ -647,6 +647,7 @@ export default function ProjectDetailScreen({
           onUseAcceptedQuoteChange={setUseAcceptedQuote}
           defaultInvoiceEmail={form.selectedCustomer?.email ?? project.customer?.email ?? ''}
           allgAbzuege={features.allgAbzuege}
+          bexioEnabled={features.bexio}
           currentUserId={features.currentUserId}
           onShowQuoteForm={() => setShowQuoteForm(true)}
           onShowReportForm={() => setShowReportForm(true)}

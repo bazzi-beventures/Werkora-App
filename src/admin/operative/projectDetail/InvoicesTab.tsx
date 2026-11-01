@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../../api/client'
 import { fmtCHF, fmtDate, todayISO } from '../../utils/format'
 import { INVOICE_STATUS_LABELS, INVOICE_STATUS_BADGE } from '../../constants/statuses'
@@ -26,7 +26,9 @@ import {
   generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
   type GeneralDeductionConfig, type GeneralDeductionState,
 } from '../../utils/generalDeduction'
-import type { BillableReport, InvoiceQuoteCoverage, OpenAnzahlung } from '../../../api/admin/invoices'
+import type { BexioBadge as BexioBadgeData, BillableReport, InvoiceQuoteCoverage, OpenAnzahlung } from '../../../api/admin/invoices'
+import { cancelInBexio, getBexioStatus } from '../../../api/admin/invoices'
+import { BEXIO_CANCEL_MESSAGE, BexioBadge, BexioCancelCheckbox } from '../BexioBadge'
 import { groupByParent } from './types'
 import type { ProjectInvoice } from './types'
 
@@ -67,9 +69,31 @@ interface InvoicesTabProps {
   // Postversand: markiert als gesendet, ohne zu mailen. `sentDate` ist das
   // Aufgabedatum bei der Post (ISO), aus dem das Zahlungsziel läuft.
   onMarkSentByPost: (invoiceId: number, sentDate: string) => Promise<boolean>
+  // Modul «bexio»: Pille neben dem Status, wie in der Rechnungsliste.
+  bexioOn?: boolean
 }
 
-export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost }: InvoicesTabProps) {
+export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost, bexioOn = false }: InvoicesTabProps) {
+  // bexio-Pille (docs/specs/bexio-anbindung.md §8.2) — dieselbe Abfrage wie die
+  // Rechnungsliste, nur für die ausgestellten Rechnungen dieses Projekts. Ein
+  // Fehler kostet nur die Pille, nie den Reiter.
+  const [bexio, setBexio] = useState<Record<string, BexioBadgeData>>({})
+  const [bexioTick, setBexioTick] = useState(0)
+  const [bexioCancel, setBexioCancel] = useState(true)
+  const [confirmBexioCancel, setConfirmBexioCancel] = useState<ProjectInvoice | null>(null)
+  const [bexioNote, setBexioNote] = useState('')
+  useEffect(() => {
+    if (!bexioOn) return
+    let weg = false
+    const ids = invoices
+      .filter(r => r.status === 'gesendet' || r.status === 'bezahlt' || r.status === 'archiviert')
+      .map(r => Number(r.id))
+    getBexioStatus(ids)
+      .then(states => { if (!weg) setBexio(states) })
+      .catch(() => { if (!weg) setBexio({}) })
+    return () => { weg = true }
+  }, [invoices, bexioOn, bexioTick])
+
   const [sendInvoice, setSendInvoice] = useState<ProjectInvoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
   const [sending, setSending] = useState(false)
@@ -113,10 +137,37 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
 
   async function handleArchiveConfirm() {
     if (!confirmArchive) return
+    const id = confirmArchive.id
+    const alsoBexio = bexioOn && bexioCancel && bexio[String(id)]?.state === 'in_bexio'
     setActing(true)
-    await onArchive(confirmArchive.id)
+    await onArchive(id)
+    if (alsoBexio) {
+      // Nur vormerken, wenn das Archivieren durchging — sonst lehnt der Server
+      // ohnehin ab (409 «nur archivierte»), und die Pille bleibt «in bexio».
+      try {
+        await cancelInBexio(id)
+        setBexioNote('Storno in bexio vorgemerkt — wird in wenigen Minuten ausgeführt.')
+      } catch {
+        setBexioNote('Storno in bexio nicht vorgemerkt — über die Pille «bexio: Storno offen» nachholen.')
+      }
+      setBexioTick(t => t + 1)
+    }
     setActing(false)
     setConfirmArchive(null)
+  }
+
+  async function handleBexioCancel() {
+    if (!confirmBexioCancel) return
+    setActing(true)
+    try {
+      await cancelInBexio(confirmBexioCancel.id)
+      setBexioNote('Storno in bexio vorgemerkt — wird in wenigen Minuten ausgeführt.')
+      setConfirmBexioCancel(null)
+    } catch (err) {
+      setBexioNote(err instanceof Error ? err.message : 'Storno nicht möglich')
+    }
+    setBexioTick(t => t + 1)
+    setActing(false)
   }
 
   async function handleUnpayConfirm() {
@@ -274,6 +325,9 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           </button>
         </div>
       </div>
+      {bexioNote && (
+        <div role="status" className="admin-card-meta" style={{ marginBottom: 10 }}>{bexioNote}</div>
+      )}
       {!hasSignedReport && (
         <div style={{
           marginBottom: 14,
@@ -311,7 +365,10 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                       {inv.invoice_kind === 'anzahlung' ? 'Anz.' : `V${inv.version}`}
                     </span>
                     <span className="proj-doc-number">{inv.invoice_number}</span>
-                    <span className={`admin-badge proj-doc-status ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
+                    <span className="proj-doc-status">
+                      <span className={`admin-badge ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
+                      {bexioOn && <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => setConfirmBexioCancel(inv)} />}
+                    </span>
                     <span className="proj-doc-date">{fmtDate(inv.created_at)}</span>
                     <div className="proj-doc-tail">
                       <span className="proj-doc-amount">
@@ -347,7 +404,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                           </>
                         )}
                         {(inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
-                          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmArchive(inv)}>
+                          <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => { setBexioCancel(true); setConfirmArchive(inv) }}>
                             Archivieren
                           </button>
                         )}
@@ -385,6 +442,24 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           variant="danger"
           onCancel={() => { if (!acting) setConfirmArchive(null) }}
           onConfirm={() => void handleArchiveConfirm()}
+        >
+          {bexioOn && bexio[String(confirmArchive.id)]?.state === 'in_bexio' && (
+            <BexioCancelCheckbox checked={bexioCancel} onChange={setBexioCancel} />
+          )}
+        </ConfirmDialog>
+      )}
+
+      {/* Rückfrage zur Pille «bexio: Storno offen» (§6.7) */}
+      {confirmBexioCancel && (
+        <ConfirmDialog
+          title="In bexio stornieren?"
+          message={<>{confirmBexioCancel.invoice_number} · {fmtCHF(confirmBexioCancel.total_amount)}<br />{BEXIO_CANCEL_MESSAGE}</>}
+          confirmLabel="In bexio stornieren"
+          busyLabel="…"
+          busy={acting}
+          variant="danger"
+          onCancel={() => { if (!acting) setConfirmBexioCancel(null) }}
+          onConfirm={() => void handleBexioCancel()}
         />
       )}
 

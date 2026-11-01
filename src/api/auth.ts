@@ -48,20 +48,6 @@ export interface UserInfo {
   } | null
 }
 
-export async function lookupUser(tenantSlug: string, displayName: string): Promise<{ authorized_user_id: string; display_name: string }> {
-  return apiFetch<{ authorized_user_id: string; display_name: string }>('/pwa/auth/lookup-user', {
-    method: 'POST',
-    body: JSON.stringify({ tenant_slug: tenantSlug, display_name: displayName }),
-  })
-}
-
-export async function validatePin(tenantSlug: string, authorizedUserId: string, pin: string): Promise<{ status: string; display_name: string }> {
-  return apiFetch<{ status: string; display_name: string }>('/pwa/auth/validate-pin', {
-    method: 'POST',
-    body: JSON.stringify({ tenant_slug: tenantSlug, authorized_user_id: authorizedUserId, pin }),
-  })
-}
-
 export async function getMe(): Promise<UserInfo> {
   const me = await apiFetch<UserInfo>('/pwa/me')
   // Dringendes App-Update (docs/specs/pwa-neuladen.md §3.1) — hier, weil jede

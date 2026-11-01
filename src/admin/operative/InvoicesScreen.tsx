@@ -6,7 +6,10 @@ import {
   listInvoices, markInvoicePaid, markInvoiceSentByPost, sendInvoice as sendInvoiceByMail,
   unmarkInvoicePaid,
 } from '../../api/admin/invoices'
-import type { BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } from '../../api/admin/invoices'
+import type { BexioBadge as BexioBadgeData, BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } from '../../api/admin/invoices'
+import { cancelInBexio, getBexioStatus } from '../../api/admin/invoices'
+import { hasModule } from '../../api/modules'
+import { BEXIO_CANCEL_MESSAGE, BexioBadge, BexioCancelCheckbox } from './BexioBadge'
 import { getAdminProjects, setProjectStatus } from '../../api/admin/projects'
 import type { Project } from '../../api/admin/projects'
 import { hasAcceptedQuote as fetchHasAcceptedQuote } from '../../api/admin/quotes'
@@ -64,6 +67,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   onNav?: (screen: AdminScreen, detailId?: string) => void
 }) {
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [bexio, setBexio] = useState<Record<string, BexioBadgeData>>({})
   const [loading, setLoading] = useState(true)
   const [statusFilters, setStatusFilters] = useState<Set<string>>(
     () => new Set(['ausstehend', 'offen', 'gesendet', 'bezahlt', 'inaktiv'])
@@ -84,6 +88,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [closingProject, setClosingProject] = useState(false)
   const [confirmUnpay, setConfirmUnpay] = useState<Invoice | null>(null)
   const [confirmArchive, setConfirmArchive] = useState<Invoice | null>(null)
+  // bexio (§6.7): Storno beim Archivieren mitbestätigen bzw. später über die Pille.
+  const [bexioCancel, setBexioCancel] = useState(true)
+  const [confirmBexioCancel, setConfirmBexioCancel] = useState<Invoice | null>(null)
+  const [bexioTick, setBexioTick] = useState(0)
   // Postversand: Rechnung als versendet markieren, ohne sie zu mailen.
   const [confirmPostal, setConfirmPostal] = useState<Invoice | null>(null)
   const [postalDate, setPostalDate] = useState('')
@@ -106,6 +114,23 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     getMe().then((u) => { if (!weg) setMe(u) }).catch(() => { /* Knopf bleibt aus */ })
     return () => { weg = true }
   }, [])
+
+  // bexio-Badge (Modul `bexio`, docs/specs/bexio-anbindung.md §8.2): nur
+  // ausgestellte Rechnungen können in bexio stehen. Ein Fehler kostet nur das
+  // Badge, nie die Liste.
+  const bexioOn = hasModule(me, 'bexio')
+  useEffect(() => {
+    if (!bexioOn) return
+    let weg = false
+    const ids = invoices
+      .filter(r => r.status === 'gesendet' || r.status === 'bezahlt' || r.status === 'archiviert')
+      .map(r => Number(r.id))
+    getBexioStatus(ids)
+      .then(states => { if (!weg) setBexio(states) })
+      .catch(() => { if (!weg) setBexio({}) })
+    return () => { weg = true }
+  }, [invoices, bexioOn, bexioTick])
+
   // Generate invoice
   const [showGenerate, setShowGenerate] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
@@ -417,14 +442,39 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
 
   async function handleArchive(id: number) {
     setActing(id)
+    const alsoBexio = bexioCancel && bexio[String(id)]?.state === 'in_bexio'
     try {
       await archiveInvoice(id)
-      showToast('Rechnung archiviert — Rapporte wieder verrechenbar', 'success')
+      if (alsoBexio) {
+        try {
+          await cancelInBexio(id)
+          showToast('Rechnung archiviert — Storno in bexio folgt in wenigen Minuten', 'success')
+        } catch (err) {
+          showToast(`Rechnung archiviert, Storno in bexio nicht vorgemerkt: ${
+            err instanceof Error ? err.message : 'Fehler'} — über die Pille «bexio: Storno offen» nachholen`, 'error')
+        }
+      } else {
+        showToast('Rechnung archiviert — Rapporte wieder verrechenbar', 'success')
+      }
       setConfirmArchive(null)
       load()
       onBadgeChange?.()
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Fehler beim Archivieren', 'error')
+    } finally {
+      setActing(null)
+    }
+  }
+
+  async function handleBexioCancel(inv: Invoice) {
+    setActing(inv.id)
+    try {
+      await cancelInBexio(inv.id)
+      showToast('Storno in bexio vorgemerkt — wird in wenigen Minuten ausgeführt', 'success')
+      setConfirmBexioCancel(null)
+      setBexioTick(t => t + 1)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Storno nicht möglich', 'error')
     } finally {
       setActing(null)
     }
@@ -549,6 +599,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                   <span className={`admin-badge ${STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>
                     {STATUS_LABELS[inv.status] || inv.status}
                   </span>
+                  <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => setConfirmBexioCancel(inv)} />
                 </div>
                 <div className="admin-card-meta"><strong>{inv.project_name}</strong></div>
                 <div className="admin-card-meta">
@@ -582,7 +633,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                       <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => openPaid(inv)} disabled={acting === inv.id}>
                         Als bezahlt markieren
                       </button>
-                      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmArchive(inv)} disabled={acting === inv.id}>
+                      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => { setBexioCancel(true); setConfirmArchive(inv) }} disabled={acting === inv.id}>
                         Archivieren
                       </button>
                     </>
@@ -639,6 +690,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                     <span className={`admin-badge ${STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>
                       {STATUS_LABELS[inv.status] || inv.status}
                     </span>
+                    <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => setConfirmBexioCancel(inv)} />
                   </td>
                   <td style={{ color: 'var(--muted)' }}>{fmtDate(inv.created_at)}</td>
                   <td style={{ color: 'var(--muted)' }}>{fmtDate(inv.paid_at)}</td>
@@ -689,7 +741,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                           </button>
                           <button
                             className="admin-btn admin-btn-secondary admin-btn-sm"
-                            onClick={() => setConfirmArchive(inv)}
+                            onClick={() => { setBexioCancel(true); setConfirmArchive(inv) }}
                             disabled={acting === inv.id}
                           >
                             Archivieren
@@ -845,6 +897,24 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           variant="danger"
           onCancel={() => setConfirmArchive(null)}
           onConfirm={() => void handleArchive(confirmArchive.id)}
+        >
+          {bexio[String(confirmArchive.id)]?.state === 'in_bexio' && (
+            <BexioCancelCheckbox checked={bexioCancel} onChange={setBexioCancel} />
+          )}
+        </ConfirmDialog>
+      )}
+
+      {/* Rückfrage zur Pille «bexio: Storno offen» (§6.7) */}
+      {confirmBexioCancel && (
+        <ConfirmDialog
+          title="In bexio stornieren?"
+          message={<>{confirmBexioCancel.invoice_number} · {fmtCHF(confirmBexioCancel.total_amount)}<br />{BEXIO_CANCEL_MESSAGE}</>}
+          confirmLabel="In bexio stornieren"
+          busyLabel="…"
+          busy={acting === confirmBexioCancel.id}
+          variant="danger"
+          onCancel={() => setConfirmBexioCancel(null)}
+          onConfirm={() => void handleBexioCancel(confirmBexioCancel)}
         />
       )}
 

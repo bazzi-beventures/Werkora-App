@@ -80,6 +80,8 @@ export interface ProjectFeatures {
    * es in /pwa/me schon pro Konto gefiltert.
    */
   terminBestaetigung: boolean
+  /** Modul «bexio»: Pille «in bexio / wird übertragen / Fehler» an den Rechnungen. */
+  bexio: boolean
 }
 
 const NONE: ProjectFeatures = {
@@ -100,6 +102,7 @@ const NONE: ProjectFeatures = {
   currentStaffId: null,
   plRueckfrage: false,
   terminBestaetigung: false,
+  bexio: false,
 }
 
 export function useProjectFeatures(): ProjectFeatures {
@@ -133,6 +136,7 @@ export function useProjectFeatures(): ProjectFeatures {
         currentStaffId: me.staff_id ?? null,
         plRueckfrage: isFeatureEnabled(me, 'projektleiter_rueckfrage'),
         terminBestaetigung: hasModule(me, 'termin_bestaetigung'),
+        bexio: hasModule(me, 'bexio'),
       })
     }).catch(() => {})
   }, [])

@@ -118,7 +118,10 @@ describe('Ferien in allen Ansichten (§7)', () => {
   })
 
   it('Monat: ein Marker je Tag mit den Namen im title', () => {
-    renderCal()
+    // Heute statt Montag: der Montag dieser Woche liegt am Monatsanfang oft im
+    // Vormonat, und die Monatsansicht zeigt den laufenden Monat.
+    const heute = toDateStr(new Date())
+    renderCal({ absences: [{ ...FERIEN, date_start: heute, date_end: heute }] })
     const marker = screen.getByText('1 abwesend')
     expect(marker).toHaveAttribute('title', 'Beat Beispiel: Ferien 01.01.–01.01.2027')
   })

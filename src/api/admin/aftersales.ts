@@ -54,10 +54,6 @@ export async function listAftersales(status?: AftersalesStatus): Promise<Aftersa
   return res.tasks
 }
 
-export async function getAftersales(id: number): Promise<AftersalesTask> {
-  return apiFetch<AftersalesTask>(`/pwa/admin/aftersales/${id}`)
-}
-
 export async function updateAftersales(
   id: number,
   fields: { send_date?: string; mail_subject?: string; mail_body?: string },

@@ -6,10 +6,11 @@ import { TestingTab } from './tabs/TestingTab'
 import { TravelCostTab } from './tabs/TravelCostTab'
 import { SchedulingTab } from './tabs/SchedulingTab'
 import { HelpDocsTab } from './tabs/HelpDocsTab'
+import { BexioTab } from './tabs/BexioTab'
 
 type Tab =
   | 'modules' | 'notifications' | 'workflows'
-  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs'
+  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio'
 
 /**
  * Kalibrierung eines Mandanten durch den Betreiber.
@@ -89,6 +90,12 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
           >
             Hilfe-Bot
           </button>
+                  <button
+            className={`kpi-admin-tab${tab === 'bexio' ? ' active' : ''}`}
+            onClick={() => setTab('bexio')}
+          >
+            bexio
+          </button>
       </div>
 
       {tab === 'modules' && <ModulesTab view="modules" tenantId={tenantId} />}
@@ -98,6 +105,7 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
       {tab === 'travel-cost' && <TravelCostTab tenantId={tenantId} />}
       {tab === 'scheduling' && <SchedulingTab tenantId={tenantId} />}
       {tab === 'help-docs' && <HelpDocsTab tenantId={tenantId} />}
+      {tab === 'bexio' && <BexioTab tenantId={tenantId} />}
 
     </div>
   )

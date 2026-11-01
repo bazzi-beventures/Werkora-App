@@ -47,6 +47,8 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // `rueckmeldung_` (mit Unterstrich) sind die Superadmin-Aktionen der
   // Kunden-Rückmeldung; die Kundenantwort selbst (`public_rueckmeldung`) fällt
   // hier durch und landet unten bei den Projekten.
+  // bexio-Anbindung: vor der Rechnungs-Regel, sonst landete bexio_invoice_* unter «Rechnungen».
+  { test: /^bexio_/,                             module: 'bexio' },
   { test: /tenant_|superadmin_push|support_ticket|feature_request|newsletter|rueckmeldung_/, module: 'konfiguration' },
   { test: /aftersales/,                          module: 'aftersales' },
   // Offerten-Umfeld: 'variant' (Offerten-Variante), 'special_position' und
@@ -199,6 +201,19 @@ const ACTION_LABELS: Record<string, string> = {
   admin_export_timesheets: 'Stundenrapport exportiert',
   admin_approve_absence: 'Absenz freigegeben',
   admin_reject_absence: 'Absenz abgelehnt',
+
+  // ── bexio-Anbindung (Reiter «bexio» der Betreiber-Seite) ──
+  bexio_token_set: 'bexio: Token gesetzt',
+  bexio_defaults_set: 'bexio: Konten/Einstellungen gespeichert',
+  bexio_connection_deleted: 'bexio: Verbindung getrennt',
+  bexio_job_retry: 'bexio: Auftrag erneut versucht',
+  bexio_contact_linked: 'bexio: Kontakt zugeordnet',
+  bexio_invoice_cancelled: 'bexio: Rechnung storniert',
+  bexio_invoice_cancel_confirmed: 'bexio: Storno bestätigt',
+  bexio_invoice_enqueued: 'bexio: Rechnung nachgereicht',
+  bexio_oauth_started: 'bexio: Verbindung gestartet (OAuth)',
+  bexio_oauth_connected: 'bexio: verbunden (OAuth)',
+  bexio_payment_pulled: 'bexio: Zahlung übernommen',
 
   // ── Einsatzplanung ──
   admin_create_appointment: 'Termin angelegt',

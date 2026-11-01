@@ -57,6 +57,10 @@ export default function LoginScreen({ logoUrl, onLoggedIn }: Props) {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.status === 401) setError('Anmeldung fehlgeschlagen.')
+        // Am Konto hängt kein Passkey (mehr) — etwa nach einem Gerätewechsel,
+        // den der Admin mit einer neuen PIN beantwortet. Der Weg dorthin ist
+        // «Anderes Gerät / Neuer Mitarbeiter» unten.
+        else if (err.message === 'no_credentials_registered') setError('Für dein Konto ist kein Passkey eingerichtet. Tippe unten auf «Anderes Gerät / Neuer Mitarbeiter» und richte ihn mit einer Einmal-PIN ein.')
         else setError(`Fehler: ${err.message}`)
       } else if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('Abgebrochen.')
