@@ -5,12 +5,16 @@ import type { QuoteSendGroupMember, SendAttachmentsInfo } from '../../api/admin/
 import { uploadProjectFile } from '../../api/admin/projects'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { EmailRow } from './EmailRow'
+import { type RecipientSuggestion, showRecipientSuggestions } from './quoteRecipients'
 import { fmtCHF } from '../utils/format'
 
 interface Props {
   quoteId: number
   header: React.ReactNode
   defaultEmail?: string
+  /** Hinterlegte Adressen des Projekts (WW-55, quoteRecipients.ts): ein Tipp setzt
+   *  das Feld «An». Ohne Projekt (Offerten-Liste) bleibt es beim freien Feld. */
+  recipientSuggestions?: RecipientSuggestion[]
   onClose: () => void
   onSent: (email: string) => void
 }
@@ -25,7 +29,7 @@ const EMPTY_INFO: SendAttachmentsInfo = {
 // Dateien (werden beim Senden als Projekt-Anhang hochgeladen), mandantenweite
 // Vorlagen (Standard-Anhänge, z.B. AGB oder Produkt-Prospekte) und die
 // Projekt-Fotos (Dokumente → Fotos).
-export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent }: Props) {
+export function SendQuoteDialog({ quoteId, header, defaultEmail, recipientSuggestions = [], onClose, onSent }: Props) {
   const [email, setEmail] = useState(defaultEmail ?? '')
   // Weitere Empfänger und CC: eine Offerte geht oft an mehrere Parteien desselben
   // Vorgangs (Bauherr, Architekt, Verwaltung). Weitere Empfänger stehen dem Kunden
@@ -219,6 +223,27 @@ export function SendQuoteDialog({ quoteId, header, defaultEmail, onClose, onSent
             onChange={e => setEmail(e.target.value)}
             placeholder="kunde@example.com"
           />
+          {showRecipientSuggestions(recipientSuggestions, email) && (
+            <div role="group" aria-label="Hinterlegte Kontakte"
+              style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {recipientSuggestions.map(s => {
+                const active = s.email.toLowerCase() === email.trim().toLowerCase()
+                return (
+                  <button
+                    key={s.email}
+                    type="button"
+                    className={`admin-btn admin-btn-sm ${active ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+                    aria-pressed={active}
+                    title={s.email}
+                    disabled={sending}
+                    onClick={() => setEmail(s.email)}
+                  >
+                    {s.label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
 
           {extraEmails.map((v, i) => (
             <EmailRow

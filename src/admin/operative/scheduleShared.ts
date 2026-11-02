@@ -242,6 +242,7 @@ export const TERMIN_SYMBOLS: Record<AppointmentKind, string> = {
   montage: '🔧',
   wiedermontage: '🔁',
   service: '🛠️',
+  garantie: '🛡️',
   sonstiges: '📋',
 }
 const KIND_SYMBOLS: Record<string, string> = {

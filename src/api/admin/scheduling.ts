@@ -22,6 +22,9 @@ export const APPOINTMENT_KIND_LABELS = {
   montage: 'Montage',
   wiedermontage: 'Wiedermontage',
   service: 'Service',
+  // WW-64: Garantie-Einsatz. Die Verrechnung hängt am Garantie-Kennzeichen von
+  // Projekt und Rapport (WW-33), nicht am Termin-Typ.
+  garantie: 'Garantie',
   sonstiges: 'Sonstiges',
 } as const
 

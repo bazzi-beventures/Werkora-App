@@ -957,6 +957,12 @@ input, textarea { font-family: var(--font); color: var(--text); }
   background: var(--accent-25, rgba(49,128,171,0.18));
   border-color: var(--accent, #3081AB);
 }
+/* Garantiefall (WW-33): eigene Zeile unter dem Raster, volle Breite — keine
+   Leistungsart, sondern eine Aussage über die Verrechnung. */
+.leistungsart-garantie {
+  width: 100%;
+  margin-top: 10px;
+}
 /* Feste Breite, damit die Labels mit und ohne Haken auf derselben Kante stehen. */
 .leistungsart-chip-check {
   width: 14px;

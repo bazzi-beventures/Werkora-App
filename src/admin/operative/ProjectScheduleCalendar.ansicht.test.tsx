@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjectScheduleCalendar from './ProjectScheduleCalendar'
-import { readScheduleView, writeScheduleView, parseViewDate, SCHEDULE_VIEW_KEY } from './scheduleViewState'
+import { appointmentJumpState, readScheduleView, writeScheduleView, parseViewDate, SCHEDULE_VIEW_KEY } from './scheduleViewState'
 
 vi.mock('../../api/admin', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../api/admin')>()
@@ -90,5 +90,44 @@ describe('Sprung aus der Ferien-Freigabe (WW-58)', () => {
     writeScheduleView({ view: 'plantafel', viewFallback: ['gibtsnicht' as never, 'week'] })
     renderMit({ plantafel: false })
     expect(screen.getByRole('button', { name: 'Woche' })).toHaveClass('admin-btn-primary')
+  })
+})
+
+describe('Sprung von einem Projekt-Termin auf dessen Team (WW-62)', () => {
+  it('ein Monteur: Mitarbeiter-Ansicht auf ihm, auch wenn zuletzt jemand anderes offen war', () => {
+    writeScheduleView({ view: 'staff', staffId: 's1', date: '2026-10-01' })
+    writeScheduleView(appointmentJumpState(readScheduleView(), '2026-11-17', ['s2']))
+    renderCal()
+    expect(screen.getByRole('button', { name: 'Mitarbeiter' })).toHaveClass('admin-btn-primary')
+    expect(screen.getByRole('combobox')).toHaveValue('s2')
+  })
+
+  it('ein Monteur ohne Mitarbeiter-Ansicht beim Mandanten: Plantafel', () => {
+    writeScheduleView(appointmentJumpState({ view: 'month' }, '2026-11-17', ['s2']))
+    render(
+      <ProjectScheduleCalendar projects={[]} staff={STAFF} loading={false}
+        onSelect={vi.fn()} onReschedule={vi.fn()}
+        schedulingConfig={{ fields: {}, colors: {}, views: { staff: false } }} />,
+    )
+    expect(screen.getByRole('button', { name: 'Plantafel' })).toHaveClass('admin-btn-primary')
+  })
+
+  it('mehrere Monteure: Plantafel, das Team wieder eingeblendet, die übrigen nicht', () => {
+    const s = appointmentJumpState(
+      { view: 'month', hiddenStaff: ['s1', 's2', 's9'] }, '2026-11-17', ['s1', 's2'],
+    )
+    expect(s).toMatchObject({
+      view: 'plantafel', staffId: 's1', date: '2026-11-17', viewFallback: ['week'], hiddenStaff: ['s9'],
+    })
+  })
+
+  it('ohne Team bleibt es beim Datum, wie vorher', () => {
+    const prev = { view: 'staff' as const, staffId: 's1', hiddenStaff: ['s2'] }
+    expect(appointmentJumpState(prev, '2026-11-17', [])).toEqual({ ...prev, date: '2026-11-17' })
+    expect(appointmentJumpState(prev, '2026-11-17')).toEqual({ ...prev, date: '2026-11-17' })
+  })
+
+  it('doppelte und leere ids zählen nicht als zweiter Monteur', () => {
+    expect(appointmentJumpState({}, '2026-11-17', ['s2', 's2', '']).view).toBe('staff')
   })
 })

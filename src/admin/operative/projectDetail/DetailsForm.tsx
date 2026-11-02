@@ -61,7 +61,7 @@ export function DetailsForm({
   /** Ziel dieses Sprungs (customerLinkTarget.ts) — fehlt es, der Kunde aus der Maske. */
   linkCustomer?: { id: string; name: string } | null
   /** Sprung in die Einsatzplanung (Kachel «Termine»). */
-  onOpenSchedule?: (date: string) => void
+  onOpenSchedule?: (date: string, teamIds?: string[]) => void
   /** Gespeichertes Projekt: dann stehen die Skill-Pillen in der Karte Einsatzplanung. */
   projectId?: string | null
   /**

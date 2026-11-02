@@ -63,6 +63,10 @@ export interface RapportDraftState {
   workTypesCollected?: boolean
   collectedWorkTypes?: string[]
   suggestedWorkTypes?: string[]
+  // Schalter «Garantiefall» im Schritt «Was wurde gemacht?» (WW-33). Reines
+  // ZUSATZfeld — kein APP_DATA_VERSION-Schritt nötig; ältere Entwürfe lesen
+  // `undefined`, und dann entscheidet die Vorbelegung des Servers.
+  collectedWarranty?: boolean
   // Abschluss-Wahl des Bestätigungsschritts: Teilrapport statt Unterschrift jetzt
   // (docs/specs/teilrapport.md §6.1). Ohne den Draft wäre die Auswahl nach einem
   // Navigationswechsel weg. Reines ZUSATZfeld — kein APP_DATA_VERSION-Schritt

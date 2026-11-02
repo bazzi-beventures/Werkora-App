@@ -16,7 +16,11 @@ interface Props {
   // Aktueller Stand (pending_summary.art_der_arbeit bzw. die zuletzt getroffene
   // Auswahl). Nicht-kanonische Alt-Werte hat das Backend bereits aussortiert.
   initial: string[]
-  onSubmit: (workTypes: string[]) => void
+  /** Schalter «Garantiefall» (WW-33): vorbelegt aus dem Projekt. `undefined` =
+   *  unbekannt (Entwurf aus einer älteren Version) — dann geht der Schalter nur
+   *  mit, wenn der Monteur ihn anfasst. */
+  initialWarranty?: boolean
+  onSubmit: (workTypes: string[], warranty: boolean | undefined) => void
 }
 
 // Mitarbeiter kreuzt an, was er gemacht hat — dieselbe Leiste wie oben auf dem
@@ -27,10 +31,11 @@ interface Props {
 // mitbringt — sonst steht sie in der Zusammenfassung und wird von dort über «Ändern»
 // hierher aufgerufen. «Weiter» ohne Auswahl ist erlaubt: nicht jeder Einsatz passt
 // in eine der sechs Arten.
-export default function LeistungsartPrompt({ initial, onSubmit }: Props) {
+export default function LeistungsartPrompt({ initial, initialWarranty, onSubmit }: Props) {
   const [selected, setSelected] = useState<string[]>(
     () => WORK_TYPES.map(w => w.value).filter(v => initial.includes(v))
   )
+  const [warranty, setWarranty] = useState<boolean | undefined>(initialWarranty)
 
   function toggle(value: string) {
     setSelected(prev =>
@@ -66,11 +71,26 @@ export default function LeistungsartPrompt({ initial, onSubmit }: Props) {
         ))}
       </div>
 
+      {/* Garantiefall (WW-33): keine Leistungsart, sondern eine Aussage über die
+          Verrechnung — deshalb eine eigene Zeile unter dem Raster. Der Rapport
+          kommt damit im Rechnungsdialog nicht vorgewählt. */}
+      <button
+        type="button"
+        aria-pressed={warranty === true}
+        className={`leistungsart-chip leistungsart-garantie ${warranty ? 'is-selected' : ''}`}
+        onClick={() => setWarranty(w => !w)}
+      >
+        <span className="leistungsart-chip-check" aria-hidden="true">
+          {warranty ? '✓' : ''}
+        </span>
+        Garantiefall — wird nicht verrechnet
+      </button>
+
       <div className="kleinmaterial-actions">
         <button
           type="button"
           className="confirm-btn confirm-btn-yes"
-          onClick={() => onSubmit(selected)}
+          onClick={() => onSubmit(selected, warranty)}
         >
           Weiter
         </button>

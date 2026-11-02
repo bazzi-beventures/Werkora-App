@@ -68,6 +68,10 @@ export interface ChatResponse {
     einbauort?: string
     // Vorauswahl der Leistungsart-Chips (aus dem Projekt geerbt).
     art_der_arbeit?: string[]
+    // Vorbelegung des Schalters «Garantiefall» (aus dem Projekt geerbt, WW-33).
+    // Fehlt beim Alt-Server → der Schalter bleibt unberührt und der Server
+    // entscheidet wie bisher.
+    is_warranty?: boolean
     // Vorauswahl «Teilrapport» im Abschluss-Schritt: das Projekt hat bereits einen
     // freien Teilrapport (docs/specs/teilrapport.md §3.10). Fehlt beim Alt-Server →
     // «Unterschrift jetzt», die gewöhnliche Vorauswahl.
@@ -221,6 +225,9 @@ export interface ConfirmExtras {
   // Angekreuzte Leistungsart (reports.art_der_arbeit). undefined = nichts gesagt,
   // dann bleibt die Vorbelegung aus dem Projekt stehen; [] heisst "keine".
   art_der_arbeit?: string[]
+  // Schalter «Garantiefall» (reports.is_warranty, WW-33). undefined = nichts
+  // gesagt, dann bleibt die Vorbelegung aus dem Projekt stehen.
+  is_warranty?: boolean
   // Teilrapport statt Rapport mit Unterschrift: gleiche Erfassung, nur ohne
   // Unterschriftsschritt — die eine Unterschrift kommt am Schluss auf dem
   // Gesamtrapport (docs/specs/teilrapport.md §3.2).
@@ -235,6 +242,7 @@ export async function confirmReport(extras: ConfirmExtras = {}): Promise<ChatRes
       ersatzteile: extras.ersatzteile ?? [],
       art_der_arbeit: extras.art_der_arbeit ?? null,
       is_partial: extras.is_partial ?? false,
+      is_warranty: extras.is_warranty ?? null,
     }),
   })
 }

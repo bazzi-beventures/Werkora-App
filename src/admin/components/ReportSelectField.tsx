@@ -1,7 +1,8 @@
 // Rapport-Auswahl im Erstellen-Dialog (Spec docs/specs/anzahlung-und-rapportauswahl.md
-// §2): welche verrechenbaren Rapporte kommen auf diese Rechnung? Vorbelegt mit allen;
-// was nicht angehakt ist, bleibt für eine spätere Rechnung offen. Die Payload-Regel
-// liegt in utils/invoiceMode.ts (reportSelectionPayload), hier nur die Darstellung.
+// §2): welche verrechenbaren Rapporte kommen auf diese Rechnung? Vorbelegt mit allen
+// ausser Garantie-Rapporten (WW-33); was nicht angehakt ist, bleibt für eine spätere
+// Rechnung offen. Die Regeln liegen in utils/invoiceMode.ts (defaultCheckedReports,
+// reportSelectionPayload), hier nur die Darstellung.
 
 import type { BillableReport } from '../../api/admin/invoices'
 import { fmtDate } from '../utils/format'
@@ -19,6 +20,7 @@ export function ReportSelectField({ reports, checked, onChange, disabled }: Prop
     onChange(checkedSet.has(id) ? checked.filter(c => c !== id) : [...checked, id])
   }
   const offen = reports.length - reports.filter(r => checkedSet.has(r.id)).length
+  const garantieOffen = reports.filter(r => r.is_warranty && !checkedSet.has(r.id)).length
   return (
     <fieldset style={{ border: 'none', padding: 0, margin: '0 0 12px' }}>
       <legend className="admin-form-label">Rapporte auf dieser Rechnung</legend>
@@ -38,6 +40,11 @@ export function ReportSelectField({ reports, checked, onChange, disabled }: Prop
             />
             <span style={{ minWidth: 0 }}>
               <span style={{ fontWeight: 600 }}>{fmtDate(r.report_date)}</span>
+              {r.is_warranty && (
+                <span className="admin-badge admin-badge-warning" style={{ marginLeft: 6, fontSize: 10 }}>
+                  Garantie
+                </span>
+              )}
               {r.created_by && <span style={{ color: 'var(--muted)' }}> · {r.created_by}</span>}
               {r.hours > 0 && <span style={{ color: 'var(--muted)' }}> · {r.hours.toLocaleString('de-CH')} h</span>}
               {r.description && (
@@ -52,6 +59,9 @@ export function ReportSelectField({ reports, checked, onChange, disabled }: Prop
       {offen > 0 && (
         <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
           {offen === 1 ? '1 Rapport bleibt' : `${offen} Rapporte bleiben`} für eine spätere Rechnung offen.
+          {garantieOffen > 0 && (
+            <> Garantie-Rapporte sind nicht vorgewählt — anhaken, wenn sie trotzdem verrechnet werden.</>
+          )}
         </div>
       )}
     </fieldset>

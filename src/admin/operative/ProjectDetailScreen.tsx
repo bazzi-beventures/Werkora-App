@@ -11,6 +11,7 @@ import type { QuoteDetail } from './quotes/quoteTypes'
 import { hasQuoteDraft } from './quotes/quoteDraft'
 import { useToast, ToastHost } from '../components/useToast'
 import { SendQuoteDialog } from './SendQuoteDialog'
+import { quoteRecipientSuggestions } from './quoteRecipients'
 import { SendOrderConfirmationDialog, SendThankyouDialog } from './SendQuoteMailDialog'
 import { ProjectStatus } from '../constants/statuses'
 import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
@@ -81,7 +82,7 @@ interface Props {
   onOpenCustomer?: (customerId: string) => void
   /** Sprung in die Einsatzplanung auf die Woche eines Termins (Kachel «Termine»),
    *  über AdminApp wie onOpenCustomer — samt Verlassen-Abfrage. */
-  onOpenSchedule?: (date: string) => void
+  onOpenSchedule?: (date: string, teamIds?: string[]) => void
   /**
    * Reiter, auf dem die Maske aufgeht. Nur beim Direktsprung gesetzt (Button in
    * einer Info-Mail, siehe shared/deepLink.ts) — gelesen wird er ausschliesslich
@@ -818,6 +819,10 @@ export default function ProjectDetailScreen({
         <SendQuoteDialog
           quoteId={sendQuote.id}
           defaultEmail={sendQuote.customer_email || ''}
+          // WW-55: Kunde, Projekt-Kontakte und Eigentümer zum Antippen.
+          recipientSuggestions={quoteRecipientSuggestions(
+            sendQuote.customer_email, form.kontakte, form.eigentuemer,
+          )}
           header={
             <>
               {sendQuote.quote_number}

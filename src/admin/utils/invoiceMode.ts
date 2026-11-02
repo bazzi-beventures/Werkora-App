@@ -48,6 +48,25 @@ export function reportSelectionPayload(
   return allIds.filter(id => checked.includes(id))
 }
 
+/** Vorbelegung der Rapport-Auswahl: alle — ausser Garantie-Rapporten (WW-33).
+ *  Ein Garantie-Einsatz wird dem Kunden nicht verrechnet; vorher hakte der Dialog
+ *  ihn trotzdem an, und nur die Warnung im Rechnungslauf erinnerte daran. Die
+ *  Entscheidung bleibt beim Büro: der Rapport steht mit Abzeichen in der Liste
+ *  und lässt sich wieder anhaken (Spec garantiefall.md §3.7).
+ *
+ *  Abgewählt wird nur, wo die Auswahl auch zu SEHEN ist (mehr als ein Rapport)
+ *  und danach noch etwas angehakt bleibt — sonst schlösse der Dialog einen
+ *  Rapport aus, den niemand sieht, bzw. stünde ohne Auswahl da. Dann gilt die
+ *  Warnung im Rechnungslauf wie bisher. */
+export function defaultCheckedReports(
+  reports: readonly { id: number; is_warranty?: boolean }[] | null,
+): number[] {
+  const all = (reports ?? []).map(r => r.id)
+  if (all.length <= 1) return all
+  const ohneGarantie = (reports ?? []).filter(r => !r.is_warranty).map(r => r.id)
+  return ohneGarantie.length > 0 ? ohneGarantie : all
+}
+
 /** Anzahlungs-Abzug → `anzahlung_ids`. Nicht geladen (null) → weglassen: der Server
  *  zieht dann alle offenen ab. Geladen → genau die angehakten, auch [] (= keine). */
 export function anzahlungPayload(

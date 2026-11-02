@@ -271,3 +271,40 @@ describe('SendQuoteDialog — Auswahl der Offerten einer Gruppe (WW-34)', () => 
     await waitFor(() => expect(sendBody()).not.toHaveProperty('group_quote_ids'))
   })
 })
+
+// WW-55: die Offerte ging an die Rechnungsadresse statt an den Bewirtschafter. Die
+// hinterlegten Adressen des Projekts stehen als Vorschläge unter «An»; ein Tipp
+// setzt das Feld, die Vorbelegung bleibt der Kunde.
+describe('SendQuoteDialog — hinterlegte Kontakte (WW-55)', () => {
+  const VORSCHLAEGE = [
+    { label: 'Kunde', email: 'kunde@example.ch' },
+    { label: 'Peter Muster (Bewirtschafter)', email: 'muster@verwaltung.ch' },
+  ]
+
+  it('Vorbelegung bleibt der Kunde, ein Tipp sendet an den Bewirtschafter', async () => {
+    const user = userEvent.setup()
+    mockInfo()
+    render(
+      <SendQuoteDialog quoteId={7} header="Offerte OF-1" defaultEmail="kunde@example.ch"
+        recipientSuggestions={VORSCHLAEGE} onClose={vi.fn()} onSent={vi.fn()} />,
+    )
+    await screen.findByText('Prospekt.pdf')
+    expect(screen.getByRole('button', { name: 'Kunde' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'Peter Muster (Bewirtschafter)' }))
+    expect(screen.getByRole('button', { name: 'Peter Muster (Bewirtschafter)' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Offerte senden' }))
+    await waitFor(() => expect(sendBody().recipient_email).toBe('muster@verwaltung.ch'))
+  })
+
+  it('ohne Auswahl keine Vorschlagszeile', async () => {
+    mockInfo()
+    render(
+      <SendQuoteDialog quoteId={7} header="Offerte OF-1" defaultEmail="kunde@example.ch"
+        recipientSuggestions={[{ label: 'Kunde', email: 'kunde@example.ch' }]}
+        onClose={vi.fn()} onSent={vi.fn()} />,
+    )
+    await screen.findByText('Prospekt.pdf')
+    expect(screen.queryByRole('group', { name: 'Hinterlegte Kontakte' })).not.toBeInTheDocument()
+  })
+})

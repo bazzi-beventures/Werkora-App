@@ -42,6 +42,33 @@ export function readScheduleView(): ScheduleViewState {
   }
 }
 
+/**
+ * Sprung von einem Termin des Projekts in die Einsatzplanung (WW-62: «direkt den
+ * angegebenen Monteur anzeigen, sonst verwirrt es»). Vorher kam nur das Datum mit,
+ * und die Planung stand in der zuletzt benutzten Ansicht — bei der Mitarbeiter-
+ * Ansicht auf irgendeiner anderen Person.
+ *
+ * - **ein** Monteur → Mitarbeiter-Ansicht auf ihm (Ersatz: Plantafel, Woche);
+ * - **mehrere** → Plantafel, dort stehen alle Team-Zeilen nebeneinander (Ersatz:
+ *   Woche). `staffId` zeigt trotzdem auf den ersten, damit ein Wechsel in die
+ *   Mitarbeiter-Ansicht beim Team landet und nicht bei der letzten Person;
+ * - **kein** Team → nur das Datum, wie bisher.
+ *
+ * Ausgeblendete Team-Mitglieder werden wieder eingeblendet — sonst zeigte die
+ * Plantafel genau die gesuchte Zeile nicht. Die übrigen ausgeblendeten bleiben es
+ * (anders als WW-58, das alle zeigt: dort ist «wer fehlt sonst noch» die Frage).
+ */
+export function appointmentJumpState(
+  prev: ScheduleViewState, date: string, teamIds: readonly string[] = [],
+): ScheduleViewState {
+  const team = [...new Set(teamIds.filter(Boolean))]
+  if (team.length === 0) return { ...prev, date }
+  const hiddenStaff = (prev.hiddenStaff ?? []).filter(id => !team.includes(id))
+  return team.length === 1
+    ? { ...prev, date, hiddenStaff, view: 'staff', staffId: team[0], viewFallback: ['plantafel', 'week'] }
+    : { ...prev, date, hiddenStaff, view: 'plantafel', staffId: team[0], viewFallback: ['week'] }
+}
+
 export function writeScheduleView(state: ScheduleViewState): void {
   // Private-Mode / voller Storage darf die Planung nicht blockieren.
   try { window.sessionStorage.setItem(SCHEDULE_VIEW_KEY, JSON.stringify(state)) } catch { /* egal */ }

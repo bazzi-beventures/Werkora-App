@@ -44,7 +44,7 @@ import { trackNav } from '../shared/breadcrumbs'
 import { DEEP_LINK_EVENT, takeCustomerDeepLink, takeKpiDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
-import { readScheduleView, writeScheduleView } from './operative/scheduleViewState'
+import { appointmentJumpState, readScheduleView, writeScheduleView } from './operative/scheduleViewState'
 import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
 import './tokens.css'
@@ -289,10 +289,11 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           onReturnFromJump={previous?.screen === 'project-schedule' || previous?.screen === 'quotes'
             ? () => guardedNav(previous.screen) : undefined}
           // Gegenrichtung: Kachel «Termine» → Einsatzplanung auf der Woche des
-          // Termins. Das Datum geht über die gemerkte Ansicht der Planung
-          // (scheduleViewState.ts), nicht über einen weiteren Nav-Parameter.
-          onOpenSchedule={hasModule(user, 'scheduling') ? date => {
-            writeScheduleView({ ...readScheduleView(), date })
+          // Termins und auf dessen Team (WW-62). Datum und Team gehen über die
+          // gemerkte Ansicht der Planung (scheduleViewState.ts), nicht über
+          // einen weiteren Nav-Parameter.
+          onOpenSchedule={hasModule(user, 'scheduling') ? (date, teamIds) => {
+            writeScheduleView(appointmentJumpState(readScheduleView(), date, teamIds))
             guardedNav('project-schedule')
           } : undefined}
         />

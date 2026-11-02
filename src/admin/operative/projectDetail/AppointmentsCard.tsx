@@ -38,8 +38,10 @@ interface Props {
     isDirty: (d: AppointmentDraft) => boolean
   }
   /** Sprung in die Einsatzplanung auf die Woche des Termins (YYYY-MM-DD) —
-   *  die Gegenrichtung zum Doppelklick dort (einsatzplanung-rueckmeldungen-2026-10.md §2.2). */
-  onOpenSchedule?: (date: string) => void
+   *  die Gegenrichtung zum Doppelklick dort (einsatzplanung-rueckmeldungen-2026-10.md §2.2).
+   *  `teamIds`: das wirksame Team des Termins, damit die Planung auf dem Monteur
+   *  aufgeht statt in der zuletzt benutzten Ansicht (WW-62). */
+  onOpenSchedule?: (date: string, teamIds?: string[]) => void
   /**
    * Modul «termin_bestaetigung» an und ein Kundenprojekt: dann trägt
    * jeder gespeicherte Termin «Termin an Kunden senden»
@@ -152,7 +154,8 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                 return <> · {team.fromProject ? 'Projekt-Team' : 'Team'}: {team.names}</>
               })()}
               {onOpenSchedule && next.startDate && (
-                <> · <button type="button" onClick={() => onOpenSchedule(next.startDate)}
+                <> · <button type="button"
+                    onClick={() => onOpenSchedule(next.startDate, effectiveTeamIds(next, projectTeam))}
                     style={{ background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer',
                       color: 'var(--primary)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
                     In Einsatzplanung zeigen</button></>

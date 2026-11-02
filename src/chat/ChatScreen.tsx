@@ -166,6 +166,9 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   const [collectedWorkTypes, setCollectedWorkTypes] = useState<string[]>(() => draft?.collectedWorkTypes ?? [])
   // Vorauswahl aus dem Projekt (kommt mit der Zusammenfassung vom Backend).
   const [suggestedWorkTypes, setSuggestedWorkTypes] = useState<string[]>(() => draft?.suggestedWorkTypes ?? [])
+  // Schalter «Garantiefall» (WW-33): aus dem Projekt vorbelegt, im Schritt «Was
+  // wurde gemacht?» korrigierbar. undefined = unbekannt → der Server entscheidet.
+  const [collectedWarranty, setCollectedWarranty] = useState<boolean | undefined>(() => draft?.collectedWarranty)
   const [kleinCollected, setKleinCollected] = useState(() => draft?.kleinCollected ?? false)
   const [ersatzCollected, setErsatzCollected] = useState(() => draft?.ersatzCollected ?? false)
   const [collectedKlein, setCollectedKlein] = useState<KleinmaterialSelection | null>(() => draft?.collectedKlein ?? null)
@@ -233,7 +236,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     messages, kleinCollected, ersatzCollected, collectedKlein, collectedErsatz,
     summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
     pendingSignReportId, downloadReportId, reportSigned,
-    workTypesCollected, collectedWorkTypes, suggestedWorkTypes, pendingProject,
+    workTypesCollected, collectedWorkTypes, suggestedWorkTypes, collectedWarranty, pendingProject,
     pendingProjectId, partialChosen, savedAsPartial,
   }
 
@@ -244,7 +247,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   }, [user.authorized_user_id, messages, kleinCollected, ersatzCollected, collectedKlein,
       collectedErsatz, summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
       pendingSignReportId, downloadReportId, reportSigned,
-      workTypesCollected, collectedWorkTypes, suggestedWorkTypes, pendingProject,
+      workTypesCollected, collectedWorkTypes, suggestedWorkTypes, collectedWarranty, pendingProject,
       pendingProjectId, partialChosen, savedAsPartial])
 
   // Reload und Tab-schliessen: der Browser fragt selbst nach, solange ein Rapport
@@ -278,6 +281,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     setWorkTypesCollected(false)
     setCollectedWorkTypes([])
     setSuggestedWorkTypes([])
+    setCollectedWarranty(undefined)
     setSummaryItems([])
     setPendingConfirm(false)
     setPendingDisambiguation(false)
@@ -424,6 +428,9 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       setSuggestedWorkTypes(suggested)
       setCollectedWorkTypes(suggested)
       setWorkTypesCollected(suggested.length > 0)
+      // Garantiefall: Vorbelegung aus dem Projekt, sichtbar in der Übersicht und
+      // über «Ändern» korrigierbar (WW-33). Alt-Server ohne Feld → undefined.
+      setCollectedWarranty(res.pending_summary?.is_warranty)
       // Abschluss-Vorauswahl: «Teilrapport», wenn das Projekt bereits einen freien
       // Teilrapport hat — wer einmal so arbeitet, meint in aller Regel den nächsten
       // Tag derselben Serie. Sonst «Unterschrift jetzt» (docs/specs/teilrapport.md §3.10).
@@ -470,6 +477,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
       setWorkTypesCollected(false)
       setCollectedWorkTypes([])
       setSuggestedWorkTypes([])
+      setCollectedWarranty(undefined)
       setSummaryItems([])
     } else if (res.action_taken === 'report_saved' && res.report_id) {
       // Teilrapport: kein Unterschriftspad. Die eine Unterschrift kommt am Schluss
@@ -617,6 +625,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         kleinmaterial: collectedKlein,
         ersatzteile: collectedErsatz.map(it => ({ art_nr: it.art_nr, amount: it.amount })),
         art_der_arbeit: collectedWorkTypes,
+        is_warranty: collectedWarranty,
         is_partial: partialSelectable && partialChosen,
       })
       addMessage({ role: 'bot', text: res.reply, timestamp: now(), action_taken: res.action_taken })
@@ -651,6 +660,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     setWorkTypesCollected(false)
     setCollectedWorkTypes([])
     setSuggestedWorkTypes([])
+    setCollectedWarranty(undefined)
     setSummaryItems([])
     setLoading(true)
     try {
@@ -914,7 +924,10 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
             // Fallback auf die Projekt-Vorauswahl deckt Entwürfe ab, die noch vor
             // dieser Änderung gespeichert wurden (collectedWorkTypes dort leer).
             initial={collectedWorkTypes.length > 0 ? collectedWorkTypes : suggestedWorkTypes}
-            onSubmit={(sel) => { setCollectedWorkTypes(sel); setWorkTypesCollected(true) }}
+            initialWarranty={collectedWarranty}
+            onSubmit={(sel, warranty) => {
+              setCollectedWorkTypes(sel); setCollectedWarranty(warranty); setWorkTypesCollected(true)
+            }}
           />
         )}
 
@@ -946,6 +959,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
                   {collectedWorkTypes.length > 0
                     ? collectedWorkTypes.map(v => WORK_TYPES.find(w => w.value === v)?.label ?? v).join(', ')
                     : 'keine angegeben'}
+                  {collectedWarranty && ' · Garantiefall'}
                 </span>
               </div>
               <button

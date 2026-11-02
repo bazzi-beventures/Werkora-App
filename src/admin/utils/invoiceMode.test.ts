@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   anzahlungPayload, generateOptionsPayload, hasActiveInvoice, invoiceModeOptions,
-  invoiceModePayload, parseAnzahlungPct, reportSelectionPayload,
+  defaultCheckedReports, invoiceModePayload, parseAnzahlungPct, reportSelectionPayload,
 } from './invoiceMode'
 
 describe('hasActiveInvoice', () => {
@@ -93,5 +93,31 @@ describe('generateOptionsPayload', () => {
       quote_ids: undefined, work_description: '', report_ids: [1], anzahlung_ids: [],
       additional: true,
     })
+  })
+})
+
+describe('defaultCheckedReports — Garantie-Rapporte nicht vorgewählt (WW-33)', () => {
+  const r = (id: number, is_warranty = false) => ({ id, is_warranty })
+
+  it('hakt alle ausser den Garantie-Rapporten an', () => {
+    expect(defaultCheckedReports([r(1), r(2, true), r(3)])).toEqual([1, 3])
+  })
+
+  it('ein einzelner Rapport bleibt angehakt — die Auswahl ist dann gar nicht zu sehen', () => {
+    expect(defaultCheckedReports([r(7, true)])).toEqual([7])
+  })
+
+  it('nur Garantie-Rapporte: alle angehakt, sonst stünde der Dialog ohne Auswahl da', () => {
+    expect(defaultCheckedReports([r(1, true), r(2, true)])).toEqual([1, 2])
+  })
+
+  it('älterer Server ohne das Feld und Ladefehler: wie bisher', () => {
+    expect(defaultCheckedReports([{ id: 1 }, { id: 2 }])).toEqual([1, 2])
+    expect(defaultCheckedReports(null)).toEqual([])
+  })
+
+  it('die abgewählten Garantie-Rapporte gehen als echte Auswahl an den Server', () => {
+    const list = [r(1), r(2, true)]
+    expect(reportSelectionPayload(list.map(x => x.id), defaultCheckedReports(list))).toEqual([1])
   })
 })

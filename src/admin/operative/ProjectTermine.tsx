@@ -6,6 +6,7 @@
 //
 // Ein Klick auf einen Termin springt in die Einsatzplanung auf dessen Woche
 // (onOpenSchedule, derselbe Weg wie «In Einsatzplanung zeigen» der Projektmaske)
+// und dort auf dessen Team (WW-62, scheduleViewState.appointmentJumpState)
 // — und öffnet NICHT die Projektmaske, die der Klick auf die Zeile sonst öffnet.
 
 import type { ProjectUpcomingAppointment } from '../../api/admin/projects'
@@ -28,7 +29,8 @@ export default function ProjectTermine({ appointments, total, staff, onOpenSched
   appointments: ProjectUpcomingAppointment[]
   total: number
   staff: StaffLite[]
-  onOpenSchedule?: (date: string) => void
+  /** `teamIds`: das wirksame Team des angeklickten Termins (WW-62). */
+  onOpenSchedule?: (date: string, teamIds?: string[]) => void
   /** Handy-Karte: nur der nächste Termin, eine Zeile. */
   compact?: boolean
 }) {
@@ -54,7 +56,10 @@ export default function ProjectTermine({ appointments, total, staff, onOpenSched
             type="button"
             className="projektliste-termin"
             aria-label={`${n.when} ${n.what} in der Einsatzplanung zeigen`}
-            onClick={e => { e.stopPropagation(); onOpenSchedule(a.start_date.slice(0, 10)) }}
+            onClick={e => {
+              e.stopPropagation()
+              onOpenSchedule(a.start_date.slice(0, 10), crewMembers(a, staff).map(m => m.id))
+            }}
           >
             {inhalt}
           </button>

@@ -30,7 +30,7 @@ import { WorkDescriptionField } from '../components/WorkDescriptionField'
 import { InvoiceModeField } from '../components/InvoiceModeField'
 import {
   anzahlungPayload, generateOptionsPayload, hasActiveInvoice, isAdditional, parseAnzahlungPct,
-  reportSelectionPayload, type InvoiceMode,
+  defaultCheckedReports, reportSelectionPayload, type InvoiceMode,
 } from '../utils/invoiceMode'
 import { ReportSelectField } from '../components/ReportSelectField'
 import { AnzahlungAbzugField, AnzahlungPctField } from '../components/AnzahlungFields'
@@ -157,6 +157,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [genMode, setGenMode] = useState<InvoiceMode>('replace')
   // Zähler gegen überholte Antworten (Projekt- oder Art-Wechsel während des Ladens).
   const genLoadSeq = useRef(0)
+  const descSeq = useRef(0)
   // Rapport-Auswahl und Anzahlungs-Abzug: null = nicht geladen (Automatik).
   const [genReports, setGenReports] = useState<BillableReport[] | null>(null)
   const [genCheckedReports, setGenCheckedReports] = useState<number[]>([])
@@ -262,7 +263,12 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
       .then(list => {
         if (!current()) return
         setGenReports(list)
-        setGenCheckedReports(list.map(r => r.id))
+        // Garantie-Rapporte nicht vorgewählt (WW-33). Weicht die Vorbelegung von
+        // «alle» ab, gilt der Vorschlag «Ausgeführte Arbeiten» für die Auswahl.
+        const checked = defaultCheckedReports(list)
+        setGenCheckedReports(checked)
+        const sel = reportSelectionPayload(list.map(r => r.id), checked)
+        if (sel) loadWorkDescriptionFor(projectId, projectName, additional, sel, seq)
       })
       .catch(() => { if (current()) setGenReports(null) })
     void getAnzahlungen(projectId, additional)
@@ -282,10 +288,13 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     projectId: string, projectName: string, additional: boolean,
     reportIds: number[] | undefined, seq: number,
   ) {
+    // Nur die jüngste Anfrage schreibt (descSeq) — siehe InvoicesTab.
+    const mine = ++descSeq.current
+    const latest = () => seq === genLoadSeq.current && mine === descSeq.current
     setGenWorkDesc(s => ({ ...s, text: '', loading: true, failed: false }))
     getInvoiceWorkDescription(projectName, projectId, additional, reportIds).then(
-      text => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, text, loading: false })) },
-      () => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, loading: false, failed: true })) },
+      text => { if (latest()) setGenWorkDesc(s => ({ ...s, text, loading: false })) },
+      () => { if (latest()) setGenWorkDesc(s => ({ ...s, loading: false, failed: true })) },
     )
   }
 

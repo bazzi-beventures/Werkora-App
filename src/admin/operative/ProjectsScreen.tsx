@@ -106,7 +106,7 @@ interface ProjectsScreenProps {
   // und Verlassen über Speichern — alle enden in onClose bzw. onSaved(null).
   onReturnFromJump?: () => void
   // Sprung aus der Kachel «Termine» in die Einsatzplanung (Datum YYYY-MM-DD).
-  onOpenSchedule?: (date: string) => void
+  onOpenSchedule?: (date: string, teamIds?: string[]) => void
   // Reiter, auf dem die Maske aufgehen soll (Deep-Link aus einer Info-Mail:
   // «Rapport eingereicht» → 'reports'). Gilt nur fuer den Sprung oben.
   openProjectTab?: ProjectTab

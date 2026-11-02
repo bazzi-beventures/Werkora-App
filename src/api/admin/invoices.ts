@@ -206,6 +206,9 @@ export interface BillableReport {
   description: string
   hours: number
   signed: boolean
+  /** Garantiefall (WW-33): Abzeichen in der Auswahl, nicht vorgewählt. Fehlt bei
+   *  einem älteren Server — dann wie bisher alles vorgewählt. */
+  is_warranty?: boolean
 }
 
 export async function getBillableReports(projectId: string, additional = false): Promise<BillableReport[]> {

@@ -70,7 +70,9 @@ describe('ProjectsScreen — Spalte «Termine»', () => {
     render(<ProjectsScreen onOpenSchedule={onOpenSchedule} />)
     const knoepfe = await screen.findAllByRole('button', { name: /in der Einsatzplanung zeigen/ })
     fireEvent.click(knoepfe[1])
-    expect(onOpenSchedule).toHaveBeenCalledWith('2026-10-28')
+    // Mit dem Team dieses Termins (eigenes Team: nur BB), damit die Planung
+    // auf ihm aufgeht (WW-62).
+    expect(onOpenSchedule).toHaveBeenCalledWith('2026-10-28', ['s-bb'])
     // Die Maske hätte einen «Zurück»-Knopf; die Liste steht noch da.
     expect(screen.getByRole('columnheader', { name: 'Termine' })).not.toBeNull()
   })

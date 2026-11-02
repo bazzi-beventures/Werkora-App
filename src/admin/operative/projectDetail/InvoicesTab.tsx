@@ -14,7 +14,7 @@ import { ReportSelectField } from '../../components/ReportSelectField'
 import { AnzahlungAbzugField, AnzahlungPctField } from '../../components/AnzahlungFields'
 import { TravelCostField } from '../../components/TravelCostField'
 import {
-  anzahlungPayload, hasActiveInvoice, isAdditional, parseAnzahlungPct, reportSelectionPayload,
+  anzahlungPayload, defaultCheckedReports, hasActiveInvoice, isAdditional, parseAnzahlungPct, reportSelectionPayload,
   type GenerateInvoiceOptions, type InvoiceMode,
 } from '../../utils/invoiceMode'
 import {
@@ -123,6 +123,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Zähler gegen überholte Antworten: wer die Art der Rechnung umschaltet, während
   // der Vorschlag noch lädt, bekäme sonst den Umfang der anderen Art angezeigt.
   const genLoadSeq = useRef(0)
+  const descSeq = useRef(0)
   const [confirmArchive, setConfirmArchive] = useState<ProjectInvoice | null>(null)
   const [confirmUnpay, setConfirmUnpay] = useState<ProjectInvoice | null>(null)
   const [acting, setActing] = useState(false)
@@ -244,7 +245,12 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
     void loadBillableReports(additional).then(list => {
       if (!current()) return
       setGenReports(list)
-      setGenCheckedReports((list ?? []).map(r => r.id))
+      // Garantie-Rapporte nicht vorgewählt (WW-33). Weicht die Vorbelegung von
+      // «alle» ab, gilt der Vorschlag «Ausgeführte Arbeiten» für die Auswahl.
+      const checked = defaultCheckedReports(list)
+      setGenCheckedReports(checked)
+      const sel = reportSelectionPayload(list?.map(r => r.id) ?? null, checked)
+      if (sel) loadWorkDescriptionFor(additional, sel, seq)
     })
     void loadAnzahlungen(additional).then(list => {
       if (!current()) return
@@ -256,11 +262,16 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
 
   // Funktionale Updates: wer während des Ladens das Häkchen abwählt, verliert es
   // nicht an die Antwort.
+  // `descSeq`: nur die jüngste Anfrage schreibt — die Vorbelegung ohne Garantie-
+  // Rapporte lädt den Vorschlag ein zweites Mal, und die erste Antwort darf die
+  // zweite nicht überholen.
   function loadWorkDescriptionFor(additional: boolean, reportIds: number[] | undefined, seq: number) {
+    const mine = ++descSeq.current
+    const latest = () => seq === genLoadSeq.current && mine === descSeq.current
     setGenWorkDesc(s => ({ ...s, text: '', loading: true, failed: false }))
     loadWorkDescription(additional, reportIds).then(
-      text => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, text, loading: false })) },
-      () => { if (seq === genLoadSeq.current) setGenWorkDesc(s => ({ ...s, loading: false, failed: true })) },
+      text => { if (latest()) setGenWorkDesc(s => ({ ...s, text, loading: false })) },
+      () => { if (latest()) setGenWorkDesc(s => ({ ...s, loading: false, failed: true })) },
     )
   }
 
