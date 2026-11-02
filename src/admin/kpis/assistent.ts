@@ -2,7 +2,7 @@
 // Ohne React/DOM, unit-getestet in assistent.test.ts.
 
 import type {
-  KpiAnalyse, KpiBriefingKurz, KpiReiter, KpiVergleichWert, KpiVerlaufEintrag,
+  KpiAnalyse, KpiBriefingKurz, KpiDiagramm, KpiReiter, KpiVergleichWert, KpiVerlaufEintrag,
 } from '../../api/admin/kpiAssistent'
 
 export interface ChatNachricht {
@@ -12,6 +12,9 @@ export interface ChatNachricht {
   error?: string
   /** Reiter der Werkzeuge, auf die sich die Antwort stützt. */
   links?: KpiReiter[]
+  /** Diagramme der Antwort (höchstens zwei). Gehen nicht in den Verlauf: der
+   *  Server bekommt nur Text zurück (`verlaufFuer`). */
+  diagramme?: KpiDiagramm[]
 }
 
 /** Wie viele Nachrichten mit einer Frage mitgehen. Der Server kürzt noch einmal

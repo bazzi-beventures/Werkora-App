@@ -7,6 +7,7 @@ import {
 import {
   type ChatNachricht, erstellAngebot, vergleichZeile, verlaufFuer, vorschlaege, wochenLabel,
 } from '../assistent'
+import AssistentDiagramm from '../components/AssistentDiagramm'
 
 // Reiter «Assistent» der Kennzahlen (docs/specs/kennzahlen-assistent.md §3.2):
 // die Wochenanalyse als erste Nachricht, darunter Vorschlagsfragen und der Chat.
@@ -107,6 +108,10 @@ export default function AssistentTab({ initialBriefingId, onOpenReiter }: Props)
           aktualisiere(idAntwort, m => ({ ...m, text: m.text + ev.text }))
         } else if (ev.type === 'tool') {
           setStatus(ev.label)
+        } else if (ev.type === 'chart') {
+          // Diagramme stehen über dem Text der Antwort (Spec §8 Phase 5).
+          setStatus(null)
+          aktualisiere(idAntwort, m => ({ ...m, diagramme: [...(m.diagramme ?? []), ev.chart] }))
         } else if (ev.type === 'links') {
           aktualisiere(idAntwort, m => ({ ...m, links: ev.links }))
         } else if (ev.type === 'error') {
@@ -215,7 +220,8 @@ export default function AssistentTab({ initialBriefingId, onOpenReiter }: Props)
 
       <div className="kpi-assistent-chat">
         {nachrichten.map(m => (
-          <div key={m.id} className={`kpi-assistent-nachricht ${m.role}`}>
+          <div key={m.id} className={`kpi-assistent-nachricht ${m.role}${m.diagramme?.length ? ' mit-diagramm' : ''}`}>
+            {m.diagramme?.map((d, i) => <AssistentDiagramm key={i} diagramm={d} />)}
             {m.role === 'assistant'
               ? <div className="chat-md"><ReactMarkdown>{m.text || (laeuft ? '…' : '')}</ReactMarkdown></div>
               : m.text}

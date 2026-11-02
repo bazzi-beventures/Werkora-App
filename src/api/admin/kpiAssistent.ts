@@ -76,9 +76,36 @@ export async function createKpiBriefing(): Promise<KpiBriefing> {
   return res.briefing
 }
 
+/** Eine Reihe eines Diagramms. `null` ist eine Lücke (Wert nicht berechenbar
+ *  oder keine Zahlen), nie eine Null. `kontext` wird grau gezeichnet (Vorjahr). */
+export interface KpiDiagrammReihe {
+  name: string
+  rolle: 'haupt' | 'kontext'
+  werte: (number | null)[]
+}
+
+/** Diagramm aus dem Chat (services/kpi_diagramme.py, Spec §8 Phase 5). Die
+ *  Daten baut der Server aus denselben Quellen wie die Reiter; das Modell hat
+ *  nur Art und Parameter gewählt. */
+export interface KpiDiagramm {
+  art: string
+  /** `saeulen`: senkrecht, Kategorien auf der x-Achse; `balken`: waagrecht, eine Reihe. */
+  form: 'saeulen' | 'balken'
+  titel: string
+  untertitel: string
+  einheit: 'CHF' | 'Stunden' | string
+  kategorien: string[]
+  reihen: KpiDiagrammReihe[]
+  /** Je Kategorie ein kurzer Text (Anteil, Anzahl) für Tooltip und Tabelle. */
+  zusatz: string[] | null
+  hinweise: string[]
+  reiter: KpiReiter
+}
+
 export type KpiChatEvent =
   | { type: 'tool'; label: string }
   | { type: 'delta'; text: string }
+  | { type: 'chart'; chart: KpiDiagramm }
   | { type: 'links'; links: KpiReiter[] }
   | { type: 'done' }
   | { type: 'error'; message: string }

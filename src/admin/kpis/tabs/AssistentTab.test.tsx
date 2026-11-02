@@ -87,6 +87,36 @@ describe('AssistentTab', () => {
     expect(onOpenReiter).toHaveBeenCalledWith({ id: 'finanzen', label: 'Finanzen' })
   })
 
+  it('zeigt ein Diagramm über dem Text der Antwort und verlinkt dessen Reiter', async () => {
+    api.askKpiAssistent.mockImplementation(async function* (): AsyncGenerator<KpiChatEvent> {
+      yield { type: 'tool', label: 'Zeichne Diagramm …' }
+      yield {
+        type: 'chart', chart: {
+          art: 'pipeline_stufen', form: 'balken', titel: 'Pipeline: noch nicht bezahlt',
+          untertitel: 'CHF 113’724 in drei Stufen · ohne Zeitfilter', einheit: 'CHF',
+          kategorien: ['Beim Kunden', 'Auftrag, nicht fakturiert', 'Fakturiert, offen'],
+          reihen: [{ name: 'Betrag', rolle: 'haupt', werte: [40000, 12000, 61723.9] }],
+          zusatz: ['4 Offerten', '1 Offerte', '24 Rechnungen'], hinweise: [],
+          reiter: { id: 'pipeline', label: 'Projekt-Pipeline' },
+        },
+      }
+      yield { type: 'delta', text: 'Am meisten liegt fakturiert, aber offen.' }
+      yield { type: 'links', links: [{ id: 'pipeline', label: 'Projekt-Pipeline' }] }
+      yield { type: 'done' }
+    })
+    const onOpenReiter = await zeige()
+    await act(async () => { fireEvent.click(screen.getByText('Wie steht die Pipeline?')) })
+    const titel = screen.getByText('Pipeline: noch nicht bezahlt')
+    const text = screen.getByText('Am meisten liegt fakturiert, aber offen.')
+    // Das Diagramm steht vor dem Text, in derselben (verbreiterten) Nachricht.
+    const nachricht = titel.closest('.kpi-assistent-nachricht')!
+    expect(nachricht.classList.contains('mit-diagramm')).toBe(true)
+    expect(nachricht.contains(text)).toBe(true)
+    expect(titel.compareDocumentPosition(text) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.click(screen.getByText('Projekt-Pipeline →'))
+    expect(onOpenReiter).toHaveBeenCalledWith({ id: 'pipeline', label: 'Projekt-Pipeline' })
+  })
+
   it('zeigt einen Fehler des Assistenten an der Antwort', async () => {
     api.askKpiAssistent.mockImplementation(async function* (): AsyncGenerator<KpiChatEvent> {
       yield { type: 'error', message: 'Der Assistent ist gerade nicht erreichbar.' }

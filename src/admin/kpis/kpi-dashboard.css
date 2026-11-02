@@ -966,6 +966,71 @@
   color: var(--text);
 }
 
+/* Eine Antwort mit Diagramm nimmt die volle Breite: ein Säulendiagramm über
+   zwölf Monate braucht auf dem Handy jeden Pixel. */
+.kpi-assistent-nachricht.mit-diagramm {
+  align-self: stretch;
+  max-width: 100%;
+}
+
+.kpi-assistent-diagramm {
+  margin: 0 0 10px;
+  padding: 10px 8px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.kpi-assistent-diagramm figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 4px 8px;
+}
+
+.kpi-assistent-diagramm figcaption strong { font-size: 14px; color: var(--text); }
+.kpi-assistent-diagramm figcaption span { font-size: 12px; color: var(--text-muted); }
+
+.kpi-assistent-diagramm-hinweise {
+  margin: 6px 4px 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.kpi-assistent-diagramm-tabelle {
+  margin: 6px 4px 0;
+  font-size: 12px;
+}
+
+.kpi-assistent-diagramm-tabelle summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.kpi-assistent-diagramm-tabelle table {
+  width: 100%;
+  margin-top: 6px;
+  border-collapse: collapse;
+}
+
+.kpi-assistent-diagramm-tabelle th,
+.kpi-assistent-diagramm-tabelle td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kpi-assistent-diagramm-tabelle th[scope='row'],
+.kpi-assistent-diagramm-tabelle .zusatz {
+  text-align: left;
+  font-weight: normal;
+  white-space: normal;
+}
+
 .kpi-assistent-links { margin-top: 6px; }
 .kpi-assistent-links .kpi-assistent-reiter:first-child { margin-left: 0; }
 
