@@ -852,3 +852,152 @@
   color: var(--text);
   margin-top: 4px;
 }
+
+/* ── Reiter «Assistent» (docs/specs/kennzahlen-assistent.md §3.2) ──────────
+   Bewusst keine Vollhöhen-Fläche: der Reiter fliesst im Inhalt der Seite, den
+   die Admin-Shell scrollt. So gibt es keine zweite Höhenrechnung neben
+   --app-vh, und am Handy zieht keine Wischgeste an einer eigenen Scrollfläche. */
+
+.kpi-assistent {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 820px;
+}
+
+.kpi-assistent-kopf {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.kpi-assistent-titel {
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.kpi-assistent-woche {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 4px 8px;
+}
+
+.kpi-assistent-ki,
+.kpi-assistent-fuss,
+.kpi-assistent-status,
+.kpi-assistent-leer {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.kpi-assistent-ki { margin-left: auto; }
+
+.kpi-assistent-fehler { color: var(--text-muted); font-style: italic; }
+
+.kpi-assistent-erstellen {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.kpi-assistent-analyse {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  color: var(--text);
+}
+
+.kpi-assistent-analyse h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin: 10px 0 4px;
+}
+
+.kpi-assistent-analyse section:first-child h3 { margin-top: 0; }
+.kpi-assistent-analyse p { margin: 0; line-height: 1.5; }
+.kpi-assistent-analyse ul,
+.kpi-assistent-analyse ol { margin: 0; padding-left: 20px; line-height: 1.5; }
+.kpi-assistent-punkte li { margin: 4px 0; }
+
+.kpi-assistent-reiter {
+  margin-left: 8px;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.kpi-assistent-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kpi-assistent-nachricht {
+  max-width: 90%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.kpi-assistent-nachricht.user {
+  align-self: flex-end;
+  background: var(--primary);
+  color: var(--on-accent);
+  white-space: pre-wrap;
+}
+
+.kpi-assistent-nachricht.assistant {
+  align-self: flex-start;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.kpi-assistent-links { margin-top: 6px; }
+.kpi-assistent-links .kpi-assistent-reiter:first-child { margin-left: 0; }
+
+.kpi-assistent-vorschlaege {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.kpi-assistent-vorschlag {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.kpi-assistent-eingabe {
+  display: flex;
+  gap: 8px;
+}
+
+.kpi-assistent-eingabe input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 10px;
+  /* 16px: darunter zoomt iOS Safari beim Fokus in die Seite. */
+  font-size: 16px;
+}

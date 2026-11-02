@@ -47,7 +47,21 @@ export interface CustomerDeepLink {
   customerId: string
 }
 
-export type DeepLink = ProjectDeepLink | CountDeepLink | CustomerDeepLink
+/**
+ * Der Reiter «Assistent» der Kennzahlen, optional mit einer bestimmten
+ * Wochenanalyse (`#/admin/kpis/assistent[/<briefing_id>]`) — das Ziel der
+ * Montags-Push (docs/specs/kennzahlen-assistent.md §4.7). Gebaut von
+ * `services/app_links.kpi_assistent_url`.
+ */
+export interface KpiDeepLink {
+  kind: 'kpi'
+  briefingId: string | null
+}
+
+export type DeepLink = ProjectDeepLink | CountDeepLink | CustomerDeepLink | KpiDeepLink
+
+/** Ereignis, mit dem `rememberDeepLink` eine laufende App weckt (siehe dort). */
+export const DEEP_LINK_EVENT = 'werkora:deeplink'
 
 // Muss zu PROJECT_TABS in services/app_links.py passen; ein Python-Test hält
 // beide Listen gegen ProjectTabBar.tsx UND gegen diese Liste
@@ -66,6 +80,9 @@ const COUNT_PATTERN = /^#\/inventur\/([^/?#]+)/
 
 // #/admin/customers/<id>
 const CUSTOMER_PATTERN = /^#\/admin\/customers\/([^/?#]+)/
+
+// #/admin/kpis/assistent[/<briefing_id>]
+const KPI_PATTERN = /^#\/admin\/kpis\/assistent(?:\/([^/?#]*))?/
 
 /** Ein Pfadstück aus dem Hash — oder null, wenn es kaputt kodiert oder leer
  *  ist. Ein abgeschnittener %-Escape aus einem Mailclient soll keinen Sprung
@@ -96,6 +113,12 @@ export function parseDeepLink(hash: string): DeepLink | null {
   if (k) {
     const customerId = idAus(k[1])
     return customerId ? { kind: 'customer', customerId } : null
+  }
+  const kpi = KPI_PATTERN.exec(hash || '')
+  if (kpi) {
+    // Ohne (lesbare) id ist der Reiter selbst das Ziel — er zeigt die jüngste
+    // Analyse. Ein kaputter Escape verwirft den Sprung nicht.
+    return { kind: 'kpi', briefingId: kpi[1] ? idAus(kpi[1]) : null }
   }
   const m = PATTERN.exec(hash || '')
   if (!m) return null
@@ -134,6 +157,10 @@ export function rememberDeepLink(url: string): boolean {
   const link = url.includes('#') ? parseDeepLink(hash) : null
   if (!link) return false
   pending = link
+  // Eine laufende Admin-App holt Sprünge sonst nur beim Start ab — eine Push,
+  // die bei offener App ankommt, bliebe dann ein blosses Banner. Wer zuhört,
+  // holt den Sprung jetzt ab; wer nicht zuhört, beim nächsten Start.
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(DEEP_LINK_EVENT))
   return true
 }
 
@@ -157,6 +184,14 @@ export function takeCountDeepLink(): CountDeepLink | null {
  *  — den führt `App.tsx` aus, weil er die Zählmaske beider Rollen öffnet. */
 export function takeProjectDeepLink(): ProjectDeepLink | null {
   if (pending?.kind !== 'project') return null
+  const link = pending
+  pending = null
+  return link
+}
+
+/** Nur den Kennzahlen-Sprung holen (Admin-App). Die anderen Arten bleiben liegen. */
+export function takeKpiDeepLink(): KpiDeepLink | null {
+  if (pending?.kind !== 'kpi') return null
   const link = pending
   pending = null
   return link

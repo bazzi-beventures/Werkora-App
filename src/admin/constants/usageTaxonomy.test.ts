@@ -13,8 +13,8 @@ import {
 // (clock_out_reminder, approval_push, morning_briefing …). Spec §7f.
 const KNOWN_MODULES = [
   'timekeeping', 'scheduling', 'quotes', 'invoicing', 'payment_matching',
-  'inventory', 'hr', 'arg_compliance', 'violation_emails', 'kpis', 'kpis_email',
-  'ai', 'help_bot', 'clock_in_reminder', 'hr_weekly_report', 'clock_out_reminder',
+  'inventory', 'hr', 'arg_compliance', 'violation_emails', 'kpis', 'kpi_assistent',
+  'ai', 'help_bot', 'clock_in_reminder', 'clock_out_reminder',
   'auto_clockout_correction_reminder', 'approval_push', 'morning_briefing',
   'project_change_push', 'admin_clock_in_push', 'correction_request_push',
   'aftersales', 'document_backup',

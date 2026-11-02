@@ -40,3 +40,44 @@ describe('KpiScreen — Reiter je Rolle', () => {
     expect(screen.getByText('Übersicht-Inhalt')).toBeTruthy()
   })
 })
+
+// Kennzahlen-Assistent (docs/specs/kennzahlen-assistent.md §5.1): erster Reiter,
+// nur mit Modul «kpi_assistent» UND voller Kennzahlen-Rolle.
+vi.mock('./tabs/AssistentTab', () => ({
+  default: ({ initialBriefingId }: { initialBriefingId: string | null }) =>
+    <div>Assistent-Inhalt {initialBriefingId ?? 'neuste'}</div>,
+}))
+
+describe('KpiScreen — Reiter «Assistent»', () => {
+  function mit(role: string, modules: string[]) {
+    return { role, enabled_modules: modules, feature_flags: {} }
+  }
+
+  it('steht mit Modul vorne und ist der Start-Reiter der Geschäftsleitung', async () => {
+    getMe.mockResolvedValue(mit('management', ['kpis', 'kpi_assistent']))
+    await act(async () => { render(<KpiScreen />) })
+    const reiter = screen.getAllByRole('button').map(b => b.textContent)
+    expect(reiter[0]).toBe('Assistent')
+    expect(screen.getByText('Assistent-Inhalt neuste')).toBeTruthy()
+  })
+
+  it('fehlt ohne Modul', async () => {
+    getMe.mockResolvedValue(mit('management', ['kpis']))
+    await act(async () => { render(<KpiScreen />) })
+    expect(screen.queryByText('Assistent')).toBeNull()
+    expect(screen.getByText('Übersicht-Inhalt')).toBeTruthy()
+  })
+
+  it('fehlt für Manager light, auch mit Modul', async () => {
+    getMe.mockResolvedValue(mit('management_light', ['kpis', 'kpi_assistent']))
+    await act(async () => { render(<KpiScreen />) })
+    expect(screen.queryByText('Assistent')).toBeNull()
+    expect(screen.getByText('Pipeline-Inhalt')).toBeTruthy()
+  })
+
+  it('öffnet aus der Montags-Push genau die verlinkte Woche', async () => {
+    getMe.mockResolvedValue(mit('superadmin', ['kpis', 'kpi_assistent']))
+    await act(async () => { render(<KpiScreen detailId="assistent:b-45" />) })
+    expect(screen.getByText('Assistent-Inhalt b-45')).toBeTruthy()
+  })
+})

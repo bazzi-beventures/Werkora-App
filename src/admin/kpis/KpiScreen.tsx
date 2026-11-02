@@ -12,6 +12,10 @@ import LeistungsartTab from './tabs/LeistungsartTab'
 import KundenTab from './tabs/KundenTab'
 import LieferantenTab from './tabs/LieferantenTab'
 import DeckungsbeitragTab from './tabs/DeckungsbeitragTab'
+import AssistentTab from './tabs/AssistentTab'
+import { parseAssistentLink } from './assistent'
+import type { KpiReiter } from '../../api/admin/kpiAssistent'
+import type { AdminScreen } from '../useAdminNav'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { getMe } from '../../api/auth'
 import { hasModule } from '../../api/modules'
@@ -23,11 +27,14 @@ import './kpi-dashboard.css'
 // jeder andere Reiter liefe in ein 403.
 const MANAGER_LIGHT_TABS: ReadonlySet<string> = new Set(['pipeline', 'projekte'])
 
-type Tab = 'uebersicht' | 'pipeline' | 'projekte' | 'kunden' | 'finanzen' | 'deckungsbeitrag' | 'arbeitszeit' | 'material' | 'lieferanten' | 'pricing' | 'wartung' | 'garantie' | 'leistungsart'
+type Tab = 'assistent' | 'uebersicht' | 'pipeline' | 'projekte' | 'kunden' | 'finanzen' | 'deckungsbeitrag' | 'arbeitszeit' | 'material' | 'lieferanten' | 'pricing' | 'wartung' | 'garantie' | 'leistungsart'
 
 // Die Kennfarbe kommt als Token, nicht als Hex: ein Literal im Inline-Style
 // kennt kein Theme (dieselbe Regel wie bei den Karten-Farben in tokens.css).
 const TABS: { id: Tab; label: string; color: string }[] = [
+  // Nur mit Modul «kpi_assistent» und voller Kennzahlen-Rolle — siehe `visible`
+  // (docs/specs/kennzahlen-assistent.md §5.1).
+  { id: 'assistent',   label: 'Assistent',          color: 'var(--primary)' },
   { id: 'uebersicht',  label: 'Übersicht',          color: 'var(--kpi-tab-uebersicht)' },
   { id: 'pipeline',    label: 'Projekt-Pipeline',   color: 'var(--kpi-tab-pipeline)' },
   { id: 'projekte',    label: 'Projekte & Reports', color: 'var(--kpi-tab-projekte)' },
@@ -44,34 +51,72 @@ const TABS: { id: Tab; label: string; color: string }[] = [
   { id: 'leistungsart',label: 'Leistungsart',       color: 'var(--kpi-tab-leistungsart)' },
 ]
 
-export default function KpiScreen() {
+interface Props {
+  /** `detailId` des Admin-Screens (Montags-Push), siehe `parseAssistentLink`. */
+  detailId?: string | null
+  /** Für Reiter-Knöpfe, die aus den Kennzahlen hinausführen (Rechnungen). */
+  onNavigate?: (screen: AdminScreen) => void
+}
+
+export default function KpiScreen({ detailId, onNavigate }: Props = {}) {
+  const assistentLink = parseAssistentLink(detailId)
   const [activeTab, setActiveTab] = useState<Tab | null>(null)
   const tabsRef = useTabStrip(activeTab ?? '')
   // /pwa/me filtert Module pro Konto (Beta-Häkchen): ohne «warranty» kein Tab —
   // die View antwortete ohnehin mit 403.
   const [showGarantie, setShowGarantie] = useState(false)
+  // Ebenso der Assistent: /pwa/me filtert das Beta-Häkchen je Konto.
+  const [showAssistent, setShowAssistent] = useState(false)
   // Bis /pwa/me da ist, steht kein Reiter: sonst lüde «Übersicht» schon los und
   // liefe für Manager light in ein 403, bevor die Rolle bekannt ist.
   const [fullAccess, setFullAccess] = useState<boolean | null>(null)
   useEffect(() => {
     getMe().then(me => {
       const voll = isManagementRole(me.role)
+      const assistent = voll && hasModule(me, 'kpi_assistent')
       setShowGarantie(hasModule(me, 'warranty'))
+      setShowAssistent(assistent)
       setFullAccess(voll)
-      setActiveTab(voll ? 'uebersicht' : 'pipeline')
+      setActiveTab(assistent ? 'assistent' : voll ? 'uebersicht' : 'pipeline')
     }).catch(() => {
       // Ohne /pwa/me: wie bisher die volle Sicht — das Backend sperrt ohnehin.
       setFullAccess(true)
       setActiveTab('uebersicht')
     })
   }, [])
+  // Kommt die Push, während die Kennzahlen schon offen sind, wechselt nur der
+  // detailId — der Reiter springt trotzdem, und der `key` unten lädt die Woche neu.
+  useEffect(() => {
+    if (assistentLink && showAssistent) setActiveTab('assistent')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailId, showAssistent])
+
   const visible = fullAccess === null ? [] : TABS.filter(t =>
-    (t.id !== 'garantie' || showGarantie) && (fullAccess || MANAGER_LIGHT_TABS.has(t.id)),
+    (t.id !== 'garantie' || showGarantie) && (t.id !== 'assistent' || showAssistent)
+      && (fullAccess || MANAGER_LIGHT_TABS.has(t.id)),
   )
+
+  // Reiter-Knopf aus dem Assistenten: ein Kennzahlen-Reiter wechselt hier, die
+  // offenen Rechnungen führen in den Rechnungen-Screen.
+  function oeffneReiter(reiter: KpiReiter) {
+    if (reiter.id === 'rechnungen') {
+      onNavigate?.('invoices')
+      return
+    }
+    const ziel = visible.find(t => t.id === reiter.id)
+    if (ziel) setActiveTab(ziel.id)
+  }
 
   function renderTab() {
     switch (activeTab) {
       case null:          return null
+      case 'assistent':   return (
+        <AssistentTab
+          key={assistentLink?.briefingId ?? 'neuste'}
+          initialBriefingId={assistentLink?.briefingId ?? null}
+          onOpenReiter={oeffneReiter}
+        />
+      )
       case 'uebersicht':  return <UebersichtTab />
       case 'pipeline':    return <PipelineTab />
       case 'projekte':    return <ProjekteTab />

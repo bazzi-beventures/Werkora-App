@@ -36,6 +36,13 @@ describe('BexioBadge', () => {
     expect(onCancel).toHaveBeenCalled()
   })
 
+  it('der Knopf erbt nicht die Schriftgrösse der Umgebung', () => {
+    render(<BexioBadge badge={{ state: 'storno_offen' }} onCancelRequest={vi.fn()} />)
+    const btn = screen.getByRole('button', { name: 'bexio: Storno offen' })
+    expect(btn.style.fontSize).toBe('')                       // 11 px kommen aus .admin-badge
+    expect(btn.className).toContain('admin-badge')
+  })
+
   it('bestätigtes Storno ist nur noch Anzeige', () => {
     render(<BexioBadge badge={{ state: 'storno_offen', confirmed: true }} onCancelRequest={vi.fn()} />)
     expect(screen.queryByRole('button')).toBeNull()

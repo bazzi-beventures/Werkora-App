@@ -250,6 +250,11 @@ export default function App() {
     try {
       const p = JSON.parse(decodeURIComponent(m[1]))
       setPushMsg({ title: p.title || 'Mitteilung', body: p.body || '' })
+      // Wie bei offener App (oben): eine bekannte Adresse wird zum Sprung.
+      // Bis 20261102 fehlte das hier — wer die Push bei geschlossener App
+      // antippte, landete auf der Startseite statt am Ziel
+      // (docs/specs/kennzahlen-assistent.md B8).
+      if (typeof p.url === 'string') rememberDeepLink(p.url)
     } catch { /* ignore */ }
     history.replaceState(null, '', window.location.pathname + window.location.search)
   }, [])

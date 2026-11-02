@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  captureDeepLink, parseDeepLink, rememberDeepLink, takeCountDeepLink,
-  takeCustomerDeepLink, takeDeepLink, takeProjectDeepLink,
+  DEEP_LINK_EVENT, captureDeepLink, parseDeepLink, rememberDeepLink, takeCountDeepLink,
+  takeCustomerDeepLink, takeDeepLink, takeKpiDeepLink, takeProjectDeepLink,
 } from './deepLink'
 
 /** Schmalere Sicht auf die Union, damit die Projekt-Zusicherungen kurz bleiben. */
@@ -136,5 +136,40 @@ describe('Kunden-Deep-Link (Erinnerung an einem Kunden)', () => {
     captureDeepLink('#/admin/projects/p1')
     expect(takeCustomerDeepLink()).toBeNull()
     expect(takeProjectDeepLink()?.projectId).toBe('p1')
+  })
+})
+
+describe('Kennzahlen-Deep-Link (Montags-Push, docs/specs/kennzahlen-assistent.md §4.7)', () => {
+  beforeEach(() => { takeDeepLink() })
+
+  it('liest die Woche, ohne id den Reiter selbst', () => {
+    expect(parseDeepLink('#/admin/kpis/assistent/b-45')).toEqual({ kind: 'kpi', briefingId: 'b-45' })
+    expect(parseDeepLink('#/admin/kpis/assistent')).toEqual({ kind: 'kpi', briefingId: null })
+    expect(parseDeepLink('#/admin/kpis/assistent/')).toEqual({ kind: 'kpi', briefingId: null })
+    expect(parseDeepLink('#/admin/kpis/finanzen')).toBeNull()
+  })
+
+  it('wird aus einer Push gemerkt und weckt eine offene App', () => {
+    let geweckt = 0
+    const zaehle = () => { geweckt += 1 }
+    window.addEventListener(DEEP_LINK_EVENT, zaehle)
+    try {
+      expect(rememberDeepLink('https://app.example.ch/#/admin/kpis/assistent/b-1')).toBe(true)
+      expect(geweckt).toBe(1)
+      // Ein unbekanntes Ziel weckt niemanden.
+      expect(rememberDeepLink('/')).toBe(false)
+      expect(geweckt).toBe(1)
+    } finally {
+      window.removeEventListener(DEEP_LINK_EVENT, zaehle)
+    }
+  })
+
+  it('wird nur vom Kennzahlen-Abholer verbraucht', () => {
+    rememberDeepLink('https://app.example.ch/#/admin/kpis/assistent/b-1')
+    expect(takeProjectDeepLink()).toBeNull()
+    expect(takeCustomerDeepLink()).toBeNull()
+    expect(takeCountDeepLink()).toBeNull()
+    expect(takeKpiDeepLink()).toEqual({ kind: 'kpi', briefingId: 'b-1' })
+    expect(takeKpiDeepLink()).toBeNull()
   })
 })

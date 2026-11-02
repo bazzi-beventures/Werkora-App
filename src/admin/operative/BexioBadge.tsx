@@ -38,10 +38,13 @@ export function BexioBadge({ badge, onCancelRequest }: {
   const title = badge.state === 'fehler'
     ? `Übertragung nach bexio hängt: ${badge.message || 'unbekannter Grund'}. Der Werkora-Support ist informiert.`
     : look.title
+  // Knopf, aber so gross wie die übrigen Pillen: kein `font: inherit` — das
+  // überschrieb die 11 px von .admin-badge, und die Pille stand doppelt so gross
+  // neben «Archiviert» (Test 2026-11-01).
   if (badge.state === 'storno_offen' && onCancelRequest) {
     return (
       <button type="button" className={`admin-badge ${look.cls}`}
-        style={{ marginLeft: 6, cursor: 'pointer', border: 'none', font: 'inherit' }}
+        style={{ marginLeft: 6, cursor: 'pointer', border: 'none', fontFamily: 'inherit' }}
         title={title} onClick={onCancelRequest}>
         {look.label}
       </button>

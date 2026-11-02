@@ -35,6 +35,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   hr:               { label: 'HR',                desc: 'Absenzen, Ferien, HR-Berichte', category: 'hr' },
   arg_compliance:   { label: 'ArG-Compliance',    desc: 'Arbeitsgesetz-Verstoss-Erkennung: Hinweis an den Mitarbeiter beim Ausstempeln und Sofort-Mail an die Admins. Aus = beides entfällt; erkannt und im Reiter «Verstösse» protokolliert wird weiter (benötigt HR + Zeiterfassung)', category: 'hr' },
   kpis:             { label: 'Kennzahlen',        desc: 'KPI-Dashboard', category: 'analyse' },
+  kpi_assistent:    { label: 'Kennzahlen-Assistent', desc: 'Reiter «Assistent» in den Kennzahlen: jeden Montag um 08:00 eine KI-Wochenanalyse mit Push an Management und Superadmin, dazu Fragen im Chat (benötigt Kennzahlen). Kennzahlen gehen dafür an Mistral (EU). Nichts je Person.', category: 'analyse' },
   ai:               { label: 'AI-Funktionen',     desc: 'Mistral-Chat, Voxtral-Voice, KPI-Insights', category: 'ki' },
   help_bot:         { label: 'Hilfe-Bot',         desc: 'In-App-Hilfe per Chat über die Bedien-Handbücher', category: 'ki' },
   support:          { label: 'Support-Meldung',   desc: 'Support-Knopf in der Hilfe-Blase (Monteur-PWA und Admin): Problem beschreiben oder diktieren, bis zu drei Screenshots anhängen. Der Server legt einen Aktivitäts-Snapshot der letzten 15 Minuten bei, die Meldung läuft beim Superadmin ein. Bewusst ohne Hilfe-Bot nutzbar.', category: 'ki' },
@@ -42,9 +43,7 @@ const MODULE_LABELS: Record<string, ModuleMeta> = {
   feature_requests: { label: 'Wünsche & Roadmap', desc: 'Nutzer reichen in der Hilfe-Blase Wünsche ein und sehen auf der Roadmap, was schon angefragt ist und wie es steht («Brauchen wir auch» statt Doppelmeldung). Namen und Wortlaut bleiben im eigenen Betrieb; andere Betriebe sehen nur eine Zahl. Der Betreiber sortiert die Wünsche auf admin.werkora.ch.', category: 'ki' },
   document_backup:  { label: 'Datensicherung',    desc: 'Management kann alle Dokumente (Rechnungen/Offerten/Rapporte) als ein ZIP exportieren; Fertig-Meldung per Push, Download-Link 12 h gültig', category: 'other' },
   // Benachrichtigungen — Mail
-  hr_weekly_report: { label: 'Wochen-HR-Übersicht', desc: 'Wöchentliches HR-Journal per Mail am Montag (benötigt HR). Journal & Überstunden-Salden werden weiterhin erstellt — nur die Mail entfällt.', category: 'notifications', channel: 'mail' },
   violation_emails: { label: 'ArG-Verstoss-Mails', desc: 'Wöchentliche Verstoss-E-Mails an die Admins (benötigt ArG-Compliance)', category: 'notifications', channel: 'mail' },
-  kpis_email:       { label: 'KPI-Analyse-Mail',  desc: 'Wöchentliche KI-Kennzahlen-Analyse per Mail am Montag (benötigt Kennzahlen)', category: 'notifications', channel: 'mail' },
   rapport_check_mail:{ label: 'Rapport-Abgleich', desc: 'Vergleicht gestempelte Zeit und auf Projekte verbuchte Stunden — in beide Richtungen: mehr gestempelt als verbucht (über 45 min, Hinweis auf fehlende Rapporte) gibt eine Admin-Mail, mehr verbucht als gestempelt (Überbuchung) eine Admin-Mail plus einen Hinweis an den Mitarbeiter beim Speichern des Rapports. Standard aus (benötigt Zeiterfassung).', category: 'notifications', channel: 'mail' },
   newsletter:       { label: 'Produkt-Newsletter', desc: 'Neuerungen an alle Nutzer des Mandanten: ausführlich per Mail, als Anreisser per Push. Ohne Zeitplan — eine fertige Ausgabe liegt im Code, bis ein Superadmin sie auslöst. Welches Item ein Empfänger sieht, entscheidet der Redaktionsplan über Rolle und Modul.', category: 'notifications', channel: 'mail' },
   // Benachrichtigungen — Push
@@ -350,7 +349,7 @@ export function ModulesTab({ view, tenantId }: { view: 'modules' | 'notification
         {view === 'notifications' ? (
           <>
             Steuere die automatischen Benachrichtigungen pro Mandant, gruppiert nach Kanal (Mail / Push).
-            Manche benötigen ein zugehöriges Modul (z. B. die KPI-Analyse-Mail braucht <code>Kennzahlen</code>);
+            Manche benötigen ein zugehöriges Modul (z. B. die ArG-Verstoss-Mails brauchen <code>ArG-Compliance</code>);
             fehlt eine Voraussetzung, aktiviere sie zuerst im Tab <strong>Module</strong>.
           </>
         ) : (

@@ -41,7 +41,7 @@ import { SCREEN_TITLES } from './screenTitles'
 import Roadmap from '../shared/Roadmap'
 import EasterEggs from './eastereggs/EasterEggs'
 import { trackNav } from '../shared/breadcrumbs'
-import { takeCustomerDeepLink, takeProjectDeepLink } from '../shared/deepLink'
+import { DEEP_LINK_EVENT, takeCustomerDeepLink, takeKpiDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
 import { readScheduleView, writeScheduleView } from './operative/scheduleViewState'
@@ -90,6 +90,30 @@ interface Props {
 }
 
 
+/** Einen gemerkten Sprung ausführen (shared/deepLink.ts). Ausserhalb der
+ *  Komponente, damit der Listener unten keine veraltete Closure festhält. */
+function springe(
+  ziel: (screen: AdminScreen, detailId?: string) => void,
+  setTab: (tab: ProjectTab) => void,
+) {
+  // Montags-Push des Kennzahlen-Assistenten (docs/specs/kennzahlen-assistent.md
+  // §4.7): `assistent:<id>` als detailId, KpiScreen löst ihn auf.
+  const kpi = takeKpiDeepLink()
+  if (kpi) {
+    ziel('kpis', `assistent:${kpi.briefingId ?? ''}`)
+    return
+  }
+  const customer = takeCustomerDeepLink()
+  if (customer) {
+    ziel('customers', customer.customerId)
+    return
+  }
+  const link = takeProjectDeepLink()
+  if (!link) return
+  setTab(link.tab)
+  ziel('projects', link.projectId)
+}
+
 export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOut, onSwitchToUser }: Props) {
   const { screen, detailId, resetTick, nav, clearDetail, previous } = useAdminNav()
   const isMobile = useIsMobile()
@@ -119,16 +143,18 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // überschreiben.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const customer = takeCustomerDeepLink()
-    if (customer) {
-      nav('customers', customer.customerId)
-      return
-    }
-    const link = takeProjectDeepLink()
-    if (!link) return
-    setDeepLinkTab(link.tab)
-    nav('projects', link.projectId)
+    springe(nav, setDeepLinkTab)
   }, [])
+
+  // Eine Push bei OFFENER App: der Service Worker meldet sie, App.tsx merkt sich
+  // den Sprung und löst DEEP_LINK_EVENT aus. Jetzt mit `guardedNav` — es kann
+  // eine Maske mit ungespeicherten Änderungen offen sein. Neu angemeldet bei
+  // jedem neuen `guardedNav`, damit nie eine veraltete Navigation springt.
+  useEffect(() => {
+    const beiSprung = () => springe(guardedNav, setDeepLinkTab)
+    window.addEventListener(DEEP_LINK_EVENT, beiSprung)
+    return () => window.removeEventListener(DEEP_LINK_EVENT, beiSprung)
+  }, [guardedNav])
 
   const toggleTheme = () => setTheme(flipTheme)
 
@@ -345,7 +371,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           }
         />
       )
-      case 'kpis':         return guard('kpis', <KpiScreen />)
+      case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={s => guardedNav(s)} />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
       case 'settings':     return <SettingsScreen />
       case 'profile':      return (
