@@ -117,6 +117,28 @@ describe('AppointmentsCard', () => {
   // Die Typ-Liste kommt aus APPOINTMENT_KIND_LABELS (api/admin/scheduling.ts) —
   // die Kachel zählt sie nicht mehr selbst auf. Der Test hält fest, dass die
   // Registry auch wirklich im Dropdown ankommt (inkl. Demontage/Wiedermontage).
+  // WW-67: der neue Termin übernimmt die Art der Arbeit aus der Maske.
+  it('belegt den Termin-Typ eines neuen Termins aus der Art der Arbeit vor', () => {
+    const onChange = vi.fn()
+    render(
+      <AppointmentsCard
+        appointments={[]}
+        onChange={onChange}
+        staff={STAFF}
+        projectTeam={['s-1']}
+        project={{ art_der_arbeit: ['Reparatur'] }}
+      />,
+    )
+    fireEvent.click(screen.getByText('+ Termin hinzufügen'))
+    expect(onChange.mock.calls[0][0][0]).toMatchObject({ kind: 'reparatur' })
+  })
+
+  it('bleibt ohne Projektangaben bei «Montage»', () => {
+    const onChange = setup([])
+    fireEvent.click(screen.getByText('+ Termin hinzufügen'))
+    expect(onChange.mock.calls[0][0][0]).toMatchObject({ kind: 'montage' })
+  })
+
   it('bietet alle Termin-Typen aus der Registry an', () => {
     setup([draft()])
     fireEvent.click(screen.getByText('Montage'))          // Editor aufklappen

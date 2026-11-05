@@ -653,6 +653,7 @@ export function DetailsForm({
               onChange={handleAppointmentsChange}
               staff={staff}
               projectTeam={monteurIds}
+              project={{ art_der_arbeit: artDerArbeit, is_warranty: isWarranty }}
               onOpenSchedule={onOpenSchedule}
               notice={customerNotice && autosave
                 ? { customerEmail: selectedCustomer?.email ?? '', objectAddress: objectAddress.trim() || undefined }

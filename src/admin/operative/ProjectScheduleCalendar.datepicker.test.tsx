@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjectScheduleCalendar, { CalendarEntry } from './ProjectScheduleCalendar'
 import { type SchedulingConfig } from '../../api/admin'
-import { getWeekDays, toDateStr } from '../utils/calendarHelpers'
+import { getWeekDays, isoWeek, toDateStr } from '../utils/calendarHelpers'
 import { scheduledDayIsoSet, pillClass } from './scheduleShared'
 import type { Project } from '../../api/admin/projects'
 
@@ -57,6 +57,27 @@ function renderCal(entries: CalendarEntry[] = [entry({})]) {
 function openPicker() {
   return userEvent.click(screen.getByTitle('Monatsübersicht öffnen und Tag wählen'))
 }
+
+describe('Kalenderwoche im Titel (WW-65)', () => {
+  it('nennt die KW vor dem Zeitraum', () => {
+    renderCal()
+    const trigger = screen.getByTitle('Monatsübersicht öffnen und Tag wählen')
+    expect(trigger.textContent).toContain(`KW ${isoWeek(new Date())} · `)
+  })
+
+  it('zieht die KW nach, wenn ein anderer Tag gewählt wird', async () => {
+    renderCal()
+    await openPicker()
+    await userEvent.click(screen.getByRole('button', { name: 'Nächster Monat' }))
+    const dialog = screen.getByRole('dialog', { name: 'Datum wählen' })
+    await userEvent.click(within(dialog).getByRole('button', { name: '15' }))
+    const next = new Date()
+    next.setDate(15)
+    next.setMonth(next.getMonth() + 1)
+    const trigger = screen.getByTitle('Monatsübersicht öffnen und Tag wählen')
+    expect(trigger.textContent).toContain(`KW ${isoWeek(next)} · `)
+  })
+})
 
 describe('Mini-Monatskalender', () => {
   it('ist auch dann erreichbar, wenn die Monatsansicht abgeschaltet ist', async () => {

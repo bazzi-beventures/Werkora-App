@@ -18,7 +18,7 @@ import {
 } from '../../api/projectTasks'
 import {
   apptToDraft, draftPayload, effectiveTeamIds, emptyDraft, isOpenAppointment, newAppointmentDraft,
-  NO_MONTEUR_ERROR, teamlessFollowersError, teamsDiffer, validateDraft,
+  NO_MONTEUR_ERROR, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -632,7 +632,11 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     // Aus einem aufgezogenen Termin: neuen Termin mit den Zeiten vorbelegen;
     // sonst den geklickten Termin in den Editor laden (oder keinen).
     if (pendingSlot) {
-      setApptForm(slotToApptForm(pendingSlot, p.kind === 'project' ? 'montage' : 'sonstiges'))
+      // Termin-Typ aus der Art der Arbeit des Projekts (WW-67) statt immer «Montage».
+      const kind = p.kind === 'project'
+        ? suggestAppointmentKind(p, appointments.filter(a => a.project_id === p.id).map(a => a.kind))
+        : 'sonstiges'
+      setApptForm(slotToApptForm(pendingSlot, kind))
       setPendingSlot(null)
     } else if (appt) {
       setApptForm(apptToForm(appt))
@@ -1597,7 +1601,12 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                       <button
                         type="button"
                         className="project-schedule-mini-btn"
-                        onClick={() => { setApptForm(newApptForm('montage')); setError(null) }}
+                        onClick={() => {
+                          // Vorbelegt aus der Art der Arbeit des Projekts (WW-67).
+                          const project = projects.find(p => p.id === form.id)
+                          setApptForm(newApptForm(suggestAppointmentKind(project, panelAppointments.map(a => a.kind))))
+                          setError(null)
+                        }}
                       >
                         + Termin
                       </button>

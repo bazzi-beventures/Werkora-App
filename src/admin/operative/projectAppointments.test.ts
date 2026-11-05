@@ -4,8 +4,8 @@ import {
   diffAppointments, draftPayload, draftTeamNames, draftTitle, effectiveTeamIds, emptyDraft,
   fmtDraftWhen, isOpenAppointment, newAppointmentDraft, nextAppointment, nextAppointmentSummary,
   normalizeDrafts,
-  pinProjectTeam, sortDrafts, teamlessFollowersError, teamsDiffer, todayISO, validateDraftTeams,
-  validateDrafts,
+  pinProjectTeam, sortDrafts, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO,
+  validateDraftTeams, validateDrafts,
 } from './projectAppointments'
 import type { ProjectAppointment } from '../../api/admin'
 
@@ -369,5 +369,43 @@ describe('nextAppointmentSummary (Projektliste, WW-4)', () => {
     expect(s.when).toContain('–')
     expect(s.when).toContain('ganztägig')
     expect(s.what).toBe('Gerüst stellen')
+  })
+})
+
+// WW-67: «Reparatur» am Projekt angekreuzt, beim Termin stand trotzdem «Montage».
+describe('suggestAppointmentKind', () => {
+  it('nimmt den Termin-Typ aus der Art der Arbeit', () => {
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Reparatur'] })).toBe('reparatur')
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Wartung'] })).toBe('service')
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Neumontage'] })).toBe('montage')
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Umbau'] })).toBe('montage')
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Demontage'] })).toBe('demontage')
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Wiedermontage'] })).toBe('wiedermontage')
+  })
+
+  it('bleibt ohne Projekt oder ohne Art der Arbeit bei «Montage»', () => {
+    expect(suggestAppointmentKind(null)).toBe('montage')
+    expect(suggestAppointmentKind(undefined)).toBe('montage')
+    expect(suggestAppointmentKind({ art_der_arbeit: null })).toBe('montage')
+    expect(suggestAppointmentKind({ art_der_arbeit: [] })).toBe('montage')
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Unbekannt'] })).toBe('montage')
+  })
+
+  it('schlägt beim Garantiefall «Garantie» vor, auch bei einer Reparatur', () => {
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Reparatur'], is_warranty: true })).toBe('garantie')
+    expect(suggestAppointmentKind({ art_der_arbeit: null, is_warranty: true })).toBe('garantie')
+  })
+
+  it('geht mehrere Leistungsarten in Baustellen-Reihenfolge durch', () => {
+    // Reihenfolge der Auswahl am Projekt spielt keine Rolle — es zählt der Ablauf.
+    const p = { art_der_arbeit: ['Wiedermontage', 'Demontage'] }
+    expect(suggestAppointmentKind(p, [])).toBe('demontage')
+    expect(suggestAppointmentKind(p, ['demontage'])).toBe('wiedermontage')
+    // Alles geplant: der letzte Schritt, nicht wieder von vorn.
+    expect(suggestAppointmentKind(p, ['demontage', 'wiedermontage'])).toBe('wiedermontage')
+  })
+
+  it('lässt sich von Terminen anderer Typen nicht ablenken', () => {
+    expect(suggestAppointmentKind({ art_der_arbeit: ['Reparatur'] }, ['aufmass', 'sonstiges'])).toBe('reparatur')
   })
 })

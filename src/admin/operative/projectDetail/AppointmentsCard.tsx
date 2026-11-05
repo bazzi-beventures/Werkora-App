@@ -12,7 +12,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateTimeInput } from '../../components/DateTimeInput'
 import {
   AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, effectiveTeamIds, fmtDraftWhen,
-  newAppointmentDraft, nextAppointment, noticeChanged, noticeSnapshot, todayISO,
+  newAppointmentDraft, nextAppointment, noticeChanged, noticeSnapshot, suggestAppointmentKind, todayISO,
 } from '../projectAppointments'
 import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
 
@@ -49,6 +49,10 @@ interface Props {
    * gesendet wird der gespeicherte Stand, nie ein Entwurf.
    */
   notice?: { customerEmail: string; objectAddress?: string }
+  /** Art der Arbeit und Garantie-Häkchen der Maske — daraus wird der Termin-Typ
+   *  eines neuen Termins vorbelegt (WW-67, suggestAppointmentKind). Es zählt der
+   *  Stand in der Maske, auch ungespeichert. Fehlt es, bleibt es bei «Montage». */
+  project?: { art_der_arbeit: string[] | null; is_warranty?: boolean | null }
 }
 
 /** «30.10., 14:12» — wann der Kunde die Bestätigung bekam. */
@@ -58,7 +62,7 @@ function fmtSentAt(iso: string): string {
   return d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave, onOpenSchedule, notice }: Props) {
+export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave, onOpenSchedule, notice, project }: Props) {
   // Nur ein Termin ist gleichzeitig aufgeklappt — sonst wird die Kachel bei
   // vier Terminen unübersichtlich lang.
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -115,7 +119,7 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
   }
 
   function appendDraft() {
-    const draft = newAppointmentDraft('montage')
+    const draft = newAppointmentDraft(suggestAppointmentKind(project, appointments.map(d => d.kind)))
     if (autosave) onChange(prev => [...prev, draft])
     else onChange([...appointments, draft])
     setOpenKey(draft.key)

@@ -12,7 +12,9 @@
 // Diese Datei bleibt bewusst frei von React/JSX, damit die Regeln
 // (Validierung, Diff, «nächster Termin») unit-testbar sind.
 
-import { AppointmentKind, APPOINTMENT_KIND_LABELS, ProjectAppointment } from '../../api/admin'
+import {
+  AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS, DEFAULT_APPOINTMENT_KIND, ProjectAppointment,
+} from '../../api/admin'
 import type { AppointmentNoticeSnapshot, ProjectNextAppointment } from '../../api/admin'
 
 export interface AppointmentDraft {
@@ -112,6 +114,52 @@ export function emptyDraft(kind: AppointmentKind = 'montage'): AppointmentDraft 
 // das Projekt-Team.
 export function newAppointmentDraft(kind: AppointmentKind = 'montage'): AppointmentDraft {
   return { ...emptyDraft(kind), ownTeam: true }
+}
+
+// ─── Termin-Typ aus dem Projekt vorbelegen (WW-67) ───────────────────────────
+// «Art der Arbeit» am Projekt (Leistungsart, services/project_work_types.py) und
+// Termin-Typ am Termin sind zwei Fragen: die eine gilt für den ganzen Auftrag,
+// die andere für diesen einen Besuch (Ausmass vorab, Montage später). Wer aber
+// «Reparatur» angekreuzt hat, will beim Termin nicht noch einmal Reparatur
+// suchen — bisher stand dort immer «Montage». Nur eine Vorbelegung: das Feld
+// bleibt frei wählbar, und ein gespeicherter Termin wird nie umgeschrieben.
+const TERMIN_AUS_LEISTUNGSART: Record<string, AppointmentKind> = {
+  Neumontage: 'montage',
+  Umbau: 'montage',
+  Wiedermontage: 'wiedermontage',
+  Demontage: 'demontage',
+  Reparatur: 'reparatur',
+  Wartung: 'service',
+}
+
+/**
+ * Termin-Typ für einen neuen Termin des Projekts.
+ *
+ * - Garantiefall → «Garantie» (WW-64), unabhängig von der Leistungsart.
+ * - Sonst die Leistungsarten in Baustellen-Reihenfolge (Reihenfolge von
+ *   APPOINTMENT_KINDS): der erste Schritt, für den noch kein Termin geplant
+ *   ist — bei «Demontage + Wiedermontage» wird der erste Termin die Demontage,
+ *   der zweite die Wiedermontage. Ist alles schon geplant, der letzte Schritt.
+ * - Ohne Leistungsart bleibt es beim bisherigen Normalfall «Montage».
+ *
+ * Bewusst kein «ohne Offerte → Ausmass» (die Regel der Skill-Pillen,
+ * services/skill_matrix.py::naechster_einsatz): die Einsatzplanung lädt ihre
+ * Projekte ohne Offerten, die Vorbelegung wäre dort eine andere als in der
+ * Projektmaske. Ein Feld, das je nach Ort anders vorschlägt, verwirrt mehr,
+ * als es spart.
+ */
+export function suggestAppointmentKind(
+  project: { art_der_arbeit?: string[] | null; is_warranty?: boolean | null } | null | undefined,
+  plannedKinds: readonly string[] = [],
+): AppointmentKind {
+  if (!project) return DEFAULT_APPOINTMENT_KIND
+  if (project.is_warranty) return 'garantie'
+  const wanted = new Set(
+    (project.art_der_arbeit ?? []).map(a => TERMIN_AUS_LEISTUNGSART[a]).filter(Boolean),
+  )
+  const steps = APPOINTMENT_KINDS.filter(k => wanted.has(k))
+  if (steps.length === 0) return DEFAULT_APPOINTMENT_KIND
+  return steps.find(k => !plannedKinds.includes(k)) ?? steps[steps.length - 1]
 }
 
 // Termin-Payload für die API. '' ist dort das explizite «Feld leeren»

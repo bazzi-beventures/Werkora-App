@@ -8,7 +8,7 @@ import {
 import { useIsMobile } from '../useIsMobile'
 import {
   getSwissHolidays, getWeekDays, getMonthDays, toDateStr, isToday,
-  diffDays, hhmmToMin, minToHHMM, addDays,
+  diffDays, hhmmToMin, minToHHMM, addDays, kwLabel,
 } from '../utils/calendarHelpers'
 import {
   computeWeekHours, computeLanes, laneStyle, tileLayout, timeOffsetPx, timedBlockHeightPx,
@@ -1173,6 +1173,8 @@ export default function ProjectScheduleCalendar({
     onCreateSlot?.(dayISO, startTime, endTime, monteurId)
   }
 
+  // Jede Ansicht ausser dem Monat nennt vorne die Kalenderwoche (WW-65) — im
+  // Monat stünden vier bis sechs Wochen, dort sagt «November 2026» mehr.
   const title = monthNav
     ? currentDate.toLocaleDateString('de-CH', { month: 'long', year: 'numeric' })
     : ganttNav
@@ -1183,15 +1185,15 @@ export default function ProjectScheduleCalendar({
         const from = first.toLocaleDateString('de-CH', {
           weekday: 'short', day: '2-digit', month: '2-digit', year: ganttSpan > 1 ? undefined : 'numeric',
         })
-        if (ganttSpan === 1) return from
+        if (ganttSpan === 1) return `${kwLabel(first)} · ${from}`
         const last = ganttVisibleDays[ganttVisibleDays.length - 1]
-        return `${from} – ${last.toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}`
+        return `${kwLabel(first, last)} · ${from} – ${last.toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}`
       })()
     : (() => {
         const days = getWeekDays(currentDate)
         const from = days[0].toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })
         const to = days[6].toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        return `${from} – ${to}`
+        return `${kwLabel(days[0])} · ${from} – ${to}`
       })()
 
   return (

@@ -127,6 +127,27 @@ export function getWeekDays(date: Date): Date[] {
   })
 }
 
+// ISO-8601-Kalenderwoche (Montag = Wochenanfang, KW 1 = die Woche mit dem
+// ersten Donnerstag des Jahres) — so zählen Schweizer Kalender und Wochenpläne.
+// Der Donnerstag derselben Woche entscheidet über das Jahr: der 31.12.2026
+// (Do) ist KW 53, der 01.01.2027 (Fr) gehört noch dazu.
+export function isoWeek(date: Date): number {
+  const thursday = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+  thursday.setDate(thursday.getDate() + 3 - ((thursday.getDay() + 6) % 7))
+  const jan1 = new Date(thursday.getFullYear(), 0, 1)
+  // Math.round statt floor: eine Sommerzeit-Umstellung dazwischen macht aus
+  // einem Tag 23 oder 25 Stunden.
+  return Math.floor(Math.round((thursday.getTime() - jan1.getTime()) / 86400000) / 7) + 1
+}
+
+// «KW 45» für einen Zeitraum, «KW 45–46» wenn er über eine Wochengrenze reicht
+// (Tagesplan mit 3/5/6 Tagen ab Freitag). WW-65: die KW stand bisher nirgends
+// über dem Kalender, geplant und telefoniert wird aber in Kalenderwochen.
+export function kwLabel(first: Date, last: Date = first): string {
+  const a = isoWeek(first), b = isoWeek(last)
+  return a === b ? `KW ${a}` : `KW ${a}–${b}`
+}
+
 export function getMonthDays(date: Date): (Date | null)[] {
   const year = date.getFullYear()
   const month = date.getMonth()
