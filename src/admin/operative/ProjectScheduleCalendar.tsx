@@ -8,7 +8,7 @@ import {
 import { useIsMobile } from '../useIsMobile'
 import {
   getSwissHolidays, getWeekDays, getMonthDays, toDateStr, isToday,
-  diffDays, hhmmToMin, minToHHMM, addDays, kwLabel,
+  diffDays, hhmmToMin, minToHHMM, addDays, kwLabel, parseDateStr,
 } from '../utils/calendarHelpers'
 import {
   computeWeekHours, computeLanes, laneStyle, tileLayout, timeOffsetPx, timedBlockHeightPx,
@@ -35,6 +35,7 @@ import EventHoverCard from './EventHoverCard'
 import CrewChips from './CrewChips'
 import { parseViewDate, readScheduleView, writeScheduleView } from './scheduleViewState'
 import MiniMonthPicker from './MiniMonthPicker'
+import StaffNameCell from './StaffNameCell'
 
 // Nachgeladen statt statisch importiert — und das ist keine Feinoptimierung:
 // die Kartenansicht zieht maplibre-gl mit, gebaut 250 KB gzip plus WebGL. Ein
@@ -80,6 +81,15 @@ interface Props {
   // die Zellen der Abwesenden — der Konflikt ist so sichtbar, BEVOR jemand
   // hineinzieht; der Server lehnt danach ohnehin ab (mit Rückfrage).
   absences?: ScheduleAbsence[]
+  // Sprung von aussen (Suche, WW-69): auf diesen Tag, und das Team des Termins
+  // sichtbar machen. `nonce` unterscheidet zwei Sprünge auf denselben Tag.
+  focus?: CalendarFocus | null
+}
+
+export interface CalendarFocus {
+  date: string
+  staffIds: string[]
+  nonce: number
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -650,10 +660,12 @@ function WeekView({
 
 function PlantafelView({
   projects, staff, rowStaff, fields, currentDate, onSelect, onOpenProject, onReschedule, onCreateCell, holidays,
-  showDistances, absences, hideWeekend = false,
+  showDistances, absences, hideWeekend = false, onOpenStaff,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
+  // Klick auf den Namen links: Mitarbeiter-Ansicht dieses Monteurs (WW-68).
+  onOpenStaff?: (staffId: string) => void
   // Zeilen der Tafel = Monteure nach aktivem Filter (staff bleibt die volle
   // Liste für Namensauflösung in Tooltips/Zusatzfeldern).
   rowStaff: StaffLite[]
@@ -750,7 +762,9 @@ function PlantafelView({
   function renderRow(rowId: string | null, label: string, zebra = false) {
     return (
       <div key={rowId ?? '∅'} className={`project-cal-board-row${zebra ? ' zebra' : ''}`}>
-        <div className={`project-cal-board-staff${rowId === null ? ' unassigned' : ''}`}>{label}</div>
+        <div className={`project-cal-board-staff${rowId === null ? ' unassigned' : ''}`}>
+          <StaffNameCell rowId={rowId} label={label} onOpenStaff={onOpenStaff} />
+        </div>
         {days.map(d => {
           const dayISO = toDateStr(d)
           const cellKey = `${dayISO}|${rowId ?? ''}`
@@ -954,6 +968,7 @@ function readGanttSpan(): number {
 export default function ProjectScheduleCalendar({
   projects, staff, loading, canton = 'ZH', onSelect, onOpenProject, onReschedule, onCreateSlot,
   onVisibleWeekChange, onVisibleStaffChange, schedulingConfig, configPending = false, absences,
+  focus,
 }: Props) {
   // Gemerkter Ansichtszustand der Sitzung (scheduleViewState.ts): ein Ausflug in
   // die Projektmaske soll nicht wieder bei «Monat / heute» enden.
@@ -1063,6 +1078,36 @@ export default function ProjectScheduleCalendar({
       viewFallback,
     })
   }, [viewMode, currentDate, focusedStaff, hiddenStaff, viewFallback])
+
+  // Sprung aus Plantafel/Tagesplan auf einen Monteur (WW-68): Datum bleibt, die
+  // Mitarbeiter-Ansicht zeigt seine Woche. Nur wenn der Mandant die Ansicht hat —
+  // sonst bleibt der Name Text, statt auf eine abgeschaltete Ansicht zu zeigen.
+  const openStaff = viewEnabled('staff')
+    ? (id: string) => {
+        const idx = staff.findIndex(s => s.id === id)
+        if (idx < 0) return
+        setStaffIndex(idx)
+        setViewMode('staff')
+      }
+    : undefined
+
+  // Sprung von aussen (WW-69) — als Zustands-Anpassung beim Rendern statt in einem
+  // Effect: der Kalender zeichnet so gleich den richtigen Tag statt erst den alten.
+  // In der Mitarbeiter-Ansicht rückt einer aus dem Team des Termins in den Fokus,
+  // und ist das ganze Team im Filter ausgeblendet, wird es wieder eingeblendet —
+  // sonst landete der Sprung auf einem Tag, an dem der gesuchte Termin fehlt.
+  const [seenFocus, setSeenFocus] = useState<number | null>(focus?.nonce ?? null)
+  if (focus && focus.nonce !== seenFocus) {
+    setSeenFocus(focus.nonce)
+    setCurrentDate(parseDateStr(focus.date))
+    const team = focus.staffIds.filter(id => staff.some(s => s.id === id))
+    if (view === 'staff' && team.length && !(focusedStaff && team.includes(focusedStaff.id))) {
+      setStaffIndex(staff.findIndex(s => s.id === team[0]))
+    }
+    if (team.length && team.every(id => hiddenStaff.has(id))) {
+      setHiddenStaff(prev => new Set([...prev].filter(id => !team.includes(id))))
+    }
+  }
 
   function stepStaff(delta: number) {
     if (staff.length === 0) return
@@ -1437,6 +1482,7 @@ export default function ProjectScheduleCalendar({
           dayCapacityHours={schedulingConfig?.day_capacity_hours ?? DAY_CAPACITY_FALLBACK_H}
           showDistances={schedulingConfig?.show_distances !== false}
           absences={absences}
+          onOpenStaff={openStaff}
         />
       ) : view === 'plantafel' ? (
         <PlantafelView
@@ -1455,6 +1501,7 @@ export default function ProjectScheduleCalendar({
           showDistances={schedulingConfig?.show_distances !== false}
           absences={absences}
           hideWeekend={hideWeekend}
+          onOpenStaff={openStaff}
         />
       ) : view === 'month' ? (
         <MonthView

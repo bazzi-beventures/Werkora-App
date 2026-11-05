@@ -431,6 +431,77 @@ export function overlapConflictIds(entries: CalendarEntry[]): Set<string> {
   return out
 }
 
+/** Ein Termin, wie er gleich gespeichert wird — für die Doppelbelegungs-Warnung. */
+export interface PlannedSlot {
+  start_date: string
+  end_date?: string | null
+  start_time?: string | null
+  end_time?: string | null
+  staffIds: string[]
+}
+
+export interface StaffOverlap {
+  staffId: string
+  staffName: string
+  entry: CalendarEntry
+}
+
+/**
+ * Doppelbelegung VOR dem Speichern (WW-70): welche Monteure des geplanten Termins
+ * sind zur selben Zeit schon eingeplant? Dieselbe Regel wie der rote Rahmen im
+ * Kalender (`overlapConflictIds`): nur getaktete Einsätze zählen, ohne Endzeit
+ * 1 h, Ränder berühren sich nicht (07:30–12:00 und 12:00–14:00 sind kein Konflikt).
+ * Ganztägige Einträge bleiben aussen vor — sonst meldete jeder kleine Einsatz an
+ * einem Tag mit ganztägiger Montage eine Doppelbelegung, und eine Rückfrage, die
+ * man immer wegklickt, liest bald niemand mehr. Mehrtägige getaktete Einsätze
+ * gelten an jedem ihrer Tage im selben Zeitfenster.
+ *
+ * `excludeIds`: der Termin selbst (beim Verschieben/Bearbeiten) und, bei einer
+ * Serien-Änderung, seine Geschwister. Vorschläge der Disposition sind keine Termine.
+ */
+export function findStaffOverlaps(
+  entries: CalendarEntry[], slot: PlannedSlot, staff: StaffLite[], excludeIds: Iterable<string> = [],
+): StaffOverlap[] {
+  if (!slot.start_date || !slot.start_time || slot.staffIds.length === 0) return []
+  const exclude = new Set(excludeIds)
+  const names = new Map(staff.map(s => [s.id, s.name]))
+  const from = slot.start_date.slice(0, 10)
+  const to = (slot.end_date || slot.start_date).slice(0, 10)
+  const sS = hhmmToMin(slot.start_time)
+  const sE = slot.end_time ? hhmmToMin(slot.end_time) : sS + 60
+
+  const out: StaffOverlap[] = []
+  for (const e of entries) {
+    if (exclude.has(String(e.id)) || isVorschlag(e.id) || !e.start_time || !e.start_date) continue
+    const eFrom = e.start_date.slice(0, 10)
+    const eTo = (e.end_date || e.start_date).slice(0, 10)
+    if (eFrom > to || from > eTo) continue
+    const eS = hhmmToMin(e.start_time)
+    const eE = e.end_time ? hhmmToMin(e.end_time) : eS + 60
+    if (!(sS < eE && eS < sE)) continue
+    for (const id of slot.staffIds) {
+      const name = names.get(id)
+      if (name && (e.monteur_ids ?? []).includes(id)) out.push({ staffId: id, staffName: name, entry: e })
+    }
+  }
+  return out.sort((a, b) =>
+    a.staffName.localeCompare(b.staffName, 'de-CH')
+    || `${a.entry.start_date}${a.entry.start_time}`.localeCompare(`${b.entry.start_date}${b.entry.start_time}`))
+}
+
+/** Rückfrage-Text: Name, Einsatz, Tag und Zeit — entscheiden ohne nachzuschlagen. */
+export function formatStaffOverlaps(overlaps: StaffOverlap[], max = 5): string {
+  const lines = overlaps.slice(0, max).map(o => {
+    const day = o.entry.start_date
+      ? parseDateStr(o.entry.start_date).toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit' })
+      : ''
+    return `${o.staffName}: ${entryTitle(o.entry)}, ${day} ${fmtTimeRange(o.entry)}`.trim()
+  })
+  const rest = overlaps.length - lines.length
+  return 'Zur selben Zeit schon eingeplant — ' + lines.join('; ')
+    + (rest > 0 ? `; und ${rest} weitere` : '') + '.'
+}
+
 /**
  * Team nach einem Zeilenwechsel per Drag&Drop: Quell-Monteur raus, Ziel-Monteur rein.
  *

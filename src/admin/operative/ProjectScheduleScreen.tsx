@@ -18,7 +18,7 @@ import {
 } from '../../api/projectTasks'
 import {
   apptToDraft, draftPayload, effectiveTeamIds, emptyDraft, isOpenAppointment, newAppointmentDraft,
-  NO_MONTEUR_ERROR, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, validateDraft,
+  NO_MONTEUR_ERROR, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -27,7 +27,8 @@ import type { Project, ProjectKind } from '../../api/admin/projects'
 import { listAllCustomers } from '../../api/admin/customers'
 import { getAdminStaff } from '../../api/admin/staff'
 import { PROJECT_KIND_LABELS, projectCustomerName } from '../utils/project'
-import ProjectScheduleCalendar, { CalendarEntry } from './ProjectScheduleCalendar'
+import ProjectScheduleCalendar, { CalendarEntry, type CalendarFocus } from './ProjectScheduleCalendar'
+import ScheduleSearch from './ScheduleSearch'
 import { filterPickerProjects, pickerLabel } from './projectPicker'
 import { setNewProjectPrefill } from './newProjectPrefill'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
@@ -38,7 +39,10 @@ import { DateTimeInput } from '../components/DateTimeInput'
 import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
 import { getVorschlaege, patchVormerkung, type Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { VorschlagPanel } from './hagelschaden/dispo/VorschlagPanel'
-import { isVorschlag, VORSCHLAG_PREFIX, vorschlagVerschoben } from './scheduleShared'
+import {
+  findStaffOverlaps, formatStaffOverlaps, isVorschlag, VORSCHLAG_PREFIX, vorschlagVerschoben,
+  type PlannedSlot,
+} from './scheduleShared'
 import { STATUS_LABELS as VORSCHLAG_STATUS } from './hagelschaden/dispo/dispoFormat'
 import { getAllProjectSkills, getSkillMatrix, type Skill, type StaffSkill } from '../../api/admin/skills'
 import { anforderung, fehlende, pillenJeMitarbeiter } from '../utils/skillMatch'
@@ -153,6 +157,34 @@ interface PendingSlot {
   startTime: string
   endTime: string
   monteurIds: string[]
+}
+
+// Kalender-Einträge: EIN Eintrag je Termin. id = Termin-ID (eindeutige Keys/
+// Lanes/Drag), Terminfelder überlagern das Projekt; Team = Termin-Team,
+// Fallback Projekt-Team. Termine geschlossener/archivierter/gefilterter Projekte
+// fehlen. Zweimal gebraucht: für den Kalender (mit Projektleiter-Filter) und für
+// die Doppelbelegungs-Warnung (ohne).
+function appointmentEntries(projectList: Project[], appointments: ProjectAppointment[]): CalendarEntry[] {
+  const projById = new Map(projectList.map(p => [p.id, p]))
+  const entries: CalendarEntry[] = []
+  for (const a of appointments) {
+    const p = projById.get(a.project_id)
+    if (!p) continue
+    entries.push({
+      ...p,
+      id: a.id,
+      start_date: a.start_date,
+      end_date: a.end_date ?? a.start_date,
+      start_time: a.start_time,
+      end_time: a.end_time,
+      monteur_ids: (a.monteur_ids && a.monteur_ids.length ? a.monteur_ids : p.monteur_ids) ?? [],
+      termin_badge: p.kind === 'project' && a.kind !== DEFAULT_APPOINTMENT_KIND
+        ? (a.kind === 'sonstiges' && a.label ? a.label : APPOINTMENT_KIND_LABELS[a.kind])
+        : undefined,
+      termin_kind: p.kind === 'project' ? a.kind : undefined,
+    })
+  }
+  return entries
 }
 
 function projectToForm(p: Project): FormState {
@@ -320,9 +352,10 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   const [seriesDeleteScope, setSeriesDeleteScope] = useState<AppointmentScope>('single')
   // Rückfrage «trotzdem einplanen?»: der Server lehnt einen Einsatz in einer
   // genehmigten Absenz mit 409 ab, überstimmbar. `onConfirm` wiederholt genau
-  // denselben Schreibvorgang mit gesetztem Override.
+  // denselben Schreibvorgang mit gesetztem Override. Dieselbe Rückfrage stellt
+  // die Doppelbelegungs-Warnung (WW-70, «analog Ferien») — mit eigenem Titel.
   const [absencePrompt, setAbsencePrompt] = useState<
-    { message: string; onConfirm: () => void; onCancel?: () => void } | null
+    { message: string; onConfirm: () => void; onCancel?: () => void; kind?: 'absence' | 'overlap' } | null
   >(null)
   const [visibleWeekIso, setVisibleWeekIso] = useState<string>('')
   const [visibleStaffIds, setVisibleStaffIds] = useState<string[] | null>(null)
@@ -668,6 +701,20 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     selectProject(project, appointments.find(a => a.id === entry.id))
   }
 
+  // Treffer der Suche (WW-69): Kalender auf den Tag, Termin ins Panel — wie ein
+  // Klick auf die Kachel, nur ohne sie erst suchen zu müssen.
+  const [calendarFocus, setCalendarFocus] = useState<CalendarFocus | null>(null)
+  function handleSearchPick(entry: CalendarEntry) {
+    if (!entry.start_date) return
+    const date = entry.start_date.slice(0, 10)
+    setCalendarFocus(prev => ({
+      date,
+      staffIds: entry.monteur_ids ?? [],
+      nonce: (prev?.nonce ?? 0) + 1,
+    }))
+    handleCalendarSelect(entry)
+  }
+
   // Doppelklick auf einen Kalenderblock: in die Projektmaske springen. Das Panel
   // rechts plant nur Termine — Adresse, Kunde, Kontakte, Dokumente hängen am
   // Projekt und lassen sich nur dort ändern.
@@ -756,7 +803,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     }
   }
 
-  async function handleReschedule(id: string, deltaDays: number, startTime?: string | null, monteurIds?: string[]) {
+  async function handleReschedule(
+    id: string, deltaDays: number, startTime?: string | null, monteurIds?: string[], overlapOk = false,
+  ) {
     if (isVorschlag(id)) {
       const v = vorschlagZu(id)
       if (v) await verschiebeVorschlag(v, deltaDays, startTime, monteurIds)
@@ -790,6 +839,26 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       newEndTime === (appt.end_time?.slice(0, 5) ?? null) &&
       !teamChanged
     ) return
+
+    // Doppelbelegung (WW-70): Verschieben in einen besetzten Slot fragt wie das
+    // Panel. Der Chip bleibt bis zur Antwort, wo er war.
+    if (!overlapOk) {
+      const team = teamChanged
+        ? monteurIds!
+        : ((appt.monteur_ids?.length ? appt.monteur_ids : projects.find(p => p.id === appt.project_id)?.monteur_ids) ?? [])
+      const hits = findStaffOverlaps(allEntries, {
+        start_date: newStartDate, end_date: newEndDate,
+        start_time: newStartTime, end_time: newEndTime, staffIds: team,
+      }, staffLite, [appt.id])
+      if (hits.length) {
+        setAbsencePrompt({
+          kind: 'overlap',
+          message: formatStaffOverlaps(hits),
+          onConfirm: () => void handleReschedule(id, deltaDays, startTime, monteurIds, true),
+        })
+        return
+      }
+    }
 
     const optimistic: ProjectAppointment = {
       ...appt,
@@ -856,6 +925,38 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     teamAnswer.current = null
   }
 
+  // Doppelbelegungs-Text für den Termin im Panel, oder null. Ein bestehender
+  // Termin wird nur geprüft, wenn sich Tag, Zeit oder Team geändert haben — sonst
+  // fragte jedes Umbenennen eines längst überschneidenden Termins von Neuem.
+  function draftOverlapMessage(): string | null {
+    if (!form || !apptForm?.startDate) return null
+    const team = effectiveTeamIds(apptForm, form.monteurIds)
+    const slot: PlannedSlot = {
+      start_date: apptForm.startDate,
+      end_date: apptForm.endDate || null,
+      start_time: apptForm.startTime || null,
+      end_time: apptForm.endTime || null,
+      staffIds: team,
+    }
+    const original = apptForm.id ? appointments.find(a => a.id === apptForm.id) : undefined
+    if (original) {
+      const before = (original.monteur_ids?.length ? original.monteur_ids : projects.find(p => p.id === original.project_id)?.monteur_ids) ?? []
+      const same = original.start_date.slice(0, 10) === slot.start_date
+        && (original.end_date?.slice(0, 10) || original.start_date.slice(0, 10)) === (slot.end_date || slot.start_date)
+        && (original.start_time?.slice(0, 5) ?? null) === slot.start_time
+        && (original.end_time?.slice(0, 5) ?? null) === slot.end_time
+        && !teamsDiffer(before, team)
+      if (same) return null
+    }
+    // Serien-Änderung: die Geschwister wandern mit und zählen nicht als Konflikt.
+    const exclude = new Set<string>(apptForm.id ? [apptForm.id] : [])
+    if (apptForm.seriesId && apptForm.scope !== 'single') {
+      for (const a of appointments) if (a.series_id === apptForm.seriesId) exclude.add(a.id)
+    }
+    const hits = findStaffOverlaps(allEntries, slot, staffLite, exclude)
+    return hits.length ? formatStaffOverlaps(hits) : null
+  }
+
   /**
    * `override`/`savedProjectId` setzt nur die Absenz-Rückfrage (siehe unten):
    * `override` schickt denselben Request mit gesetzter Übersteuerung, und
@@ -863,7 +964,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
    * schon durchgelaufen ist — sonst entstünde beim Neuanlegen ein zweites
    * Projekt. Der Speichern-Knopf ruft die Funktion ohne Argumente auf.
    */
-  async function handleSave(override = false, savedProjectId?: string) {
+  async function handleSave(override = false, savedProjectId?: string, overlapOk = false) {
     if (!form) return
     setError(null)
     if (!form.name.trim()) {
@@ -915,6 +1016,15 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
           rhythmChanged: !!apptForm.seriesRhythm,
         })
         if (err) { setError(err); return }
+      }
+    }
+    // Doppelbelegung (WW-70): vor jedem Schreiben fragen, wie bei Ferien. Nach
+    // einer Absenz-Rückfrage (override) ist die Frage schon beantwortet.
+    if (!override && !overlapOk && apptForm?.startDate) {
+      const message = draftOverlapMessage()
+      if (message) {
+        setAbsencePrompt({ kind: 'overlap', message, onConfirm: () => void handleSave(false, undefined, true) })
+        return
       }
     }
     setSaving(true)
@@ -1015,7 +1125,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       if (conflict) {
         setAbsencePrompt({
           message: conflict,
-          onConfirm: () => void handleSave(true, targetId || undefined),
+          onConfirm: () => void handleSave(true, targetId || undefined, true),
         })
         return
       }
@@ -1131,24 +1241,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   // damit der Normalfall (Montage) ruhig bleibt.
   const calendarEntries = useMemo<CalendarEntry[]>(() => {
     const projById = new Map(filteredByPl.map(p => [p.id, p]))
-    const entries: CalendarEntry[] = []
-    for (const a of appointments) {
-      const p = projById.get(a.project_id)
-      if (!p) continue // geschlossen/archiviert/gefiltert → nicht im Kalender
-      entries.push({
-        ...p,
-        id: a.id,
-        start_date: a.start_date,
-        end_date: a.end_date ?? a.start_date,
-        start_time: a.start_time,
-        end_time: a.end_time,
-        monteur_ids: (a.monteur_ids && a.monteur_ids.length ? a.monteur_ids : p.monteur_ids) ?? [],
-        termin_badge: p.kind === 'project' && a.kind !== DEFAULT_APPOINTMENT_KIND
-          ? (a.kind === 'sonstiges' && a.label ? a.label : APPOINTMENT_KIND_LABELS[a.kind])
-          : undefined,
-        termin_kind: p.kind === 'project' ? a.kind : undefined,
-      })
-    }
+    const entries: CalendarEntry[] = appointmentEntries(filteredByPl, appointments)
     // Vorschläge (Phase 2b): eigene Einträge mit VORSCHLAG_PREFIX — gestrichelt
     // (pillClass), Klick und Verschieben fangen die Handler oben ab.
     if (vorschlaegeZeigen) {
@@ -1170,6 +1263,11 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     }
     return entries
   }, [filteredByPl, appointments, vorschlaege, vorschlaegeZeigen])
+
+  // Für die Doppelbelegungs-Warnung (WW-70) alle Termine, auch die, die der
+  // Projektleiter-Filter gerade ausblendet: ein Monteur ist auch dann besetzt,
+  // wenn sein anderer Einsatz einem anderen Projektleiter gehört.
+  const allEntries = useMemo(() => appointmentEntries(projects, appointments), [projects, appointments])
 
   const scheduledProjectIds = useMemo(
     () => new Set(appointments.map(a => a.project_id)),
@@ -1276,7 +1374,8 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
             {calendarEntries.length} geplante Einsätze · {filteredByPl.filter(p => !scheduledProjectIds.has(p.id)).length} ohne Termin
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <ScheduleSearch entries={calendarEntries} todayIso={todayISO()} onPick={handleSearchPick} />
           <ProjektleiterFilter
             options={projektleiterFilterOptions}
             value={projektleiterFilter}
@@ -1343,6 +1442,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
             schedulingConfig={schedulingConfig}
             configPending={configPending && !schedulingConfig}
             absences={absences}
+            focus={calendarFocus}
           />
         </div>
 
@@ -2088,10 +2188,12 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
           eine Rückfrage statt einer verschlossenen Tür (Spec §5.2). */}
       {absencePrompt && (
         <ConfirmDialog
-          title="Absenz im Einsatzzeitraum"
+          title={absencePrompt.kind === 'overlap' ? 'Mitarbeiter bereits eingeplant' : 'Absenz im Einsatzzeitraum'}
           message={absencePrompt.message}
-          warning="Der Einsatz wird trotzdem gespeichert — die Absenz bleibt bestehen."
-          confirmLabel="Trotzdem einplanen"
+          warning={absencePrompt.kind === 'overlap'
+            ? 'Der Termin wird trotzdem gespeichert — beide Einsätze bleiben im Plan.'
+            : 'Der Einsatz wird trotzdem gespeichert — die Absenz bleibt bestehen.'}
+          confirmLabel={absencePrompt.kind === 'overlap' ? 'Trotzdem speichern' : 'Trotzdem einplanen'}
           cancelLabel="Abbrechen"
           onConfirm={() => {
             const { onConfirm } = absencePrompt

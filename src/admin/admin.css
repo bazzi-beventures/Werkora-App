@@ -4003,6 +4003,33 @@ button.admin-list-item {
   font-style: italic;
 }
 
+/* Name als Sprung in die Mitarbeiter-Ansicht (WW-68): sieht aus wie der Text,
+   den er ersetzt, und verrät sich erst beim Darüberfahren. */
+.project-cal-name-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-cal-name-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.project-cal-name-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
 /* Auslastungsgrad des sichtbaren Zeitraums, rechts angedockt. margin-left:auto
    hält das Badge am rechten Rand, auch wenn die Achse schmaler als der
    Bildschirm ist. */
@@ -5203,4 +5230,80 @@ button.projektliste-termin:hover {
 
 .projektliste-termine-mehr {
   color: var(--muted);
+}
+
+/* ─── Suche in der Einsatzplanung (WW-69) ──────────────────────────────── */
+.schedule-search {
+  position: relative;
+  width: 240px;
+  max-width: 100%;
+}
+.schedule-search-input {
+  width: 100%;
+}
+.schedule-search-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: min(380px, 90vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-hover);
+  z-index: 40;
+  padding: 4px;
+  display: grid;
+  gap: 2px;
+}
+.schedule-search-hit {
+  display: grid;
+  gap: 1px;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  padding: 7px 9px;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+.schedule-search-hit.active {
+  background: var(--primary-soft);
+}
+.schedule-search-hit.past {
+  opacity: 0.72;
+}
+.schedule-search-when {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.schedule-search-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedule-search-badge {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.schedule-search-detail {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schedule-search-empty,
+.schedule-search-more {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 7px 9px;
 }

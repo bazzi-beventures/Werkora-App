@@ -89,3 +89,40 @@ describe('Mitarbeiteransicht', () => {
     expect(container.textContent).toContain('Projekt Alpha')
   })
 })
+
+// WW-68: aus Plantafel und Tagesplan per Klick auf den Namen in die
+// Mitarbeiter-Ansicht — statt über den Reiter oben und die Auswahl dort.
+describe('Name in der linken Spalte', () => {
+  for (const ansicht of ['Plantafel', 'Tagesplan']) {
+    it(`öffnet aus der ${ansicht} die Mitarbeiter-Ansicht dieses Monteurs`, async () => {
+      const user = userEvent.setup()
+      const { container } = renderCal([
+        entry({ id: 'a1', name: 'Projekt Alpha', monteur_ids: ['s1'] }),
+        entry({ id: 'a2', name: 'Projekt Beta', monteur_ids: ['s2'] }),
+      ])
+      await user.click(screen.getByRole('button', { name: ansicht }))
+      await user.click(screen.getByTitle('Mitarbeiter-Ansicht von Beat Beispiel öffnen'))
+
+      expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('s2')
+      expect(container.textContent).toContain('Projekt Beta')
+      expect(container.textContent).not.toContain('Projekt Alpha')
+    })
+  }
+
+  it('bleibt Text, wenn der Mandant die Mitarbeiter-Ansicht nicht hat', async () => {
+    const user = userEvent.setup()
+    render(
+      <ProjectScheduleCalendar
+        projects={[entry({})]}
+        staff={STAFF}
+        loading={false}
+        onSelect={vi.fn()}
+        onReschedule={vi.fn()}
+        schedulingConfig={{ fields: {}, colors: {}, views: { month: false, week: false, staff: false, plantafel: true, gantt: true } }}
+      />,
+    )
+    await user.click(screen.getByRole('button', { name: 'Plantafel' }))
+    expect(screen.queryByTitle('Mitarbeiter-Ansicht von Anna Muster öffnen')).toBeNull()
+    expect(document.querySelector('.project-cal-board-staff')?.textContent).toBeTruthy()
+  })
+})

@@ -18,6 +18,7 @@ import {
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
 import CrewChips from './CrewChips'
+import StaffNameCell from './StaffNameCell'
 import { diffDays, isToday, toDateStr } from '../utils/calendarHelpers'
 import { computeWeekHours } from '../utils/weekGrid'
 import {
@@ -67,12 +68,15 @@ interface Props {
   absences?: ScheduleAbsence[]
   // Schalter «Wochenende ausblenden»: die Achse zählt nur Werktage.
   hideWeekend?: boolean
+  // Klick auf den Namen links: Mitarbeiter-Ansicht dieses Monteurs (WW-68).
+  // Fehlt der Handler (Ansicht beim Mandanten aus), bleibt der Name reiner Text.
+  onOpenStaff?: (staffId: string) => void
 }
 
 export default function ProjectScheduleGantt({
   projects, staff, rowStaff, fields, currentDate, span, hourWidth,
   onSelect, onOpenProject, onReschedule, onCreateSlot, holidays, greyAfter, greyUntil,
-  dayCapacityHours, showDistances, absences, hideWeekend = false,
+  dayCapacityHours, showDistances, absences, hideWeekend = false, onOpenStaff,
 }: Props) {
   const { hover, bind } = useHoverCard()
   // Zeile, über der gerade ein Balken schwebt: rowId ('' = «Ohne Monteur»).
@@ -295,7 +299,7 @@ export default function ProjectScheduleGantt({
     return (
       <div key={cellKey || '∅'} className={`project-cal-gantt-row${zebra ? ' zebra' : ''}`} style={{ height }}>
         <div className={`project-cal-gantt-name${rowId === null ? ' unassigned' : ''}`}>
-          <span className="project-cal-gantt-name-text">{label}</span>
+          <StaffNameCell rowId={rowId} label={label} onOpenStaff={onOpenStaff} className="project-cal-gantt-name-text" />
         </div>
         <div
           className={
