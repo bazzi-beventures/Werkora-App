@@ -5,8 +5,8 @@ import {
   DEFAULT_APPOINTMENT_KIND, AppointmentRecurrence,
   listAppointments, createAppointment, updateAppointment, deleteAppointment,
   listScheduleAbsences, absenceConflictMessage, type ScheduleAbsence,
-  getProjectAppointments, SERIES_ACTIVITY_CODE,
-  type AppointmentScope, type SeriesExtras, type SeriesRule,
+  getProjectAppointments, SERIES_ACTIVITY_CODE, getScheduleStand,
+  type AppointmentScope, type ScheduleStand, type SeriesExtras, type SeriesRule,
 } from '../../api/admin'
 import { ApiError } from '../../api/client'
 import {
@@ -23,7 +23,7 @@ import {
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
 import { downloadSchedulePdf, getProject, getScheduleProjects } from '../../api/admin/projects'
-import type { Project, ProjectKind } from '../../api/admin/projects'
+import type { ProjectKind, ScheduleProject } from '../../api/admin/projects'
 import { listAllCustomers } from '../../api/admin/customers'
 import { getAdminStaff } from '../../api/admin/staff'
 import { PROJECT_KIND_LABELS, projectCustomerName } from '../utils/project'
@@ -164,7 +164,7 @@ interface PendingSlot {
 // Fallback Projekt-Team. Termine geschlossener/archivierter/gefilterter Projekte
 // fehlen. Zweimal gebraucht: für den Kalender (mit Projektleiter-Filter) und für
 // die Doppelbelegungs-Warnung (ohne).
-function appointmentEntries(projectList: Project[], appointments: ProjectAppointment[]): CalendarEntry[] {
+function appointmentEntries(projectList: ScheduleProject[], appointments: ProjectAppointment[]): CalendarEntry[] {
   const projById = new Map(projectList.map(p => [p.id, p]))
   const entries: CalendarEntry[] = []
   for (const a of appointments) {
@@ -187,7 +187,7 @@ function appointmentEntries(projectList: Project[], appointments: ProjectAppoint
   return entries
 }
 
-function projectToForm(p: Project): FormState {
+function projectToForm(p: ScheduleProject): FormState {
   return {
     id: p.id,
     name: p.name,
@@ -279,11 +279,28 @@ function emptyInternalForm(kind: ProjectKind, blockerCategories: string[] = []):
 // realistische Kalender-Navigation ab, ohne Range-State durchzureichen.
 const APPT_WINDOW_BACK_DAYS = 400
 const APPT_WINDOW_AHEAD_DAYS = 600
+// Das nahe Fenster kommt zuerst: geplant wird fast nur in den nächsten 100
+// Tagen (Gehlhaar 20261106: 600 der 2'310 Termine im vollen Fenster liegen
+// darin). Der Kalender steht, sobald es da ist; das volle Fenster läuft
+// parallel und ersetzt es, sobald es eintrifft — eine Obermenge davon.
+const NEAR_WINDOW_BACK_DAYS = 14
+const NEAR_WINDOW_AHEAD_DAYS = 100
 
-// Live-Aktualisierung: Projekte + Termine alle 2 s, Absenzen und Mitarbeiter
-// (ändern sich selten) höchstens einmal pro Minute. Siehe refreshLive().
+// Live-Aktualisierung: alle 2 s nur der Fingerabdruck (getScheduleStand);
+// Projekte bzw. Termine kommen erst, wenn sich ihr Wert geändert hat.
+// Absenzen und Mitarbeiter (ändern sich selten) höchstens einmal pro Minute,
+// beide Listen alle 5 Minuten voll als Netz. Siehe refreshLive().
 const LIVE_REFRESH_MS = 2000
 const SLOW_REFRESH_MS = 60_000
+const FULL_SYNC_MS = 5 * 60_000
+
+// Liegt der Termin im Fenster [from, to]? Dieselbe Regel wie der Server bei
+// GET /admin/appointments (db/project_appointments.py::list_project_appointments).
+function overlapsWindow(a: ProjectAppointment, from: string, to: string): boolean {
+  const start = a.start_date.slice(0, 10)
+  if (start > to) return false
+  return a.end_date ? a.end_date.slice(0, 10) >= from : start >= from
+}
 
 // Gleiche Zeilen wie vorher? Dann den alten Array behalten — kein Re-Render der
 // Tafel, keine neue Distanz-Signatur, keine Unruhe beim Tippen im Panel.
@@ -305,7 +322,7 @@ function vorschlaegeZeigenGespeichert(): boolean {
 }
 
 export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorschlaege = false }: Props) {
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ScheduleProject[]>([])
   const [appointments, setAppointments] = useState<ProjectAppointment[]>([])
   // Genehmigte Absenzen im geladenen Fenster — Markierung in der Plantafel.
   const [absences, setAbsences] = useState<ScheduleAbsence[]>([])
@@ -378,11 +395,16 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   // ─── Live-Aktualisierung ────────────────────────────────────────────────
   // Termine, die anderswo entstehen (Projektmaske, ein Kollege, die App),
   // erschienen hier bisher erst nach Verlassen und Wiederöffnen der Ansicht.
-  // Jetzt holt die Ansicht alle 2 s Projekte und Termine nach — still (kein
-  // Spinner, kein Toast), nur bei sichtbarem Tab und nie zwei Abrufe
-  // übereinander (useVisibilityPolling). Unveränderte Antworten lösen kein
-  // Re-Render aus (sameRows); die Fahrdistanzen fragt die Tafel erst nach ein
-  // paar Sekunden Ruhe an (scheduleShared.ts, DISTANCE_SETTLE_MS).
+  // Jetzt fragt die Ansicht alle 2 s nach — still (kein Spinner, kein Toast),
+  // nur bei sichtbarem Tab und nie zwei Abrufe übereinander
+  // (useVisibilityPolling). Unveränderte Antworten lösen kein Re-Render aus
+  // (sameRows); die Fahrdistanzen fragt die Tafel erst nach ein paar Sekunden
+  // Ruhe an (scheduleShared.ts, DISTANCE_SETTLE_MS).
+  //
+  // Gefragt wird seit 20261106 nur der Fingerabdruck (`standRef`), nicht mehr
+  // die Listen selbst: bis dahin holte jeder Takt alle Projekte und das volle
+  // Terminfenster, rund 4 MB alle 2 s — 159 GB Railway-Egress in zehn Tagen,
+  // und der Browser verglich dabei jedes Mal zwei Mal 4 MB Text (sameRows).
   //
   // Eigene Änderungen haben Vorrang: `localGen` zählt jede lokale Änderung,
   // und ein Abruf, der davor gestartet ist, wird verworfen — sonst spränge ein
@@ -392,6 +414,16 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   const localGen = useRef(0)
   const pendingWrites = useRef(0)
   const lastSlowRefresh = useRef(0)
+  const lastFullSync = useRef(0)
+  // Der Fingerabdruck, zu dem die angezeigten Listen gehören.
+  const standRef = useRef<ScheduleStand | null>(null)
+  // Liegt das volle Terminfenster vor, oder erst das nahe (erste Sekunde nach
+  // dem Öffnen)? Ohne volles Fenster holt der nächste Takt die Termine.
+  const fullLoaded = useRef(false)
+  // Gestaffelt geladen wird nur beim ERSTEN Öffnen. Nach einer eigenen Änderung
+  // (loadAll aus handleSave & Co.) ersetzte das nahe Fenster sonst kurz das
+  // volle — wer gerade in fünf Monaten plant, sähe seine Woche leer blinken.
+  const loadedOnce = useRef(false)
   // Klammer um jeden eigenen Schreibvorgang (Speichern, Verschieben, Löschen).
   function beginWrite() { pendingWrites.current += 1; localGen.current += 1 }
   function endWrite() { pendingWrites.current -= 1; localGen.current += 1 }
@@ -400,22 +432,44 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     if (loading || absencePrompt || pendingWrites.current > 0) return
     const gen = localGen.current
     const todayIso = toDateStr(new Date())
-    const slowDue = Date.now() - lastSlowRefresh.current >= SLOW_REFRESH_MS
+    const now = Date.now()
+    const slowDue = now - lastSlowRefresh.current >= SLOW_REFRESH_MS
+    const fullSyncDue = now - lastFullSync.current >= FULL_SYNC_MS
+    // Erst der Fingerabdruck, DANN die Listen: was sich zwischen den beiden
+    // Abrufen ändert, steckt schon in den Listen und meldet sich beim nächsten
+    // Takt noch einmal als Änderung — schlimmstenfalls ein Abruf zu viel, nie
+    // einer zu wenig.
+    const stand = await getScheduleStand()
+    const prev = standRef.current
+    // Ohne Fingerabdruck (Route oder Datenbank-Funktion nicht erreichbar) wird
+    // blind voll abgeglichen — aber nur im Minutentakt, nicht alle 2 s wie früher.
+    const changed = (k: keyof ScheduleStand) =>
+      stand === null ? slowDue : fullSyncDue || prev === null || stand[k] !== prev[k]
+    const needProjects = changed('projekte')
+    const needAppts = changed('termine') || (stand !== null && !fullLoaded.current)
+    if (!needProjects && !needAppts && !slowDue) return
     try {
       // Anders als loadAll ohne `.catch(() => [])`: ein fehlgeschlagener
       // Hintergrund-Abruf darf die Tafel nicht leeren — er fällt aus, der
-      // nächste Takt versucht es wieder.
+      // nächste Takt versucht es wieder (der Fingerabdruck bleibt dafür alt).
       const [proj, appts, abs, st] = await Promise.all([
-        getScheduleProjects(),
-        listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS)),
+        needProjects ? getScheduleProjects() : null,
+        needAppts
+          ? listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
+          : null,
         slowDue ? listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS)) : null,
         slowDue ? getAdminStaff() : null,
       ])
       if (gen !== localGen.current || pendingWrites.current > 0) return
-      setProjects(prev => sameRows(prev, proj) ? prev : proj)
-      setAppointments(prev => sameRows(prev, appts) ? prev : appts)
+      if (proj) setProjects(prev => sameRows(prev, proj) ? prev : proj)
+      if (appts) {
+        setAppointments(prev => sameRows(prev, appts) ? prev : appts)
+        fullLoaded.current = true
+      }
       if (abs) setAbsences(prev => sameRows(prev, abs) ? prev : abs)
       if (st) setStaff(prev => sameRows(prev, st) ? prev : st)
+      if (stand) standRef.current = stand
+      if (proj && appts) lastFullSync.current = Date.now()
       if (slowDue) {
         lastSlowRefresh.current = Date.now()
         void ladeVorschlaege()
@@ -456,17 +510,31 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
 
   async function loadAll() {
     localGen.current += 1
+    const gen = localGen.current
+    fullLoaded.current = false
     setLoading(true)
+    const todayIso = toDateStr(new Date())
+    // Fingerabdruck zuerst abschicken: er ist die Basis, gegen die der
+    // Live-Takt vergleicht (Reihenfolge-Begründung bei refreshLive).
+    const standP = getScheduleStand()
+    // Das volle Terminfenster läuft PARALLEL zum nahen. Der Kalender wartet
+    // nicht darauf; es ersetzt das nahe Fenster, sobald es da ist. Bei Gehlhaar
+    // sind das drei Seiten à 1000 Termine nacheinander beim Server — die
+    // musste der Kalender bis 20261106 abwarten, bevor er etwas zeigte.
+    const fullP = listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
+      .catch(() => null)
+    const firstP = loadedOnce.current
+      ? fullP.then(full => full ?? [])
+      : listAppointments(shiftISO(todayIso, -NEAR_WINDOW_BACK_DAYS), shiftISO(todayIso, NEAR_WINDOW_AHEAD_DAYS))
+        .catch(() => [] as ProjectAppointment[])
+    let ok = false
     try {
-      const todayIso = toDateStr(new Date())
       const [proj, appts, abs, st] = await Promise.all([
         // /projects/schedule statt /projects: schon server-seitig auf planbare
-        // Projekte gefiltert und ohne Offerten-/Rechnungs-Embeds. Vorher kamen
-        // alle je angelegten Projekte samt beider Beleg-Tabellen über die
-        // Leitung, nur damit die Zeile hier gleich wieder wegfiel.
+        // Projekte gefiltert, ohne Offerten-/Rechnungs-Embeds und nur mit den
+        // Feldern, die der Kalender liest (SCHEDULE_PROJECT_FIELDS).
         getScheduleProjects(),
-        listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
-          .catch(() => [] as ProjectAppointment[]),
+        firstP,
         // Absenzen nur für das Fenster, in dem geplant wird — rückwärts kurz
         // (die Vergangenheit ändert niemand mehr), vorwärts so weit wie die
         // Termine. Fehler bleiben still: ohne Markierung plant man wie bisher,
@@ -480,12 +548,26 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       setAbsences(abs)
       setStaff(st)
       lastSlowRefresh.current = Date.now()
+      loadedOnce.current = true
+      ok = true
       void ladeVorschlaege()
     } catch {
       showToast('Daten konnten nicht geladen werden.', 'error')
     } finally {
       setLoading(false)
     }
+    // Erst nach dem nahen Fenster einhängen: so ersetzt das volle es immer,
+    // nie umgekehrt. Hat inzwischen eine eigene Änderung stattgefunden, ist
+    // das Ergebnis veraltet — dann holt der nächste Takt die Termine
+    // (fullLoaded bleibt false).
+    const [full, stand] = await Promise.all([fullP, standP])
+    if (gen !== localGen.current) return
+    if (full) {
+      setAppointments(full)
+      fullLoaded.current = true
+    }
+    standRef.current = stand
+    if (ok && full) lastFullSync.current = Date.now()
   }
 
   // «Serie bis» beim Öffnen eines Serientermins: das echte Ende steht in den
@@ -660,7 +742,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     )
   }
 
-  function selectProject(p: Project, appt?: ProjectAppointment) {
+  function selectProject(p: ScheduleProject, appt?: ProjectAppointment) {
     setForm(projectToForm(p))
     // Aus einem aufgezogenen Termin: neuen Termin mit den Zeiten vorbelegen;
     // sonst den geklickten Termin in den Editor laden (oder keinen).
@@ -690,7 +772,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   }
 
   // Klick auf einen Kalenderblock: Entry-ID = Termin-ID → Termin + Projekt auflösen.
-  function handleCalendarSelect(entry: Project) {
+  function handleCalendarSelect(entry: ScheduleProject) {
     if (isVorschlag(entry.id)) {
       const v = vorschlagZu(entry.id)
       if (v) setVorschlagOffen(v)
@@ -718,7 +800,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   // Doppelklick auf einen Kalenderblock: in die Projektmaske springen. Das Panel
   // rechts plant nur Termine — Adresse, Kunde, Kontakte, Dokumente hängen am
   // Projekt und lassen sich nur dort ändern.
-  function handleCalendarOpen(entry: Project) {
+  function handleCalendarOpen(entry: ScheduleProject) {
     if (isVorschlag(entry.id)) {
       const v = vorschlagZu(entry.id)
       if (v && onNav) onNav('projects', v.project_id)
@@ -730,7 +812,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
 
   // Entry-ID ist die TERMIN-ID (siehe calendarEntries); interne Einsätze ohne
   // Termin tragen die Projekt-ID. Beide Wege führen auf dasselbe Projekt.
-  function resolveEntryProject(entry: Project): Project | undefined {
+  function resolveEntryProject(entry: ScheduleProject): ScheduleProject | undefined {
     const appt = appointments.find(a => a.id === entry.id)
     return projects.find(p => p.id === (appt?.project_id ?? entry.id))
   }
@@ -1194,7 +1276,16 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     setSaving(true)
     beginWrite()
     try {
-      for (const a of appointments.filter(x => x.project_id === form.id)) {
+      // Die Termine des Projekts beim Server holen statt aus der Kalenderliste:
+      // die ist in der ersten Sekunde nach dem Öffnen nur das nahe Fenster
+      // (−14 … +100 Tage), und «Termine entfernen» liesse dann alles Spätere
+      // still stehen. Gelöscht wird weiter, was der Kalender zeigt — das volle
+      // Fenster; was davor liegt, ist Geschichte und war nie gemeint.
+      const todayIso = toDateStr(new Date())
+      const from = shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS)
+      const to = shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS)
+      const own = (await getProjectAppointments(form.id)).filter(a => overlapsWindow(a, from, to))
+      for (const a of own) {
         await deleteAppointment(a.id)
       }
       showToast('Termine entfernt.', 'success')

@@ -7,7 +7,7 @@
 // Drag-Payload in scheduleShared.ts.
 
 import { useEffect, useRef, useState } from 'react'
-import type { Project } from '../../api/admin/projects'
+import type { ScheduleProject } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import {
   CalendarEntry, StaffLite,
@@ -48,9 +48,9 @@ interface Props {
   // Breite einer Stunde in px (Zoom-Stufe). Wirkt als Mindestbreite — ist der
   // Bildschirm breiter als das Raster, wird die Stunde bis zur vollen Breite gestreckt.
   hourWidth: number
-  onSelect: (p: Project) => void
+  onSelect: (p: ScheduleProject) => void
   // Doppelklick auf einen Balken: springt in die Projektmaske (siehe Kalender-Props).
-  onOpenProject?: (p: Project) => void
+  onOpenProject?: (p: ScheduleProject) => void
   onReschedule: (id: string, deltaDays: number, startTime?: string | null, monteurIds?: string[]) => void
   // Klick auf freie Rasterfläche → neuer Termin (1 h ab der geklickten Uhrzeit)
   // mit dem Zeilen-Mitarbeiter vorbelegt (null = Zeile «Ohne Monteur»).

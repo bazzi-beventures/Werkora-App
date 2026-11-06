@@ -411,13 +411,44 @@ export async function updateProjectSchedule(
 }
 
 /**
- * Planbare Projekte für die Einsatzplanung: server-seitig gefiltert und ohne die
- * Offerten-/Rechnungs-Embeds. Vorher holte der Kalender `/admin/projects` — alle
- * je angelegten Projekte samt beider Beleg-Tabellen, nur damit die Zeile hier
- * gleich wieder wegfiel.
+ * Die Felder, die GET /admin/projects/schedule liefert — genau die, die die
+ * Einsatzplanung liest. Dieselbe Liste steht in
+ * `db/projects.py::SCHEDULE_PROJECT_FIELDS`; der Ratchet
+ * `tests/unit/test_schedule_projects_select.py` hält beide gleich.
+ *
+ * Bis 20261106 kam das ganze Projekt (`select=*`) samt Kontakten, Eigentümer und
+ * rund 35 Spalten, die der Kalender nie anschaut: 2.5 MB für 1'441 Projekte bei
+ * Gehlhaar — und das alle zwei Sekunden. Wer im Kalender ein weiteres Feld
+ * braucht, ergänzt es hier UND im Backend; `ScheduleProject` lässt den Zugriff
+ * auf ein fehlendes Feld gar nicht erst kompilieren.
+ *
+ * `bemerkung` bleibt drin, obwohl sie gross ist: das Panel schickt sie beim
+ * Speichern mit (`upsertProject` in ProjectScheduleScreen) — fehlte sie hier,
+ * löschte jedes Speichern die Bemerkung.
  */
-export async function getScheduleProjects(): Promise<Project[]> {
-  return apiFetch<Project[]>('/pwa/admin/projects/schedule')
+export const SCHEDULE_PROJECT_FIELDS = [
+  'id', 'project_id_text', 'name', 'kind', 'customer_id',
+  'object_name', 'object_address', 'object_lat', 'object_lon',
+  'art_der_arbeit', 'is_warranty', 'projektleiter_id', 'monteur_ids', 'bemerkung',
+  'start_date', 'end_date', 'start_time', 'end_time',
+] as const
+
+/** Kundenfelder im Embed — der Kalender zeigt nur den Namen (projectCustomerName). */
+export const SCHEDULE_CUSTOMER_FIELDS = ['id', 'name', 'billing_name'] as const
+
+/** Ein Projekt, wie die Einsatzplanung es bekommt (siehe SCHEDULE_PROJECT_FIELDS). */
+export type ScheduleProject = Pick<Project, typeof SCHEDULE_PROJECT_FIELDS[number]> & {
+  customer: Pick<EmbeddedCustomer, typeof SCHEDULE_CUSTOMER_FIELDS[number]> | null
+}
+
+/**
+ * Planbare Projekte für die Einsatzplanung: server-seitig gefiltert, ohne die
+ * Offerten-/Rechnungs-Embeds und nur mit den Feldern aus SCHEDULE_PROJECT_FIELDS.
+ * Vorher holte der Kalender `/admin/projects` — alle je angelegten Projekte samt
+ * beider Beleg-Tabellen, nur damit die Zeile hier gleich wieder wegfiel.
+ */
+export async function getScheduleProjects(): Promise<ScheduleProject[]> {
+  return apiFetch<ScheduleProject[]>('/pwa/admin/projects/schedule')
 }
 
 /**

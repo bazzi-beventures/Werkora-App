@@ -11,7 +11,7 @@ import {
   APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS, AppointmentKind, DEFAULT_APPOINTMENT_KIND,
 } from '../../api/admin/scheduling'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
-import type { Project } from '../../api/admin/projects'
+import type { Project, ScheduleProject } from '../../api/admin/projects'
 import type { Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { projectCustomerName } from '../utils/project'
 import { diffDays, hhmmToMin, minToHHMM, parseDateStr, shiftISO, toDateStr } from '../utils/calendarHelpers'
@@ -31,11 +31,11 @@ export interface StaffLite {
 // termin_kind: roher Termin-Typ (AppointmentKind, siehe api/admin/scheduling.ts)
 // für das Typ-Symbol — nur bei Kundenprojekten gesetzt, interne Einsätze nutzen
 // p.kind.
-export type CalendarEntry = Project & { termin_badge?: string; termin_kind?: string }
+export type CalendarEntry = ScheduleProject & { termin_badge?: string; termin_kind?: string }
 
 // ─── Formatierung ────────────────────────────────────────────────────────────
 
-export function projectCoversDay(p: Project, day: Date): boolean {
+export function projectCoversDay(p: ScheduleProject, day: Date): boolean {
   if (!p.start_date || !p.end_date) return false
   const s = toDateStr(day)
   return s >= p.start_date.slice(0, 10) && s <= p.end_date.slice(0, 10)
@@ -53,7 +53,7 @@ export function fmtTime(t: string | null | undefined): string {
 // sonst endlos drehen. MAX_SPAN_DAYS deckt jedes reale Bauprojekt ab.
 const MAX_SPAN_DAYS = 400
 
-export function scheduledDayIsoSet(projects: Project[]): Set<string> {
+export function scheduledDayIsoSet(projects: ScheduleProject[]): Set<string> {
   const out = new Set<string>()
   for (const p of projects) {
     if (!p.start_date) continue
@@ -74,14 +74,14 @@ export function scheduledDayIsoSet(projects: Project[]): Set<string> {
 // Neu angelegte Projekte bekommen die Nummer nur in project_id_text, im
 // Kalender fehlte sie deshalb bisher ganz. Interne Einsätze (Teamsitzung,
 // Werkstatt …) haben keine Nummer und bleiben unverändert.
-export function entryTitle(p: Project): string {
+export function entryTitle(p: ScheduleProject): string {
   const name = p.name ?? ''
   const nr = (p.project_id_text ?? '').trim()
   if (!nr || name.includes(nr)) return name
   return `${nr} ${name}`
 }
 
-export function fmtTimeRange(p: Project): string {
+export function fmtTimeRange(p: ScheduleProject): string {
   const s = fmtTime(p.start_time), e = fmtTime(p.end_time)
   if (s && e) return `${s}–${e}`
   if (s) return `ab ${s}`
@@ -161,7 +161,7 @@ export function crewShortLabels(p: Pick<Project, 'monteur_ids'>, staff: StaffLit
   return shown
 }
 
-export function fmtRange(p: Project): string {
+export function fmtRange(p: ScheduleProject): string {
   if (!p.start_date || !p.end_date) return ''
   const s = parseDateStr(p.start_date).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })
   const e = parseDateStr(p.end_date).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })
@@ -187,7 +187,7 @@ export const KIND_COLORS: Record<string, string> = {
   sonstiges:   'var(--kind-sonstiges, #475569)',    // Slate
 }
 
-export function pillBg(p: Project): string {
+export function pillBg(p: ScheduleProject): string {
   return KIND_COLORS[p.kind || 'project'] ?? KIND_COLORS.project
 }
 
@@ -196,7 +196,7 @@ export function pillBg(p: Project): string {
 // Geplantes und Vorgemerktes im Raster nie verwechselt. Die Klasse kommt zur
 // Inline-Hintergrundfarbe dazu, statt sie zu ersetzen: die Farbe bleibt pro
 // Mandant konfigurierbar, die Schraffur ist fix.
-export function pillClass(p: Project): string {
+export function pillClass(p: ScheduleProject): string {
   if (isVorschlag(p.id)) return ' vorschlag'
   return p.kind === 'blocker' ? ' provisional' : ''
 }
@@ -272,7 +272,7 @@ export function terminLegend(): string {
 // Woche, Mitarbeiter-Ansicht, Monat und Agenda (einsatzplanung-rueckmeldungen-2026-10.md §4).
 // Die Plantafel nutzt die Zeilen nur im Tooltip und behält den vollen Namen.
 export function pillExtraLines(
-  p: Project, staff: StaffLite[], fields?: Record<string, boolean>,
+  p: ScheduleProject, staff: StaffLite[], fields?: Record<string, boolean>,
   opts: { plKuerzel?: boolean } = {},
 ): string[] {
   if (!fields) return []
@@ -290,7 +290,7 @@ export function pillExtraLines(
 // Team als Klartext — für title-Attribute und den Text-Fallback. Wer den Lead
 // hervorheben will, nimmt crewMembers() und rendert selbst (ein title-Attribut
 // kann keine Farbe).
-export function projectMonteurNames(p: Project, staff: StaffLite[]): string {
+export function projectMonteurNames(p: ScheduleProject, staff: StaffLite[]): string {
   if (!p.monteur_ids || p.monteur_ids.length === 0) return ''
   const byId = new Map(staff.map(s => [s.id, s.name]))
   return p.monteur_ids.map(id => byId.get(id) || '').filter(Boolean).join(', ')
@@ -685,7 +685,7 @@ export function useScheduleDistances(pairKeys: string[]) {
   }, [neededSig])
 
   // km zwischen zwei Einsätzen (beide getaktet, Adressen vorhanden/verschieden).
-  return function distBetween(a: Project, b: Project): number | null {
+  return function distBetween(a: ScheduleProject, b: ScheduleProject): number | null {
     if (!a.start_time || !b.start_time) return null
     const k = pairKey(a.object_address, b.object_address)
     if (!k) return null
@@ -751,7 +751,7 @@ export function visibleWeekDays(days: Date[], hideWeekend: boolean): Date[] {
  * niemand. Ein Einsatz von Freitag bis Montag bleibt an den Werktagen sichtbar
  * und zählt nicht.
  */
-export function weekendOnlyEntries(projects: Project[], days: Date[]): number {
+export function weekendOnlyEntries(projects: ScheduleProject[], days: Date[]): number {
   const weekend = days.filter(isWeekendDay)
   const workdays = days.filter(d => !isWeekendDay(d))
   return projects.filter(p =>

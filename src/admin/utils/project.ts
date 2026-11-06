@@ -10,7 +10,7 @@ import type { EmbeddedCustomer } from '../../api/admin/projects'
 export { PROJECT_KIND_LABELS } from '../../shared/projectDetail/types'
 
 /** Rechnungsname vor Kundenname — so steht es auch auf Offerte und Rechnung. */
-export function projectCustomerName(p: { customer?: EmbeddedCustomer | null }): string {
+export function projectCustomerName(p: { customer?: Pick<EmbeddedCustomer, 'name' | 'billing_name'> | null }): string {
   const c = p.customer
   return c?.billing_name || c?.name || ''
 }

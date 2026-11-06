@@ -1,5 +1,5 @@
 ﻿import { Fragment, Suspense, lazy, useEffect, useRef, useState } from 'react'
-import type { Project } from '../../api/admin/projects'
+import type { ScheduleProject } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import {
   SCHEDULING_VIEWS,
@@ -50,11 +50,11 @@ interface Props {
   staff: StaffLite[]
   loading: boolean
   canton?: string
-  onSelect: (p: Project) => void
+  onSelect: (p: ScheduleProject) => void
   // Doppelklick auf einen Einsatz: springt in die Projektmaske. Das Panel rechts
   // plant nur Termine — Adresse, Kunde, Kontakte usw. lassen sich nur dort ändern.
   // Fehlt der Handler (z.B. ohne Navigation im Test), bleibt es beim Einfachklick.
-  onOpenProject?: (p: Project) => void
+  onOpenProject?: (p: ScheduleProject) => void
   // Verschiebt einen Einsatz im Kalender. deltaDays = Tagesversatz; startTime
   // steuert die Uhrzeit: undefined = Zeit beibehalten (Monat / Ganztägig-Strip),
   // 'HH:MM' = neue Startzeit (Drop ins Zeitraster), null = Zeit löschen (ganztägig).
@@ -94,7 +94,7 @@ export interface CalendarFocus {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function pillLabel(p: Project): string {
+function pillLabel(p: ScheduleProject): string {
   const t = fmtTime(p.start_time)
   const name = entryTitle(p)
   return t ? `${t} ${name}` : name
@@ -103,7 +103,7 @@ function pillLabel(p: Project): string {
 // Doppelklick öffnet das Projekt. Der Einfachklick (Panel) feuert dabei zwangsläufig
 // mit — er ist folgenlos, weil die Projektmaske den Screen ohnehin ersetzt. Die
 // Textauswahl, die ein Doppelklick sonst auslöst, wird unterdrückt.
-function openBinding(p: CalendarEntry, onOpenProject?: (p: Project) => void) {
+function openBinding(p: CalendarEntry, onOpenProject?: (p: ScheduleProject) => void) {
   if (!onOpenProject) return {}
   return {
     onDoubleClick: (e: React.MouseEvent) => {
@@ -170,8 +170,8 @@ function MonthView({
   staff: StaffLite[]
   fields?: Record<string, boolean>
   currentDate: Date
-  onSelect: (p: Project) => void
-  onOpenProject?: (p: Project) => void
+  onSelect: (p: ScheduleProject) => void
+  onOpenProject?: (p: ScheduleProject) => void
   onReschedule: (id: string, deltaDays: number, startTime?: string | null) => void
   holidays: Map<string, string>
   absences?: ScheduleAbsence[]
@@ -283,8 +283,8 @@ function WeekView({
   staff: StaffLite[]
   fields?: Record<string, boolean>
   currentDate: Date
-  onSelect: (p: Project) => void
-  onOpenProject?: (p: Project) => void
+  onSelect: (p: ScheduleProject) => void
+  onOpenProject?: (p: ScheduleProject) => void
   onReschedule: (id: string, deltaDays: number, startTime?: string | null) => void
   onCreateSlot?: (dayISO: string, startTime: string, endTime: string) => void
   holidays: Map<string, string>
@@ -671,8 +671,8 @@ function PlantafelView({
   rowStaff: StaffLite[]
   fields?: Record<string, boolean>
   currentDate: Date
-  onSelect: (p: Project) => void
-  onOpenProject?: (p: Project) => void
+  onSelect: (p: ScheduleProject) => void
+  onOpenProject?: (p: ScheduleProject) => void
   onReschedule: (id: string, deltaDays: number, startTime?: string | null, monteurIds?: string[]) => void
   // Klick auf leere Zelle → neuer Termin an diesem Tag mit dem Zeilen-Monteur
   // vorbelegt (null = Zeile «Ohne Monteur»).
@@ -854,8 +854,8 @@ function AgendaView({
   staff: StaffLite[]
   fields?: Record<string, boolean>
   currentDate: Date
-  onSelect: (p: Project) => void
-  onOpenProject?: (p: Project) => void
+  onSelect: (p: ScheduleProject) => void
+  onOpenProject?: (p: ScheduleProject) => void
   onCreateSlot?: (dayISO: string, startTime: string, endTime: string) => void
   holidays: Map<string, string>
   absences?: ScheduleAbsence[]

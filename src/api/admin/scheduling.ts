@@ -109,6 +109,31 @@ export async function listAppointments(dateFrom: string, dateTo: string): Promis
   )
 }
 
+/**
+ * Fingerabdruck der Kalenderdaten (GET /admin/schedule/stand): je ein md5 über
+ * die Projekte und die Termine des Mandanten. Der Live-Takt der Einsatzplanung
+ * fragt nur das ab und lädt eine Liste erst neu, wenn sich ihr Wert ändert —
+ * bis 20261106 holte jeder Takt beide Listen ganz (rund 4 MB alle 2 s).
+ */
+export interface ScheduleStand {
+  projekte: string
+  termine: string
+}
+
+/** `null`, wenn der Server keinen Stand liefern kann (503, Netzfehler, unbekannte
+ *  Antwort) — der Aufrufer gleicht dann langsam voll ab, statt «unverändert»
+ *  anzunehmen. Wirft nie. */
+export async function getScheduleStand(): Promise<ScheduleStand | null> {
+  try {
+    const s = await apiFetch<Partial<ScheduleStand> | null>('/pwa/admin/schedule/stand')
+    return s && typeof s.projekte === 'string' && typeof s.termine === 'string'
+      ? { projekte: s.projekte, termine: s.termine }
+      : null
+  } catch {
+    return null
+  }
+}
+
 // Alle Termine EINES Projekts, chronologisch — Terminliste in der
 // Projektübersicht (ProjectDetailScreen). Der Kalender lädt stattdessen
 // listAppointments() über ein Zeitfenster.

@@ -12,17 +12,17 @@
 // Gesucht wird deshalb im Anzeige-Titel (entryTitle = Nummer + Name, ohne sie zu
 // verdoppeln) und im Kundennamen — dieselbe Beschriftung, die die Liste zeigt.
 
-import type { Project } from '../../api/admin/projects'
+import type { ScheduleProject } from '../../api/admin/projects'
 import { projectCustomerName } from '../utils/project'
 import { entryTitle } from './scheduleShared'
 
 /** Beschriftung eines Treffers: Projektnummer vor dem Namen, wie im Kalender. */
-export function pickerLabel(p: Project): string {
+export function pickerLabel(p: ScheduleProject): string {
   return entryTitle(p)
 }
 
 interface Ranked {
-  project: Project
+  project: ScheduleProject
   rank: number
   sortKey: string
 }
@@ -36,7 +36,7 @@ interface Ranked {
  * oben — die eingetippte Projektnummer landet damit auf Platz eins statt
  * irgendwo zwischen den Namenstreffern.
  */
-export function filterPickerProjects(projects: Project[], query: string): Project[] {
+export function filterPickerProjects(projects: ScheduleProject[], query: string): ScheduleProject[] {
   const q = query.trim().toLowerCase()
   const tokens = q ? q.split(/\s+/) : []
 
