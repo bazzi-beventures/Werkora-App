@@ -6,6 +6,7 @@ import { getAllCustomers } from '../../api/admin/customers'
 import type { Kontakt, Project } from '../../api/admin/projects'
 import type { Customer } from '../../api/admin/customers'
 import { CustomerFromKontaktDialog } from './projectDetail/CustomerFromKontaktDialog'
+import { NewCustomerDialog } from './projectDetail/NewCustomerDialog'
 import { customerToLink, linkKontakteToCustomers } from './projectDetail/kontaktKundenstamm'
 import type { QuoteDetail } from './quotes/quoteTypes'
 import { hasQuoteDraft } from './quotes/quoteDraft'
@@ -346,6 +347,9 @@ export default function ProjectDetailScreen({
   const [customerPrompt, setCustomerPrompt] = useState<{ kontakte: Kontakt[]; saved: Project | null } | null>(null)
   // Selbst speichernde Maske: «+ Als Kunde anlegen» an einer Kontaktzeile (§3.8).
   const [kontaktCustomer, setKontaktCustomer] = useState<Kontakt | null>(null)
+  // «+ Neuen Kunden anlegen» im Kundenfeld (WW-71): der getippte Suchtext, solange
+  // die Kundenmaske offen ist.
+  const [newCustomerQuery, setNewCustomerQuery] = useState<string | null>(null)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -611,6 +615,7 @@ export default function ProjectDetailScreen({
           onCancel={requestClose}
           autosave={autosaveOn ? autosave : null}
           onCreateCustomerFromKontakt={autosaveOn ? k => setKontaktCustomer(k) : undefined}
+          onCreateCustomer={setNewCustomerQuery}
           onOpenCustomer={onOpenCustomer}
           linkCustomer={linkCustomer}
           onOpenSchedule={onOpenSchedule}
@@ -889,6 +894,23 @@ export default function ProjectDetailScreen({
             setKontaktCustomer(null)
           }}
           onSkip={() => setKontaktCustomer(null)}
+        />
+      )}
+
+      {/* Ausserhalb der DetailsForm: die Kundenmaske ist selbst ein <form>, und
+          ihr Submit bubbelte im React-Baum bis zum onSubmit der Projektmaske. */}
+      {newCustomerQuery !== null && (
+        <NewCustomerDialog
+          query={newCustomerQuery}
+          onCreated={c => {
+            setCustomers(prev => [...prev, c])
+            // Wie eine Auswahl aus der Liste: Objektadresse und Ansprechperson
+            // werden vorbelegt, die selbst speichernde Maske speichert sofort.
+            form.selectCustomer(c.id, c)
+            setNewCustomerQuery(null)
+            showToast(`Kunde «${c.name}» angelegt und gewählt`)
+          }}
+          onCancel={() => setNewCustomerQuery(null)}
         />
       )}
 

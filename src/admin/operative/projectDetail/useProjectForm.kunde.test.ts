@@ -159,3 +159,21 @@ describe('selectCustomer → Objektadresse', () => {
     expect(result.current.objectAddress).toBe('Seeweg 7, 8800 Thalwil')
   })
 })
+
+// WW-71: der Kunde ist eben im Dialog angelegt worden. Der Screen führt die
+// Kundenliste im selben Klick nach — der Hook sieht sie also noch ohne ihn.
+describe('selectCustomer mit eben angelegtem Kunden', () => {
+  it('belegt Ansprechperson und Objektadresse aus dem übergebenen Kunden vor', () => {
+    const NEU = customer({
+      id: 'c-neu', name: 'Hans Muster', phone: '079 576 55 16',
+      address: 'Ritterweg 3, 8400 Winterthur',
+    })
+    const { result } = setup()
+    act(() => result.current.selectCustomer('c-neu', NEU))
+    expect(result.current.customerId).toBe('c-neu')
+    expect(result.current.objectAddress).toBe('Ritterweg 3, 8400 Winterthur')
+    expect(result.current.kontakte).toEqual([expect.objectContaining({
+      name: 'Hans Muster', telefon: '079 576 55 16', customer_id: 'c-neu',
+    })])
+  })
+})

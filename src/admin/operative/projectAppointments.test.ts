@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, applyStartDate, apptToDraft,
-  diffAppointments, draftPayload, draftTeamNames, draftTitle, effectiveTeamIds, emptyDraft,
+  diffAppointments, draftDateChanged, draftPayload, draftTeamNames, draftTitle, effectiveTeamIds, emptyDraft,
   fmtDraftWhen, isOpenAppointment, newAppointmentDraft, nextAppointment, nextAppointmentSummary,
-  normalizeDrafts,
+  normalizeDrafts, pastAppointmentHint,
   pinProjectTeam, sortDrafts, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO,
   validateDraftTeams, validateDrafts,
 } from './projectAppointments'
@@ -407,5 +407,60 @@ describe('suggestAppointmentKind', () => {
 
   it('lässt sich von Terminen anderer Typen nicht ablenken', () => {
     expect(suggestAppointmentKind({ art_der_arbeit: ['Reparatur'] }, ['aufmass', 'sonstiges'])).toBe('reparatur')
+  })
+})
+
+// WW-72: drei Termine im Januar 2026 statt 2027 vergeben. Hinweis, keine Sperre.
+describe('pastAppointmentHint', () => {
+  const HEUTE = '2026-11-06'
+
+  it('meldet einen Termin, der ganz in der Vergangenheit liegt — mit Datum', () => {
+    const hint = pastAppointmentHint('2026-01-12', '', HEUTE)
+    expect(hint).toContain('in der Vergangenheit')
+    expect(hint).toContain('12.01.2026')
+    expect(hint).toContain('Jahr prüfen')
+  })
+
+  it('zählt beim mehrtägigen Termin das Ende: vorbei ist er erst danach', () => {
+    expect(pastAppointmentHint('2026-01-12', '2026-01-14', HEUTE)).toContain('in der Vergangenheit')
+    // Begonnen, aber noch nicht fertig: laufender Einsatz, kein Tippfehler im Jahr.
+    const laufend = pastAppointmentHint('2026-11-02', '2026-11-13', HEUTE)
+    expect(laufend).toContain('bereits begonnen')
+    expect(laufend).not.toContain('Jahr')
+  })
+
+  it('schweigt für heute, die Zukunft und ein leeres Datum', () => {
+    expect(pastAppointmentHint(HEUTE, '', HEUTE)).toBeNull()
+    expect(pastAppointmentHint('2027-01-12', '', HEUTE)).toBeNull()
+    expect(pastAppointmentHint('', '', HEUTE)).toBeNull()
+  })
+
+  it('ignoriert ein Ende vor dem Start (das lehnt die Prüfung ohnehin ab)', () => {
+    expect(pastAppointmentHint('2026-01-12', '2026-01-01', HEUTE)).toContain('in der Vergangenheit')
+  })
+
+  it('flackert nicht, solange das Jahr noch getippt wird', () => {
+    // Der Browser meldet beim Tippen von «2027» erst 0002, 0020, 0202.
+    for (const y of ['0002', '0020', '0202']) {
+      expect(pastAppointmentHint(`${y}-01-12`, '', HEUTE)).toBeNull()
+    }
+  })
+})
+
+describe('draftDateChanged', () => {
+  const saved = draft({ key: 'a', id: 'a', startDate: '2026-01-12', endDate: '' })
+
+  it('ein neuer Termin hat immer ein frisch gesetztes Datum', () => {
+    expect(draftDateChanged(draft({ id: null, startDate: '2026-01-12' }), [saved])).toBe(true)
+  })
+
+  it('ein unveränderter gespeicherter Termin nicht — auch wenn sich sonst etwas ändert', () => {
+    expect(draftDateChanged({ ...saved }, [saved])).toBe(false)
+    expect(draftDateChanged({ ...saved, monteurIds: ['s-1'], ownTeam: true }, [saved])).toBe(false)
+  })
+
+  it('Start oder Ende geändert zählt', () => {
+    expect(draftDateChanged({ ...saved, startDate: '2026-01-13' }, [saved])).toBe(true)
+    expect(draftDateChanged({ ...saved, endDate: '2026-01-14' }, [saved])).toBe(true)
   })
 })

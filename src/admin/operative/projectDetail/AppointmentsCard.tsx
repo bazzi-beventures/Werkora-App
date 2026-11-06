@@ -12,7 +12,8 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateTimeInput } from '../../components/DateTimeInput'
 import {
   AppointmentDraft, applyStartDate, draftTeamNames, draftTitle, effectiveTeamIds, fmtDraftWhen,
-  newAppointmentDraft, nextAppointment, noticeChanged, noticeSnapshot, suggestAppointmentKind, todayISO,
+  newAppointmentDraft, nextAppointment, noticeChanged, noticeSnapshot, pastAppointmentHint,
+  suggestAppointmentKind, todayISO,
 } from '../projectAppointments'
 import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
 
@@ -53,7 +54,16 @@ interface Props {
    *  eines neuen Termins vorbelegt (WW-67, suggestAppointmentKind). Es zählt der
    *  Stand in der Maske, auch ungespeichert. Fehlt es, bleibt es bei «Montage». */
   project?: { art_der_arbeit: string[] | null; is_warranty?: boolean | null }
+  /**
+   * Ist das Datum dieses Termins neu gesetzt? Nur dann steht der Hinweis «liegt
+   * in der Vergangenheit» (WW-72) — nicht an jedem alten Termin, den man
+   * aufklappt. Fehlt es, gilt ein Termin ohne id als neu (die Neu-Maske kennt
+   * nur solche).
+   */
+  isDateChanged?: (d: AppointmentDraft) => boolean
 }
+
+const isUnsaved = (d: AppointmentDraft) => !d.id
 
 /** «30.10., 14:12» — wann der Kunde die Bestätigung bekam. */
 function fmtSentAt(iso: string): string {
@@ -62,7 +72,10 @@ function fmtSentAt(iso: string): string {
   return d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function AppointmentsCard({ appointments, onChange, staff, projectTeam, autosave, onOpenSchedule, notice, project }: Props) {
+export default function AppointmentsCard({
+  appointments, onChange, staff, projectTeam, autosave, onOpenSchedule, notice, project,
+  isDateChanged = isUnsaved,
+}: Props) {
   // Nur ein Termin ist gleichzeitig aufgeklappt — sonst wird die Kachel bei
   // vier Terminen unübersichtlich lang.
   const [openKey, setOpenKey] = useState<string | null>(null)
@@ -107,7 +120,8 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
     else if (openKey === d.key) setOpenKey(null)
   }
 
-  const next = nextAppointment(appointments, todayISO())
+  const today = todayISO()
+  const next = nextAppointment(appointments, today)
 
   function patch(key: string, changes: Partial<AppointmentDraft>) {
     onChange(appointments.map(d => d.key === key ? { ...d, ...changes } : d))
@@ -179,6 +193,8 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
           // Ohne Monteur «verschwindet» der Termin aus der Einsatzplanung —
           // Speichern lehnt ihn ab (validateDraftTeams), hier schon sichtbar.
           const noMonteur = effectiveTeamIds(d, projectTeam).length === 0
+          // Nur ein Hinweis, keine Sperre (WW-72) — «Termin speichern» bleibt frei.
+          const pastHint = open && isDateChanged(d) ? pastAppointmentHint(d.startDate, d.endDate, today) : null
           return (
             <div key={d.key} className={`project-appt-item${open ? ' open' : ''}`}>
               <div className="project-appt-head">
@@ -286,6 +302,11 @@ export default function AppointmentsCard({ appointments, onChange, staff, projec
                       />
                     </div>
                   </div>
+                  {pastHint && (
+                    <div className="admin-form-hint-warn" role="status" style={{ marginTop: 0 }}>
+                      {pastHint}
+                    </div>
+                  )}
 
                   <div className="admin-form-group" style={{ margin: 0 }}>
                     <label className="project-appt-own-team">

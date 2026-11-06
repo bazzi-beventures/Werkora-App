@@ -27,7 +27,7 @@ export interface StaffMember {
 
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
-  autosave, onCreateCustomerFromKontakt, onOpenCustomer, onOpenSchedule, projectId = null,
+  autosave, onCreateCustomerFromKontakt, onCreateCustomer, onOpenCustomer, onOpenSchedule, projectId = null,
   linkCustomer, customerNotice = false,
 }: {
   form: UseProjectForm
@@ -56,6 +56,11 @@ export function DetailsForm({
   autosave?: ProjectAutosave | null
   /** §3.8 — öffnet den Dialog «als Kunde anlegen» für genau diese Zeile. */
   onCreateCustomerFromKontakt?: (k: Kontakt) => void
+  /**
+   * Neuen Kunden direkt aus dem Kundenfeld anlegen (WW-71): öffnet die
+   * Kundenmaske, `query` ist der getippte Suchtext ('' = keiner).
+   */
+  onCreateCustomer?: (query: string) => void
   /** Sprung auf die Kundenstammseite des gewählten Kunden (WW-9). */
   onOpenCustomer?: (customerId: string) => void
   /** Ziel dieses Sprungs (customerLinkTarget.ts) — fehlt es, der Kunde aus der Maske. */
@@ -230,11 +235,24 @@ export function DetailsForm({
                       Im Kundenstamm öffnen →
                     </CustomerLink>
                   )}
+                  {/* Ohne Kunden der sichtbare Weg zum neuen — derselbe Eintrag
+                      steht auch oben in der Vorschlagsliste (WW-71). */}
+                  {!customerId && onCreateCustomer && (
+                    <button
+                      type="button"
+                      onClick={() => onCreateCustomer('')}
+                      style={{ background: 'none', border: 0, padding: 0, font: 'inherit', fontSize: 12,
+                        cursor: 'pointer', color: 'var(--primary)' }}
+                    >
+                      + Neuen Kunden anlegen
+                    </button>
+                  )}
                 </div>
                 <CustomerCombobox
                   customers={customers}
                   value={customerId}
                   onChange={selectCustomer}
+                  onCreateNew={onCreateCustomer}
                 />
                 {customerId && (
                   <div style={{ marginTop: 6, padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-xs)', fontSize: 13, color: 'var(--muted)' }}>
@@ -654,6 +672,7 @@ export function DetailsForm({
               staff={staff}
               projectTeam={monteurIds}
               project={{ art_der_arbeit: artDerArbeit, is_warranty: isWarranty }}
+              isDateChanged={form.isAppointmentDateChanged}
               onOpenSchedule={onOpenSchedule}
               notice={customerNotice && autosave
                 ? { customerEmail: selectedCustomer?.email ?? '', objectAddress: objectAddress.trim() || undefined }

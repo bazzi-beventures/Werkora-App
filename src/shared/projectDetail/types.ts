@@ -93,6 +93,21 @@ export interface ProjectFile {
   created_at: string
 }
 
+/**
+ * Kategorien, die der Monteur in der App NICHT sieht — Spiegel von
+ * ADMIN_ONLY_FILE_CATEGORIES in agents/routers/_deps.py (dort ist die Grenze,
+ * hier nur ihre Beschriftung in der Verwaltung). Alles andere zeigt die PWA
+ * dem Monteur: den Lieferschein als eigene Karte «Lieferscheine», den Rest
+ * unter «Dokumente & Fotos».
+ *
+ * Wozu hier: das Büro legte Lieferscheine zweimal ab, einmal unter
+ * Lieferantendokumente und einmal unter Dokumente → Sonstiges, weil es nicht
+ * wusste, dass der Monteur den ersten schon sieht (WW-73). Die Verwaltung
+ * schreibt die Sichtbarkeit deshalb an jeden Abschnitt. Gleichlauf mit dem
+ * Backend: tests/unit/test_project_file_authz.py liest diese Zeile mit.
+ */
+export const MONTEUR_HIDDEN_FILE_CATEGORIES: ReadonlySet<ProjectFileCategory> = new Set<ProjectFileCategory>(['angebot_lieferant', 'bestellungen', 'auftragsbestaetigung'])
+
 /** Beschriftung je Kategorie. Die Verwaltung gliedert damit ihre Reiter, die
  *  Monteur-PWA schreibt sie unter den Dateinamen. Ein Eintrag, zwei Sichten. */
 export const CATEGORY_LABELS: Record<ProjectFileCategory, string> = {

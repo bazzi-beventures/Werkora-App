@@ -17,6 +17,13 @@ interface Props {
   customers: Customer[]
   value: string                       // gewählte customer_id ('' = kein Kunde)
   onChange: (customerId: string) => void
+  /**
+   * Gesetzt = die Liste trägt «+ Neuen Kunden anlegen» (WW-71): der Aufrufer
+   * öffnet die Kundenmaske, statt dass man das Projekt erst ohne Kunden
+   * speichert und den Kunden im Kundenstamm nachträgt. Übergeben wird, was im
+   * Feld getippt war ('' = nichts), als Vorbelegung (customerPrefill.ts).
+   */
+  onCreateNew?: (query: string) => void
 }
 
 const MAX_VISIBLE = 80
@@ -41,7 +48,7 @@ interface Indexed {
   phoneDigits: string
 }
 
-export function CustomerCombobox({ customers, value, onChange }: Props) {
+export function CustomerCombobox({ customers, value, onChange, onCreateNew }: Props) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(0)
@@ -126,6 +133,16 @@ export function CustomerCombobox({ customers, value, onChange }: Props) {
     setOpen(false)
   }
 
+  // Getippter Suchtext — die angezeigte Auswahl selbst ist keiner.
+  const typed = query === selectedLabel ? '' : query.trim()
+
+  function createNew() {
+    if (!onCreateNew) return
+    setOpen(false)
+    setQuery(selectedLabel)
+    onCreateNew(typed)
+  }
+
   function onKeyDown(e: React.KeyboardEvent) {
     if (!open && (e.key === 'ArrowDown' || e.key === 'Enter')) { openMenu(); return }
     if (!open) return
@@ -138,6 +155,8 @@ export function CustomerCombobox({ customers, value, onChange }: Props) {
     } else if (e.key === 'Enter') {
       e.preventDefault()
       if (filtered[highlighted]) pick(filtered[highlighted])
+      // Kein Treffer: Enter heisst «dann eben neu anlegen».
+      else if (filtered.length === 0 && typed) createNew()
     } else if (e.key === 'Escape') {
       setOpen(false)
       setQuery(selectedLabel)
@@ -154,6 +173,24 @@ export function CustomerCombobox({ customers, value, onChange }: Props) {
       >
         — kein Kunde zugeordnet —
       </div>
+      {/* Oben statt am Listenende: bei vielen Treffern stünde der Eintrag sonst
+          unterhalb des sichtbaren Ausschnitts. */}
+      {onCreateNew && (
+        <div
+          role="button"
+          onMouseDown={createNew}
+          style={{
+            padding: '8px 12px', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+            color: 'var(--primary)', borderBottom: '1px solid var(--border)',
+            minHeight: isMobile ? 44 : undefined,
+            display: isMobile ? 'flex' : undefined,
+            alignItems: isMobile ? 'center' : undefined,
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}
+        >
+          {typed ? `+ «${typed}» als neuen Kunden anlegen` : '+ Neuen Kunden anlegen'}
+        </div>
+      )}
       {filtered.length === 0 ? (
         <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--muted)' }}>Kein Treffer</div>
       ) : (

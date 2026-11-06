@@ -18,7 +18,7 @@ import {
 } from '../../api/projectTasks'
 import {
   apptToDraft, draftPayload, effectiveTeamIds, emptyDraft, isOpenAppointment, newAppointmentDraft,
-  NO_MONTEUR_ERROR, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO, validateDraft,
+  NO_MONTEUR_ERROR, pastAppointmentHint, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO, validateDraft,
   type AppointmentDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
@@ -1887,6 +1887,17 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                         />
                       </label>
                     </div>
+                    {/* WW-72: nur ein Hinweis, Speichern bleibt frei. Bei einem
+                        gespeicherten Termin erst, wenn sein Datum geändert wird —
+                        nicht schon beim Aufklappen eines alten. */}
+                    {(() => {
+                      const hint = (!apptForm.id || apptForm.startDate !== apptForm.originalStartDate)
+                        ? pastAppointmentHint(apptForm.startDate, apptForm.endDate, todayISO())
+                        : null
+                      return hint
+                        ? <div className="admin-form-hint-warn" role="status">{hint}</div>
+                        : null
+                    })()}
 
                     <div className="project-schedule-row">
                       <label className="project-schedule-field">

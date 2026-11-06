@@ -464,6 +464,46 @@ export function isOpenAppointment(
   return end !== '' && end >= todayISO
 }
 
+// ─── Termin in der Vergangenheit (WW-72) ─────────────────────────────────
+//
+// Auslöser: drei Termine im Januar 2026 statt im Januar 2027 vergeben — das
+// Jahr im Datumsfeld vertippt, und nichts hat es gemerkt. Daraus wird ein
+// HINWEIS, keine Sperre (Entscheid des Betreibers zu WW-72): ein Termin, der
+// stattgefunden hat und erst nachträglich erfasst wird, ist legitim, und
+// eine Sperre zwänge genau dann zu einem falschen Datum.
+
+/**
+ * Hinweistext, wenn der Termin vor heute beginnt — sonst null.
+ *
+ * Ganz vorbei (Ende vor heute) und «läuft schon» (Start vor heute, Ende heute
+ * oder später) sind verschiedene Sätze: der zweite ist ein laufender Einsatz,
+ * kein Tippfehler im Jahr. Ein Jahr vor 2000 gilt als noch nicht fertig
+ * getippt — beim Tippen ins Jahressegment meldet der Browser «0002», «0020»,
+ * «0202», bevor «2027» dasteht, und der Hinweis soll dabei nicht flackern.
+ */
+export function pastAppointmentHint(startDate: string, endDate: string, today: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number(startDate.slice(0, 4)) < 2000) return null
+  if (startDate >= today) return null
+  const end = /^\d{4}-\d{2}-\d{2}$/.test(endDate) && endDate >= startDate ? endDate : startDate
+  if (end >= today) {
+    return `Der Termin hat bereits begonnen (${fmtDraftDate(startDate)}). Gespeichert wird er trotzdem.`
+  }
+  return `Dieser Termin liegt in der Vergangenheit (${fmtDraftDate(startDate)}). `
+    + 'Gespeichert wird er trotzdem — bitte Datum und Jahr prüfen.'
+}
+
+/**
+ * Ist das Datum neu gesetzt? Ein neuer Entwurf immer; ein gespeicherter nur,
+ * wenn Start oder Ende vom gespeicherten Stand abweichen. Der Hinweis gilt
+ * dem, der gerade ein Datum wählt — nicht jedem vergangenen Termin, den man
+ * aufklappt, um nachzusehen, wer dort war.
+ */
+export function draftDateChanged(d: AppointmentDraft, baseline: AppointmentDraft[]): boolean {
+  if (!d.id) return true
+  const before = baseline.find(b => b.id === d.id)
+  return !before || before.startDate !== d.startDate || before.endDate !== d.endDate
+}
+
 // Der nächste Termin ab heute (laufende mehrtägige Termine zählen als
 // «nächster»). Ohne künftigen Termin null — die Maske zeigt dann den Hinweis,
 // dass nichts geplant ist.

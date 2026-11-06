@@ -7,7 +7,7 @@ import { customerAttentionLine, customerRecipientName, type Customer } from '../
 import type { DisposalDetails, Eigentuemer, Kontakt, Project, RechnungsReferenz } from '../../../api/admin/projects'
 import {
   AppointmentDraft, appointmentsFollowingProjectTeam, apptToDraft, diffAppointments, draftPayload,
-  isDraftDirty, mergeAfterSync, pinProjectTeam, teamlessFollowersError, teamsDiffer, validateDraft,
+  draftDateChanged, isDraftDirty, mergeAfterSync, pinProjectTeam, teamlessFollowersError, teamsDiffer, validateDraft,
   validateDraftTeams, validateDrafts,
 } from '../projectAppointments'
 import { NewProjectPrefill, takeNewProjectPrefill } from '../newProjectPrefill'
@@ -71,8 +71,12 @@ export interface UseProjectForm {
   /**
    * Kunde waehlen — seedet Objektadresse UND Ansprechperson (Name, Telefon,
    * E-Mail) aus dem Stamm, solange die Maske dazu nichts Eigenes hat.
+   *
+   * `known`: der Kunde selbst, wenn er eben erst angelegt wurde (WW-71) — er
+   * steht dann noch nicht in `customers`, die der Aufrufer im selben Klick
+   * nachführt, und ohne ihn bliebe die Vorbelegung aus.
    */
-  selectCustomer: (id: string) => void
+  selectCustomer: (id: string, known?: Customer) => void
   selectedCustomer: Customer | null
   /** Empfaenger/Adresse nach derselben Vorrang-Kette wie das Backend. */
   billingRecipient: string
@@ -234,6 +238,8 @@ export interface UseProjectForm {
   removeAppointmentNow: (key: string) => Promise<string>
   /** Ist dieser Termin geändert oder neu? */
   isAppointmentDirty: (d: AppointmentDraft) => boolean
+  /** Ist sein Datum neu gesetzt (neuer Termin oder Start/Ende geändert)? — WW-72 */
+  isAppointmentDateChanged: (d: AppointmentDraft) => boolean
   /** Frisch angelegte Kunden an ihre Kontaktzeilen (und ggf. ans Projekt) hängen. */
   linkCreatedCustomers: (created: { id: string; name: string }[]) => void
 }
@@ -505,10 +511,10 @@ export function useProjectForm(opts: {
     if (isEigentuemerEmpty(eigentuemer) && ref.eigentuemer) setEigentuemer(ref.eigentuemer)
   }
 
-  function selectCustomer(id: string) {
+  function selectCustomer(id: string, known?: Customer) {
     const prev = customerId ? customers.find(x => x.id === customerId) ?? null : null
     setCustomerId(id)
-    const c = id ? customers.find(x => x.id === id) ?? null : null
+    const c = id ? (known?.id === id ? known : customers.find(x => x.id === id) ?? null) : null
     if (id && !c) return   // Liste noch nicht geladen: lieber nichts seeden als das Falsche
     if (c && !objectAddressTouched && addressFollowsCustomer(objectAddress, prev)) {
       setObjectAddress(customerSeedAddress(c))
@@ -803,7 +809,7 @@ export function useProjectForm(opts: {
   // Eigene Funktionen statt eines Wrappers um die Setter — ein Wrapper, der
   // beim Rendern gebaut wird, hielte der React Compiler für einen Ref-Zugriff
   // während des Renderns.
-  function selectCustomerNow(id: string) { immediate.current = true; selectCustomer(id) }
+  function selectCustomerNow(id: string, known?: Customer) { immediate.current = true; selectCustomer(id, known) }
   function setBillingDiffersNow(v: boolean) { immediate.current = true; setBillingDiffers(v) }
   function toggleArtNow(value: string) { immediate.current = true; toggleArt(value) }
   function setGeruestfaecherNow(v: string[]) { immediate.current = true; setGeruestfaecher(v) }
@@ -942,6 +948,10 @@ export function useProjectForm(opts: {
     return isDraftDirty(d, baseline.appointments)
   }
 
+  function isAppointmentDateChanged(d: AppointmentDraft): boolean {
+    return draftDateChanged(d, baseline.appointments)
+  }
+
   /** Einen Termin speichern (§3.4) — nur diesen, nicht den Diff der Liste. */
   async function commitAppointment(key: string): Promise<string> {
     const d = appointments.find(x => x.key === key)
@@ -1030,7 +1040,7 @@ export function useProjectForm(opts: {
     takeImmediate,
     releaseAddressHold,
     persistAuto, commitTeam, resetTeam,
-    commitAppointment, removeAppointmentNow, isAppointmentDirty,
+    commitAppointment, removeAppointmentNow, isAppointmentDirty, isAppointmentDateChanged,
     linkCreatedCustomers,
   }
 }

@@ -14,7 +14,10 @@ export interface DocumentsTabProps {
 export function DocumentsTab({ files, uploading, uploadingCategory, onUpload, onDelete, onRename }: DocumentsTabProps) {
   return (
     <div className="admin-table-wrap" style={{ padding: 24 }}>
-      <div className="admin-section-title" style={{ marginBottom: 14 }}>Dokumente & Fotos</div>
+      <div className="admin-section-title" style={{ marginBottom: 6 }}>Dokumente & Fotos</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+        Alles in diesem Reiter sehen die Monteure in der App beim Projekt unter «Dokumente &amp; Fotos».
+      </div>
       <FileSections
         files={files}
         sections={PROJECT_DOC_SECTIONS}
@@ -48,7 +51,15 @@ export function SupplierDocumentsTab({
   const days = daysSince(beschaffungStatusAt)
   return (
     <div className="admin-table-wrap" style={{ padding: 24 }}>
-      <div className="admin-section-title" style={{ marginBottom: 14 }}>Lieferantendokumente</div>
+      <div className="admin-section-title" style={{ marginBottom: 6 }}>Lieferantendokumente</div>
+      {/* WW-73: das Büro legte Lieferscheine zusätzlich unter Dokumente → Sonstiges
+          ab, weil es nicht wusste, dass der Monteur sie hier schon sieht. */}
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 14 }}>
+        Den <strong>Lieferschein</strong> sehen die Monteure in der App beim Projekt (Karte
+        «Lieferscheine») — ein zweites Ablegen unter «Dokumente» ist nicht nötig. Angebote,
+        Bestellungen und Auftragsbestätigungen der Lieferanten bleiben im Büro, weil sie
+        Einkaufspreise enthalten.
+      </div>
 
       {/* Beschaffungsstatus: bewusst hier und nicht im Status-Reiter (dort steht der
           Lebenszyklus). Man setzt den Schritt in dem Moment, in dem man auch das
@@ -97,6 +108,7 @@ export function SupplierDocumentsTab({
       <FileSections
         files={files}
         sections={SUPPLIER_DOC_SECTIONS}
+        showVisibility
         uploading={uploading}
         uploadingCategory={uploadingCategory}
         onUpload={onUpload}

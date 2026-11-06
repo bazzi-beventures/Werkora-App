@@ -39,7 +39,11 @@ function formStub(selectedCustomer: Customer | null): UseProjectForm {
   } as unknown as UseProjectForm
 }
 
-function setup(selectedCustomer: Customer | null, onOpenCustomer?: (id: string) => void) {
+function setup(
+  selectedCustomer: Customer | null,
+  onOpenCustomer?: (id: string) => void,
+  onCreateCustomer?: (query: string) => void,
+) {
   render(
     <DetailsForm
       form={formStub(selectedCustomer)}
@@ -51,6 +55,7 @@ function setup(selectedCustomer: Customer | null, onOpenCustomer?: (id: string) 
       onSubmit={vi.fn()}
       onCancel={vi.fn()}
       onOpenCustomer={onOpenCustomer}
+      onCreateCustomer={onCreateCustomer}
     />,
   )
 }
@@ -70,5 +75,22 @@ describe('DetailsForm — Weg in den Kundenstamm', () => {
   it('ohne gewählten Kunden kein Link', () => {
     setup(null, vi.fn())
     expect(screen.queryByRole('link', { name: /Im Kundenstamm öffnen/ })).toBeNull()
+  })
+})
+
+// WW-71: der neue Kunde entsteht in der Projektmaske, nicht erst im Kundenstamm.
+describe('DetailsForm — neuen Kunden anlegen', () => {
+  afterEach(cleanup)
+
+  it('bietet ohne Kunden «+ Neuen Kunden anlegen» neben dem Feld an', () => {
+    const onCreateCustomer = vi.fn()
+    setup(null, undefined, onCreateCustomer)
+    fireEvent.click(screen.getByRole('button', { name: '+ Neuen Kunden anlegen' }))
+    expect(onCreateCustomer).toHaveBeenCalledWith('')
+  })
+
+  it('mit gewähltem Kunden steht dort der Link in den Kundenstamm', () => {
+    setup(KUNDE, vi.fn(), vi.fn())
+    expect(screen.queryByRole('button', { name: '+ Neuen Kunden anlegen' })).toBeNull()
   })
 })

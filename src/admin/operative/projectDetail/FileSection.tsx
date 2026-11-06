@@ -6,6 +6,7 @@ import { DownloadIcon } from '../../../shared/DownloadIcon'
 import { FileThumb } from '../../../shared/FileThumb'
 import { selectBaseName } from '../../../shared/selectBaseName'
 import type { ProjectFile, ProjectFileCategory } from './types'
+import { MONTEUR_HIDDEN_FILE_CATEGORIES } from '../../../shared/projectDetail/types'
 
 export const PROJECT_DOC_SECTIONS: { key: ProjectFileCategory; title: string; legacyFallback?: boolean }[] = [
   { key: 'fotos', title: 'Fotos' },
@@ -75,6 +76,12 @@ export { CATEGORY_LABELS } from '../../../shared/projectDetail/types'
 interface FileSectionsProps {
   files: ProjectFile[]
   sections: { key: ProjectFileCategory; title: string; legacyFallback?: boolean }[]
+  /**
+   * Je Abschnitt dazuschreiben, ob die Monteure ihn in der App sehen (WW-73).
+   * Gesetzt im Reiter Lieferantendokumente — dort, und nur dort, liegen
+   * sichtbare und verborgene Abschnitte nebeneinander.
+   */
+  showVisibility?: boolean
   uploading: boolean
   uploadingCategory: ProjectFileCategory | null
   onUpload: (category: ProjectFileCategory, files: File[]) => void
@@ -84,6 +91,7 @@ interface FileSectionsProps {
 
 interface FileSectionProps {
   section: { key: ProjectFileCategory; title: string; legacyFallback?: boolean }
+  showVisibility?: boolean
   items: ProjectFile[]
   uploading: boolean
   isUploadingHere: boolean
@@ -92,10 +100,29 @@ interface FileSectionProps {
   onRename: (fileId: string, filename: string) => Promise<void>
 }
 
+// Wer sieht diesen Abschnitt? Rechts in der Abschnittsüberschrift, in normaler
+// Schrift statt der Versalien des Titels — es ist eine Auskunft, kein Name.
+function VisibilityBadge({ hidden }: { hidden: boolean }) {
+  return (
+    <span
+      data-testid="file-section-visibility"
+      title={hidden
+        ? 'Enthält Einkaufspreise und -konditionen — die Monteure sehen diese Dateien nicht.'
+        : 'Die Monteure sehen diese Dateien in der App beim Projekt.'}
+      style={{
+        marginLeft: 'auto', textTransform: 'none', letterSpacing: 0, fontWeight: 500,
+        color: hidden ? 'var(--muted)' : 'var(--success-ink)',
+      }}
+    >
+      {hidden ? 'Nur Büro' : 'Sehen auch die Monteure'}
+    </span>
+  )
+}
+
 // Eine Datei-Sektion (z.B. "Fotos") mit Drag-&-Drop-Feld + Hochladen-Button.
 // Sowohl Ablegen per Drag-&-Drop als auch Auswahl über den Button laden direkt
 // in DIESE Kategorie hoch — die Sektion bestimmt die Kategorie implizit.
-function FileSection({ section, items, uploading, isUploadingHere, onUpload, onDelete, onRename }: FileSectionProps) {
+function FileSection({ section, showVisibility = false, items, uploading, isUploadingHere, onUpload, onDelete, onRename }: FileSectionProps) {
   const [dragOver, setDragOver] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -158,6 +185,7 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
       >
         <span>{section.title}</span>
         <span style={{ color: 'var(--muted)', fontWeight: 500 }}>· {items.length}</span>
+        {showVisibility && <VisibilityBadge hidden={MONTEUR_HIDDEN_FILE_CATEGORIES.has(section.key)} />}
       </div>
 
       {/* Drag-&-Drop-Feld: Datei reinziehen ODER klicken / Button → Datei-Auswahl */}
@@ -304,7 +332,7 @@ function FileSection({ section, items, uploading, isUploadingHere, onUpload, onD
   )
 }
 
-export function FileSections({ files, sections, uploading, uploadingCategory, onUpload, onDelete, onRename }: FileSectionsProps) {
+export function FileSections({ files, sections, showVisibility, uploading, uploadingCategory, onUpload, onDelete, onRename }: FileSectionsProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {sections.map(section => {
@@ -322,6 +350,7 @@ export function FileSections({ files, sections, uploading, uploadingCategory, on
           <FileSection
             key={section.key}
             section={section}
+            showVisibility={showVisibility}
             items={items}
             uploading={uploading}
             isUploadingHere={uploading && uploadingCategory === section.key}
