@@ -20,7 +20,8 @@ interface Props {
 //   tippen: HTML -> Markdown  (turndown)
 // Dadurch bleibt der gespeicherte Wert ungefährlicher Text (kein Stored-HTML/-XSS),
 // und Editor-Darstellung = generiertes PDF (beide parsen dasselbe Markdown mit derselben
-// markdown-it-Engine). NICHT für Produktbeschreibungen — die bleiben plain.
+// markdown-it-Engine). Seit WS-37 auch für die Produktbeschreibung der Offerte — dort
+// mit den beiden Mistral-Knöpfen drumherum (SpellcheckTextarea, Prop `rich`).
 
 // Deckungsgleich mit services/invoice_generator._MD_RENDERER: nur fett/kursiv/Listen/
 // Umbrüche, html=false (kein rohes HTML), keine Link-/Bild-Regeln.
@@ -47,9 +48,17 @@ const turndown = new TurndownService({
   blankReplacement: (_content, node) => ((node as unknown as { isBlock: boolean }).isBlock ? '\n\n' + NBSP + '\n\n' : ''),
 })
 
+// Ein Stern zwischen zwei Ziffern ist ein Mass («2400*1800»), kein Kursiv-Marker —
+// sonst würde in einem alten Klartext mit zwei Massen alles dazwischen kursiv.
+// Spiegel von services/invoice_generator._DIMENSION_STAR_RE, damit Editor und PDF
+// dasselbe zeigen. Was der Editor selbst schreibt, escaped turndown ohnehin (`\*`).
+export function protectDimensions(value: string): string {
+  return value.replace(/(\d)\*(?=\d)/g, '$1\\*')
+}
+
 export function mdToHtml(value: string): string {
   if (!value || value.trim() === '') return ''
-  return md.render(value)
+  return md.render(protectDimensions(value))
 }
 
 export function htmlToMd(html: string): string {

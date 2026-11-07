@@ -545,6 +545,7 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
         onProductDescriptionChange={setProductDescription}
         onNotesChange={setNotes}
         notesPlaceholder="Optionale Bemerkungen zur Offerte…"
+        projectId={selectedProject?.id ?? (projectId || null)}
         standardNotes={{
           checked: useStandardNotes,
           onChange: on => { setUseStandardNotes(on); setNotes(on ? stdNotes : '') },

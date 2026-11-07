@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { QuoteEditForm } from './QuoteEditForm'
 import { quoteEditDraftKey } from './quoteEditDraft'
 import type { QuoteDetail } from './quoteTypes'
+import { richTextValue, setRichText } from '../../../test/richText'
 
 // Support WS-28: ein Admin flog mitten in der Bearbeitung einer Offerte aufs
 // Login (Sitzung «abgelaufen») — die App baut dabei die Maske ab, ohne dass
@@ -45,15 +46,16 @@ function quote(over: Partial<QuoteDetail> = {}): QuoteDetail {
   }
 }
 
-function feld(): HTMLTextAreaElement {
-  return screen.getByPlaceholderText(PLATZHALTER) as HTMLTextAreaElement
+// Die Produktbeschreibung ist seit WS-37 ein formatierbarer Editor (contentEditable).
+function feld(): HTMLElement {
+  return screen.getByPlaceholderText(PLATZHALTER)
 }
 
 /** Maske öffnen, ein Feld ändern und sie dann OHNE Abbrechen abbauen — so wie
  *  es der Sprung aufs Login tut. */
 function bearbeitenUndAbbauen(q: QuoteDetail = quote()) {
   const { unmount } = render(<QuoteEditForm quote={q} onDone={() => {}} onCancel={() => {}} />)
-  fireEvent.change(feld(), { target: { value: 'Rolladen Rolpac III, elektrisch' } })
+  setRichText(feld(), 'Rolladen Rolpac III, elektrisch')
   unmount()
 }
 
@@ -62,7 +64,7 @@ describe('QuoteEditForm — Entwurf überlebt den Abbau der Maske', () => {
 
   it('hält ungespeicherte Änderungen laufend fest', async () => {
     render(<QuoteEditForm quote={quote()} onDone={() => {}} onCancel={() => {}} />)
-    fireEvent.change(feld(), { target: { value: 'Rolladen Rolpac III, elektrisch' } })
+    setRichText(feld(), 'Rolladen Rolpac III, elektrisch')
 
     await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull())
     const stored = JSON.parse(localStorage.getItem(KEY)!)
@@ -75,7 +77,7 @@ describe('QuoteEditForm — Entwurf überlebt den Abbau der Maske', () => {
     const onDirtyChange = vi.fn()
     render(<QuoteEditForm quote={quote()} onDone={() => {}} onCancel={() => {}} onDirtyChange={onDirtyChange} />)
 
-    await waitFor(() => expect(feld().value).toBe('Rolladen Rolpac III, elektrisch'))
+    await waitFor(() => expect(richTextValue(feld())).toBe('Rolladen Rolpac III, elektrisch'))
     expect(screen.getByText(/wiederhergestellt/)).toBeTruthy()
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
   })
@@ -86,34 +88,34 @@ describe('QuoteEditForm — Entwurf überlebt den Abbau der Maske', () => {
     // Seither hat jemand die Offerte gespeichert (z.B. derselbe Admin nach dem Neu-Login).
     render(<QuoteEditForm quote={quote({ product_description: 'Neu gespeichert' })} onDone={() => {}} onCancel={() => {}} />)
 
-    expect(feld().value).toBe('Neu gespeichert')
+    expect(richTextValue(feld())).toBe('Neu gespeichert')
     expect(screen.getByText(/seither gespeichert/)).toBeTruthy()
     // Der ältere Entwurf bleibt liegen, solange nicht entschieden ist.
     expect(JSON.parse(localStorage.getItem(KEY)!).data.productDescription).toBe('Rolladen Rolpac III, elektrisch')
 
     fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }))
-    await waitFor(() => expect(feld().value).toBe('Rolladen Rolpac III, elektrisch'))
+    await waitFor(() => expect(richTextValue(feld())).toBe('Rolladen Rolpac III, elektrisch'))
   })
 
   it('«Verwerfen» setzt die Maske auf die gespeicherte Offerte zurück und löscht den Entwurf', async () => {
     bearbeitenUndAbbauen()
     render(<QuoteEditForm quote={quote()} onDone={() => {}} onCancel={() => {}} />)
-    await waitFor(() => expect(feld().value).toBe('Rolladen Rolpac III, elektrisch'))
+    await waitFor(() => expect(richTextValue(feld())).toBe('Rolladen Rolpac III, elektrisch'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }))
 
-    await waitFor(() => expect(feld().value).toBe('Rolladen Rolpac III'))
+    await waitFor(() => expect(richTextValue(feld())).toBe('Rolladen Rolpac III'))
     expect(localStorage.getItem(KEY)).toBeNull()
   })
 
   it('«Verwerfen» eines veralteten Entwurfs lässt neue Eingaben stehen', async () => {
     bearbeitenUndAbbauen()
     render(<QuoteEditForm quote={quote({ product_description: 'Neu gespeichert' })} onDone={() => {}} onCancel={() => {}} />)
-    fireEvent.change(feld(), { target: { value: 'Frisch getippt' } })
+    setRichText(feld(), 'Frisch getippt')
 
     fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }))
 
-    expect(feld().value).toBe('Frisch getippt')
+    expect(richTextValue(feld())).toBe('Frisch getippt')
     expect(screen.queryByText(/seither gespeichert/)).toBeNull()
     // Ab jetzt hält die Maske wieder den aktuellen Stand fest.
     await waitFor(() => expect(JSON.parse(localStorage.getItem(KEY)!).data.productDescription).toBe('Frisch getippt'))
@@ -122,7 +124,7 @@ describe('QuoteEditForm — Entwurf überlebt den Abbau der Maske', () => {
   it('«Abbrechen» ist eine Entscheidung: der Entwurf ist danach weg', async () => {
     const onCancel = vi.fn()
     render(<QuoteEditForm quote={quote()} onDone={() => {}} onCancel={onCancel} />)
-    fireEvent.change(feld(), { target: { value: 'Etwas anderes' } })
+    setRichText(feld(), 'Etwas anderes')
     await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull())
 
     fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
@@ -134,7 +136,7 @@ describe('QuoteEditForm — Entwurf überlebt den Abbau der Maske', () => {
   it('erfolgreiches Speichern löscht den Entwurf', async () => {
     const onDone = vi.fn()
     render(<QuoteEditForm quote={quote()} onDone={onDone} onCancel={() => {}} />)
-    fireEvent.change(feld(), { target: { value: 'Etwas anderes' } })
+    setRichText(feld(), 'Etwas anderes')
     await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull())
 
     fireEvent.click(screen.getByRole('button', { name: 'Änderungen speichern' }))
@@ -145,10 +147,10 @@ describe('QuoteEditForm — Entwurf überlebt den Abbau der Maske', () => {
 
   it('zurück auf den gespeicherten Stand = kein Entwurf mehr', async () => {
     render(<QuoteEditForm quote={quote()} onDone={() => {}} onCancel={() => {}} />)
-    fireEvent.change(feld(), { target: { value: 'Etwas anderes' } })
+    setRichText(feld(), 'Etwas anderes')
     await waitFor(() => expect(localStorage.getItem(KEY)).not.toBeNull())
 
-    fireEvent.change(feld(), { target: { value: 'Rolladen Rolpac III' } })
+    setRichText(feld(), 'Rolladen Rolpac III')
 
     await waitFor(() => expect(localStorage.getItem(KEY)).toBeNull())
   })

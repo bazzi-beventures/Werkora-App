@@ -383,6 +383,7 @@ export function MaterialLegend() {
  *  der auf der Offerte steht, und der Mandanten-Standard hat nichts mehr zu suchen. */
 export function QuoteTextFields({
   productDescription, notes, onProductDescriptionChange, onNotesChange, notesPlaceholder, standardNotes,
+  projectId,
 }: {
   productDescription: string
   notes: string
@@ -390,6 +391,8 @@ export function QuoteTextFields({
   onNotesChange: (v: string) => void
   notesPlaceholder: string
   standardNotes?: { checked: boolean; onChange: (on: boolean) => void }
+  /** Projekt der Offerte — «Beschreibung formulieren» liest daraus die Leistungsart. */
+  projectId?: string | null
 }) {
   return (
     <>
@@ -397,12 +400,16 @@ export function QuoteTextFields({
         <label className="admin-form-label">Produktbeschreibung</label>
         {/* `compose`: aus Stichworten («Hagelschaden Ersatz Lamellenstoren, neu
             Lamisol 90 konventionell, Farbe VSR 140») wird der fertige Offerttext.
-            Genau hier und sonst nirgends — dieses Feld steht so im Kundendokument. */}
+            Genau hier und sonst nirgends — dieses Feld steht so im Kundendokument.
+            `rich` (WS-37): fette Zwischentitel und Aufzählungen wie bei den
+            Bemerkungen; das PDF druckt das Feld mit dem `richtext`-Filter. */}
         <SpellcheckTextarea
           value={productDescription}
           onChange={onProductDescriptionChange}
           placeholder="Beschreibung der angebotenen Produkte…"
           compose
+          rich
+          projectId={projectId}
         />
       </div>
       <div style={{ marginBottom: 20 }}>

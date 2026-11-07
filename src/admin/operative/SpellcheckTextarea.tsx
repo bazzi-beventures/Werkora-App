@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { checkSpelling, composeQuoteDescription } from '../../api/admin/spellcheck'
 import { AutoGrowTextarea } from '../components/AutoGrowTextarea'
+import { mdToHtml, RichTextField } from '../components/RichTextField'
 
 interface Props {
   value: string
@@ -16,6 +17,20 @@ interface Props {
    *  Fliesstext, der in die Offerte kommt. Nur dort sinnvoll, wo der Inhalt des
    *  Felds am Ende beim Kunden landet — deshalb ein Schalter und kein Default. */
   compose?: boolean
+  /** Formatierbar statt Klartext: der Editor der Bemerkungen (fett, kursiv,
+   *  Listen; gespeichert als Markdown) mit denselben zwei Knöpfen darunter. Nur
+   *  für Felder, die das PDF mit dem `richtext`-Filter druckt — sonst stünden die
+   *  Sternchen wörtlich im Beleg. Seit WS-37 die Produktbeschreibung der Offerte. */
+  rich?: boolean
+  /** Projekt der Offerte: «Beschreibung formulieren» schickt es mit, damit das
+   *  Modell die Leistungsart kennt (Neumontage ⇒ kein Schadenfall, WS-37). */
+  projectId?: string | null
+}
+
+/** Markdown fürs Auge, ohne Sternchen und Escapes — nur für die Hervorhebung der
+ *  Rechtschreibprüfung im formatierbaren Feld, wo man die Marker sonst nie sieht. */
+function plainForDisplay(md: string): string {
+  return md.replace(/\*\*/g, '').replace(/\\([\\`*_{}[\]()#+\-.!])/g, '$1')
 }
 
 // Wort-Level-Hervorhebung: markiert Tokens im Vorschlag, die so nicht (mehr) im
@@ -62,7 +77,9 @@ const SUGGESTION_TITLE: Record<SuggestionKind, string> = {
  * Beide zeigen ihren Vorschlag im selben Popup und übernehmen ihn erst nach
  * Bestätigung — was beim Kunden landet, entsteht nie ungesehen.
  */
-export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, maxRows = 30, compose = false }: Props) {
+export function SpellcheckTextarea({
+  value, onChange, placeholder, rows = 5, maxRows = 30, compose = false, rich = false, projectId,
+}: Props) {
   const [busy, setBusy] = useState<SuggestionKind | null>(null)
   const [error, setError] = useState('')
   const [noErrors, setNoErrors] = useState(false)
@@ -78,7 +95,7 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, max
     try {
       const proposal = next === 'spell'
         ? await checkSpelling(value).then(r => (r.changed ? r.corrected : ''))
-        : await composeQuoteDescription(value).then(r => (r.changed ? r.description : ''))
+        : await composeQuoteDescription(value, projectId).then(r => (r.changed ? r.description : ''))
       if (proposal.trim() && proposal.trim() !== value.trim()) {
         setOriginal(value)
         setKind(next)
@@ -105,14 +122,23 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, max
 
   return (
     <div>
-      <AutoGrowTextarea
-        className="admin-form-input"
-        minRows={rows}
-        maxRows={maxRows}
-        value={value}
-        onChange={e => { onChange(e.target.value); setNoErrors(false) }}
-        placeholder={placeholder}
-      />
+      {rich ? (
+        <RichTextField
+          value={value}
+          onChange={v => { onChange(v); setNoErrors(false) }}
+          placeholder={placeholder}
+          rows={rows}
+        />
+      ) : (
+        <AutoGrowTextarea
+          className="admin-form-input"
+          minRows={rows}
+          maxRows={maxRows}
+          value={value}
+          onChange={e => { onChange(e.target.value); setNoErrors(false) }}
+          placeholder={placeholder}
+        />
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6, flexWrap: 'wrap' }}>
         <button
           type="button"
@@ -160,13 +186,20 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, max
             </p>
 
             <label className="admin-form-label">{kind === 'spell' ? 'Original' : 'Deine Stichworte'}</label>
-            <div style={{ whiteSpace: 'pre-wrap', background: 'var(--surface-2)', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 13, color: 'var(--muted, #666)', marginBottom: 14 }}>
-              {original}
+            <div style={{ whiteSpace: rich ? undefined : 'pre-wrap', background: 'var(--surface-2)', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 13, color: 'var(--muted, #666)', marginBottom: 14 }}>
+              {rich ? <Formatted md={original} /> : original}
             </div>
 
             <label className="admin-form-label">Vorschlag</label>
-            <div style={{ whiteSpace: 'pre-wrap', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 14, lineHeight: 1.5, marginBottom: 18 }}>
-              {kind === 'spell' ? highlightChanges(original, suggestion) : suggestion}
+            <div
+              data-testid="suggestion"
+              style={{ whiteSpace: rich && kind === 'compose' ? undefined : 'pre-wrap', border: '1px solid var(--border, #e0e0e0)', borderRadius: 'var(--radius-sm)', padding: 10, fontSize: 14, lineHeight: 1.5, marginBottom: 18 }}
+            >
+              {kind === 'spell'
+                ? highlightChanges(rich ? plainForDisplay(original) : original, rich ? plainForDisplay(suggestion) : suggestion)
+                // Formatiert wie im PDF: Zwischentitel fett, Aufzählung als Liste — so
+                // sieht der Anwender vor dem Übernehmen, was beim Kunden ankommt.
+                : rich ? <Formatted md={suggestion} /> : suggestion}
             </div>
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -178,4 +211,11 @@ export function SpellcheckTextarea({ value, onChange, placeholder, rows = 5, max
       )}
     </div>
   )
+}
+
+/** Markdown-Subset als HTML, mit derselben Engine wie Editor und PDF. `mdToHtml`
+ *  rendert mit `html: false` und ohne Link-/Bild-Regeln — rohes HTML im Text
+ *  bleibt Text, deshalb ist das innerHTML hier so sicher wie im Editor selbst. */
+function Formatted({ md }: { md: string }) {
+  return <div className="richtext-preview" dangerouslySetInnerHTML={{ __html: mdToHtml(md) }} />
 }

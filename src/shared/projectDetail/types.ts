@@ -31,6 +31,21 @@ export const PROJECT_KIND_LABELS: Record<ProjectKind, string> = {
   sonstiges: 'Sonstiges',
 }
 
+/** Ob ein Projektleiter bei dieser Einsatz-Art etwas bedeutet.
+ *
+ *  Beim Kundenprojekt ist er der Zuständige. Beim Blocker und bei der
+ *  Reservation hält er fest, wessen Projekt da Kapazität vorhält («evtl.
+ *  Baustelle Müller») — dafür filtert ihn der Projektleiter seiner Planung.
+ *  Teamsitzung, Lager, Werkstatt, Weiterbildung und «Büro» (Sonstiges) gehören
+ *  niemandem: dort wäre er ein stiller Empfänger von Aufgaben und stünde in der
+ *  Monteur-App als Ansprechperson, ohne es zu sein. Die Einsatzplanung blendet
+ *  das Feld dort aus, leert es beim Speichern und lässt solche Einsätze im
+ *  Projektleiter-Filter stehen — sie zeigen, wer verfügbar ist, nicht wessen
+ *  Portfolio es ist. Fehlt die Art (ältere Zeilen), gilt «Kundenprojekt». */
+export function kindHasProjektleiter(kind: ProjectKind | null | undefined): boolean {
+  return !kind || kind === 'project' || kind === 'blocker' || kind === 'reservation'
+}
+
 export interface Kontakt {
   name: string
   kommentar: string

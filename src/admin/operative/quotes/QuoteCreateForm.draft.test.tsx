@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { QuoteCreateForm } from './QuoteCreateForm'
 import { hasQuoteDraft } from './quoteDraft'
 import { apiFetch } from '../../../api/client'
+import { richTextValue, setRichText } from '../../../test/richText'
 
 // Der Auto-Entwurf ist der einzige Prüfgegenstand: beim Öffnen wird ein
 // vorhandener Entwurf ohne Rückfrage übernommen, die Entscheidung
@@ -81,7 +82,7 @@ describe('QuoteCreateForm — Auto-Entwurf', () => {
     renderForm()
 
     const desc = await screen.findByPlaceholderText(DESC_PLACEHOLDER)
-    expect(desc).toHaveValue('Fenster EG ersetzen')
+    expect(richTextValue(desc)).toBe('Fenster EG ersetzen')
     expect(screen.getByText(/Entwurf.*übernommen/)).toBeInTheDocument()
     // Die frühere Entscheidung beim Öffnen gibt es nicht mehr.
     expect(screen.queryByRole('button', { name: 'Wiederherstellen' })).not.toBeInTheDocument()
@@ -95,15 +96,14 @@ describe('QuoteCreateForm — Auto-Entwurf', () => {
     await screen.findByPlaceholderText(DESC_PLACEHOLDER)
     await user.click(screen.getByRole('button', { name: 'Leer starten' }))
 
-    expect(screen.getByPlaceholderText(DESC_PLACEHOLDER)).toHaveValue('')
+    expect(richTextValue(screen.getByPlaceholderText(DESC_PLACEHOLDER))).toBe('')
     await waitFor(() => expect(hasQuoteDraft(PROJECT)).toBe(false))
   })
 
   it('speichert Eingaben laufend als Entwurf', async () => {
-    const user = userEvent.setup()
     renderForm()
 
-    await user.type(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
+    setRichText(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
 
     await waitFor(() => expect(hasQuoteDraft(PROJECT)).toBe(true))
   })
@@ -112,7 +112,7 @@ describe('QuoteCreateForm — Auto-Entwurf', () => {
     const user = userEvent.setup()
     const onCancel = renderForm()
 
-    await user.type(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
+    setRichText(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
     await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
 
     expect(screen.getByText('Offerte verlassen')).toBeInTheDocument()
@@ -128,7 +128,7 @@ describe('QuoteCreateForm — Auto-Entwurf', () => {
     const user = userEvent.setup()
     const onCancel = renderForm()
 
-    await user.type(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
+    setRichText(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
     await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
     await user.click(screen.getByRole('button', { name: 'Entwurf verwerfen' }))
 
@@ -140,13 +140,13 @@ describe('QuoteCreateForm — Auto-Entwurf', () => {
     const user = userEvent.setup()
     const onCancel = renderForm()
 
-    await user.type(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
+    setRichText(await screen.findByPlaceholderText(DESC_PLACEHOLDER), 'Dach neu')
     await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
     await user.click(screen.getByRole('button', { name: 'Zurück zum Formular' }))
 
     expect(onCancel).not.toHaveBeenCalled()
     expect(screen.queryByText('Offerte verlassen')).not.toBeInTheDocument()
-    expect(screen.getByPlaceholderText(DESC_PLACEHOLDER)).toHaveValue('Dach neu')
+    expect(richTextValue(screen.getByPlaceholderText(DESC_PLACEHOLDER))).toBe('Dach neu')
   })
 
   it('schliesst ein leeres Formular ohne Rückfrage und räumt den Slot', async () => {

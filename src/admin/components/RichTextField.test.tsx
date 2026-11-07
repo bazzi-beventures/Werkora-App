@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { mdToHtml, htmlToMd, RichTextField } from './RichTextField'
+import { mdToHtml, htmlToMd, protectDimensions, RichTextField } from './RichTextField'
 
 // execCommand-Formatierung lässt sich in jsdom nicht ausführen — deshalb prüfen wir die
 // reine Konvertierungslogik (die Quelle möglicher Fehler) sowie einen Render-Smoke-Test.
@@ -47,6 +47,19 @@ describe('RichTextField – Konvertierung', () => {
     const md1 = htmlToMd('<div>A</div><div><br></div><div>B</div>')
     // Laden (mdToHtml) → erneut serialisieren muss denselben Markdown ergeben.
     expect(htmlToMd(mdToHtml(md1))).toBe(md1)
+  })
+
+  it('Masse mit Stern werden nicht kursiv (wie im PDF)', () => {
+    // Alte Klartext-Produktbeschreibungen (vor WS-37) tragen «2400*1800» — zwei davon
+    // in einem Absatz machten sonst alles dazwischen kursiv.
+    const html = mdToHtml('Masse 2400*1800 und 1200*800 mm')
+    expect(html).not.toContain('<em>')
+    expect(html).toContain('2400*1800 und 1200*800')
+    expect(protectDimensions('2*3*4')).toBe('2\\*3\\*4')
+    // Schon escaped (vom Editor selbst geschrieben) — nicht doppelt.
+    expect(protectDimensions('2400\\*1800')).toBe('2400\\*1800')
+    // Echtes Kursiv bleibt Kursiv.
+    expect(mdToHtml('*kursiv*')).toContain('<em>kursiv</em>')
   })
 
   it('rendert die Editor-Toolbar', () => {

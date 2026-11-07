@@ -377,10 +377,14 @@ input, textarea { font-family: var(--font); color: var(--text); }
    das PDF regelt eigenes Template-CSS (templates/quote_template.html .rich-text). */
 /* Linksbündig erzwingen — der Editor sitzt in einem zentrierten Formular-Abschnitt und
    würde sonst text-align:center erben (das PDF ist ohnehin linksbündig). */
-.richtext-field { text-align: left; }
-.richtext-field ul { list-style: disc; margin: 4px 0; padding-left: 22px; }
-.richtext-field ol { list-style: decimal; margin: 4px 0; padding-left: 22px; }
-.richtext-field li { margin: 1px 0; }
+/* .richtext-preview: dieselbe Darstellung im Vorschlags-Popup von «Beschreibung
+   formulieren» (SpellcheckTextarea) — der Vorschlag soll aussehen wie im PDF. */
+.richtext-field, .richtext-preview { text-align: left; }
+.richtext-field ul, .richtext-preview ul { list-style: disc; margin: 4px 0; padding-left: 22px; }
+.richtext-field ol, .richtext-preview ol { list-style: decimal; margin: 4px 0; padding-left: 22px; }
+.richtext-field li, .richtext-preview li { margin: 1px 0; }
+.richtext-preview p { margin: 0 0 6px; }
+.richtext-preview p:last-child { margin-bottom: 0; }
 
 /* ── HEADER LOGO ────────────────────────────────── */
 .header-logo {

@@ -26,7 +26,7 @@ import { downloadSchedulePdf, getProject, getScheduleProjects } from '../../api/
 import type { ProjectKind, ScheduleProject } from '../../api/admin/projects'
 import { listAllCustomers } from '../../api/admin/customers'
 import { getAdminStaff } from '../../api/admin/staff'
-import { PROJECT_KIND_LABELS, projectCustomerName } from '../utils/project'
+import { PROJECT_KIND_LABELS, kindHasProjektleiter, projectCustomerName } from '../utils/project'
 import ProjectScheduleCalendar, { CalendarEntry, type CalendarFocus } from './ProjectScheduleCalendar'
 import ScheduleSearch from './ScheduleSearch'
 import { filterPickerProjects, pickerLabel } from './projectPicker'
@@ -261,6 +261,14 @@ function fmtApptRow(a: ProjectAppointment): string {
 function internalFormTitle(kind: ProjectKind, blockerCategories: string[] = []): string {
   if (kind === 'blocker' && blockerCategories.length > 0) return ''
   return PROJECT_KIND_LABELS[kind]
+}
+
+// Ein geleertes Feld muss beim Ändern als `''` ankommen: der PATCH filtert `null`
+// weg (agents/routers/admin_projects.py, `_LEERBAR`), der Eintrag bliebe stehen,
+// während die Planung «Eintrag aktualisiert» meldet. Beim Anlegen dagegen `null`
+// — dort gibt es nichts zu leeren, und `''` landete als Wert in der Zeile.
+function leerbar(value: string, isUpdate: boolean): string | null {
+  return value || (isUpdate ? '' : null)
 }
 
 function emptyInternalForm(kind: ProjectKind, blockerCategories: string[] = []): FormState {
@@ -1159,9 +1167,13 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
           ...(override ? { ignore_absence_conflicts: true } : {}),
           ...({
             kind: form.kind,
-            projektleiter_id: form.projektleiterId || null,
+            // Bei Teamsitzung, Lager, «Büro» … gibt es keinen Projektleiter:
+            // ein alter Eintrag (früher trug sich der Erfasser selbst ein) wird
+            // beim Speichern geleert, auch wenn das Feld gar nicht mehr zu sehen ist.
+            projektleiter_id: leerbar(
+              kindHasProjektleiter(form.kind) ? form.projektleiterId : '', !!form.id),
             monteur_ids: form.monteurIds,
-            bemerkung: form.bemerkung || null,
+            bemerkung: leerbar(form.bemerkung, !!form.id),
           } as Record<string, unknown>),
         }) as unknown as { project?: { id?: string } } & { id?: string }
         targetId = form.id || saved.project?.id || saved.id
@@ -1319,9 +1331,13 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     [projektleiterOptions],
   )
 
+  // Interne Einsätze ohne Projektleiter-Bezug (Teamsitzung, Lager, «Büro» …)
+  // bleiben im Filter stehen: sie gehören keinem Portfolio, zeigen aber, dass
+  // der Monteur an dem Tag belegt ist. Ausgeblendet sah der Projektleiter einen
+  // freien Monteur, den er gar nicht hat.
   const filteredByPl = useMemo(
     () => projektleiterFilter
-      ? projects.filter(p => p.projektleiter_id === projektleiterFilter)
+      ? projects.filter(p => !kindHasProjektleiter(p.kind) || p.projektleiter_id === projektleiterFilter)
       : projects,
     [projects, projektleiterFilter],
   )
@@ -1726,19 +1742,21 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                   </label>
                 )}
 
-                <label className="project-schedule-field">
-                  <span>Projektleiter</span>
-                  <select
-                    className="admin-input"
-                    value={form.projektleiterId}
-                    onChange={e => setForm(f => f && ({ ...f, projektleiterId: e.target.value }))}
-                  >
-                    <option value="">— kein Projektleiter —</option>
-                    {projektleiterOptions.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </label>
+                {kindHasProjektleiter(form.kind) && (
+                  <label className="project-schedule-field">
+                    <span>Projektleiter</span>
+                    <select
+                      className="admin-input"
+                      value={form.projektleiterId}
+                      onChange={e => setForm(f => f && ({ ...f, projektleiterId: e.target.value }))}
+                    >
+                      <option value="">— kein Projektleiter —</option>
+                      {projektleiterOptions.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
 
                 <div className="project-schedule-field">
                   <div className="project-schedule-field-head">

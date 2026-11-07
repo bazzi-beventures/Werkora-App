@@ -7,7 +7,7 @@
 import type { EmbeddedCustomer } from '../../api/admin/projects'
 
 // Die Beschriftungen teilt sich die Verwaltung mit der Monteur-PWA (Charge H5).
-export { PROJECT_KIND_LABELS } from '../../shared/projectDetail/types'
+export { PROJECT_KIND_LABELS, kindHasProjektleiter } from '../../shared/projectDetail/types'
 
 /** Rechnungsname vor Kundenname — so steht es auch auf Offerte und Rechnung. */
 export function projectCustomerName(p: { customer?: Pick<EmbeddedCustomer, 'name' | 'billing_name'> | null }): string {

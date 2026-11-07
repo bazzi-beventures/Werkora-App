@@ -34,9 +34,14 @@ export interface QuoteDescriptionResult {
  * der des Anwenders — Aufbau und Ton kommen aus der Vorgabe des Mandanten
  * (Offert-Vorlagen → «Beschreibung formulieren»).
  */
-export async function composeQuoteDescription(text: string): Promise<QuoteDescriptionResult> {
+export async function composeQuoteDescription(
+  text: string,
+  // Projekt der Offerte: das Backend liest daraus die Leistungsart (Neumontage vs.
+  // Ersatz), damit eine Neuanlage nicht als Schadenfall formuliert wird (WS-37).
+  projectId?: string | null,
+): Promise<QuoteDescriptionResult> {
   return apiFetch<QuoteDescriptionResult>('/pwa/admin/quote-description', {
     method: 'POST',
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(projectId ? { text, project_id: projectId } : { text }),
   })
 }

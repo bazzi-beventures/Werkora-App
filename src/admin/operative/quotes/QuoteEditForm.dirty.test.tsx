@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { QuoteEditForm } from './QuoteEditForm'
 import type { QuoteDetail } from './quoteTypes'
+import { setRichText } from '../../../test/richText'
 
 // Der Projekt-Dialog braucht eine verlässliche Dirty-Meldung, bevor ein Klick
 // neben das Fenster die Maske schliesst. (Den localStorage-Entwurf prüft
@@ -59,7 +60,7 @@ describe('QuoteEditForm — Dirty-Meldung', () => {
     await waitFor(() => expect(onDirtyChange).toHaveBeenCalled())
 
     const feld = screen.getByPlaceholderText('Beschreibung der angebotenen Produkte…')
-    fireEvent.change(feld, { target: { value: 'Rolladen Rolpac III, elektrisch' } })
+    setRichText(feld, 'Rolladen Rolpac III, elektrisch')
 
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
   })
@@ -70,10 +71,10 @@ describe('QuoteEditForm — Dirty-Meldung', () => {
     await waitFor(() => expect(onDirtyChange).toHaveBeenCalled())
 
     const feld = screen.getByPlaceholderText('Beschreibung der angebotenen Produkte…')
-    fireEvent.change(feld, { target: { value: 'Etwas anderes' } })
+    setRichText(feld, 'Etwas anderes')
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(true))
 
-    fireEvent.change(feld, { target: { value: 'Rolladen Rolpac III' } })
+    setRichText(feld, 'Rolladen Rolpac III')
     await waitFor(() => expect(onDirtyChange).toHaveBeenLastCalledWith(false))
   })
 })

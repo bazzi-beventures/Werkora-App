@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QuoteCreateForm } from './QuoteCreateForm'
 import { apiFetch } from '../../../api/client'
+import { richTextValue } from '../../../test/richText'
 
 // Skonto-Satz und -Frist sind pro Firma praktisch immer gleich. Die Vorgabe aus den
 // Offert-Vorlagen belegt die beiden Felder vor, statt sie jedes Mal eintippen zu lassen.
@@ -83,7 +84,11 @@ describe('QuoteCreateForm — Skonto-Vorgabe', () => {
     )
 
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/quote-skonto-defaults'))
-    await waitFor(() => expect(screen.getByDisplayValue('Etwas')).toBeInTheDocument())
+    // Der Entwurf ist da, sobald seine Produktbeschreibung im Editor steht (seit WS-37
+    // ein contentEditable, kein Textfeld — getByDisplayValue fände ihn nicht).
+    await waitFor(() => expect(
+      richTextValue(screen.getByPlaceholderText('Beschreibung der angebotenen Produkte…')),
+    ).toBe('Etwas'))
     expect(skontoFelder().pct.value).toBe('')
     expect(skontoFelder().days.value).toBe('')
   })

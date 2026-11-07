@@ -161,9 +161,9 @@ export function QuoteDescriptionPromptSetting({ state }: { state: UseTenantTextR
         <>
           Der Knopf «Beschreibung formulieren» im Offert-Formular macht aus Stichworten
           («Hagelschaden Ersatz Lamellenstoren, neu Lamisol 90 konventionell, Farbe
-          VSR 140») den Fliesstext für die Offerte. Hier steht, wie dieser Text
+          VSR 140») den Text für die Offerte. Hier steht, wie dieser Text
           aufgebaut sein und klingen soll — womit er einsteigt, womit er schliesst,
-          was ausdrücklich erwähnt gehört.
+          was ausdrücklich erwähnt gehört, ob er Zwischentitel und Aufzählungen trägt.
         </>
       }
       state={state}
@@ -174,7 +174,9 @@ export function QuoteDescriptionPromptSetting({ state }: { state: UseTenantTextR
       hint={
         'Vorschläge werden immer erst nach Bestätigung übernommen. Unabhängig von dieser '
         + 'Vorgabe gilt: die KI erfindet keine Produkte, Farben, Masse oder Leistungen, '
-        + 'die nicht in den Stichworten stehen. Leer lassen setzt auf die Standard-Vorgabe zurück.'
+        + 'die nicht in den Stichworten stehen — und keinen Schadenfall: ein Einstieg für '
+        + 'Schadenfälle gilt nur, wenn die Stichworte einen Schaden nennen. '
+        + 'Leer lassen setzt auf die Standard-Vorgabe zurück.'
       }
     />
   )

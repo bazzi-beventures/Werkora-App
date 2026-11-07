@@ -476,6 +476,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
         onProductDescriptionChange={setProductDescription}
         onNotesChange={setNotes}
         notesPlaceholder="Optionale Bemerkungen…"
+        projectId={quote.project_id}
       />
 
       <div style={{ display: 'flex', gap: 12 }}>
