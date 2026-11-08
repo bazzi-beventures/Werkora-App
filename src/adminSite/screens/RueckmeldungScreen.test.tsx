@@ -35,7 +35,7 @@ vi.mock('../../api/rueckmeldung', () => ({
 }))
 
 import RueckmeldungScreen from './RueckmeldungScreen'
-import { filtere, FILTER_START, auswaehlbar, sperrGrund, umfrageText, fehlendeGleicheAdresse } from './rueckmeldungFilter'
+import { filtere, FILTER_START, auswaehlbar, csvZeilen, sperrGrund, umfrageText, fehlendeGleicheAdresse } from './rueckmeldungFilter'
 import type { AuswahlProjekt } from '../../api/rueckmeldung'
 
 const KAMPAGNE = {
@@ -98,6 +98,19 @@ beforeEach(() => {
 })
 
 describe('rueckmeldungFilter', () => {
+  it('CSV trägt die Telefonnummern — die Telefonliste für Zeilen ohne E-Mail', () => {
+    const [kopf, ...zeilen] = csvZeilen([
+      projekt({ projekt_nr: '2601551', projekt_name: 'Keller Dinhard HS', kunde_name: 'Keller',
+                telefon: [{ art: 'Mobil', nummer: '+41 79 111 22 33' }, { art: 'Vor Ort · Hauswart', nummer: '052 444 55 66' }] }),
+      projekt({ projekt_nr: '2601552', email: 'b@example.ch' }),   // älteres Backend: ohne telefon
+    ])
+    const i = kopf.indexOf('Telefon')
+    expect(kopf[i - 1]).toBe('E-Mail')
+    expect(zeilen[0][i]).toBe('Mobil: +41 79 111 22 33 · Vor Ort · Hauswart: 052 444 55 66')
+    expect(zeilen[0][kopf.indexOf('E-Mail')]).toBe('(keine)')
+    expect(zeilen[1][i]).toBe('')
+  })
+
   it('filtert nach Regel, Offerte, E-Mail und Suche', () => {
     expect(filtere(PROJEKTE, FILTER_START).map((p) => p.project_id)).toEqual(['p1', 'p2', 'p3', 'p5', 'p6', 'p7'])
     expect(filtere(PROJEKTE, { ...FILTER_START, nurRegel: false })).toHaveLength(7)

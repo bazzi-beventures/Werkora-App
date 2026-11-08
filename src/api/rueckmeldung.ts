@@ -109,6 +109,9 @@ export interface AuswahlProjekt {
   /** Leer = keine brauchbare Adresse (Kundenkarte und Projekt geprüft). */
   email: string
   objekt_adresse: string
+  /** Nummern der Kundenkarte (Mobil, Festnetz, Vor Ort, Eigentümer) — nur für
+   *  die CSV. Optional: ältere Backends liefern es nicht. */
+  telefon?: { art: string; nummer: string }[]
   passt_regel: boolean
   offerte: 'versendet' | 'entwurf' | 'keine'
   offerten: string[]

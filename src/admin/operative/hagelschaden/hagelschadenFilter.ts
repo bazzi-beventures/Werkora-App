@@ -10,7 +10,7 @@
 // stimmen, ohne die ganze Liste neu zu laden. Gleiche Regeln wie
 // services/hagelschaden_service.kennzahlen.
 
-import type { HagelKampagne, HagelZeile } from '../../../api/admin/hagelschaden'
+import type { HagelAusblendeGrund, HagelKampagne, HagelZeile } from '../../../api/admin/hagelschaden'
 
 export type UmfrageStatus =
   | 'alle' | 'angeschrieben' | 'beantwortet' | 'pendent' | 'erledigt'
@@ -236,4 +236,30 @@ export function speichereFilter(userId: string, f: HagelFilter): void {
   try {
     localStorage.setItem(speicherKey(userId), JSON.stringify({ ...f, suche: '' }))
   } catch { /* privates Fenster o. ä. — der Filter gilt dann nur für diese Sitzung */ }
+}
+
+const AUSBLENDE_LABELS: Record<HagelAusblendeGrund, string> = {
+  abgeschlossen: 'Projekt abgeschlossen/archiviert',
+  verrechnet: 'schon verrechnet',
+  offerte: 'Offerte vorhanden',
+}
+
+/**
+ * «12 erledigte ausgeblendet» für die Kopfzeile, dazu die Aufschlüsselung je
+ * Grund als Tooltip — oder `null`, wenn nichts fehlt. Ohne den Hinweis sähe
+ * ein Fall, der eine Offerte bekommen hat, aus wie verloren.
+ */
+export function ausgeblendetHinweis(
+  a: Partial<Record<HagelAusblendeGrund, number>> | undefined,
+): { text: string; titel: string } | null {
+  const teile = (Object.keys(AUSBLENDE_LABELS) as HagelAusblendeGrund[])
+    .map(g => [g, a?.[g] ?? 0] as const)
+    .filter(([, n]) => n > 0)
+  const summe = teile.reduce((s, [, n]) => s + n, 0)
+  if (summe === 0) return null
+  return {
+    text: `${summe} erledigte ausgeblendet`,
+    titel: 'Nicht mehr in der Hagelschaden-Liste: '
+      + teile.map(([g, n]) => `${AUSBLENDE_LABELS[g]} ${n}`).join(' · '),
+  }
 }

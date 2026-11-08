@@ -171,11 +171,20 @@ export interface HagelKennzahlen {
   pendent_unbearbeitet: number
 }
 
+/**
+ * Warum ein Fall nicht mehr in der Arbeitsliste steht —
+ * services/hagelschaden_service.AUSBLENDE_GRUENDE (Vorrang in dieser Reihenfolge).
+ */
+export type HagelAusblendeGrund = 'abgeschlossen' | 'verrechnet' | 'offerte'
+
 export interface HagelListe {
   kampagnen: { key: string; titel: string; kurzname: string }[]
   kampagne: HagelKampagne | null
   kennzahlen: HagelKennzahlen | null
+  /** Nur die Arbeitsliste: ohne abgeschlossene, verrechnete und offerierte Fälle. */
   zeilen: HagelZeile[]
+  /** Wie viele Fälle je Grund nicht in `zeilen` stehen (fehlt bei älteren Servern). */
+  ausgeblendet?: Partial<Record<HagelAusblendeGrund, number>>
   termine_bekannt?: boolean
   /** nur mit Feature `hagelschaden_disposition` — der Server entscheidet */
   dispo?: HagelDispoInfo

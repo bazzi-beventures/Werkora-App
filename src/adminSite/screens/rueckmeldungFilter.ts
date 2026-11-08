@@ -97,3 +97,21 @@ export function filtere(projekte: AuswahlProjekt[], f: Filter): AuswahlProjekt[]
       .some((t) => (t || '').toLowerCase().includes(q))
   })
 }
+
+/** Die Telefonnummern einer Zeile für die CSV: «Mobil: 079 … · Festnetz: 044 …».
+ *  Die Art steht vorn, damit keine Zelle mit «+» beginnt (Excel läse eine
+ *  Formel, `csvZelle` müsste sie neutralisieren). */
+export function telefonText(p: AuswahlProjekt): string {
+  return (p.telefon ?? []).map(t => `${t.art}: ${t.nummer}`).join(' · ')
+}
+
+/** Kopf und Zeilen der CSV «Sichtbare als CSV» — die Telefonliste für die
+ *  Projekte ohne E-Mail-Adresse. Rein; geschrieben wird in der Oberfläche. */
+export function csvZeilen(zeilen: AuswahlProjekt[]): string[][] {
+  const kopf = ['Projekt-Nr', 'Projekt', 'Kunde', 'E-Mail', 'Telefon', 'Objekt', 'Offerte', 'Umfrage']
+  return [kopf, ...zeilen.map(p => [
+    p.projekt_nr, p.projekt_name, p.kunde_name, p.email || '(keine)', telefonText(p), p.objekt_adresse,
+    OFFERTE_LABEL[p.offerte],
+    umfrageText(p) + (p.adresse_angeschrieben && p.adresse_angeschrieben_fuer ? ` (für ${p.adresse_angeschrieben_fuer})` : ''),
+  ])]
+}

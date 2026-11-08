@@ -18,7 +18,7 @@ import { AdminCardList } from '../../components/AdminCardList'
 import { useToast, ToastHost } from '../../components/useToast'
 import { useIsMobile } from '../../useIsMobile'
 import {
-  STANDARD_FILTER, STATUS_LABELS, filtereZeilen, istStandard, kachelAktiv, kacheln, kennzahlen,
+  STANDARD_FILTER, STATUS_LABELS, ausgeblendetHinweis, filtereZeilen, istStandard, kachelAktiv, kacheln, kennzahlen,
   ladeFilter, prioKlasse, speichereFilter, terminKurz, umfang,
   type HagelFilter, type JaNeinAlle, type Kachel, type UmfrageStatus,
 } from './hagelschadenFilter'
@@ -157,6 +157,7 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
   }
 
   const statusOptionen = Object.keys(STATUS_LABELS) as UmfrageStatus[]
+  const ausgeblendet = ausgeblendetHinweis(daten?.ausgeblendet)
 
   return (
     <div className="admin-page admin-page-wide hagel-page">
@@ -165,6 +166,7 @@ export default function HagelschadenScreen({ userId, onOpenProject, onOpenSchedu
           <div className="admin-page-title">Hagelschaden</div>
           <div className="admin-page-subtitle">
             {kampagne.kurzname} · {gefiltert.length} von {zeilen.length} Projekten
+            {ausgeblendet && <span title={ausgeblendet.titel}> · {ausgeblendet.text}</span>}
           </div>
         </div>
         <div className="admin-page-actions">

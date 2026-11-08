@@ -8,7 +8,7 @@ import type {
   HagelDispo, HagelDispoInfo, HagelDispoParameter, HagelKampagne, HagelListe, HagelZeile,
 } from '../../../api/admin/hagelschaden'
 import {
-  STANDARD_FILTER, filtereZeilen, kacheln, kennzahlen, terminKurz, umfang,
+  STANDARD_FILTER, ausgeblendetHinweis, filtereZeilen, kacheln, kennzahlen, terminKurz, umfang,
 } from './hagelschadenFilter'
 
 vi.mock('../../../api/client', () => ({
@@ -118,6 +118,15 @@ describe('hagelschadenFilter', () => {
     expect(umfang(zeile({ mehrere_objekte: 'ja', anzahl_objekte: 3 }))).toBe('3 Objekte')
     expect(umfang(zeile({ anzahl_anlagen: 1 }))).toBe('1 Element')
   })
+
+  it('erledigte Fälle: Summe in der Kopfzeile, Gründe im Tooltip, nichts bei 0', () => {
+    expect(ausgeblendetHinweis(undefined)).toBeNull()
+    expect(ausgeblendetHinweis({ abgeschlossen: 0, verrechnet: 0, offerte: 0 })).toBeNull()
+    expect(ausgeblendetHinweis({ abgeschlossen: 2, verrechnet: 0, offerte: 5 })).toEqual({
+      text: '7 erledigte ausgeblendet',
+      titel: 'Nicht mehr in der Hagelschaden-Liste: Projekt abgeschlossen/archiviert 2 · Offerte vorhanden 5',
+    })
+  })
 })
 
 // ─── Screen ───────────────────────────────────────────────────────
@@ -152,6 +161,13 @@ describe('HagelschadenScreen', () => {
     // Die zwei Seiten stehen getrennt beschriftet da.
     expect(screen.getAllByText('Rückmeldung der Kunden').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Unsere Bearbeitung').length).toBeGreaterThan(0)
+  })
+
+  it('sagt in der Kopfzeile, wie viele erledigte Fälle fehlen', async () => {
+    route({ ...liste(), ausgeblendet: { abgeschlossen: 1, verrechnet: 2, offerte: 3 } })
+    render(<HagelschadenScreen userId="u1" onOpenProject={() => {}} />)
+    const hinweis = await screen.findByText(/6 erledigte ausgeblendet/)
+    expect(hinweis.getAttribute('title')).toContain('schon verrechnet 2')
   })
 
   it('ein Klick auf eine Kachel setzt den Filter', async () => {
