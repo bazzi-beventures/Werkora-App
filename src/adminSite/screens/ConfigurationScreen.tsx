@@ -105,7 +105,8 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
       {tab === 'travel-cost' && <TravelCostTab tenantId={tenantId} />}
       {tab === 'scheduling' && <SchedulingTab tenantId={tenantId} />}
       {tab === 'help-docs' && <HelpDocsTab tenantId={tenantId} />}
-      {tab === 'bexio' && <BexioTab tenantId={tenantId} />}
+      {/* key: lokaler Zustand (OAuth-Link, «wird nachgereicht») gehört zu genau einem Mandanten */}
+      {tab === 'bexio' && <BexioTab key={tenantId} tenantId={tenantId} />}
 
     </div>
   )

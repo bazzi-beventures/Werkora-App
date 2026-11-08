@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import { listPageParams, type ListPage, type ListPageQuery } from './listPage'
 import { requestEasterEggCheck } from './eastereggs'
 
 // `id` ist eine Zahl (invoices.id ist bigint, siehe supabase_full_schema.sql).
@@ -97,6 +98,19 @@ export interface GenerateInvoiceResult {
 
 export async function listInvoices(status?: string): Promise<Invoice[]> {
   return apiFetch<Invoice[]>(`/pwa/admin/invoices${status ? `?status=${status}` : ''}`)
+}
+
+export interface InvoicesPage extends ListPage<Invoice> {
+  /** Summe aller offenen Rechnungen des Mandanten (ausstehend/offen/gesendet),
+   *  unabhängig von Suche und Filtern. `null`, wenn der Server sie nicht holen
+   *  konnte — die Liste kommt trotzdem. */
+  open_total: number | null
+}
+
+/** Eine Seite der Rechnungsliste — Status, Suche (Nummer, Projekt) und
+ *  Projektleiter filtert der Server. */
+export async function listInvoicesPage(q: ListPageQuery): Promise<InvoicesPage> {
+  return apiFetch<InvoicesPage>(`/pwa/admin/invoices/list?${listPageParams(q)}`)
 }
 
 export async function generateInvoice(input: GenerateInvoiceInput): Promise<GenerateInvoiceResult> {

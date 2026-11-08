@@ -8,6 +8,7 @@
 // rawAdminFetch.guard.test.ts).
 
 import { apiBlobFetch, apiFetch, apiFormFetch } from '../client'
+import { listPageParams, type ListPage, type ListPageQuery } from './listPage'
 import type { ConfirmedPosition, PdfExtractionResponse } from '../../admin/operative/PdfExtractionReviewModal'
 
 // Teilmenge der Listen-Antwort: was für die Frage «gibt es zu diesem Projekt eine
@@ -240,6 +241,13 @@ export interface QuoteDetail {
 
 export async function listQuotes(): Promise<Quote[]> {
   return apiFetch<Quote[]>('/pwa/admin/quotes')
+}
+
+/** Eine Seite der Offertenliste — Status, Suche und Projektleiter filtert der
+ *  Server. Die Suche läuft über Nummer, Projekt, Kunde und den Projektleiter, der
+ *  die Offerte erstellt hat (Snapshot). */
+export async function listQuotesPage(q: ListPageQuery): Promise<ListPage<Quote>> {
+  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}`)
 }
 
 // ─── Anlegen und Bearbeiten ─────────────────────────────────

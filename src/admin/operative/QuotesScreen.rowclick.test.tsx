@@ -18,7 +18,12 @@ const listQuotes = vi.fn()
 const getQuoteDetail = vi.fn()
 const setQuoteStatus = vi.fn()
 vi.mock('../../api/admin/quotes', () => ({
-  listQuotes: () => listQuotes(),
+  // Die Liste kommt seitenweise (listQuotesPage); die Tests reichen weiter ein
+  // Array und bekommen es als eine Seite zurück.
+  listQuotesPage: async (q: unknown) => {
+    const rows = await listQuotes(q)
+    return { rows, total: rows.length, page: 1, page_size: 50 }
+  },
   getQuoteDetail: (id: number) => getQuoteDetail(id),
   setQuoteStatus: (id: number, status: string) => setQuoteStatus(id, status),
   sendQuoteRejection: vi.fn(),

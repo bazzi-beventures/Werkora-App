@@ -467,6 +467,19 @@
   padding: 0 5px;
 }
 
+/* Derselbe Zähler im Fliesstext statt oben rechts auf der Karte — heute nur
+   neben «Meine Erinnerungen». `inline-flex` ist der Punkt: das `display: flex`
+   der Grundregel ist block-level und fällt auf der Karte nur nicht auf, weil
+   `position: absolute` die Box auf ihren Inhalt schrumpfen lässt. Im Fluss
+   nahm der Zähler die ganze Zeilenbreite und stand als roter Balken unter
+   dem Titel. */
+.admin-kpi-badge--inline {
+  position: static;
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: var(--s-2);
+}
+
 .admin-kpi-value {
   font-size: var(--font-hero);
   font-weight: 700;

@@ -7,7 +7,7 @@
 // umschreiben.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { Quote } from '../../api/admin/quotes'
 
@@ -15,7 +15,12 @@ vi.mock('../useIsMobile', () => ({ useIsMobile: () => false }))
 
 const listQuotes = vi.fn()
 vi.mock('../../api/admin/quotes', () => ({
-  listQuotes: () => listQuotes(),
+  // Die Liste kommt seitenweise (listQuotesPage); die Tests reichen weiter ein
+  // Array und bekommen es als eine Seite zurück.
+  listQuotesPage: async (q: unknown) => {
+    const rows = await listQuotes(q)
+    return { rows, total: rows.length, page: 1, page_size: 50 }
+  },
   getQuoteDetail: vi.fn(),
   setQuoteStatus: vi.fn(),
   sendQuoteRejection: vi.fn(),
@@ -72,7 +77,10 @@ describe('QuotesScreen — Spalte Projektleiter', () => {
     expect(await within(zeile('241556 Gsell Seuzach')).findByText('Luca Bazzi')).toBeTruthy()
   })
 
-  it('findet Offerten über den Namen des Projektleiters', async () => {
+  // Gesucht wird seit der Paginierung auf dem Server (db.quotes, Spalte
+  // projektleiter_name) — hier zählt, dass der Begriff dort ankommt und die
+  // Antwort angezeigt wird.
+  it('sucht Offerten über den Namen des Projektleiters auf dem Server', async () => {
     const user = userEvent.setup()
     listQuotes.mockResolvedValue([
       quote(),
@@ -81,8 +89,12 @@ describe('QuotesScreen — Spalte Projektleiter', () => {
     render(<QuotesScreen />)
     await screen.findByText('Anderes Projekt')
 
+    listQuotes.mockResolvedValue([quote()])
     await user.type(screen.getByPlaceholderText(/such/i), 'walser')
-    expect(screen.queryByText('Anderes Projekt')).toBeNull()
+    await waitFor(() => expect(listQuotes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ search: 'walser', page: 1 }),
+    ))
+    await waitFor(() => expect(screen.queryByText('Anderes Projekt')).toBeNull())
     expect(screen.getByText('241556 Gsell Seuzach')).toBeTruthy()
   })
 })

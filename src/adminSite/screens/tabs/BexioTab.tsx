@@ -11,9 +11,12 @@ import {
 // ─── Reiter «bexio»: Verbindung, Kontierung, Warteschlange je Mandant ───────
 //
 // Spec: docs/specs/bexio-anbindung.md §8.1. Reihenfolge der Abschnitte = Reihenfolge
-// der Einrichtung: Token → Konten → Modul einschalten (Reiter «Module») → im Betrieb
-// die Warteschlange. Das Token geht einmal hinaus und kommt nie zurück: das Feld
-// leert sich nach dem Speichern, angezeigt wird nur «gesetzt am».
+// der Einrichtung: Verbindung → Konten → Modul einschalten (Reiter «Module») → im Betrieb
+// die Warteschlange. Der Weg ist «Mit bexio verbinden» (OpenID Connect); das
+// persönliche Token nur zum Testen auf Staging — bexio lässt es höchstens 60 Tage
+// gelten und verweist für den Produktivbetrieb auf OpenID Connect (Spec §4.4). Das
+// Token geht einmal hinaus und kommt nie zurück: das Feld leert sich nach dem
+// Speichern, angezeigt wird nur «gesetzt am».
 
 const SECTION: React.CSSProperties = { padding: 24, maxWidth: 820, marginBottom: 16 }
 const MUTED: React.CSSProperties = { fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }
@@ -39,6 +42,9 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
   const [cancelFor, setCancelFor] = useState<BexioJob | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [oauthUrl, setOauthUrl] = useState<string | null>(null)
+  // Nach «PDFs nachreichen» bleibt der Zähler stehen, bis der Lauf (alle 5 Minuten) das
+  // PDF abgelegt hat — ohne Vermerk sähe der Klick wirkungslos aus.
+  const [pdfsQueued, setPdfsQueued] = useState(false)
 
   const apply = useCallback((v: BexioView) => {
     setView(v)
@@ -91,6 +97,11 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
   const catalog = view.catalog
   const accounts = revenueAccounts(catalog)
   const expiry = expiryText(conn?.secret_expires_at ?? null)
+  // Ältere Server liefern die Felder nicht — dann gilt das Verhalten von vorher.
+  const patAllowed = view.pat_allowed ?? true
+  const missingScopes = view.missing_scopes ?? []
+  const fileMissing = missingScopes.some(m => m.scope === 'file')
+  const pdfErrors = view.pdf_errors ?? 0
 
   async function saveToken() {
     const v = await run('token', () => scoped.setBexioToken(tenantId, token.trim(), createdOn || undefined),
@@ -101,6 +112,20 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
   async function retest() {
     const v = await run('test', () => scoped.testBexio(tenantId), 'Verbindung in Ordnung')
     if (v) apply(v)
+  }
+
+  async function resendPdfs() {
+    const v = await run('pdfs', () => scoped.resendBexioPdfs(tenantId))
+    if (v) {
+      apply(v)
+      setPdfsQueued(true)
+      const n = v.enqueued ?? 0
+      // «nachgereicht» wie der Knopf — «eingereiht» las sich als Tippfehler für «eingereicht».
+      showToast(n === 0 ? 'Nichts nachzureichen'
+        : `${n === 1 ? '1 PDF wird' : `${n} PDFs werden`} beim nächsten Lauf nachgereicht (alle 5 Minuten)`,
+      'success')
+      void loadJobs(jobFilter)
+    }
   }
 
   async function startOAuth() {
@@ -182,6 +207,19 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
             Vor dem Einschalten fehlt noch: {view.readiness.join(' · ')}
           </div>
         )}
+        {conn?.auth_kind === 'api_token' && !patAllowed && (
+          <div className="admin-form-hint-warn" style={{ marginTop: 12 }}>
+            Diese Verbindung läuft über ein persönliches Token. bexio lässt es höchstens 60 Tage gelten und
+            verlangt für den Produktivbetrieb OpenID Connect — «Mit bexio verbinden» ersetzt es.
+          </div>
+        )}
+        {missingScopes.length > 0 && (
+          <div className="admin-form-hint-warn" style={{ marginTop: 12 }}>
+            bexio hat diese Freigaben nicht erteilt:{' '}
+            {missingScopes.map(m => `${m.purpose} (${m.scope})`).join(' · ')}.
+            {' '}«Mit bexio verbinden» erneut ausführen — eine Erneuerung des Zugangs erweitert die Freigabe nicht.
+          </div>
+        )}
         {findings.length > 0 && (
           <ul className="admin-form-hint" style={{ marginTop: 12 }}>
             {findings.map(f => <li key={f}>{f}</li>)}
@@ -193,10 +231,17 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
       <div className="admin-table-wrap" style={SECTION}>
         <div className="admin-section-title">Verbindung</div>
         <p style={MUTED}>
-          <strong>Betriebe:</strong> «Mit bexio verbinden». Der Link führt zu bexio; dort meldet sich der Betrieb
-          mit seinem Benutzer «Werkora-Schnittstelle» an und gibt die Freigabe. Den Link kannst du selbst öffnen
-          oder dem Betrieb schicken — er gilt 15 Minuten und nur einmal.
+          «Mit bexio verbinden» (OpenID Connect) — der Weg für jeden Mandanten, auch den Betreiber. Der Link
+          führt zu bexio; dort meldet sich der Betrieb mit seinem Benutzer «Werkora-Schnittstelle» an und gibt
+          die Freigabe. Den Link kannst du selbst öffnen oder dem Betrieb schicken — er gilt 15 Minuten und nur
+          einmal. Werkora erneuert den Zugang danach selbst.
         </p>
+        {view.oauth_configured === false && (
+          <p className="admin-form-hint-warn">
+            In dieser Umgebung ist OpenID Connect nicht eingerichtet (<code>BEXIO_CLIENT_ID</code>,{' '}
+            <code>BEXIO_CLIENT_SECRET</code>, <code>BEXIO_OAUTH_REDIRECT_URI</code> — Anleitung Teil B1).
+          </p>
+        )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           <button className="admin-btn admin-btn-primary" disabled={!view.key_configured || busy !== null}
             onClick={() => void startOAuth()}>
@@ -213,36 +258,47 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
             </div>
           </div>
         )}
-        <p style={MUTED}>
-          <strong>Eigentest</strong> (eigene Buchhaltung): persönliches Token von <code>developer.bexio.com/pat</code>,
-          gültig 60 Tage. Für Betriebe ist ein persönliches Token laut bexio <strong>nicht zulässig</strong>.
-        </p>
-        <label className="admin-form-group" style={{ display: 'block', marginBottom: 12 }}>
-          <span className="admin-form-label">Persönliches Token</span>
-          <input
-            className="admin-form-input"
-            type="password"
-            autoComplete="off"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            value={token}
-            onChange={e => setToken(e.target.value)}
-            placeholder={conn?.secret_set ? 'gesetzt — nur zum Ersetzen ausfüllen' : 'eyJ…'}
-          />
-        </label>
-        <label className="admin-form-group" style={{ display: 'block', marginBottom: 12, maxWidth: 260 }}>
-          <span className="admin-form-label">Erzeugt am (nur falls bexio kein Ablaufdatum mitliefert)</span>
-          <input className="admin-form-input" type="date" value={createdOn} onChange={e => setCreatedOn(e.target.value)} />
-        </label>
+        {patAllowed ? (
+          <details style={{ marginBottom: 12 }}>
+            <summary style={{ cursor: 'pointer', ...MUTED }}>Nur zum Testen: persönliches Token</summary>
+            <p style={{ ...MUTED, marginTop: 8 }}>
+              Persönliches Token von <code>developer.bexio.com/pat</code> — höchstens 60 Tage gültig, nur für die
+              eigene Test-Firma. Für Betriebe ist es laut bexio <strong>nicht zulässig</strong>, auf Produktion
+              gesperrt.
+            </p>
+            <label className="admin-form-group" style={{ display: 'block', marginBottom: 12 }}>
+              <span className="admin-form-label">Persönliches Token</span>
+              <input
+                className="admin-form-input"
+                type="password"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder={conn?.secret_set ? 'gesetzt — nur zum Ersetzen ausfüllen' : 'eyJ…'}
+              />
+            </label>
+            <label className="admin-form-group" style={{ display: 'block', marginBottom: 12, maxWidth: 260 }}>
+              <span className="admin-form-label">Erzeugt am (nur falls bexio kein Ablaufdatum mitliefert)</span>
+              <input className="admin-form-input" type="date" value={createdOn} onChange={e => setCreatedOn(e.target.value)} />
+            </label>
+            <button
+              className="admin-btn admin-btn-secondary"
+              disabled={!view.key_configured || token.trim().length < 20 || busy !== null}
+              onClick={() => void saveToken()}
+            >
+              {busy === 'token' ? 'Teste…' : 'Testen und speichern'}
+            </button>
+          </details>
+        ) : (
+          <p style={MUTED}>
+            Persönliche Tokens sind hier gesperrt: bexio lässt sie höchstens 60 Tage gelten und verlangt für den
+            Produktivbetrieb OpenID Connect.
+          </p>
+        )}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button
-            className="admin-btn admin-btn-primary"
-            disabled={!view.key_configured || token.trim().length < 20 || busy !== null}
-            onClick={() => void saveToken()}
-          >
-            {busy === 'token' ? 'Teste…' : 'Testen und speichern'}
-          </button>
           {conn && (
             <button className="admin-btn admin-btn-secondary" disabled={busy !== null} onClick={() => void retest()}>
               {busy === 'test' ? 'Teste…' : 'Erneut testen'}
@@ -382,6 +438,23 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
               </tbody>
             </table>
           )}
+          {pdfErrors > 0 && (
+            <div className="admin-form-hint-warn" style={{ marginTop: 16 }}>
+              <div style={{ marginBottom: 8 }}>
+                {pdfErrors === 1 ? '1 Rechnung liegt' : `${pdfErrors} Rechnungen liegen`} ohne Werkora-PDF in bexio —
+                bexio hat das PDF abgelehnt.
+                {fileMissing && ' Zuerst «Mit bexio verbinden» erneut ausführen (Freigabe «file»).'}
+              </div>
+              {pdfsQueued ? (
+                <div>Wird beim nächsten Lauf nachgereicht (alle 5 Minuten) — die Warteschlange zeigt den Stand.</div>
+              ) : (
+                <button className="admin-btn admin-btn-secondary admin-btn-sm" disabled={fileMissing || busy !== null}
+                  onClick={() => void resendPdfs()}>
+                  {busy === 'pdfs' ? 'Wird nachgereicht…' : 'PDFs nachreichen'}
+                </button>
+              )}
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 16, flexWrap: 'wrap' }}>
             <label className="admin-form-group" style={{ display: 'block' }}>
               <span className="admin-form-label">Rechnung nachreichen (vor dem Einschalten versendet)</span>
@@ -390,7 +463,7 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
             </label>
             <button className="admin-btn admin-btn-secondary" disabled={invoiceNumber.trim().length < 3 || busy !== null}
               onClick={() => void run('enqueue', () => scoped.enqueueBexioInvoice(tenantId, invoiceNumber.trim()),
-                `${invoiceNumber.trim()} eingereiht`).then(r => { if (r) setInvoiceNumber('') })}>
+                `${invoiceNumber.trim()} wird nachgereicht`).then(r => { if (r) setInvoiceNumber('') })}>
               Nachreichen
             </button>
           </div>

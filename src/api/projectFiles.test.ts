@@ -50,7 +50,19 @@ describe('Datei-Endpoints je Sicht', () => {
   it('Download-Link: ohne Flag öffnen, mit Flag speichern', () => {
     expect(projectFileUrl('/pwa', 'p1', 'f9'))
       .toBe('https://api.example/pwa/projects/p1/files/f9/download')
+    expect(projectFileUrl('/pwa', 'p1', 'f9', { download: true }))
+      .toBe('https://api.example/pwa/projects/p1/files/f9/download?download=1')
+  })
+
+  // Der Verwaltungs-Download hat keinen Pfad unter /projects/{p}/files — der Test
+  // hielt bis 2026-11-08 genau diesen nicht existierenden Pfad fest und war grün,
+  // während jedes Foto der Hagelschaden-Ansicht mit 404 kam. Massgeblich ist die
+  // Route in agents/routers/documents.py (`/admin/project-files/{file_id}/download`),
+  // dieselbe, die FileSection und der Offerten-Versand schon benutzen.
+  it('Verwaltung lädt über /pwa/admin/project-files/{id}/download', () => {
+    expect(projectFileUrl('/pwa/admin', 'p1', 'f9'))
+      .toBe('https://api.example/pwa/admin/project-files/f9/download')
     expect(projectFileUrl('/pwa/admin', 'p1', 'f9', { download: true }))
-      .toBe('https://api.example/pwa/admin/projects/p1/files/f9/download?download=1')
+      .toBe('https://api.example/pwa/admin/project-files/f9/download?download=1')
   })
 })

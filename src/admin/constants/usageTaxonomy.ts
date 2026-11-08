@@ -211,6 +211,7 @@ const ACTION_LABELS: Record<string, string> = {
   bexio_invoice_cancelled: 'bexio: Rechnung storniert',
   bexio_invoice_cancel_confirmed: 'bexio: Storno bestätigt',
   bexio_invoice_enqueued: 'bexio: Rechnung nachgereicht',
+  bexio_pdfs_resend: 'bexio: PDFs nachgereicht',
   bexio_oauth_started: 'bexio: Verbindung gestartet (OAuth)',
   bexio_oauth_connected: 'bexio: verbunden (OAuth)',
   bexio_payment_pulled: 'bexio: Zahlung übernommen',

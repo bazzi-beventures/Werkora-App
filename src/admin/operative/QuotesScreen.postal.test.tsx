@@ -16,7 +16,12 @@ vi.mock('../useIsMobile', () => ({ useIsMobile: () => false }))
 const listQuotes = vi.fn()
 const markQuoteSentByPost = vi.fn()
 vi.mock('../../api/admin/quotes', () => ({
-  listQuotes: () => listQuotes(),
+  // Die Liste kommt seitenweise (listQuotesPage); die Tests reichen weiter ein
+  // Array und bekommen es als eine Seite zurück.
+  listQuotesPage: async (q: unknown) => {
+    const rows = await listQuotes(q)
+    return { rows, total: rows.length, page: 1, page_size: 50 }
+  },
   getQuoteDetail: vi.fn(),
   setQuoteStatus: vi.fn(),
   sendQuoteRejection: vi.fn(),

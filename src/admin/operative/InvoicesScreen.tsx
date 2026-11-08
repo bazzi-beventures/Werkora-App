@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiUrl } from '../../api/client'
 import {
   archiveInvoice, generateInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
   getInvoiceWorkDescription,
-  listInvoices, markInvoicePaid, markInvoiceSentByPost, sendInvoice as sendInvoiceByMail,
+  listInvoicesPage, markInvoicePaid, markInvoiceSentByPost, sendInvoice as sendInvoiceByMail,
   unmarkInvoicePaid,
 } from '../../api/admin/invoices'
 import type { BexioBadge as BexioBadgeData, BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } from '../../api/admin/invoices'
 import { cancelInBexio, getBexioStatus } from '../../api/admin/invoices'
 import { hasModule } from '../../api/modules'
 import { BEXIO_CANCEL_MESSAGE, BexioBadge, BexioCancelCheckbox } from './BexioBadge'
-import { getAdminProjects, setProjectStatus } from '../../api/admin/projects'
+import { getAdminProjects, listProjectInvoices, setProjectStatus } from '../../api/admin/projects'
 import type { Project } from '../../api/admin/projects'
 import { hasAcceptedQuote as fetchHasAcceptedQuote } from '../../api/admin/quotes'
 import { getAdminStaff } from '../../api/admin/staff'
@@ -22,6 +22,7 @@ import { PaidAmountField } from './PaidAmountField'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { AdminCardList } from '../components/AdminCardList'
+import { ListPager } from '../components/ListPager'
 import { AutoGrowTextarea } from '../components/AutoGrowTextarea'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { QuoteCoverageSelect } from '../components/QuoteCoverageSelect'
@@ -44,6 +45,7 @@ import {
   type GeneralDeductionConfig, type GeneralDeductionState,
 } from '../utils/generalDeduction'
 import { useIsMobile } from '../useIsMobile'
+import { LIST_PAGE_SIZE, usePagedList } from '../usePagedList'
 import { isInvoiceOpen, openInvoicesHint } from '../utils/openInvoices'
 import type { AdminScreen } from '../useAdminNav'
 import { useToast, ToastHost } from '../components/useToast'
@@ -59,6 +61,15 @@ interface ProjektleiterOption {
 }
 
 const ALL_STATUSES = ['ausstehend', 'offen', 'gesendet', 'bezahlt', 'archiviert', 'inaktiv']
+// Stabile Referenz für «noch nichts geladen»: die bexio-Abfrage hängt an der
+// Zeilenliste, ein frisches [] je Render löste sie endlos neu aus.
+const NO_INVOICES: Invoice[] = []
+
+/** Weitere offene Rechnungen desselben Projekts. Die soeben bezahlte ist
+ *  ausgenommen — falls ihr neuer Status noch nicht durch ist. */
+function countOtherOpen(projectInvoices: Invoice[], paidId: number): number {
+  return projectInvoices.filter(i => i.id !== paidId && isInvoiceOpen(i.status)).length
+}
 
 export default function InvoicesScreen({ onBadgeChange, onNav }: {
   onBadgeChange?: () => void
@@ -66,14 +77,24 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // die Rückfragen dazu («welche Rapporte?», «welche Offerte?») stehen im Projekt.
   onNav?: (screen: AdminScreen, detailId?: string) => void
 }) {
-  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [bexio, setBexio] = useState<Record<string, BexioBadgeData>>({})
-  const [loading, setLoading] = useState(true)
   const [statusFilters, setStatusFilters] = useState<Set<string>>(
     () => new Set(['ausstehend', 'offen', 'gesendet', 'bezahlt', 'inaktiv'])
   )
-  const [search, setSearch] = useState('')
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
+  // Seitenweise vom Server: Status, Suche und Projektleiter filtert die
+  // Datenbank, über die Leitung gehen 50 Zeilen (api/admin/listPage.ts).
+  const fetchPage = useCallback(
+    (page: number, search: string) => listInvoicesPage({
+      page, pageSize: LIST_PAGE_SIZE, statuses: statusFilters, search,
+      projektleiterId: projektleiterFilter,
+    }),
+    [statusFilters, projektleiterFilter],
+  )
+  const list = usePagedList(fetchPage)
+  const invoices = list.data?.rows ?? NO_INVOICES
+  const total = list.data?.total ?? 0
+  const load = list.reload
   const [projektleiterOptions, setProjektleiterOptions] = useState<ProjektleiterOption[]>([])
   const [acting, setActing] = useState<number | null>(null)
   const isMobile = useIsMobile()
@@ -85,6 +106,9 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // Nach dem Bezahlen: «Projekt abschliessen?» — die Rechnung ist meist der
   // letzte Schritt eines Auftrags, das Schliessen ging bisher nur im Projekt.
   const [confirmCloseProject, setConfirmCloseProject] = useState<Invoice | null>(null)
+  // Warnung dazu: weitere offene Rechnungen des Projekts. Die Liste zeigt nur
+  // eine Seite, darum fragt der Dialog das Projekt selbst (null = nicht prüfbar).
+  const [closeProjectOtherOpen, setCloseProjectOtherOpen] = useState<number | null>(0)
   const [closingProject, setClosingProject] = useState(false)
   const [confirmUnpay, setConfirmUnpay] = useState<Invoice | null>(null)
   const [confirmArchive, setConfirmArchive] = useState<Invoice | null>(null)
@@ -165,22 +189,15 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [genCheckedAnzahlungen, setGenCheckedAnzahlungen] = useState<number[]>([])
   const [genPct, setGenPct] = useState('50')
   const [genTravel, setGenTravel] = useState(true)
+  // Rechnungen des gewählten Projekts — entscheidet, ob «weitere Rechnung»
+  // angeboten wird. Eigene Abfrage, weil die Liste nur eine Seite kennt.
+  const [genProjectInvoices, setGenProjectInvoices] = useState<Invoice[]>(NO_INVOICES)
+  const genInvSeq = useRef(0)
   // Send invoice
   const [sendInvoice, setSendInvoice] = useState<Invoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
   const [sending, setSending] = useState(false)
   const [hasAcceptedQuote, setHasAcceptedQuote] = useState(false)
-
-  async function load() {
-    setLoading(true)
-    try {
-      setInvoices(await listInvoices())
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [])
 
   useEffect(() => {
     getAdminStaff()
@@ -209,6 +226,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setGenTravel(true)
     setGenReports(null)
     setGenAnzahlungen(null)
+    genInvSeq.current++
+    setGenProjectInvoices(NO_INVOICES)
     setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
     setGenRemark('')
     setGenAbzug(initialGeneralDeduction(abzugCfg))
@@ -221,6 +240,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setGenProjectName(projectName)
     // Ein anderes Projekt hat andere Rechnungen — die Frage beginnt von vorn.
     setGenMode('replace')
+    const invSeq = ++genInvSeq.current
+    setGenProjectInvoices(NO_INVOICES)
     if (!projectId) {
       genLoadSeq.current++
       setGenCoverage(null)
@@ -230,6 +251,11 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
       setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
       return
     }
+    // Scheitert die Abfrage, bleibt es bei «keine gültige Rechnung» — der Dialog
+    // bietet dann nur Rechnung und Anzahlung an, wie bei einem neuen Projekt.
+    listProjectInvoices<Invoice>(projectId)
+      .then(list => { if (invSeq === genInvSeq.current) setGenProjectInvoices(list) })
+      .catch(() => { /* bleibt leer */ })
     loadGenSuggestions(projectId, projectName, 'replace')
     try {
       setHasAcceptedQuote(await fetchHasAcceptedQuote(projectId, projectName))
@@ -313,8 +339,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     )
   }
 
-  const genHasActive = !!genProject
-    && hasActiveInvoice(invoices.filter(i => i.project_id === genProject))
+  const genHasActive = !!genProject && hasActiveInvoice(genProjectInvoices)
   const genIsAnzahlung = genMode === 'anzahlung'
   const genPctValue = parseAnzahlungPct(genPct)
   const genReportsVisible = !genIsAnzahlung && (genReports?.length ?? 0) > 1
@@ -400,13 +425,20 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
 
   const canOpenProject = (inv: Invoice) => !!onNav && !!inv.project_id
 
-  // Weitere offene Rechnungen desselben Projekts. Die soeben bezahlte ist
-  // ausgenommen: der Listen-Reload läuft parallel, ihr Status kann noch alt sein.
-  function otherOpenInvoices(inv: Invoice): number {
-    if (!inv.project_id) return 0
-    return invoices.filter(i =>
-      i.project_id === inv.project_id && i.id !== inv.id && isInvoiceOpen(i.status)
-    ).length
+  // Anschlussfrage «Projekt abschliessen?» mit Warnung, falls im Projekt noch
+  // weitere Rechnungen offen sind. Gezählt wird am Projekt selbst — die Liste
+  // kennt nur eine Seite und den aktuellen Filter.
+  async function askCloseProject(inv: Invoice) {
+    let others: number | null = 0
+    if (inv.project_id) {
+      try {
+        others = countOtherOpen(await listProjectInvoices<Invoice>(inv.project_id), inv.id)
+      } catch {
+        others = null
+      }
+    }
+    setCloseProjectOtherOpen(others)
+    setConfirmCloseProject(inv)
   }
 
   // Offen = noch nicht abgeschlossen/archiviert. Nur dann lohnt die Rückfrage.
@@ -426,7 +458,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
       load()
       onBadgeChange?.()
       // Anschlussfrage statt Automatik: eine Teilrechnung schliesst das Projekt nicht.
-      if (projectStillOpen(inv)) setConfirmCloseProject(inv)
+      if (projectStillOpen(inv)) void askCloseProject(inv)
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Fehler', 'error')
     } finally {
@@ -524,28 +556,25 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     }
   }
 
-  const filtered = invoices.filter(inv => {
-    const matchStatus = statusFilters.has(inv.status)
-    const matchSearch = inv.project_name.toLowerCase().includes(search.toLowerCase()) ||
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase())
-    const matchPl = !projektleiterFilter || inv.projektleiter_id === projektleiterFilter
-    return matchStatus && matchSearch && matchPl
-  })
+  // Summe aller offenen Rechnungen, unabhängig von Seite und Filter — rechnet
+  // der Server (db.invoices.sum_open_invoices). null = nicht verfügbar.
+  const totalOpen = list.data?.open_total ?? null
+  const emptyText = list.failed ? 'Rechnungen konnten nicht geladen werden.' : 'Keine Rechnungen gefunden.'
 
-  const totalOpen = invoices
-    .filter(i => isInvoiceOpen(i.status))
-    .reduce((s, i) => s + i.total_amount, 0)
-
-  const closeProjectWarning = confirmCloseProject
-    ? openInvoicesHint(otherOpenInvoices(confirmCloseProject))
-    : ''
+  const closeProjectWarning = !confirmCloseProject
+    ? ''
+    : closeProjectOtherOpen === null
+      ? 'Ob in diesem Projekt noch weitere Rechnungen offen sind, liess sich nicht prüfen.'
+      : openInvoicesHint(closeProjectOtherOpen)
 
   return (
     <div className="admin-page admin-page-wide">
       <div className="admin-page-header">
         <div>
           <div className="admin-page-title">Rechnungen</div>
-          <div className="admin-page-subtitle">{filtered.length} Einträge · Offen: {fmtCHF(totalOpen)}</div>
+          <div className="admin-page-subtitle">
+            {total} Einträge{totalOpen !== null && ` · Offen: ${fmtCHF(totalOpen)}`}
+          </div>
         </div>
         <div className="admin-page-actions">
           {freieRechnung && (
@@ -574,29 +603,32 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           <input
             className="admin-search"
             placeholder="Projekt oder Rechnungs-Nr. suchen…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={list.searchInput}
+            onChange={e => list.setSearchInput(e.target.value)}
           />
+          {/* Filterwechsel → Seite 1, im selben Handler (siehe usePagedList). */}
           <ProjektleiterFilter
             options={projektleiterOptions}
             value={projektleiterFilter}
-            onChange={setProjektleiterFilter}
+            onChange={v => { setProjektleiterFilter(v); list.setPage(1) }}
           />
           <StatusFilterPopover
             allStatuses={ALL_STATUSES}
             statusLabels={STATUS_LABELS}
             selected={statusFilters}
-            onChange={setStatusFilters}
+            onChange={v => { setStatusFilters(v); list.setPage(1) }}
           />
         </div>
 
-        {loading ? (
+        {/* Spinner nur beim ersten Laden; danach bleibt die alte Seite stehen,
+            bis die neue da ist. */}
+        {list.loading && !list.data ? (
           <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>
         ) : isMobile ? (
           <AdminCardList
-            items={filtered}
+            items={invoices}
             keyFor={inv => String(inv.id)}
-            empty="Keine Rechnungen gefunden."
+            empty={emptyText}
             onItemClick={onNav ? openProject : undefined}
             renderCard={inv => (
               <>
@@ -657,7 +689,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
             )}
           />
         ) : (
-          <table className="admin-table">
+          <table className="admin-table" aria-busy={list.loading} style={list.loading ? { opacity: 0.6 } : undefined}>
             <thead>
               <tr>
                 <th>Nr.</th>
@@ -670,9 +702,9 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={7} className="admin-table-empty">Keine Rechnungen gefunden.</td></tr>
-              ) : filtered.map(inv => (
+              {invoices.length === 0 ? (
+                <tr><td colSpan={7} className="admin-table-empty">{emptyText}</td></tr>
+              ) : invoices.map(inv => (
                 <tr
                   key={inv.id}
                   onClick={canOpenProject(inv) ? () => openProject(inv) : undefined}
@@ -773,6 +805,13 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
             </tbody>
           </table>
         )}
+        <ListPager
+          page={list.page}
+          pageSize={LIST_PAGE_SIZE}
+          total={total}
+          loading={list.loading}
+          onPage={list.setPage}
+        />
       </div>
 
       {/* Bestätigungsdialog bezahlt markieren */}

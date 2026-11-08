@@ -9,6 +9,7 @@ const setBexioToken = vi.fn()
 const setBexioDefaults = vi.fn()
 const listBexioJobs = vi.fn()
 const startBexioOAuth = vi.fn()
+const resendBexioPdfs = vi.fn()
 
 vi.mock('../../tenantScopedApi', () => ({
   getBexio: () => getBexio(),
@@ -16,6 +17,7 @@ vi.mock('../../tenantScopedApi', () => ({
   setBexioDefaults: (...a: unknown[]) => setBexioDefaults(...a),
   listBexioJobs: () => listBexioJobs(),
   startBexioOAuth: () => startBexioOAuth(),
+  resendBexioPdfs: (...a: unknown[]) => resendBexioPdfs(...a),
   testBexio: vi.fn(), deleteBexio: vi.fn(), retryBexioJob: vi.fn(),
   linkBexioContact: vi.fn(), cancelInBexio: vi.fn(), enqueueBexioInvoice: vi.fn(),
 }))
@@ -55,6 +57,7 @@ beforeEach(() => {
   setBexioToken.mockReset().mockResolvedValue(verbunden)
   setBexioDefaults.mockReset().mockResolvedValue(verbunden)
   listBexioJobs.mockReset().mockResolvedValue([])
+  resendBexioPdfs.mockReset()
   startBexioOAuth.mockReset().mockResolvedValue({
     authorize_url: 'https://auth.bexio.com/realms/bexio/protocol/openid-connect/auth?state=abc', expires_in_minutes: 15,
   })
@@ -82,6 +85,57 @@ describe('BexioTab', () => {
     fireEvent.click(await screen.findByText('Mit bexio verbinden'))
     expect(await screen.findByText(/auth\.bexio\.com/)).toBeTruthy()
     expect(screen.getByText('Öffnen').getAttribute('href')).toMatch(/^https:\/\/auth\.bexio\.com/)
+  })
+
+  it('sperrt das persönliche Token auf Produktion und verweist auf OpenID Connect', async () => {
+    getBexio.mockResolvedValue({ ...leer, pat_allowed: false })
+    render(<BexioTab tenantId="t-1" />)
+    expect(await screen.findByText(/Persönliche Tokens sind hier gesperrt/)).toBeTruthy()
+    expect(screen.queryByLabelText('Persönliches Token')).toBeNull()
+    expect(screen.getByText('Mit bexio verbinden')).toBeTruthy()
+  })
+
+  it('warnt, wenn eine Produktions-Verbindung noch auf einem persönlichen Token läuft', async () => {
+    getBexio.mockResolvedValue({ ...verbunden, pat_allowed: false })
+    render(<BexioTab tenantId="t-1" />)
+    expect(await screen.findByText(/Diese Verbindung läuft über ein persönliches Token/)).toBeTruthy()
+  })
+
+  it('nennt fehlende Freigaben und sperrt «PDFs nachreichen», bis neu verbunden ist', async () => {
+    getBexio.mockResolvedValue({
+      ...verbunden,
+      connection: { ...verbunden.connection, auth_kind: 'oauth' },
+      missing_scopes: [{ scope: 'file', purpose: 'Werkora-PDF in bexios Dateiablage legen' }],
+      pdf_errors: 2,
+    })
+    render(<BexioTab tenantId="t-1" />)
+    expect(await screen.findByText(/Werkora-PDF in bexios Dateiablage legen \(file\)/)).toBeTruthy()
+    expect(screen.getByText(/2 Rechnungen liegen ohne Werkora-PDF/)).toBeTruthy()
+    expect((screen.getByText('PDFs nachreichen') as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('«PDFs nachreichen» reiht ein und meldet die Anzahl', async () => {
+    const mitFehlern = { ...verbunden, connection: { ...verbunden.connection, auth_kind: 'oauth' }, pdf_errors: 2 }
+    getBexio.mockResolvedValue(mitFehlern)
+    resendBexioPdfs.mockResolvedValue({ ...mitFehlern, pdf_errors: 0, enqueued: 2 })
+    render(<BexioTab tenantId="t-1" />)
+    fireEvent.click(await screen.findByText('PDFs nachreichen'))
+    await waitFor(() => expect(resendBexioPdfs).toHaveBeenCalledWith('t-1'))
+    expect(await screen.findByText('2 PDFs werden beim nächsten Lauf nachgereicht (alle 5 Minuten)')).toBeTruthy()
+    expect(screen.queryByText('PDFs nachreichen')).toBeNull()
+  })
+
+  it('nach dem Nachreichen steht der Vermerk statt eines zweiten Knopfs, solange der Lauf aussteht', async () => {
+    // Der Zähler fällt erst, wenn der Lauf das PDF abgelegt hat — die Antwort trägt ihn noch.
+    const mitFehler = { ...verbunden, connection: { ...verbunden.connection, auth_kind: 'oauth' }, pdf_errors: 1 }
+    getBexio.mockResolvedValue(mitFehler)
+    resendBexioPdfs.mockResolvedValue({ ...mitFehler, enqueued: 1 })
+    render(<BexioTab tenantId="t-1" />)
+    fireEvent.click(await screen.findByText('PDFs nachreichen'))
+    expect(await screen.findByText(/Wird beim nächsten Lauf nachgereicht/)).toBeTruthy()
+    expect(screen.getByText('1 PDF wird beim nächsten Lauf nachgereicht (alle 5 Minuten)')).toBeTruthy()
+    expect(screen.queryByText('PDFs nachreichen')).toBeNull()
+    expect(screen.queryByText(/eingereiht/)).toBeNull()
   })
 
   it('die Zahlungsrichtung ist eine Wahl, nicht zwei Häkchen', async () => {

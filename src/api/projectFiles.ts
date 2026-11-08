@@ -1,9 +1,11 @@
 // Dateien am Projekt — für beide Sichten (Charge H5).
 //
 // Die Monteur-PWA spricht `/pwa/projects/…`, die Verwaltung `/pwa/admin/projects/…`.
-// Die fünf Operationen (Liste, Upload, Umbenennen, Löschen, Download-Link) sind in
-// beiden Familien identisch; unterschiedlich ist nur, was der Server durchlässt.
-// Deshalb steht der Pfad-Präfix als Parameter davor statt zweimal ausgeschrieben.
+// Vier der fünf Operationen (Liste, Upload, Umbenennen, Löschen) sind in beiden
+// Familien identisch; unterschiedlich ist nur, was der Server durchlässt. Deshalb
+// steht der Pfad-Präfix als Parameter davor statt zweimal ausgeschrieben.
+//
+// Die Ausnahme ist der Download-Link — siehe `projectFileUrl`.
 //
 // api/admin/projects.ts hält die Verwaltungs-Namen als schmale Weiterleitungen —
 // die Screens dort rufen weiter `uploadProjectFile(projectId, …)` ohne Präfix.
@@ -60,9 +62,20 @@ export async function deleteProjectFile(
  *
  * Ohne Flag liefert der Proxy Fotos und PDFs `inline` aus — der Name öffnet die
  * Datei. `download: true` erzwingt `attachment`, das ist der Speichern-Knopf.
+ *
+ * Der Download ist die eine Operation ohne symmetrischen Pfad: Die Verwaltung
+ * lädt über `/pwa/admin/project-files/{id}/download`
+ * (`agents/routers/documents.py::get_project_file`), einen Pfad ohne Projekt.
+ * `/pwa/admin/projects/{p}/files/{id}/download` gibt es im Backend nicht. Bis
+ * 2026-11-08 baute diese Funktion genau den — die Fotos in der
+ * Hagelschaden-Ansicht liefen alle in 404, und weil das `<img>` sich bei einem
+ * Ladefehler ausblendet, sah man nur die Dateinamen.
  */
 export function projectFileUrl(
   scope: ProjectScope, projectId: string, fileId: string, opts: { download?: boolean } = {},
 ): string {
-  return apiUrl(`${filesPath(scope, projectId)}/${fileId}/download${opts.download ? '?download=1' : ''}`)
+  const path = scope === '/pwa/admin'
+    ? `/pwa/admin/project-files/${fileId}/download`
+    : `${filesPath(scope, projectId)}/${fileId}/download`
+  return apiUrl(`${path}${opts.download ? '?download=1' : ''}`)
 }

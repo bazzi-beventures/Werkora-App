@@ -65,7 +65,7 @@ export function MyReminders({
     <section className="admin-kpi-section" data-testid="my-reminders">
       <h3 className="admin-kpi-group-title">
         Meine Erinnerungen
-        {dueCount > 0 && <span className="admin-kpi-badge" style={{ position: 'static', marginLeft: 8 }}>{dueCount}</span>}
+        {dueCount > 0 && <span className="admin-kpi-badge admin-kpi-badge--inline">{dueCount}</span>}
       </h3>
       {rows.length === 0 ? (
         <div style={{ fontSize: 13, color: 'var(--muted)' }}>

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
-  getQuoteDetail, listQuotes, markQuoteSentByPost, sendQuoteRejection, setQuoteStatus,
+  getQuoteDetail, listQuotesPage, markQuoteSentByPost, sendQuoteRejection, setQuoteStatus,
 } from '../../api/admin/quotes'
 import { getAdminStaff } from '../../api/admin/staff'
 import { QUOTE_STATUS_LABELS } from '../constants/statuses'
@@ -15,7 +15,9 @@ import { getMe } from '../../api/auth'
 import { getFeature, isFeatureEnabled } from '../../api/modules'
 import { quoteWaitHours } from './quoteFeedback'
 import { AdminCardList } from '../components/AdminCardList'
+import { ListPager } from '../components/ListPager'
 import { useIsMobile } from '../useIsMobile'
+import { LIST_PAGE_SIZE, usePagedList } from '../usePagedList'
 import { QUOTE_EDITABLE_STATUSES, QuoteRowActions, QuoteStatusCell } from './quotes/QuoteListParts'
 import type { QuoteActionHandlers, QuoteListFlags } from './quotes/QuoteListParts'
 import { QuoteCreateForm } from './quotes/QuoteCreateForm'
@@ -23,6 +25,10 @@ import { QuoteEditForm } from './quotes/QuoteEditForm'
 import type { ProjektleiterOption, Quote, QuoteDetail } from './quotes/quoteTypes'
 
 const STATUS_LABELS = QUOTE_STATUS_LABELS
+const ALL_STATUSES = ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage', 'archiviert']
+// Stabile Referenz für «noch nichts geladen» — ein frisches [] je Render wäre für
+// jede Abhängigkeitsliste eine neue Liste.
+const NO_QUOTES: Quote[] = []
 
 // ─── Main Screen ────────────────────────────────────────────
 
@@ -56,10 +62,8 @@ function ProjectName({ quote: q, onOpenProject }: { quote: Quote; onOpenProject?
 
 export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject }: QuotesScreenProps = {}) {
   const isMobile = useIsMobile()
-  const [quotes, setQuotes] = useState<Quote[]>([])
-  const [loading, setLoading] = useState(true)
   const [statusFilters, setStatusFilters] = useState<Set<string>>(() => {
-    if (initialStatus && ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage', 'archiviert'].includes(initialStatus)) {
+    if (initialStatus && ALL_STATUSES.includes(initialStatus)) {
       return new Set([initialStatus])
     }
     return new Set(['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage'])
@@ -68,7 +72,6 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
   useEffect(() => {
     if (initialStatus && onConsumed) onConsumed()
   }, [])
-  const [search, setSearch] = useState('')
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
   const [projektleiterOptions, setProjektleiterOptions] = useState<ProjektleiterOption[]>([])
   // id → Name für ALLE Mitarbeiter, nicht nur die mit PL-Häkchen: löst den
@@ -104,16 +107,19 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
   // eine versendete Offerte als unbeantwortet gilt. 0 = Feature aus, keine Kennzeichnung.
   const [feedbackWaitHours, setFeedbackWaitHours] = useState(0)
 
-  async function load() {
-    setLoading(true)
-    try {
-      setQuotes(await listQuotes())
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [])
+  // Seitenweise vom Server: Status, Suche und Projektleiter filtert die
+  // Datenbank, über die Leitung gehen 50 Zeilen (api/admin/listPage.ts).
+  const fetchPage = useCallback(
+    (page: number, search: string) => listQuotesPage({
+      page, pageSize: LIST_PAGE_SIZE, statuses: statusFilters, search,
+      projektleiterId: projektleiterFilter,
+    }),
+    [statusFilters, projektleiterFilter],
+  )
+  const list = usePagedList(fetchPage)
+  const quotes = list.data?.rows ?? NO_QUOTES
+  const total = list.data?.total ?? 0
+  const load = list.reload
 
   useEffect(() => {
     getMe().then(me => {
@@ -191,8 +197,6 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
     }
   }
 
-  const ALL_STATUSES = ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage', 'archiviert']
-
   // Was Tabelle und Karten gemeinsam brauchen — einmal gebaut, an beide gereicht.
   const flags: QuoteListFlags = { dankEnabled, absageEnabled, feedbackWaitHours }
   const actions: QuoteActionHandlers = {
@@ -210,16 +214,7 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
   const projektleiterName = (q: Quote): string =>
     q.projektleiter_name || (q.projektleiter_id ? staffNameById[q.projektleiter_id] ?? '' : '')
 
-  const filtered = quotes.filter(q => {
-    const matchStatus = statusFilters.has(q.status)
-    const needle = search.toLowerCase()
-    const matchSearch = q.project_name.toLowerCase().includes(needle) ||
-      q.quote_number.toLowerCase().includes(needle) ||
-      (q.customer_name ?? '').toLowerCase().includes(needle) ||
-      projektleiterName(q).toLowerCase().includes(needle)
-    const matchPl = !projektleiterFilter || q.projektleiter_id === projektleiterFilter
-    return matchStatus && matchSearch && matchPl
-  })
+  const emptyText = list.failed ? 'Offerten konnten nicht geladen werden.' : 'Keine Offerten gefunden.'
 
   if (showCreate) {
     return (
@@ -252,7 +247,7 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
       <div className="admin-page-header">
         <div>
           <div className="admin-page-title">Offerten</div>
-          <div className="admin-page-subtitle">{filtered.length} Einträge</div>
+          <div className="admin-page-subtitle">{total} Einträge</div>
         </div>
         <button className="admin-btn admin-btn-primary" onClick={() => setShowCreate(true)}>
           + Offerte erstellen
@@ -264,31 +259,34 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
           <input
             className="admin-search"
             placeholder="Projekt, Kunde, Projektleiter oder Offerten-Nr. suchen…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={list.searchInput}
+            onChange={e => list.setSearchInput(e.target.value)}
           />
+          {/* Filterwechsel → Seite 1, im selben Handler (siehe usePagedList). */}
           <ProjektleiterFilter
             options={projektleiterOptions}
             value={projektleiterFilter}
-            onChange={setProjektleiterFilter}
+            onChange={v => { setProjektleiterFilter(v); list.setPage(1) }}
           />
           <StatusFilterPopover
             allStatuses={ALL_STATUSES}
             statusLabels={STATUS_LABELS}
             selected={statusFilters}
-            onChange={setStatusFilters}
+            onChange={v => { setStatusFilters(v); list.setPage(1) }}
           />
         </div>
 
-        {loading ? (
+        {/* Spinner nur beim ersten Laden. Danach bleibt die alte Seite stehen,
+            bis die neue da ist — sonst flackert die Tabelle bei jedem Blättern. */}
+        {list.loading && !list.data ? (
           <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>
         ) : isMobile ? (
           /* Am Handy Karten statt Tabelle — sieben Spalten passen dort nicht.
              Status und Aktionen sind dieselben Bausteine wie in der Tabelle. */
           <AdminCardList
-            items={filtered}
+            items={quotes}
             keyFor={q => String(q.id)}
-            empty="Keine Offerten gefunden."
+            empty={emptyText}
             onItemClick={q => { if (QUOTE_EDITABLE_STATUSES.includes(q.status)) handleEdit(q.id) }}
             renderCard={q => (
               <>
@@ -310,7 +308,7 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
             )}
           />
         ) : (
-          <table className="admin-table">
+          <table className="admin-table" aria-busy={list.loading} style={list.loading ? { opacity: 0.6 } : undefined}>
             <thead>
               <tr>
                 <th>Nr.</th>
@@ -324,9 +322,9 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="admin-table-empty">Keine Offerten gefunden.</td></tr>
-              ) : filtered.map(q => {
+              {quotes.length === 0 ? (
+                <tr><td colSpan={8} className="admin-table-empty">{emptyText}</td></tr>
+              ) : quotes.map(q => {
                 // Ein Klick irgendwo auf die Zeile öffnet die Offerte — dieselbe
                 // Maske wie «Bearbeiten» und bei denselben Status. Klicks auf
                 // Knöpfe und Links (PDF, Senden, Akzeptieren …) dürfen dabei NICHT
@@ -358,6 +356,13 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
             </tbody>
           </table>
         )}
+        <ListPager
+          page={list.page}
+          pageSize={LIST_PAGE_SIZE}
+          total={total}
+          loading={list.loading}
+          onPage={list.setPage}
+        />
       </div>
 
       {/* Dialog: Offerte senden */}

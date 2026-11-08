@@ -281,6 +281,8 @@ export interface BexioConnection {
   status: 'ok' | 'error' | 'disabled'
   last_ok_at: string | null
   last_error: string | null
+  /** Von bexio erteilte Scopes (Leerzeichen-getrennt); null = unbekannt bzw. persönliches Token. */
+  granted_scopes?: string | null
 }
 
 export interface BexioView {
@@ -292,6 +294,16 @@ export interface BexioView {
   readiness: string[]
   queue_counts: Record<string, number>
   findings?: string[]
+  /** «Mit bexio verbinden» (OpenID Connect) ist in dieser Umgebung eingerichtet. */
+  oauth_configured?: boolean
+  /** Persönliches Token erlaubt — nur Staging-Mandanten (Spec §4.4). Fehlt das Feld: wie bisher erlaubt. */
+  pat_allowed?: boolean
+  /** Freigaben, die bexio dieser Verbindung nicht erteilt hat, mit Zweck (Spec §8.1). */
+  missing_scopes?: { scope: string; purpose: string }[]
+  /** Rechnungen, deren Werkora-PDF bexio abgelehnt hat (Spec §6.3a). */
+  pdf_errors?: number
+  /** Antwort von «PDFs nachreichen»: so viele Rechnungen eingereiht. */
+  enqueued?: number
 }
 
 export interface BexioJob {
@@ -362,6 +374,11 @@ export function linkBexioContact(tenantId: string, jobId: number, bexioContactId
 
 export function cancelInBexio(tenantId: string, jobId: number) {
   return apiFetch(`${bexioBase(tenantId)}/queue/${jobId}/cancel-in-bexio`, { method: 'POST' })
+}
+
+/** «PDFs nachreichen»: Rechnungen, deren PDF bexio abgelehnt hat, neu einreihen (Spec §6.3a). */
+export function resendBexioPdfs(tenantId: string): Promise<BexioView> {
+  return apiFetch<BexioView>(`${bexioBase(tenantId)}/pdfs/resend`, { method: 'POST' })
 }
 
 export function enqueueBexioInvoice(tenantId: string, invoiceNumber: string) {
