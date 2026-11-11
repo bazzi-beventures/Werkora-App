@@ -283,6 +283,22 @@ export default function ProjectScheduleGantt({
   }
 
 
+  // Tageswechsel (WW-76): ab dem zweiten sichtbaren Tag eine kräftige Linie an
+  // der Tagesgrenze — im Kopf und in jeder Zeile, über den Balken. Ohne sie ist
+  // die Grenze nur eine von vielen Stundenlinien, und bei 5 oder 6 Tagen
+  // nebeneinander liest man einen Einsatz leicht dem falschen Tag zu. Die Achse
+  // bleibt dabei linear (keine schmalere Mittagsstunde): die Breite eines
+  // Balkens ist seine Dauer, und Klick/Drop rechnen x direkt in eine Uhrzeit um.
+  const daySeparators = days.slice(1).map((_, i) => (
+    <div
+      key={`sep-${i}`}
+      className="project-cal-gantt-day-sep"
+      data-testid="gantt-day-sep"
+      style={{ left: (i + 1) * dayW }}
+      aria-hidden="true"
+    />
+  ))
+
   // `zebra`: jede zweite Mitarbeiter-Zeile hellblau hinterlegt (WW-57) — bei
   // einem Einsatz weit rechts verrutscht man sonst leicht in die Nachbarzeile.
   function renderRow(rowId: string | null, label: string, zebra = false) {
@@ -363,6 +379,7 @@ export default function ProjectScheduleGantt({
                 renderDistance(p, timed[j + 1], i, lanes.get(p.id) ?? 0)),
             ]
           })}
+          {daySeparators}
         </div>
         <div className="project-cal-gantt-util">
           {pct === null ? (
@@ -415,6 +432,7 @@ export default function ProjectScheduleGantt({
                   </div>
                 )
               })}
+              {daySeparators}
             </div>
             <div className="project-cal-gantt-util" title="Auslastungsgrad im sichtbaren Zeitraum">%</div>
           </div>

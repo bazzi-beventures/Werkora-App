@@ -25,6 +25,7 @@ function renderTab(
   invoices: ProjectInvoice[],
   onMarkSentByPost = vi.fn().mockResolvedValue(true),
   onMarkPaid = vi.fn().mockResolvedValue(true),
+  onSendInvoice = vi.fn().mockResolvedValue(true),
 ) {
   render(
     <InvoicesTab
@@ -42,12 +43,56 @@ function renderTab(
       onMarkPaid={onMarkPaid}
       onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
       onArchive={vi.fn().mockResolvedValue(undefined)}
-      onSendInvoice={vi.fn().mockResolvedValue(true)}
+      onSendInvoice={onSendInvoice}
       onMarkSentByPost={onMarkSentByPost}
     />,
   )
   return onMarkSentByPost
 }
+
+describe('InvoicesTab — Rechnung senden mit CC (WW-78)', () => {
+  it('ohne CC geht nur der Empfänger mit', async () => {
+    const onSendInvoice = vi.fn().mockResolvedValue(true)
+    renderTab([makeInvoice({ id: 42 })], undefined, undefined, onSendInvoice)
+    await userEvent.click(screen.getByRole('button', { name: 'Senden' }))
+
+    // Vorbelegt mit der Kunden-E-Mail; CC-Zeilen gibt es erst nach «+ CC».
+    expect(screen.getByDisplayValue('kunde@example.com')).toBeInTheDocument()
+    expect(screen.queryByLabelText('CC 1')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung senden' }))
+    expect(onSendInvoice).toHaveBeenCalledWith(42, 'kunde@example.com', [])
+  })
+
+  it('«+ CC» legt Zeilen an, die mit dem Versand mitgehen', async () => {
+    const onSendInvoice = vi.fn().mockResolvedValue(true)
+    renderTab([makeInvoice({ id: 42 })], undefined, undefined, onSendInvoice)
+    await userEvent.click(screen.getByRole('button', { name: 'Senden' }))
+
+    await userEvent.click(screen.getByRole('button', { name: '+ CC' }))
+    await userEvent.type(screen.getByLabelText('CC 1'), 'verwaltung@example.com')
+    await userEvent.click(screen.getByRole('button', { name: '+ CC' }))
+    await userEvent.type(screen.getByLabelText('CC 2'), 'treuhand@example.com')
+    // Eine Zeile wieder entfernen — die andere rückt nach.
+    await userEvent.click(screen.getByRole('button', { name: 'CC 1 entfernen' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung senden' }))
+    expect(onSendInvoice).toHaveBeenCalledWith(42, 'kunde@example.com', ['treuhand@example.com'])
+  })
+
+  it('ein neu geöffneter Dialog beginnt ohne die CC-Zeilen des letzten', async () => {
+    // Sonst ginge die Verwaltung von Kunde A still bei der nächsten Rechnung mit.
+    const onSendInvoice = vi.fn().mockResolvedValue(true)
+    renderTab([makeInvoice({ id: 42 })], undefined, undefined, onSendInvoice)
+    await userEvent.click(screen.getByRole('button', { name: 'Senden' }))
+    await userEvent.click(screen.getByRole('button', { name: '+ CC' }))
+    await userEvent.type(screen.getByLabelText('CC 1'), 'verwaltung@example.com')
+    await userEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Senden' }))
+    expect(screen.queryByLabelText('CC 1')).not.toBeInTheDocument()
+  })
+})
 
 describe('InvoicesTab — Postversand', () => {
   it('zeigt «Per Post versendet» bei einer offenen Rechnung mit PDF', () => {

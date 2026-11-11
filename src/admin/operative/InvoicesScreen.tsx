@@ -19,6 +19,7 @@ import { fmtCHF, fmtDate, todayISO } from '../utils/format'
 import { invoiceWarningHint, sammelrechnungHint } from '../utils/invoiceHints'
 import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../utils/paidAmount'
 import { PaidAmountField } from './PaidAmountField'
+import { CcEmailRows, recipientSummary } from './CcEmailRows'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { AdminCardList } from '../components/AdminCardList'
@@ -196,6 +197,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // Send invoice
   const [sendInvoice, setSendInvoice] = useState<Invoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
+  // CC-Zeilen des Versand-Dialogs (WW-78): leer, bis jemand auf «+ CC» klickt.
+  const [sendCc, setSendCc] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [hasAcceptedQuote, setHasAcceptedQuote] = useState(false)
 
@@ -391,6 +394,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
       ? projects.find(p => p.name === inv.project_name)
       : null
     setSendEmail(proj?.customer?.email || '')
+    setSendCc([])
     setSendInvoice(inv)
   }
 
@@ -398,8 +402,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     if (!sendInvoice || !sendEmail) return
     setSending(true)
     try {
-      await sendInvoiceByMail(sendInvoice.id, sendEmail)
-      showToast(`Rechnung an ${sendEmail} gesendet`, 'success')
+      await sendInvoiceByMail(sendInvoice.id, sendEmail, sendCc)
+      showToast(`Rechnung an ${recipientSummary(sendEmail, sendCc)} gesendet`, 'success')
       setSendInvoice(null)
       load()
     } catch (err) {
@@ -1120,6 +1124,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
               onChange={e => setSendEmail(e.target.value)}
               placeholder="kunde@example.com"
             />
+            <CcEmailRows value={sendCc} onChange={setSendCc} disabled={sending} />
           </div>
         </ConfirmDialog>
       )}

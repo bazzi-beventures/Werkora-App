@@ -22,6 +22,7 @@ import {
 } from '../../utils/workDescription'
 import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../../utils/paidAmount'
 import { PaidAmountField } from '../PaidAmountField'
+import { CcEmailRows } from '../CcEmailRows'
 import {
   generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
   type GeneralDeductionConfig, type GeneralDeductionState,
@@ -65,7 +66,7 @@ interface InvoicesTabProps {
   onMarkPaid: (invoiceId: number, paidDate: string, paidAmount?: number | null) => Promise<boolean>
   onUnmarkPaid: (invoiceId: number) => Promise<void>
   onArchive: (invoiceId: number) => Promise<void>
-  onSendInvoice: (invoiceId: number, recipientEmail: string) => Promise<boolean>
+  onSendInvoice: (invoiceId: number, recipientEmail: string, cc: string[]) => Promise<boolean>
   // Postversand: markiert als gesendet, ohne zu mailen. `sentDate` ist das
   // Aufgabedatum bei der Post (ISO), aus dem das Zahlungsziel läuft.
   onMarkSentByPost: (invoiceId: number, sentDate: string) => Promise<boolean>
@@ -96,6 +97,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
 
   const [sendInvoice, setSendInvoice] = useState<ProjectInvoice | null>(null)
   const [sendEmail, setSendEmail] = useState('')
+  // CC-Zeilen des Versand-Dialogs (WW-78): leer, bis jemand auf «+ CC» klickt.
+  const [sendCc, setSendCc] = useState<string[]>([])
   const [sending, setSending] = useState(false)
   const [confirmPostal, setConfirmPostal] = useState<ProjectInvoice | null>(null)
   const [postalDate, setPostalDate] = useState('')
@@ -131,7 +134,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   async function handleSend() {
     if (!sendInvoice || !sendEmail) return
     setSending(true)
-    const ok = await onSendInvoice(sendInvoice.id, sendEmail)
+    const ok = await onSendInvoice(sendInvoice.id, sendEmail, sendCc)
     setSending(false)
     if (ok) setSendInvoice(null)
   }
@@ -398,7 +401,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                           <>
                             <button
                               className="admin-btn admin-btn-primary admin-btn-sm"
-                              onClick={() => { setSendEmail(defaultEmail); setSendInvoice(inv) }}
+                              onClick={() => { setSendEmail(defaultEmail); setSendCc([]); setSendInvoice(inv) }}
                             >
                               Senden
                             </button>
@@ -624,6 +627,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
               onChange={e => setSendEmail(e.target.value)}
               placeholder="kunde@example.com"
             />
+            <CcEmailRows value={sendCc} onChange={setSendCc} disabled={sending} />
           </div>
         </ConfirmDialog>
       )}

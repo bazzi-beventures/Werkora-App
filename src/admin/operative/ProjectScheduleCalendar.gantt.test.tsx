@@ -366,4 +366,24 @@ describe('Tagesplan (Gantt)', () => {
     // Ganztägig belegt den vollen Tag → 100 % Auslastung.
     expect(rows(container)[0].querySelector('.project-cal-gantt-util-badge')).toHaveTextContent('100%')
   })
+
+  it('trennt die Tage mit einer Linie an jeder Tagesgrenze — im Kopf und in jeder Zeile (WW-76)', () => {
+    localStorage.setItem('schedule-gantt-span', '3')
+    const { container } = renderGantt({ entries: [entry({})] })
+    const dayW = (container.querySelector('.project-cal-gantt-day-head') as HTMLElement).style.width
+    const dayPx = parseFloat(dayW)
+    // Drei Tage → zwei Grenzen, je im Kopf und in den zwei Mitarbeiter-Zeilen.
+    const header = container.querySelector('.project-cal-gantt-header') as HTMLElement
+    const headSeps = [...header.querySelectorAll<HTMLElement>('[data-testid="gantt-day-sep"]')]
+    expect(headSeps.map(el => el.style.left)).toEqual([`${dayPx}px`, `${2 * dayPx}px`])
+    for (const row of rows(container)) {
+      const seps = [...row.querySelectorAll<HTMLElement>('[data-testid="gantt-day-sep"]')]
+      expect(seps.map(el => el.style.left)).toEqual([`${dayPx}px`, `${2 * dayPx}px`])
+    }
+  })
+
+  it('zeigt bei einem einzelnen Tag keine Trennlinie', () => {
+    const { container } = renderGantt({ entries: [entry({})] })
+    expect(container.querySelector('[data-testid="gantt-day-sep"]')).not.toBeInTheDocument()
+  })
 })

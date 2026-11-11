@@ -251,10 +251,18 @@ export async function getAnzahlungen(projectId: string, additional = false): Pro
   return res.anzahlungen || []
 }
 
-export async function sendInvoice(invoiceId: number, recipientEmail: string): Promise<void> {
+/** `ccRecipients`: Mitleser im selben Mail (WW-78). Leere Zeilen aus dem Dialog
+ *  fallen weg; ohne CC bleibt der Body wie bisher. */
+export async function sendInvoice(
+  invoiceId: number, recipientEmail: string, ccRecipients: string[] = [],
+): Promise<void> {
+  const cc = ccRecipients.map(a => a.trim()).filter(Boolean)
   await apiFetch('/pwa/admin/invoices/send', {
     method: 'POST',
-    body: JSON.stringify({ invoice_id: invoiceId, recipient_email: recipientEmail }),
+    body: JSON.stringify({
+      invoice_id: invoiceId, recipient_email: recipientEmail,
+      ...(cc.length ? { cc_recipients: cc } : {}),
+    }),
   })
 }
 

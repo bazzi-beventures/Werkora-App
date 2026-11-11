@@ -4,7 +4,7 @@ import {
 } from '../../api/admin/quotes'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { fmtDate } from '../utils/format'
-import { EmailRow } from './EmailRow'
+import { CcEmailRows } from './CcEmailRows'
 
 interface BaseProps {
   quoteId: number
@@ -91,31 +91,7 @@ export function SendQuoteMailDialog(
             onChange={e => setEmail(e.target.value)}
             placeholder="kunde@example.com"
           />
-          {withCc && (
-            <>
-              {ccEmails.map((v, i) => (
-                <EmailRow
-                  key={`cc-${i}`}
-                  value={v}
-                  label={`CC ${i + 1}`}
-                  prefix="CC"
-                  disabled={busy}
-                  onChange={next => setCcEmails(prev => prev.map((x, j) => (j === i ? next : x)))}
-                  onRemove={() => setCcEmails(prev => prev.filter((_, j) => j !== i))}
-                />
-              ))}
-              <div style={{ marginTop: 8 }}>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-secondary admin-btn-sm"
-                  disabled={busy}
-                  onClick={() => setCcEmails(prev => [...prev, ''])}
-                >
-                  + CC
-                </button>
-              </div>
-            </>
-          )}
+          {withCc && <CcEmailRows value={ccEmails} onChange={setCcEmails} disabled={busy} />}
           {note && (
             <div style={{ marginTop: 6, fontSize: 12, color: 'var(--muted)' }}>{note}</div>
           )}

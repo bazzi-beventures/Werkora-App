@@ -17,6 +17,7 @@ import {
 } from '../../../api/admin/reports'
 import type { ProjectInvoice, ProjectQuote, ProjectReport } from './types'
 import { hasBillableReport } from './billingRules'
+import { recipientSummary } from '../CcEmailRows'
 import { invoiceWarningHint, sammelrechnungHint } from '../../utils/invoiceHints'
 import { generateOptionsPayload, type GenerateInvoiceOptions } from '../../utils/invoiceMode'
 
@@ -373,10 +374,10 @@ export function useProjectBilling(
     }
   }
 
-  async function send(invoiceId: number, recipientEmail: string): Promise<boolean> {
+  async function send(invoiceId: number, recipientEmail: string, cc: string[] = []): Promise<boolean> {
     try {
-      await sendInvoice(invoiceId, recipientEmail)
-      cb.onToast(`Rechnung an ${recipientEmail} gesendet`)
+      await sendInvoice(invoiceId, recipientEmail, cc)
+      cb.onToast(`Rechnung an ${recipientSummary(recipientEmail, cc)} gesendet`)
       await reloadInvoices()
       return true
     } catch (err) {

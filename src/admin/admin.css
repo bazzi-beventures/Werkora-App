@@ -4167,6 +4167,21 @@ button.admin-list-item {
   opacity: 0.45;
 }
 
+/* Tageswechsel (WW-76): kräftige Linie an der Grenze zwischen zwei Tagen, im
+   Kopf und in jeder Zeile. Liegt über den Balken (z-index 2), damit ein Einsatz
+   ab der ersten Stunde sie nicht verdeckt, und unter den stehenden Spalten
+   links/rechts (z-index 10). Ohne Breite im Raster: die Achse bleibt linear. */
+.project-cal-gantt-day-sep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  margin-left: -1px;
+  border-left: 3px solid var(--muted);
+  pointer-events: none;
+  z-index: 3;
+}
+
 /* Einsatz-Balken: Dauer = Breite, zwei Zeilen (Titel / Ortschaft).
    Die Höhe kommt aus GANTT_BAR_H (utils/ganttGrid.ts) — bleibt sie und die
    Zeilenhöhen hier nicht im Gleichschritt, rutscht die zweite Zeile heraus. */
