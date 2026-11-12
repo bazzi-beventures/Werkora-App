@@ -3,11 +3,12 @@ import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
 import { ModuleName } from '../api/modules'
 import { hasKpiAccess, isManagementRole } from '../shared/roles'
+import { BetaBadge } from '../shared/BetaBadge'
 import {
   IconDashboard, IconFolder, IconClock, IconCash,
   IconUsers, IconAddressBook, IconReceipt, IconCalendar,
   IconDocument, IconBox, IconTag, IconChart, IconKey, IconLogout, IconSettings,
-  IconAftersales, IconTasks, IconBulb, IconHail,
+  IconAftersales, IconTasks, IconBulb, IconHail, IconMail,
 } from './AdminIcons'
 
 interface Props {
@@ -29,6 +30,8 @@ interface Props {
     wishes?: number
     /** Lieferschein-Eingang: offene, noch keinem Projekt zugeordnete Lieferscheine. */
     deliveryNotes?: number
+    /** Eingang: weitergeleitete Mails mit offenen Vorschlägen. */
+    mailEingang?: number
   }
   /** Die dem Konto zugeteilte offene Zählung. Sie ist zugleich die Berechtigung
    *  und der Einstieg: Der Eintrag erscheint, sobald eine Tranche ihm gehört —
@@ -72,6 +75,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
   const isMoreActive = !PRIMARY_TABS.includes(screen)
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
     || (has('lieferschein_erfassung') && (badges?.deliveryNotes ?? 0) > 0)
+    || (has('mail_eingang') && (badges?.mailEingang ?? 0) > 0)
     || (has('feature_requests') && (badges?.wishes ?? 0) > 0)
 
   function navigate(target: AdminScreen, detailId?: string) {
@@ -224,6 +228,14 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     <IconDocument /><span>Lieferschein-Eingang</span>
                     {(badges?.deliveryNotes ?? 0) > 0 && (
                       <span className="admin-mobile-drawer-item-badge">{badges!.deliveryNotes}</span>
+                    )}
+                  </button>
+                )}
+                {has('mail_eingang') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'eingang' ? ' active' : ''}`} onClick={() => navigate('eingang')}>
+                    <IconMail /><span>Eingang <BetaBadge /></span>
+                    {(badges?.mailEingang ?? 0) > 0 && (
+                      <span className="admin-mobile-drawer-item-badge">{badges!.mailEingang}</span>
                     )}
                   </button>
                 )}

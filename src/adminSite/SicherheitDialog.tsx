@@ -100,7 +100,10 @@ export default function SicherheitDialog({ onClose, onMeldung, appModus = false 
       onMeldung('Passkey eingerichtet')
     } catch (err: unknown) {
       if (!(err instanceof SchonEingerichtet)) throw err
-      onMeldung('Auf diesem Gerät ist schon ein Passkey eingerichtet')
+      // Meist ein synchronisierter Passkey (Google- oder iCloud-Passwortmanager):
+      // der Browser hat ihn schon und legt keinen zweiten an.
+      onMeldung('Dieser Computer hat schon einen Passkey (z. B. aus dem Google- oder '
+        + 'iCloud-Passwortmanager) und bestätigt damit direkt')
     }
     await laden()
   })
@@ -112,16 +115,29 @@ export default function SicherheitDialog({ onClose, onMeldung, appModus = false 
     await laden()
   })
 
+  async function pflichtEinschalten() {
+    await mitBestaetigung(aktiviere)
+    onMeldung('Zwei-Faktor-Anmeldung eingeschaltet')
+    setNeueCodes(null)
+    setAbgelegt(false)
+    await laden()
+  }
+
   const fertig = () => ausfuehren(async () => {
     if (daten && !daten.pflicht) {
-      await mitBestaetigung(aktiviere)
-      onMeldung('Zwei-Faktor-Anmeldung eingeschaltet')
-    } else {
-      onMeldung('Neue Wiederherstellungscodes gelten')
+      await pflichtEinschalten()
+      return
     }
+    onMeldung('Neue Wiederherstellungscodes gelten')
     setNeueCodes(null)
     await laden()
   })
+
+  // Codes erzeugt, «Fertig» aber nie geklickt (Fenster zu, daneben geklickt):
+  // die Codes gelten, die Pflicht ist aus. Ohne diesen Weg bliebe nur, die
+  // Codes nochmals zu ersetzen.
+  const einschalten = () => ausfuehren(pflichtEinschalten)
+  const nurNochEinschalten = daten !== null && !daten.pflicht && daten.codes_uebrig > 0
 
   const entfernen = (p: MfaPasskey) => ausfuehren(async () => {
     setZuEntfernen(null)
@@ -133,7 +149,13 @@ export default function SicherheitDialog({ onClose, onMeldung, appModus = false 
   const betreiberPasskeys = daten?.passkeys.filter((p) => p.betreiber_seite).length ?? 0
 
   return (
-    <div className="admin-modal-overlay" {...backdropCloseProps(() => { if (!laeuft) onClose() })}>
+    // Solange die Codes offen stehen, schliesst ein Klick daneben nicht: nach
+    // «Herunterladen» landet der nächste Klick leicht neben dem Fenster, und
+    // dann fehlte «Fertig» — die Pflicht bliebe aus. «×» schliesst weiter.
+    <div className="admin-modal-overlay" {...backdropCloseProps(() => { if (!laeuft) onClose() }, {
+      blockWhen: () => neueCodes !== null,
+      onBlocked: () => { /* bewusst nichts: die Codes bleiben stehen */ },
+    })}>
       <div className="admin-modal adminsite-mfa-dialog" onClick={(e) => e.stopPropagation()}
         role="dialog" aria-modal="true" aria-label="Sicherheit">
         <div className="admin-modal-header">
@@ -189,9 +211,24 @@ export default function SicherheitDialog({ onClose, onMeldung, appModus = false 
                   {daten.pflicht
                     ? `Zwei-Faktor-Anmeldung ist aktiv (seit ${datum(daten.pflicht_seit)}). `
                       + 'Ein Passwort allein öffnet die Betreiber-Seite nicht.'
-                    : 'Zwei-Faktor-Anmeldung ist noch nicht aktiv. Sie wird mit dem ersten '
-                      + 'Satz Wiederherstellungscodes eingeschaltet.'}
+                    : nurNochEinschalten
+                      ? 'Zwei-Faktor-Anmeldung ist noch nicht eingeschaltet. Die Wiederherstellungs'
+                        + 'codes sind erzeugt — es fehlt nur noch dieser Schritt.'
+                      : 'Zwei-Faktor-Anmeldung ist noch nicht aktiv. Sie wird mit dem ersten '
+                        + 'Satz Wiederherstellungscodes eingeschaltet.'}
                 </div>
+                {nurNochEinschalten && (
+                  <>
+                    <label className="adminsite-mfa-check">
+                      <input type="checkbox" checked={abgelegt} onChange={(e) => setAbgelegt(e.target.checked)} />
+                      Ich habe die Codes sicher abgelegt.
+                    </label>
+                    <button type="button" className="admin-btn admin-btn-primary"
+                      disabled={!abgelegt || laeuft} onClick={() => { void einschalten() }}>
+                      Zwei-Faktor-Anmeldung einschalten
+                    </button>
+                  </>
+                )}
               </section>
 
               <section className="adminsite-mfa-section">

@@ -7,10 +7,11 @@ import { TravelCostTab } from './tabs/TravelCostTab'
 import { SchedulingTab } from './tabs/SchedulingTab'
 import { HelpDocsTab } from './tabs/HelpDocsTab'
 import { BexioTab } from './tabs/BexioTab'
+import { MailEingangTab } from './tabs/MailEingangTab'
 
 type Tab =
   | 'modules' | 'notifications' | 'workflows'
-  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio'
+  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'mail-eingang'
 
 /**
  * Kalibrierung eines Mandanten durch den Betreiber.
@@ -96,6 +97,12 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
           >
             bexio
           </button>
+                  <button
+            className={`kpi-admin-tab${tab === 'mail-eingang' ? ' active' : ''}`}
+            onClick={() => setTab('mail-eingang')}
+          >
+            Mail-Eingang
+          </button>
       </div>
 
       {tab === 'modules' && <ModulesTab view="modules" tenantId={tenantId} />}
@@ -107,6 +114,8 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
       {tab === 'help-docs' && <HelpDocsTab tenantId={tenantId} />}
       {/* key: lokaler Zustand (OAuth-Link, «wird nachgereicht») gehört zu genau einem Mandanten */}
       {tab === 'bexio' && <BexioTab key={tenantId} tenantId={tenantId} />}
+      {/* key: eine halb ausgefüllte Absenderschranke darf nie beim nächsten Mandanten stehen bleiben */}
+      {tab === 'mail-eingang' && <MailEingangTab key={tenantId} tenantId={tenantId} />}
 
     </div>
   )

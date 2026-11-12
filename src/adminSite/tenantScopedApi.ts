@@ -193,3 +193,8 @@ export {
 export type {
   BexioView, BexioJob, BexioDefaults, BexioConnection, BexioCatalog,
 } from '../api/platform'
+
+// ─── Mail-Eingang (docs/specs/mail-eingang-triage.md §6.4) ────────────────
+
+export { getMailEingang, setMailEingang } from '../api/platform'
+export type { MailEingangEinstellung, MailEingangView, MailSystem } from '../api/platform'

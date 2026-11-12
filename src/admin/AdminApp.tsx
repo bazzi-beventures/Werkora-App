@@ -60,6 +60,7 @@ const CustomersScreen = lazy(() => import('./operative/CustomersScreen'))
 const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
 const HagelschadenScreen = lazy(() => import('./operative/hagelschaden/HagelschadenScreen'))
 const DeliveryNotesScreen = lazy(() => import('./operative/DeliveryNotesScreen'))
+const MailEingangScreen = lazy(() => import('./eingang/MailEingangScreen'))
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -195,6 +196,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     tasks: dashboard?.my_open_tasks ?? 0,
     wishes: hasModule(user, 'feature_requests') ? wishAttention : 0,
     deliveryNotes: dashboard?.pending_delivery_notes ?? 0,
+    mailEingang: dashboard?.pending_mail_eingang ?? 0,
   }
 
   const isManagement = isManagementRole(user.role)
@@ -318,6 +320,16 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'invoices':     return guard('invoicing', <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav} />)
       case 'delivery-notes': return guard('lieferschein_erfassung', (
         <DeliveryNotesScreen onChanged={loadDashboard} />
+      ))
+      // Mail-Eingang (docs/specs/mail-eingang-triage.md §10): Vorschläge aus
+      // weitergeleiteten Mails. Büro-Oberfläche — die Monteur-App kennt ihn nicht.
+      case 'eingang': return guard('mail_eingang', (
+        <MailEingangScreen
+          onChanged={loadDashboard}
+          // Der Reiter reist wie beim Aufgaben-Board: ein abgelegter Anhang
+          // öffnet das Projekt gleich auf «Dokumente».
+          onNav={(next, id, tab) => { setDeepLinkTab(tab ?? null); guardedNav(next, id) }}
+        />
       ))
       case 'hagelschaden': return guard('hagelschaden', (
         <HagelschadenScreen

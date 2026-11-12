@@ -20,7 +20,7 @@ const KNOWN_MODULES = [
   'aftersales', 'document_backup',
   'rapport_check_mail', 'task_board', 'newsletter', 'support', 'supplier_wiki',
   'feature_requests', 'warranty', 'reminders', 'hagelschaden', 'lieferschein_erfassung',
-  'termin_bestaetigung', 'bexio',
+  'termin_bestaetigung', 'bexio', 'mail_eingang',
 ]
 
 describe('moduleOfAction', () => {
@@ -46,6 +46,10 @@ describe('moduleOfAction', () => {
     ['admin_create_project_task_template', 'task_board'],
     ['admin_reconcile_camt',               'payment_matching'],
     ['admin_extract_quote_pdf',            'quotes'],
+    // Mail-Eingang: auch die Einstellung des Betreibers zählt zum Modul.
+    ['mail_eingang_uebernommen',           'mail_eingang'],
+    ['mail_eingang_verworfen',             'mail_eingang'],
+    ['mail_eingang_config_set',            'mail_eingang'],
   ])('%s → %s', (action, modul) => {
     expect(moduleOfAction(action)).toBe(modul)
   })

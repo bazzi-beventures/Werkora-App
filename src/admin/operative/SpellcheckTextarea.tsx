@@ -86,6 +86,8 @@ export function SpellcheckTextarea({
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [kind, setKind] = useState<SuggestionKind>('spell')
   const [original, setOriginal] = useState('')
+  // Offene Punkte zum Vorschlag («Formulieren»): stehen im Popup, nie im Text.
+  const [hints, setHints] = useState<string[]>([])
 
   async function run(next: SuggestionKind) {
     if (!value.trim() || busy) return
@@ -93,12 +95,20 @@ export function SpellcheckTextarea({
     setError('')
     setNoErrors(false)
     try {
-      const proposal = next === 'spell'
-        ? await checkSpelling(value).then(r => (r.changed ? r.corrected : ''))
-        : await composeQuoteDescription(value, projectId).then(r => (r.changed ? r.description : ''))
+      let proposal = ''
+      let nextHints: string[] = []
+      if (next === 'spell') {
+        const r = await checkSpelling(value)
+        proposal = r.changed ? r.corrected : ''
+      } else {
+        const r = await composeQuoteDescription(value, projectId)
+        proposal = r.changed ? r.description : ''
+        nextHints = (r.hints ?? []).filter(h => h.trim())
+      }
       if (proposal.trim() && proposal.trim() !== value.trim()) {
         setOriginal(value)
         setKind(next)
+        setHints(nextHints)
         setSuggestion(proposal)
       } else {
         // Beim Ausformulieren heisst «nichts zurückgekommen» nicht «alles gut»:
@@ -201,6 +211,22 @@ export function SpellcheckTextarea({
                 // sieht der Anwender vor dem Übernehmen, was beim Kunden ankommt.
                 : rich ? <Formatted md={suggestion} /> : suggestion}
             </div>
+
+            {kind === 'compose' && hints.length > 0 && (
+              // Gleich über den Knöpfen, wo entschieden wird. «Übernehmen» übernimmt
+              // nur den Vorschlag — die Hinweise sagen, was vorher zu prüfen ist.
+              <div
+                data-testid="compose-hints"
+                role="note"
+                style={{ background: 'var(--warning-soft)', color: 'var(--warning-ink)', borderRadius: 'var(--radius-sm)', padding: '10px 12px', fontSize: 13, lineHeight: 1.45, marginBottom: 18 }}
+              >
+                <strong style={{ display: 'block', marginBottom: 4 }}>Bitte prüfen</strong>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
+                  {hints.map((h, i) => <li key={i}>{h}</li>)}
+                </ul>
+                <div style={{ marginTop: 6, opacity: 0.85 }}>Die Hinweise kommen nicht in den Text.</div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button type="button" className="admin-btn admin-btn-secondary" onClick={() => setSuggestion(null)}>Verwerfen</button>

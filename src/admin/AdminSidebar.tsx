@@ -2,10 +2,11 @@ import { AdminScreen } from './useAdminNav'
 import { logout } from '../api/auth'
 import { ModuleName } from '../api/modules'
 import { hasKpiAccess, isManagementRole } from '../shared/roles'
+import { BetaBadge } from '../shared/BetaBadge'
 import {
   IconDashboard, IconUsers, IconCalendar, IconClock, IconDocument, IconBox,
   IconFolder, IconReceipt, IconCash, IconTag, IconKey, IconChart,
-  IconLogout, IconAddressBook, IconSettings, IconAftersales, IconTasks, IconBulb, IconHail,
+  IconLogout, IconAddressBook, IconSettings, IconAftersales, IconTasks, IconBulb, IconHail, IconMail,
 } from './AdminIcons'
 
 interface Props {
@@ -28,6 +29,8 @@ interface Props {
     wishes?: number
     /** Lieferschein-Eingang: offene, noch keinem Projekt zugeordnete Lieferscheine. */
     deliveryNotes?: number
+    /** Eingang: weitergeleitete Mails mit offenen Vorschlägen. */
+    mailEingang?: number
   }
 }
 
@@ -38,9 +41,11 @@ interface NavItemProps {
   onNav: (s: AdminScreen) => void
   badge?: number
   icon: React.ReactNode
+  /** «Beta»-Abzeichen am Einstieg (docs/specs/beta-tester.md §6.2). */
+  beta?: boolean
 }
 
-function NavItem({ label, target, current, onNav, badge, icon }: NavItemProps) {
+function NavItem({ label, target, current, onNav, badge, icon, beta }: NavItemProps) {
   return (
     <button
       className={`admin-nav-item${current === target ? ' active' : ''}`}
@@ -48,7 +53,7 @@ function NavItem({ label, target, current, onNav, badge, icon }: NavItemProps) {
       title={label}
     >
       {icon}
-      <span>{label}</span>
+      <span>{label}{beta && <> <BetaBadge /></>}</span>
       {badge != null && badge > 0 && (
         <span className="admin-nav-badge danger">{badge}</span>
       )}
@@ -128,6 +133,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         )}
         {has('lieferschein_erfassung') && (
           <NavItem label="Lieferschein-Eingang" target="delivery-notes" current={screen} onNav={onNav} icon={<IconDocument />} badge={badges?.deliveryNotes} />
+        )}
+        {has('mail_eingang') && (
+          <NavItem label="Eingang" target="eingang" current={screen} onNav={onNav} icon={<IconMail />} badge={badges?.mailEingang} beta />
         )}
         {has('payment_matching') && (
           <NavItem label="Zahlungsabgleich" target="payment-reconciliation" current={screen} onNav={onNav} icon={<IconCash />} />

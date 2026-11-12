@@ -47,8 +47,26 @@ const HINTS: Record<BestaetigungsArt, string[] | undefined> = {
   auto: undefined,
 }
 
+/**
+ * Woher der Passkey kam, laut Browser (`authenticatorAttachment`):
+ * - `lokal` — auf diesem Gerät, auch ein synchronisierter aus dem Google- oder
+ *   iCloud-Passwortmanager. Dann zeigt der Browser keinen QR-Code, auch wenn
+ *   «Mit dem Handy» gewählt war, und «Diesen Computer merken» wäre überflüssig.
+ * - `anderes_geraet` — Handy per QR-Code oder Sicherheitsschlüssel.
+ * - `unbekannt` — ältere Browser kennen das Feld nicht.
+ */
+export type PasskeyHerkunft = 'lokal' | 'anderes_geraet' | 'unbekannt'
+
+function herkunft(credential: PublicKeyCredential): PasskeyHerkunft {
+  const a = (credential as PublicKeyCredential & { authenticatorAttachment?: string | null })
+    .authenticatorAttachment
+  if (a === 'platform') return 'lokal'
+  if (a === 'cross-platform') return 'anderes_geraet'
+  return 'unbekannt'
+}
+
 /** Bestätigt die Sitzung mit einem Passkey; der Server ersetzt das Cookie. */
-export async function bestaetigeMitPasskey(art: BestaetigungsArt): Promise<void> {
+export async function bestaetigeMitPasskey(art: BestaetigungsArt): Promise<PasskeyHerkunft> {
   const o = await apiFetch<RequestOptionsJson>('/pwa/auth/mfa/passkey-begin', { method: 'POST' })
   const hints = HINTS[art]
   // `hints` (WebAuthn Level 3) fehlt in älteren DOM-Typen — deshalb über ein
@@ -62,6 +80,7 @@ export async function bestaetigeMitPasskey(art: BestaetigungsArt): Promise<void>
     method: 'POST',
     body: JSON.stringify({ credential: signaturAlsJson(credential) }),
   })
+  return herkunft(credential)
 }
 
 /** Notfallweg: Code einlösen. Liefert, wie viele noch übrig sind. */

@@ -17,8 +17,8 @@ function ok(over: Partial<Extract<JobsResponse, { status: 'ok' }>> = {}): JobsRe
         letzter_fehler: { tenant_id: null, due_at: '2026-11-11T02:15:00Z', finished_at: null, error: 'RuntimeError: Bucket weg' },
       },
       {
-        name: 'access_log_cleanup', beschreibung: 'Zugriffsprotokoll löschen', plan: 'täglich 03:45',
-        je_mandant: false, laeufe: 0, fehler: 0, letzter: null, letzter_fehler: null,
+        name: 'appointment_reminder', beschreibung: 'Termin-Erinnerung', plan: 'alle 5 min',
+        je_mandant: true, still: true, laeufe: 0, fehler: 0, letzter: null, letzter_fehler: null,
       },
     ],
     ...over,
@@ -32,6 +32,7 @@ describe('JobsTable', () => {
     expect(screen.getByText('1 / 3')).toBeTruthy()
     expect(screen.getByText('RuntimeError: Bucket weg')).toBeTruthy()
     expect(screen.getByText('noch nie')).toBeTruthy()
+    expect(screen.getByText(/zählt nur Läufe mit Wirkung/)).toBeTruthy()
     expect(screen.getByText(/Runner aktiv: web-1:7:abc/)).toBeTruthy()
   })
 

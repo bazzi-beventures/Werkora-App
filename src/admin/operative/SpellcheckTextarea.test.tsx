@@ -78,3 +78,62 @@ describe('SpellcheckTextarea — Klartext (Standard)', () => {
     expect(composeQuoteDescription).toHaveBeenCalledWith('Stichworte', undefined)
   })
 })
+
+// Offene Punkte (fehlende Farbe, Zahl, die nicht aus den Stichworten stammt) stehen
+// im Popup neben dem Vorschlag — ins Feld kommt nur der Vorschlag selbst.
+describe('SpellcheckTextarea — Hinweise zum Vorschlag', () => {
+  beforeEach(() => {
+    vi.mocked(composeQuoteDescription).mockReset()
+    vi.mocked(checkSpelling).mockReset()
+  })
+
+  it('zeigt die Hinweise und übernimmt nur den Vorschlag', async () => {
+    vi.mocked(composeQuoteDescription).mockResolvedValue({
+      description: 'Wir offerieren Ihnen 8 Griesser Lamisol 90.',
+      changed: true,
+      hints: [
+        'Im Vorschlag steht eine Zahl, die in deinen Stichworten nicht vorkommt: 8. Bitte prüfen, bevor du ihn übernimmst.',
+        'Farbe nicht angegeben.',
+        '   ',
+      ],
+    })
+    const onChange = vi.fn()
+    render(<SpellcheckTextarea value="Lamisol 90 neu" onChange={onChange} placeholder="x" compose />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Beschreibung formulieren/ }))
+
+    const kasten = await screen.findByTestId('compose-hints')
+    const punkte = within(kasten).getAllByRole('listitem')
+    expect(punkte).toHaveLength(2)
+    expect(punkte[1].textContent).toBe('Farbe nicht angegeben.')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Übernehmen' }))
+    expect(onChange).toHaveBeenCalledWith('Wir offerieren Ihnen 8 Griesser Lamisol 90.')
+  })
+
+  it('zeigt keinen Kasten, wenn es nichts zu prüfen gibt', async () => {
+    vi.mocked(composeQuoteDescription).mockResolvedValue({ description: 'Wir offerieren Ihnen …', changed: true })
+    render(<SpellcheckTextarea value="Stichworte" onChange={() => {}} placeholder="x" compose />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Beschreibung formulieren/ }))
+
+    await screen.findByTestId('suggestion')
+    expect(screen.queryByTestId('compose-hints')).toBeNull()
+  })
+
+  it('trägt alte Hinweise nicht in die Rechtschreibprüfung', async () => {
+    vi.mocked(composeQuoteDescription).mockResolvedValue({
+      description: 'Wir offerieren Ihnen …', changed: true, hints: ['Farbe nicht angegeben.'],
+    })
+    vi.mocked(checkSpelling).mockResolvedValue({ corrected: 'Lamellen Storen', changed: true })
+    render(<SpellcheckTextarea value="Lammelen Storen" onChange={() => {}} placeholder="x" compose />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Beschreibung formulieren/ }))
+    await screen.findByTestId('compose-hints')
+    fireEvent.click(screen.getByRole('button', { name: 'Verwerfen' }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Rechtschreibung prüfen/ }))
+    await screen.findByTestId('suggestion')
+    expect(screen.queryByTestId('compose-hints')).toBeNull()
+  })
+})

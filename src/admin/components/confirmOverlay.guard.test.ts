@@ -40,10 +40,12 @@ const ALLOWED: Record<string, number> = {
   // Terminbestätigung an den Kunden: Versand-Formular wie SendQuoteMailDialog,
   // mit backdropCloseProps (docs/specs/termin-bestaetigung-kunde.md).
   'admin/operative/projectDetail/AppointmentNoticeDialog.tsx': 1,
-  // Neuer Kunde aus dem Kundenfeld der Projektmaske (WW-71): die Kundenmaske
-  // des Kundenstamms als Overlay, backdropCloseProps mit blockWhen — ein Klick
-  // daneben leert die Maske nicht.
-  'admin/operative/projectDetail/NewCustomerDialog.tsx': 1,
+  // Die Kundenmaske des Kundenstamms als Overlay, backdropCloseProps mit
+  // blockWhen — ein Klick daneben leert die Maske nicht. Ein Overlay für zwei
+  // Aufrufer: «Neuer Kunde» aus dem Kundenfeld der Projektmaske (WW-71, bis
+  // 2026-11 stand das Markup in projectDetail/NewCustomerDialog.tsx) und
+  // «Kontakt ergänzen» aus dem Mail-Eingang. Die Zahl ist dieselbe geblieben.
+  'admin/operative/CustomerFormDialog.tsx': 1,
 }
 
 function countByFile(): Record<string, number> {

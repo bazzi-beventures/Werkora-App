@@ -24,6 +24,7 @@ export const SCREEN_TITLES: Record<AdminScreen, string> = {
   'invoices': 'Rechnungen',
   'hagelschaden': 'Hagelschaden',
   'delivery-notes': 'Lieferschein-Eingang',
+  'eingang': 'Eingang',
   'aftersales': 'After Sales',
   'payment-reconciliation': 'Zahlungsabgleich',
   'suppliers': 'Lieferanten',

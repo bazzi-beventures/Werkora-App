@@ -69,6 +69,11 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // Lieferschein (docs/specs/lieferschein-erfassung.md) — vor /project/:
   // die Zuordnung hängt am Projekt, gehört aber zum Modul.
   { test: /delivery_note/,                       module: 'lieferschein_erfassung' },
+  // Mail-Eingang (docs/specs/mail-eingang-triage.md) — vor /project/ und
+  // /customer/: übernommene Vorschläge schreiben Entwurf, Projekt- oder
+  // Kundennotiz, gehören aber zum Modul. Auch `mail_eingang_config_set` (der
+  // Betreiber setzt Postfach und Absenderschranke) zählt hierher.
+  { test: /^mail_eingang_/,                      module: 'mail_eingang' },
   // Hagelschaden (docs/specs/hagelschaden-dashboard.md) — vor /project/.
   { test: /hagelschaden/,                        module: 'hagelschaden' },
   // Terminbestätigung (docs/specs/termin-bestaetigung-kunde.md) — vor /appointment/:
@@ -268,6 +273,10 @@ const ACTION_LABELS: Record<string, string> = {
   admin_update_hagelschaden: 'Hagelschaden-Fall bearbeitet',
   delivery_note_assign: 'Lieferschein einem Projekt zugeordnet',
   admin_discard_delivery_note: 'Lieferschein im Eingang verworfen',
+  // ── Mail-Eingang ──
+  mail_eingang_uebernommen: 'Mail-Eingang: Vorschlag übernommen',
+  mail_eingang_verworfen: 'Mail-Eingang: als nicht für Werkora verworfen',
+  mail_eingang_config_set: 'Mail-Eingang: Postfach und Absenderschranke gesetzt',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
   admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',

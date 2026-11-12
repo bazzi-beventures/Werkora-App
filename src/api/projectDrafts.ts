@@ -32,10 +32,13 @@ export interface ProjectDraft extends ProjectDraftPayload {
    * Mitarbeiter hat ihn beim Kunden erfasst, `public` = er kam über das
    * öffentliche Anfrageformular herein und ist damit **ungeprüfte
    * Fremdeingabe** — Name, Telefon und Adresse hat niemand bestätigt.
+   * `mail` = das Büro hat einen Vorschlag aus dem Mail-Eingang übernommen
+   * (docs/specs/mail-eingang-triage.md §4.1); die Felder stammen aus einer
+   * weitergeleiteten E-Mail und sind ebenso ungeprüft.
    * Optional, weil Entwürfe aus der Zeit vor Migration 20260909 die Spalte
    * nicht kennen; fehlt sie, ist es ein Mitarbeiter-Entwurf.
    */
-  source?: 'staff' | 'public' | null
+  source?: 'staff' | 'public' | 'mail' | null
   /**
    * Fotos zur Anfrage — nur Verweise, die Bilder liegen im privaten Bucket.
    * Zum Anzeigen braucht es `getProjectDraftPhotoUrls`; die rohen Pfade sind

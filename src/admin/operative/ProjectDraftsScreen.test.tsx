@@ -204,6 +204,21 @@ describe('ProjectDraftsScreen — Herkunft eines Entwurfs', () => {
     expect(screen.getByText('Kunde (Angaben des Absenders)')).toBeInTheDocument()
   })
 
+  // docs/specs/mail-eingang-triage.md §10: dritte Herkunft `mail`, mit demselben
+  // Warnhinweis wie bei öffentlichen Anfragen.
+  it('markiert einen Entwurf aus dem Mail-Eingang und warnt im Detail', async () => {
+    setup([], { ...DRAFT, source: 'mail' as const })
+    render(<ProjectDraftsScreen user={USER} />)
+
+    expect(await screen.findByText('Aus E-Mail')).toBeInTheDocument()
+    expect(screen.queryByText(/Erfasst von/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Lamisol 90 Gekoppelt'))
+
+    expect(screen.getByText('Ungeprüfte Angaben aus einer E-Mail.')).toBeInTheDocument()
+    expect(screen.getByText(/stammen aus einer weitergeleiteten E-Mail und sind ungeprüft/)).toBeInTheDocument()
+    expect(screen.getByText('Kunde (Angaben aus der E-Mail)')).toBeInTheDocument()
+  })
+
   it('lässt den Mitarbeiter-Entwurf unverändert', async () => {
     setup([], DRAFT)
     render(<ProjectDraftsScreen user={USER} />)

@@ -17,6 +17,9 @@ export interface AdminDashboard {
   pending_drafts: number
   /** Offene Lieferscheine im Eingang — `null` ohne Modul `lieferschein_erfassung`. */
   pending_delivery_notes?: number | null
+  /** Offene Mails im Eingang (docs/specs/mail-eingang-triage.md) — `null` ohne
+   *  Modul `mail_eingang` für dieses Konto. */
+  pending_mail_eingang?: number | null
   recently_accepted_quotes: number
   recently_rejected_quotes: number
   my_open_tasks?: number

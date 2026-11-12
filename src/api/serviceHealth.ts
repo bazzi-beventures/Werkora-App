@@ -148,6 +148,8 @@ export interface JobUebersicht {
   beschreibung: string
   plan: string
   je_mandant: boolean
+  /** Takt-Job: Läufe ohne Wirkung zählen nicht — «0 Läufe» heisst «nichts zu tun». */
+  still?: boolean
   laeufe: number
   fehler: number
   letzter: JobLauf | null

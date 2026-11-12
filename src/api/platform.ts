@@ -387,3 +387,55 @@ export function enqueueBexioInvoice(tenantId: string, invoiceNumber: string) {
     body: JSON.stringify({ invoice_number: invoiceNumber }),
   })
 }
+
+// ─── Mail-Eingang (docs/specs/mail-eingang-triage.md §6.4, §10) ─────────────
+//
+// Die Absenderschranke eines Mandanten: Triage-Postfach, Mail-Domains und
+// Funktionsadressen. Sie steht bewusst nur hier und nicht in der Mandanten-App —
+// wer die Liste ändern kann, kann die Schranke öffnen.
+
+/** Wo das Triage-Postfach liegt: Microsoft 365 (Graph) oder Google Workspace (Gmail API). */
+export type MailSystem = 'graph' | 'gmail'
+
+/** Was der Betreiber einstellt. */
+export interface MailEingangEinstellung {
+  /** Mailsystem des Triage-Postfachs. Fehlt bei einem Server ohne Gmail-Anbindung → Microsoft. */
+  anbieter?: MailSystem
+  /** Adresse des Triage-Postfachs; leer = nicht eingerichtet. */
+  mailbox: string
+  /** Mail-Domains des Betriebs. **Leer heisst: nichts wird ausgewertet.** */
+  domains: string[]
+  /** Adressen ohne Konto, die trotzdem zuleiten dürfen (z. B. `info@…`). */
+  funktionsadressen: string[]
+  /** Höchstens so viele Mails je Tag werden ausgewertet. */
+  tageslimit: number
+}
+
+export interface MailEingangView extends MailEingangEinstellung {
+  last_poll_at: string | null
+  last_poll_fehler: string | null
+  /** Der Zugang zum gewählten Mailsystem ist in dieser Umgebung eingerichtet. */
+  postfach_bereit?: boolean
+  /** Zugang zu Microsoft 365 (Graph) in dieser Umgebung eingerichtet. */
+  graph_bereit: boolean
+  /** Zugang zu Google Workspace (Dienstkonto) in dieser Umgebung eingerichtet. */
+  gmail_bereit?: boolean
+  /** Modul `mail_eingang` ist für den Mandanten eingeschaltet — dann läuft der Abruf. */
+  modul_aktiv: boolean
+  /** Zähler «nicht ausgewertet» je Grund. */
+  abgewiesen: { grund: string; anzahl: number }[]
+}
+
+const mailEingangPfad = (tenantId: string) => `${tenantBase(tenantId)}/mail-eingang`
+
+export function getMailEingang(tenantId: string): Promise<MailEingangView> {
+  return apiFetch<MailEingangView>(mailEingangPfad(tenantId))
+}
+
+/** Validierungsfehler kommen als 400 mit Klartext in `detail` (→ `ApiError.message`). */
+export function setMailEingang(tenantId: string, einstellung: MailEingangEinstellung): Promise<MailEingangView> {
+  return apiFetch<MailEingangView>(mailEingangPfad(tenantId), {
+    method: 'PUT',
+    body: JSON.stringify(einstellung),
+  })
+}

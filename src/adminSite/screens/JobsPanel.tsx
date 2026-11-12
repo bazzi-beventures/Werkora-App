@@ -28,7 +28,9 @@ function Zeile({ job }: { job: JobUebersicht }) {
     <tr>
       <td className="primary">
         {job.beschreibung}
-        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{job.name} · {job.plan}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {job.name} · {job.plan}{job.still ? ' · zählt nur Läufe mit Wirkung' : ''}
+        </div>
       </td>
       <td>
         {s

@@ -40,7 +40,8 @@ const BESTAETIGT = { ...HALB, mfa: { pflicht: true, bestaetigt: true, methode: '
 beforeEach(() => {
   unterstuetzt = true
   getMe.mockReset().mockResolvedValue(BESTAETIGT)
-  bestaetige.mockReset().mockResolvedValue(undefined)
+  // Ohne `authenticatorAttachment` (ältere Browser): dann entscheidet der Knopf.
+  bestaetige.mockReset().mockResolvedValue('unbekannt')
   loeseCodeEin.mockReset().mockResolvedValue(9)
   einrichten.mockReset().mockResolvedValue({})
 })
@@ -66,6 +67,25 @@ describe('MfaBestaetigung', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Passkey auf diesem Gerät einrichten' }))
     await waitFor(() => expect(onBestaetigt).toHaveBeenCalledWith(BESTAETIGT))
     expect(einrichten).toHaveBeenCalledTimes(1)
+  })
+
+  it('«Mit dem Handy», aber der Passkey lag schon hier (synchronisiert): kein Angebot', async () => {
+    // So am 12.11. in Chrome: der Passkey vom Handy lag im Google-
+    // Passwortmanager, Chrome nahm ihn ohne QR-Code — «merken» endete dann in
+    // «schon eingerichtet».
+    bestaetige.mockResolvedValue('lokal')
+    const onBestaetigt = vi.fn()
+    render(<MfaBestaetigung user={HALB} onBestaetigt={onBestaetigt} onAbmelden={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Mit dem Handy (QR-Code)' }))
+    await waitFor(() => expect(onBestaetigt).toHaveBeenCalledWith(BESTAETIGT))
+    expect(screen.queryByText('Diesen Computer merken?')).toBeNull()
+  })
+
+  it('«Mit diesem Computer», aber per QR vom Handy bestätigt: Angebot kommt', async () => {
+    bestaetige.mockResolvedValue('anderes_geraet')
+    render(<MfaBestaetigung user={HALB} onBestaetigt={vi.fn()} onAbmelden={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Mit diesem Computer/ }))
+    expect(await screen.findByText('Diesen Computer merken?')).toBeTruthy()
   })
 
   it('mit diesem Computer: kein Angebot, direkt hinein', async () => {

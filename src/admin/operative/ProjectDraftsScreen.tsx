@@ -11,6 +11,7 @@ import { UserInfo } from '../../api/auth'
 import { SK } from '../../api/storageKeys'
 import { fmtDate } from '../utils/format'
 import { findCustomerMatch, normalize } from './customerMatch'
+import { draftHerkunft, eingangText } from './projectDraftHerkunft'
 import { WORK_TYPES, workTypeLabel } from '../../api/workTypes'
 import { useToast, ToastHost } from '../components/useToast'
 
@@ -23,16 +24,6 @@ interface CustomerLite {
 }
 
 type StatusFilter = 'open' | 'converted' | 'rejected' | 'all'
-
-/**
- * Kam der Entwurf über das öffentliche Anfrageformular?
- *
- * Fehlendes `source` heisst «Mitarbeiter»: Entwürfe von vor Migration 20260909
- * kennen die Spalte nicht. Die Richtung ist Absicht — ein alter Entwurf soll
- * nicht fälschlich als ungeprüfte Fremdeingabe erscheinen, und ein öffentlicher
- * trägt den Wert immer, weil ihn der Server setzt.
- */
-const istOeffentlich = (d: ProjectDraft) => d.source === 'public'
 
 const STATUS_LABEL: Record<ProjectDraft['status'], string> = {
   open: 'Offen',
@@ -145,14 +136,14 @@ export default function ProjectDraftsScreen({ user, onBadgeChange }: Props) {
                   <span className={`admin-badge ${STATUS_BADGE_CLASS[d.status]}`}>
                     {STATUS_LABEL[d.status]}
                   </span>
-                  {istOeffentlich(d) && (
-                    <span className="admin-badge admin-badge-pending">Öffentliche Anfrage</span>
+                  {draftHerkunft(d).marke && (
+                    <span className="admin-badge admin-badge-pending">{draftHerkunft(d).marke}</span>
                   )}
                 </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                {istOeffentlich(d)
-                  ? <>Über das Anfrageformular eingegangen · {fmtDate(d.created_at)}</>
+                {draftHerkunft(d).vonAussen
+                  ? <>{eingangText(d, 'liste')} · {fmtDate(d.created_at)}</>
                   : <>Erfasst von <strong style={{ color: 'var(--text)' }}>{d.created_by_name ?? '—'}</strong> · {fmtDate(d.created_at)}</>}
                 {(d.photos?.length ?? 0) > 0 && ` · ${d.photos!.length} Foto${d.photos!.length > 1 ? 's' : ''}`}
               </div>
@@ -289,7 +280,10 @@ interface DetailProps {
 
 function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailProps) {
   const isOpen = draft.status === 'open'
-  const vonAussen = istOeffentlich(draft)
+  // Öffentliche Anfrage oder aus dem Mail-Eingang: ungeprüfte Angaben von aussen
+  // (Texte und Begründung in projectDraftHerkunft.ts).
+  const herkunft = draftHerkunft(draft)
+  const vonAussen = herkunft.vonAussen
   const [projectName, setProjectName] = useState(draft.title)
   const [objectName, setObjectName] = useState(draft.object_name ?? '')
   const [objectAddress, setObjectAddress] = useState(draft.object_address ?? draft.customer_address ?? '')
@@ -419,7 +413,7 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               {vonAussen
-                ? <>Über das öffentliche Anfrageformular eingegangen · {fmtDate(draft.created_at)}</>
+                ? <>{eingangText(draft, 'detail')} · {fmtDate(draft.created_at)}</>
                 : <>Erfasst von <strong>{draft.created_by_name ?? '—'}</strong> · {fmtDate(draft.created_at)}</>}
             </div>
             <span className={`admin-badge ${STATUS_BADGE_CLASS[draft.status]}`}>
@@ -438,14 +432,12 @@ function DraftDetailModal({ draft, onClose, onConverted, onRejected }: DetailPro
                 borderRadius: 8, padding: '10px 12px', fontSize: 13, lineHeight: 1.5,
               }}
             >
-              <strong>Ungeprüfte Angaben von aussen.</strong> Diese Anfrage hat jemand
-              ohne Anmeldung abgeschickt — Name, Telefon und Adresse hat niemand
-              bestätigt. Bitte vor dem Umwandeln Rücksprache nehmen.
+              <strong>{herkunft.warnTitel}</strong> {herkunft.warnText}
             </div>
           )}
 
           {/* Original-Daten aus der Erfassung */}
-          <DraftInfoBlock label={vonAussen ? 'Kunde (Angaben des Absenders)' : 'Kunde (vom Mitarbeiter erfasst)'}>
+          <DraftInfoBlock label={herkunft.kundeLabel}>
             <div><strong>{draft.customer_name}</strong></div>
             {draft.customer_phone && <div>Tel: {draft.customer_phone}</div>}
             {draft.customer_email && <div>E-Mail: {draft.customer_email}</div>}

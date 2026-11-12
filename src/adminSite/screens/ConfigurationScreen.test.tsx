@@ -28,6 +28,7 @@ vi.mock('./tabs/TestingTab', () => ({ TestingTab: () => <div>TESTING</div> }))
 vi.mock('./tabs/TravelCostTab', () => ({ TravelCostTab: () => <div>FAHRTKOSTEN</div> }))
 vi.mock('./tabs/SchedulingTab', () => ({ SchedulingTab: () => <div>EINSATZPLANUNG</div> }))
 vi.mock('./tabs/HelpDocsTab', () => ({ HelpDocsTab: () => <div>HILFE-BOT</div> }))
+vi.mock('./tabs/MailEingangTab', () => ({ MailEingangTab: () => <div>MAIL-EINGANG</div> }))
 
 import ConfigurationScreen from './ConfigurationScreen'
 
@@ -55,11 +56,16 @@ describe('ConfigurationScreen', () => {
     render(<ConfigurationScreen tenantId={FREMDER_MANDANT} />)
 
     for (const name of ['Module', 'Benachrichtigungen', 'Workflows', 'Testing',
-      'Fahrtkosten', 'Einsatzplanung', 'Hilfe-Bot']) {
+      'Fahrtkosten', 'Einsatzplanung', 'Hilfe-Bot', 'Mail-Eingang']) {
       expect(screen.getByRole('button', { name })).toBeInTheDocument()
     }
 
     await userEvent.click(screen.getByRole('button', { name: 'Einsatzplanung' }))
     expect(screen.getByText('EINSATZPLANUNG')).toBeInTheDocument()
+
+    // Die Absenderschranke des Mail-Eingangs (docs/specs/mail-eingang-triage.md §6.4)
+    // steht nur hier — der Mandanten-Admin darf sie nicht ändern.
+    await userEvent.click(screen.getByRole('button', { name: 'Mail-Eingang' }))
+    expect(screen.getByText('MAIL-EINGANG')).toBeInTheDocument()
   })
 })

@@ -65,6 +65,19 @@ describe('bestaetigeMitPasskey', () => {
     await bestaetigeMitPasskey('auto')
     expect(getCredential.mock.calls[0][0].publicKey.hints).toBeUndefined()
   })
+
+  it.each([
+    ['platform', 'lokal'],
+    ['cross-platform', 'anderes_geraet'],
+    [undefined, 'unbekannt'],
+  ] as const)('authenticatorAttachment %s → %s', async (attachment, erwartet) => {
+    const buf = new Uint8Array([1, 2, 3]).buffer
+    getCredential.mockResolvedValue({
+      id: 'Y3JlZA', rawId: buf, type: 'public-key', authenticatorAttachment: attachment,
+      response: { clientDataJSON: buf, authenticatorData: buf, signature: buf, userHandle: null },
+    })
+    await expect(bestaetigeMitPasskey('handy')).resolves.toBe(erwartet)
+  })
 })
 
 describe('mitBestaetigung', () => {

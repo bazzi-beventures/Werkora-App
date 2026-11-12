@@ -24,6 +24,10 @@ export interface QuoteDescriptionResult {
   // false = es kam nichts Brauchbares zurück (leer, oder identisch zur Eingabe);
   // die Maske zeigt dann eine Meldung statt eines Vorschlags, der nichts ändert.
   changed: boolean
+  // Offene Punkte zum Vorschlag (fehlende Angabe, Widerspruch, Zahl, die nicht aus
+  // den Stichworten stammt). Stehen im Popup, kommen nie in den Text. Optional,
+  // weil ein Backend vor diesem Stand das Feld nicht kennt.
+  hints?: string[]
 }
 
 /**

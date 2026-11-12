@@ -29,6 +29,7 @@ export type ModuleName =
   | 'reminders'
   | 'hagelschaden'
   | 'lieferschein_erfassung'
+  | 'mail_eingang'
   | 'termin_bestaetigung'
   | 'bexio'
 

@@ -35,12 +35,14 @@ vi.mock('./betreiberMfa', async (importOriginal) => {
     },
   }
 })
+const einrichten = vi.fn()
 vi.mock('./adminPasskey', async (importOriginal) => {
   const echt = await importOriginal<typeof import('./adminPasskey')>()
-  return { ...echt, adminPasskeyEinrichten: vi.fn() }
+  return { ...echt, adminPasskeyEinrichten: () => einrichten() }
 })
 
 import SicherheitDialog from './SicherheitDialog'
+import { SchonEingerichtet } from './adminPasskey'
 
 const OHNE_PFLICHT = {
   pflicht: false, pflicht_seit: null, bestaetigt: true, methode: 'passkey', frisch: true,
@@ -61,7 +63,14 @@ beforeEach(() => {
   aktiviere.mockReset().mockResolvedValue(undefined)
   entfernePasskey.mockReset().mockResolvedValue(undefined)
   bestaetige.mockReset().mockResolvedValue(undefined)
+  einrichten.mockReset().mockResolvedValue({})
 })
+
+function hintergrundKlick() {
+  const overlay = document.querySelector('.admin-modal-overlay') as HTMLElement
+  fireEvent.mouseDown(overlay)
+  fireEvent.click(overlay)
+}
 
 describe('SicherheitDialog', () => {
   it('Codes erzeugen, ablegen, Pflicht einschalten', async () => {
@@ -107,6 +116,55 @@ describe('SicherheitDialog', () => {
     expect(await screen.findByText('AAAAA-00000')).toBeTruthy()
     expect(bestaetige).toHaveBeenCalledTimes(1)
     expect(erzeugeCodes).toHaveBeenCalledTimes(2)
+  })
+
+  it('Codes erzeugt, «Fertig» nie geklickt: die Übersicht schaltet direkt ein', async () => {
+    // So am 12.11. auf Produktion: Codes heruntergeladen, Fenster zu — die
+    // Pflicht blieb aus, und ein Weg zum Einschalten fehlte.
+    ladeGeraete.mockResolvedValue({ ...OHNE_PFLICHT, codes_uebrig: 10 })
+    const onMeldung = vi.fn()
+    render(<SicherheitDialog onClose={vi.fn()} onMeldung={onMeldung} />)
+    expect(await screen.findByText(/es fehlt nur noch dieser Schritt/)).toBeTruthy()
+
+    const knopf = screen.getByRole('button', { name: 'Zwei-Faktor-Anmeldung einschalten' })
+    expect((knopf as HTMLButtonElement).disabled).toBe(true)
+    fireEvent.click(screen.getByLabelText('Ich habe die Codes sicher abgelegt.'))
+    fireEvent.click(knopf)
+
+    await waitFor(() => expect(aktiviere).toHaveBeenCalledTimes(1))
+    expect(onMeldung).toHaveBeenCalledWith('Zwei-Faktor-Anmeldung eingeschaltet')
+    expect(erzeugeCodes).not.toHaveBeenCalled()
+  })
+
+  it('ohne Codes kein Einschalt-Knopf', async () => {
+    render(<SicherheitDialog onClose={vi.fn()} onMeldung={vi.fn()} />)
+    expect(await screen.findByText(/Sie wird mit dem ersten Satz/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Zwei-Faktor-Anmeldung einschalten' })).toBeNull()
+  })
+
+  it('ein Klick daneben schliesst die offenen Codes nicht, die Übersicht schon', async () => {
+    const onClose = vi.fn()
+    render(<SicherheitDialog onClose={onClose} onMeldung={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Neue Wiederherstellungscodes erzeugen' }))
+    await screen.findByText('AAAAA-00000')
+
+    hintergrundKlick()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('AAAAA-00000')).toBeTruthy()
+
+    fireEvent.click(screen.getByLabelText('Ich habe die Codes sicher abgelegt.'))
+    fireEvent.click(screen.getByRole('button', { name: /Fertig/ }))
+    await waitFor(() => expect(screen.queryByText('AAAAA-00000')).toBeNull())
+    hintergrundKlick()
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('Passkey schon auf dem Gerät (synchronisiert): Meldung sagt, dass es so geht', async () => {
+    einrichten.mockRejectedValue(new SchonEingerichtet({ authorizedUserId: 'u1', tenantSlug: 'werkora', displayName: 'Luca' }))
+    const onMeldung = vi.fn()
+    render(<SicherheitDialog onClose={vi.fn()} onMeldung={onMeldung} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Diesen Computer merken/ }))
+    await waitFor(() => expect(onMeldung).toHaveBeenCalledWith(expect.stringMatching(/Passwortmanager/)))
   })
 
   it('letzter Faktor: die Meldung des Servers steht im Dialog', async () => {

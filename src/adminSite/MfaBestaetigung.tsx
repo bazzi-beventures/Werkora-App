@@ -13,7 +13,8 @@
  * - **Wiederherstellungscode** — der Notfallweg.
  *
  * Danach bietet der Schirm an, einen Passkey für dieses Gerät anzulegen
- * («Diesen Computer merken» bzw. nach einem Code «neuen Passkey einrichten»).
+ * («Diesen Computer merken» bzw. nach einem Code «neuen Passkey einrichten») —
+ * «merken» nur, wenn der Passkey laut Browser von einem anderen Gerät kam.
  */
 import { useState, type FormEvent } from 'react'
 import { getMe, type UserInfo } from '../api/auth'
@@ -60,10 +61,14 @@ export default function MfaBestaetigung({
     setFehler(null)
     setLaeuft(true)
     try {
-      await bestaetigeMitPasskey(art)
-      // Nur nach dem Handy-Weg anbieten: wer «Mit diesem Computer» bestätigt
-      // hat, hat hier schon einen Passkey.
-      await nachBestaetigung(art === 'handy' ? 'merken' : null)
+      const herkunft = await bestaetigeMitPasskey(art)
+      // Nur anbieten, wenn der Passkey wirklich von einem anderen Gerät kam.
+      // Ein im Google- oder iCloud-Passwortmanager synchronisierter Passkey
+      // liegt schon auf diesem Computer: dann zeigt der Browser trotz «Mit dem
+      // Handy» keinen QR-Code, und «merken» endete in «schon eingerichtet».
+      // Kennt der Browser die Herkunft nicht, entscheidet der gewählte Knopf.
+      const vomHandy = herkunft === 'anderes_geraet' || (herkunft === 'unbekannt' && art === 'handy')
+      await nachBestaetigung(vomHandy ? 'merken' : null)
     } catch (err: unknown) {
       setFehler(mfaFehlerText(err))
     } finally {
@@ -188,7 +193,9 @@ export default function MfaBestaetigung({
           {appModus
             ? 'Passwort stimmt. Bestätige die Anmeldung mit deinem Passkey.'
             : 'Passwort stimmt. Bestätige die Anmeldung mit dem Handy: Der Browser zeigt '
-              + 'einen QR-Code, den du mit der Kamera scannst (Bluetooth am Computer an).'}
+              + 'einen QR-Code, den du mit der Kamera scannst (Bluetooth am Computer an). '
+              + 'Liegt dein Passkey schon auf diesem Computer (Google- oder iCloud-'
+              + 'Passwortmanager), nimmt ihn der Browser direkt — ohne QR-Code.'}
         </div>
         {!unterstuetzt && (
           <div className="admin-form-error">

@@ -1,6 +1,5 @@
-import { backdropCloseProps } from '../../../shared/backdropClose'
 import type { Customer } from '../../../api/admin/customers'
-import { CustomerForm } from '../CustomerForm'
+import { CustomerFormDialog } from '../CustomerFormDialog'
 import { customerPrefillFromQuery } from '../customerPrefill'
 
 // «+ Neuen Kunden anlegen» aus dem Kundenfeld der Projektmaske (WW-71).
@@ -12,9 +11,8 @@ import { customerPrefillFromQuery } from '../customerPrefill'
 // dem Projekt), gewählt wird er im Projekt wie jeder andere — ein neues
 // Projekt bleibt dabei ungespeichert, bis man es selbst speichert.
 //
-// Ein Klick neben das Fenster schliesst es nicht: die Maske hat ein Dutzend
-// Felder, und ein verrutschter Klick soll sie nicht leeren. Zu geht es über
-// «Abbrechen» oder das Anlegen.
+// Das Fenster selbst (Overlay, «Klick daneben schliesst nicht») steht in
+// CustomerFormDialog — dieselbe Maske geht auch über dem Mail-Eingang auf.
 
 interface Props {
   /** Was im Kundenfeld getippt war ('' = nichts). */
@@ -25,22 +23,12 @@ interface Props {
 
 export function NewCustomerDialog({ query, onCreated, onCancel }: Props) {
   return (
-    <div
-      className="admin-confirm-overlay"
-      {...backdropCloseProps(onCancel, { blockWhen: () => true })}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Neuer Kunde"
-    >
-      <div className="admin-confirm-box" style={{ maxWidth: 760, maxHeight: '90vh', overflow: 'auto' }}>
-        <CustomerForm
-          initial={null}
-          prefill={customerPrefillFromQuery(query)}
-          variant="dialog"
-          onSave={onCreated}
-          onCancel={onCancel}
-        />
-      </div>
-    </div>
+    <CustomerFormDialog
+      label="Neuer Kunde"
+      initial={null}
+      prefill={customerPrefillFromQuery(query)}
+      onSave={onCreated}
+      onCancel={onCancel}
+    />
   )
 }

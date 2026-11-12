@@ -15,6 +15,7 @@ import {
   composeCustomerName, initialNameParts, isUnsplitCustomer, suggestNameSplits,
 } from './customerNameParts'
 import type { CustomerPrefill } from './customerPrefill'
+import { kontaktVorbefuellung, type KontaktErgaenzung } from './customerErgaenzung'
 import { CustomerProjects } from './CustomerProjects'
 import { ReminderPanel } from '../reminders/ReminderPanel'
 
@@ -212,6 +213,7 @@ function CustomerComments({ customerId }: { customerId: string }) {
 export function CustomerForm({
   initial,
   prefill,
+  ergaenzung,
   variant = 'page',
   onSave,
   onCancel,
@@ -225,9 +227,15 @@ export function CustomerForm({
    */
   prefill?: CustomerPrefill
   /**
+   * Nur für einen bestehenden Kunden: ein Kontakt-Vorschlag aus dem Mail-Eingang.
+   * Er füllt sein Feld vor, wenn es leer ist — sonst bleibt es stehen und ein
+   * Hinweis nennt den Vorschlag (customerErgaenzung.ts).
+   */
+  ergaenzung?: KontaktErgaenzung
+  /**
    * 'page' = im Kundenstamm (Karte mit «← Zurück»), 'dialog' = über der
-   * Projektmaske: ohne eigene Karte und ohne Zurück-Knopf, der Rahmen gehört
-   * dem Dialog.
+   * Projektmaske bzw. dem Eingang: ohne eigene Karte und ohne Zurück-Knopf, der
+   * Rahmen gehört dem Dialog.
    */
   variant?: 'page' | 'dialog'
   /** Der gespeicherte Kunde, wie der Server ihn zurückgibt (mit id). */
@@ -238,6 +246,7 @@ export function CustomerForm({
   const isNew = !initial
   const isDialog = variant === 'dialog'
   const seed = isNew ? prefill : undefined
+  const ergaenzt = kontaktVorbefuellung(initial, ergaenzung)
   // Vor- und Nachname getrennt (WF-5). `name` ist nur noch die Vorschau dessen,
   // was der Server daraus baut — er setzt ihn beim Speichern selbst.
   const initialParts = initialNameParts(initial)
@@ -256,13 +265,13 @@ export function CustomerForm({
   // ('herr'/'frau'/'frau_und_herr'), nicht die Druckform — die baut das PDF selbst.
   const [salutation, setSalutation] = useState(initial?.salutation ?? '')
   const [company, setCompany] = useState(initial?.company ?? '')
-  const [email, setEmail] = useState(seed?.email ?? initial?.email ?? '')
+  const [email, setEmail] = useState(seed?.email ?? ergaenzt?.werte.email ?? initial?.email ?? '')
   // Zusatzadressen: Formular-Zeilen (Label + Adresse); leere Zeilen filtert der Submit.
   const [additionalEmails, setAdditionalEmails] = useState<{ email: string; label: string }[]>(
     (initial?.additional_emails ?? []).map(a => ({ email: a.email, label: a.label ?? '' }))
   )
-  const [phone, setPhone] = useState(seed?.phone ?? initial?.phone ?? '')
-  const [phoneLandline, setPhoneLandline] = useState(seed?.phone_landline ?? initial?.phone_landline ?? '')
+  const [phone, setPhone] = useState(seed?.phone ?? ergaenzt?.werte.phone ?? initial?.phone ?? '')
+  const [phoneLandline, setPhoneLandline] = useState(seed?.phone_landline ?? ergaenzt?.werte.phone_landline ?? initial?.phone_landline ?? '')
   const [address, setAddress] = useState(initial?.address ?? '')
   const initialBillingDiffers = !!(initial?.billing_name || initial?.billing_address)
   const [billingDiffers, setBillingDiffers] = useState(initialBillingDiffers)
@@ -382,10 +391,13 @@ export function CustomerForm({
           {isNew ? 'Neuer Kunde' : 'Kunde bearbeiten'}
         </div>
       </div>
-      {isDialog && (
+      {isDialog && isNew && (
         <div style={{ fontSize: 12, color: 'var(--muted)' }}>
           Wird im Kundenstamm gespeichert und gleich als Kunde dieses Projekts gewählt.
         </div>
+      )}
+      {ergaenzt && (
+        <div className="admin-form-hint-warn" role="note" data-testid="customer-ergaenzung">{ergaenzt.hinweis}</div>
       )}
       {error && <div className="admin-form-error">{error}</div>}
       {/* Gibt es für diesen Kunden schon ein Projekt? (WF-3) — oben, weil es
@@ -639,7 +651,7 @@ export function CustomerForm({
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button type="button" className="admin-btn admin-btn-secondary" onClick={onCancel}>Abbrechen</button>
           <button type="submit" className="admin-btn admin-btn-primary" disabled={saving || !lastName.trim()}>
-            {saving ? 'Speichern…' : isDialog ? 'Anlegen und übernehmen' : 'Speichern'}
+            {saving ? 'Speichern…' : isDialog && isNew ? 'Anlegen und übernehmen' : 'Speichern'}
           </button>
         </div>
       </form>
