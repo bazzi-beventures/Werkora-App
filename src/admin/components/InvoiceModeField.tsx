@@ -26,7 +26,7 @@ function texts(mode: InvoiceMode, hasActive: boolean): { label: string; hint: st
           + 'kommt nicht noch einmal drauf.' }
     case 'anzahlung':
       return { label: 'Anzahlung',
-        hint: 'Ein Prozentsatz der Offerte (netto, zzgl. MWST). Die Schlussrechnung '
+        hint: 'Ein Prozentsatz der Offerte oder ein fester Betrag. Die Schlussrechnung '
           + 'verrechnet später alles und zieht die Anzahlung ab.' }
   }
 }

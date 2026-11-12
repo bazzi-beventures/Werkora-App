@@ -31,11 +31,11 @@ import { GeneralDeductionFields } from '../components/GeneralDeductionFields'
 import { WorkDescriptionField } from '../components/WorkDescriptionField'
 import { InvoiceModeField } from '../components/InvoiceModeField'
 import {
-  anzahlungPayload, generateOptionsPayload, hasActiveInvoice, isAdditional, parseAnzahlungPct,
+  anzahlungPayload, generateOptionsPayload, hasActiveInvoice, isAdditional, parseAnzahlung, ANZAHLUNG_VORGABE,
   defaultCheckedReports, reportSelectionPayload, type InvoiceMode,
 } from '../utils/invoiceMode'
 import { ReportSelectField } from '../components/ReportSelectField'
-import { AnzahlungAbzugField, AnzahlungPctField } from '../components/AnzahlungFields'
+import { AnzahlungAbzugField, AnzahlungField } from '../components/AnzahlungFields'
 import { TravelCostField } from '../components/TravelCostField'
 import {
   INITIAL_WORK_DESCRIPTION, workDescriptionPayload, type WorkDescriptionState,
@@ -188,7 +188,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const [genCheckedReports, setGenCheckedReports] = useState<number[]>([])
   const [genAnzahlungen, setGenAnzahlungen] = useState<OpenAnzahlung[] | null>(null)
   const [genCheckedAnzahlungen, setGenCheckedAnzahlungen] = useState<number[]>([])
-  const [genPct, setGenPct] = useState('50')
+  const [genAnzahlung, setGenAnzahlung] = useState(ANZAHLUNG_VORGABE)
   const [genTravel, setGenTravel] = useState(true)
   // Rechnungen des gewählten Projekts — entscheidet, ob «weitere Rechnung»
   // angeboten wird. Eigene Abfrage, weil die Liste nur eine Seite kennt.
@@ -225,7 +225,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     setGenUseQuote(false)
     setHasAcceptedQuote(false)
     setGenMode('replace')
-    setGenPct('50')
+    setGenAnzahlung(ANZAHLUNG_VORGABE)
     setGenTravel(true)
     setGenReports(null)
     setGenAnzahlungen(null)
@@ -344,7 +344,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
 
   const genHasActive = !!genProject && hasActiveInvoice(genProjectInvoices)
   const genIsAnzahlung = genMode === 'anzahlung'
-  const genPctValue = parseAnzahlungPct(genPct)
+  const genAnzahlungWert = parseAnzahlung(genAnzahlung)
   const genReportsVisible = !genIsAnzahlung && (genReports?.length ?? 0) > 1
 
   async function handleGenerate() {
@@ -369,7 +369,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           workDescription: workDescriptionPayload(genWorkDesc),
           reportIds: reportSelectionPayload(genReports?.map(r => r.id) ?? null, genCheckedReports),
           anzahlungIds: anzahlungPayload(genAnzahlungen, genCheckedAnzahlungen),
-          anzahlungPct: genPctValue ?? undefined,
+          ...(genAnzahlungWert ?? {}),
           includeTravel: genTravel,
         }),
       })
@@ -980,7 +980,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           busy={generating}
           confirmDisabled={!genProject
             || (showQuoteSelection(genCoverage) && genCheckedQuotes.length === 0)
-            || (genIsAnzahlung && genPctValue === null)
+            || (genIsAnzahlung && genAnzahlungWert === null)
             || (genReportsVisible && genCheckedReports.length === 0)
             || (!genIsAnzahlung && abzugCfg !== null && generalDeductionError(genAbzug) !== null)}
           maxWidth={440}
@@ -1011,11 +1011,11 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
               />
             )}
             {genProject && genIsAnzahlung && (
-              <AnzahlungPctField
+              <AnzahlungField
                 idPrefix="gen"
-                value={genPct}
-                onChange={setGenPct}
-                invalid={genPctValue === null}
+                value={genAnzahlung}
+                onChange={setGenAnzahlung}
+                invalid={genAnzahlungWert === null}
                 disabled={generating}
               />
             )}

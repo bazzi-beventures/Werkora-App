@@ -5,6 +5,7 @@ import {
   MigrationGateStatus, MigrationStatus,
   ServiceHealth, ServiceName, ServiceStatus,
 } from '../../api/serviceHealth'
+import RouteMetricsPanel from './RouteMetricsPanel'
 
 const SERVICE_LABELS: Record<ServiceName, string> = {
   railway: 'Railway',
@@ -493,6 +494,8 @@ export default function ServiceStatusScreen() {
           <Heatmap days={history.days} />
         </div>
       )}
+
+      <RouteMetricsPanel />
 
       <div style={{ marginTop: 24, padding: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6 }}>
         <strong style={{ color: 'var(--text)' }}>Wie das funktioniert:</strong> Ein eigener Probe-Service

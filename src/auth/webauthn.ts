@@ -3,8 +3,10 @@ import { clearApiCache } from '../api/swCache'
 import { SK } from '../api/storageKeys'
 
 // ── base64url helpers ────────────────────────────────────────
+// Exportiert für die App-Sperre der Betreiber-Seite (adminSite/adminPasskey.ts),
+// die dieselbe Umwandlung braucht, aber eigene Routen anspricht.
 
-function b64urlToBuffer(b64: string): ArrayBuffer {
+export function b64urlToBuffer(b64: string): ArrayBuffer {
   const pad = 4 - (b64.length % 4)
   const padded = pad < 4 ? b64 + '='.repeat(pad) : b64
   const binary = atob(padded.replace(/-/g, '+').replace(/_/g, '/'))
@@ -13,7 +15,7 @@ function b64urlToBuffer(b64: string): ArrayBuffer {
   return buf.buffer
 }
 
-function bufferToB64url(buf: ArrayBuffer): string {
+export function bufferToB64url(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf)
   let binary = ''
   for (const b of bytes) binary += String.fromCharCode(b)

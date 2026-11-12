@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   anzahlungPayload, generateOptionsPayload, hasActiveInvoice, invoiceModeOptions,
   defaultCheckedReports, invoiceModePayload, parseAnzahlungPct, reportSelectionPayload,
+  ANZAHLUNG_VORGABE, parseAnzahlung, parseAnzahlungBetrag,
 } from './invoiceMode'
 
 describe('hasActiveInvoice', () => {
@@ -76,11 +77,38 @@ describe('parseAnzahlungPct', () => {
   })
 })
 
+describe('parseAnzahlungBetrag (WS-41)', () => {
+  it.each([
+    ['9953.30', 9953.3], ["9'953.30", 9953.3], ['9953,30', 9953.3], ['9 953.30', 9953.3],
+    ['500', 500], ['0.05', 0.05], ["1’253.35", 1253.35],
+  ])('%s → %s', (raw, n) => {
+    expect(parseAnzahlungBetrag(raw)).toBe(n)
+  })
+  it.each(['', '0', '-5', 'x', '100.02', '1.234', '12.3.4'])('%s ist ungültig', raw => {
+    expect(parseAnzahlungBetrag(raw)).toBeNull()
+  })
+})
+
+describe('parseAnzahlung', () => {
+  it('nimmt nur das gewählte Feld', () => {
+    expect(parseAnzahlung(ANZAHLUNG_VORGABE)).toEqual({ anzahlungPct: 50 })
+    expect(parseAnzahlung({ art: 'betrag', pct: '50', betrag: "9'953.30" })).toEqual({ anzahlungBetrag: 9953.3 })
+    expect(parseAnzahlung({ art: 'betrag', pct: '50', betrag: '' })).toBeNull()
+    expect(parseAnzahlung({ art: 'pct', pct: '150', betrag: '500' })).toBeNull()
+  })
+})
+
 describe('generateOptionsPayload', () => {
+  it('Anzahlung als Betrag schickt nur den Betrag', () => {
+    const body = JSON.parse(JSON.stringify(generateOptionsPayload({
+      mode: 'anzahlung', anzahlungBetrag: 9953.3, quoteIds: [3],
+    })))
+    expect(body).toEqual({ quote_ids: [3], kind: 'anzahlung', anzahlung_betrag: 9953.3 })
+  })
   it('Anzahlung trägt nur Offerten-Auswahl und Satz', () => {
     expect(generateOptionsPayload({
       mode: 'anzahlung', anzahlungPct: 50, quoteIds: [3], workDescription: 'x', reportIds: [1],
-    })).toEqual({ quote_ids: [3], kind: 'anzahlung', anzahlung_pct: 50 })
+    })).toEqual({ quote_ids: [3], kind: 'anzahlung', anzahlung_pct: 50, anzahlung_betrag: undefined })
   })
   it('abgewählte Fahrzeitkosten gehen mit, angehakte nicht', () => {
     expect(generateOptionsPayload({ mode: 'replace', includeTravel: false })).toMatchObject({ include_travel: false })

@@ -2,7 +2,7 @@
 // scheduleSearch.ts; ein Klick (oder Enter) springt im Kalender auf den Tag und
 // öffnet den Termin im Panel — derselbe Weg wie ein Klick auf die Kachel.
 
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { fmtTimeRange, kindSymbol, type CalendarEntry } from './scheduleShared'
 import { searchScheduleEntries, SEARCH_MIN_CHARS } from './scheduleSearch'
 import { parseDateStr } from '../utils/calendarHelpers'
@@ -30,6 +30,18 @@ export default function ScheduleSearch({ entries, todayIso, onPick }: Props) {
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const listId = useId()
+  // Timer des verzögerten Schliessens (onBlur). Muss beim Abbau der Komponente
+  // weg: sonst setzt er State auf einer Komponente, die es nicht mehr gibt — in
+  // den Tests nach dem Abbau von jsdom ein «window is not defined», das den
+  // ganzen Vitest-Lauf rot macht, obwohl jeder Test grün ist.
+  const closeTimer = useRef<number | null>(null)
+  function cancelClose() {
+    if (closeTimer.current !== null) {
+      window.clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
+  useEffect(() => cancelClose, [])
 
   const hits = useMemo(() => searchScheduleEntries(entries, query, todayIso), [entries, query, todayIso])
   const shown = hits.slice(0, MAX_HITS)
@@ -65,9 +77,15 @@ export default function ScheduleSearch({ entries, todayIso, onPick }: Props) {
         aria-autocomplete="list"
         value={query}
         onChange={e => { setQuery(e.target.value); setActive(0); setOpen(true) }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => { cancelClose(); setOpen(true) }}
         // Verzögert schliessen, sonst verschwindet die Liste, bevor der Klick ankommt.
-        onBlur={() => window.setTimeout(() => setOpen(false), 150)}
+        onBlur={() => {
+          cancelClose()
+          closeTimer.current = window.setTimeout(() => {
+            closeTimer.current = null
+            setOpen(false)
+          }, 150)
+        }}
         onKeyDown={onKeyDown}
       />
       {showList && (

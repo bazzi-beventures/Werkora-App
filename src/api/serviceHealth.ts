@@ -77,3 +77,41 @@ export interface MigrationStatus {
 export async function getMigrationStatus(): Promise<MigrationStatus> {
   return apiFetch<MigrationStatus>('/pwa/superadmin/health/migrations')
 }
+
+// Routen-Messung (docs/specs/refactoring-wachstum.md §9): Dauer bis zur Antwort,
+// Antwort-Bytes vor GZip und DB-Roundtrips je Route-Schablone — ohne Nutzer und
+// Mandant. `nicht_lesbar` statt einer leeren Liste, wenn die Messung fehlt.
+export interface RouteMetric {
+  method: string
+  route: string
+  requests: number
+  errors: number
+  dauer_ms_avg: number | null
+  dauer_ms_max: number | null
+  bytes_sum: number
+  bytes_avg: number | null
+  bytes_max: number | null
+  db_sum: number
+  db_avg: number | null
+  db_max: number | null
+}
+
+export type RouteMetricsResponse =
+  | { status: 'nicht_lesbar'; days: number }
+  | {
+      status: 'ok'
+      days: number
+      routen: number
+      requests: number
+      errors: number
+      bytes: number
+      db: number
+      min_requests: number
+      langsamste: RouteMetric[]
+      schwerste: RouteMetric[]
+      abfragereichste: RouteMetric[]
+    }
+
+export async function getRouteMetrics(days = 7): Promise<RouteMetricsResponse> {
+  return apiFetch<RouteMetricsResponse>(`/pwa/superadmin/health/routes?days=${days}`)
+}

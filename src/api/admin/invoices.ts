@@ -71,9 +71,11 @@ export interface GenerateInvoiceInput {
   report_ids?: number[]
   // Abzuziehende Anzahlungen (getAnzahlungen). Weglassen = alle offenen, [] = keine.
   anzahlung_ids?: number[]
-  // Anzahlungsrechnung über `anzahlung_pct` % des Offerten-Nettos (WW-47).
+  // Anzahlungsrechnung über `anzahlung_pct` % des Offerten-Nettos (WW-47) oder
+  // über `anzahlung_betrag` CHF inkl. MWST (WS-41) — genau eines von beiden.
   kind?: 'rechnung' | 'anzahlung'
   anzahlung_pct?: number
+  anzahlung_betrag?: number
   // false = Fahrzeitkosten abgewählt. Weglassen = Vorgabe von Projekt/Offerte.
   include_travel?: boolean
 }

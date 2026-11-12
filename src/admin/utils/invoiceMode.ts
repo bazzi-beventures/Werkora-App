@@ -82,6 +82,38 @@ export function parseAnzahlungPct(raw: string): number | null {
   return Number.isFinite(n) && n > 0 && n < 100 ? n : null
 }
 
+/** Betrag der Anzahlung in CHF inkl. MWST (WS-41); null = ungültig. Nimmt die
+ *  Schreibweisen, die man aus einer Kundenmail abtippt («9'953.30», «9953,30»,
+ *  «9 953.30»). Muss auf 5 Rappen enden — ein anderer Betrag ist auf keiner
+ *  Rechnung erreichbar (Rappenrundung); ob er unter dem Offerten-Total liegt,
+ *  prüft der Server, der das Total kennt. */
+export function parseAnzahlungBetrag(raw: string): number | null {
+  const cleaned = raw.replace(/['’\s]/g, '').replace(',', '.')
+  if (!/^\d+(\.\d{1,2})?$/.test(cleaned)) return null
+  const rappen = Math.round(Number(cleaned) * 100)
+  return rappen > 0 && rappen % 5 === 0 ? rappen / 100 : null
+}
+
+/** Eingabe der Anzahlung im Dialog: Prozent ODER Betrag (WS-41). Beide Felder
+ *  bleiben beim Umschalten erhalten, gilt aber nur das gewählte. */
+export interface AnzahlungEingabe {
+  art: 'pct' | 'betrag'
+  pct: string
+  betrag: string
+}
+
+export const ANZAHLUNG_VORGABE: AnzahlungEingabe = { art: 'pct', pct: '50', betrag: '' }
+
+/** Die gültige Anzahlung als Optionen für den Request; null = Eingabe ungültig. */
+export function parseAnzahlung(e: AnzahlungEingabe): { anzahlungPct: number } | { anzahlungBetrag: number } | null {
+  if (e.art === 'betrag') {
+    const betrag = parseAnzahlungBetrag(e.betrag)
+    return betrag === null ? null : { anzahlungBetrag: betrag }
+  }
+  const pct = parseAnzahlungPct(e.pct)
+  return pct === null ? null : { anzahlungPct: pct }
+}
+
 /** Was der Erstellen-Dialog an den Aufrufer gibt (Projekt und Rechnungen-Screen). */
 export interface GenerateInvoiceOptions {
   mode: InvoiceMode
@@ -92,6 +124,8 @@ export interface GenerateInvoiceOptions {
   reportIds?: number[]
   anzahlungIds?: number[]
   anzahlungPct?: number
+  // Fester Betrag inkl. MWST statt Prozent (WS-41) — nie zusammen mit anzahlungPct.
+  anzahlungBetrag?: number
   // Fahrzeitkosten verrechnen? Standard ja; nein = abgewählt (Teilrechnung).
   includeTravel?: boolean
 }
@@ -100,7 +134,10 @@ export interface GenerateInvoiceOptions {
  *  Auswahl und Satz — Arbeitsbeschrieb, Rapporte, Abzüge gehören ihr nicht. */
 export function generateOptionsPayload(o: GenerateInvoiceOptions) {
   if (o.mode === 'anzahlung') {
-    return { quote_ids: o.quoteIds, kind: 'anzahlung' as const, anzahlung_pct: o.anzahlungPct }
+    return {
+      quote_ids: o.quoteIds, kind: 'anzahlung' as const,
+      anzahlung_pct: o.anzahlungPct, anzahlung_betrag: o.anzahlungBetrag,
+    }
   }
   return {
     quote_ids: o.quoteIds,

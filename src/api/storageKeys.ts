@@ -22,4 +22,10 @@ export const SK = {
   // steht der Wähler auf «kein Mandant» und der Mandanten-Bereich ist leer.
   // Der Server kennt ihn nie; massgeblich ist immer der Mandant im PFAD.
   ADMIN_TENANT_ID: `adminTenantId${s}`,
+  // Konto, dessen Passkey die App-Sperre der Betreiber-Seite auf DIESEM Gerät
+  // öffnet (JSON: authorizedUserId, tenantSlug, displayName — kein Geheimnis,
+  // der Passkey selbst liegt im Gerät). Nur auf admin.werkora.ch gesetzt.
+  // Fehlt er, führt der Weg über das Passwort und richtet den Fingerabdruck
+  // neu ein (docs/specs/admin-werkora-ch.md §15).
+  ADMIN_PASSKEY_KONTO: `adminPasskeyKonto${s}`,
 }

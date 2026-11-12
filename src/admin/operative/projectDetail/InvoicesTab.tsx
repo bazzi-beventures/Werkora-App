@@ -11,10 +11,10 @@ import { GeneralDeductionFields } from '../../components/GeneralDeductionFields'
 import { WorkDescriptionField } from '../../components/WorkDescriptionField'
 import { InvoiceModeField } from '../../components/InvoiceModeField'
 import { ReportSelectField } from '../../components/ReportSelectField'
-import { AnzahlungAbzugField, AnzahlungPctField } from '../../components/AnzahlungFields'
+import { AnzahlungAbzugField, AnzahlungField } from '../../components/AnzahlungFields'
 import { TravelCostField } from '../../components/TravelCostField'
 import {
-  anzahlungPayload, defaultCheckedReports, hasActiveInvoice, isAdditional, parseAnzahlungPct, reportSelectionPayload,
+  anzahlungPayload, defaultCheckedReports, hasActiveInvoice, isAdditional, parseAnzahlung, ANZAHLUNG_VORGABE, reportSelectionPayload,
   type GenerateInvoiceOptions, type InvoiceMode,
 } from '../../utils/invoiceMode'
 import {
@@ -121,7 +121,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   const [genCheckedReports, setGenCheckedReports] = useState<number[]>([])
   const [genAnzahlungen, setGenAnzahlungen] = useState<OpenAnzahlung[] | null>(null)
   const [genCheckedAnzahlungen, setGenCheckedAnzahlungen] = useState<number[]>([])
-  const [genPct, setGenPct] = useState('50')
+  const [genAnzahlung, setGenAnzahlung] = useState(ANZAHLUNG_VORGABE)
   const [genTravel, setGenTravel] = useState(true)
   // Zähler gegen überholte Antworten: wer die Art der Rechnung umschaltet, während
   // der Vorschlag noch lädt, bekäme sonst den Umfang der anderen Art angezeigt.
@@ -220,7 +220,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
     setGenAbzug(initialGeneralDeduction(generalDeduction))
     setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
     setGenMode('replace')
-    setGenPct('50')
+    setGenAnzahlung(ANZAHLUNG_VORGABE)
     setGenTravel(true)
     setShowGenerate(true)
     loadGenSuggestions('replace')
@@ -294,7 +294,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
 
   const genHasActive = hasActiveInvoice(invoices)
   const genIsAnzahlung = genMode === 'anzahlung'
-  const genPctValue = parseAnzahlungPct(genPct)
+  const genAnzahlungWert = parseAnzahlung(genAnzahlung)
   const genSelectionVisible = showQuoteSelection(genCoverage)
   // Auswahl nur, wenn es etwas zu wählen gibt.
   const genReportsVisible = !genIsAnzahlung && (genReports?.length ?? 0) > 1
@@ -312,7 +312,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
       workDescription: workDescriptionPayload(genWorkDesc),
       reportIds: reportSelectionPayload(genReports?.map(r => r.id) ?? null, genCheckedReports),
       anzahlungIds: anzahlungPayload(genAnzahlungen, genCheckedAnzahlungen),
-      anzahlungPct: genPctValue ?? undefined,
+      ...(genAnzahlungWert ?? {}),
       includeTravel: genTravel,
     })
     if (ok) setShowGenerate(false)
@@ -514,7 +514,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           busyLabel="Wird erstellt…"
           busy={generatingInvoice}
           confirmDisabled={(genSelectionVisible && genCheckedQuotes.length === 0)
-            || (genIsAnzahlung && genPctValue === null)
+            || (genIsAnzahlung && genAnzahlungWert === null)
             || (genReportsVisible && genCheckedReports.length === 0)
             || (!genIsAnzahlung && generalDeduction !== null && generalDeductionError(genAbzug) !== null)}
           maxWidth={440}
@@ -532,11 +532,11 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
             disabled={generatingInvoice}
           />
           {genIsAnzahlung && (
-            <AnzahlungPctField
+            <AnzahlungField
               idPrefix="proj-gen"
-              value={genPct}
-              onChange={setGenPct}
-              invalid={genPctValue === null}
+              value={genAnzahlung}
+              onChange={setGenAnzahlung}
+              invalid={genAnzahlungWert === null}
               disabled={generatingInvoice}
             />
           )}

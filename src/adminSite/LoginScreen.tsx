@@ -8,9 +8,10 @@
  *
  * - **Kein Mandantenlogo, keine Mandantenfarbe.** Vor dem Login ist gar nicht
  *   bekannt, welcher Mandant gemeint wäre — und nach dem Login ist es egal.
- * - **Keine Passkeys** (E6): `PWA_RP_ID` ist einwertig und gehört
- *   `app.werkora.ch`. Ein zweiter RP-ID-Wert ist ein kleiner Backend-Umbau
- *   und kommt als O3 nach P3; das 30-Tage-Cookie trägt den Alltag.
+ * - **Kein Passkey-Login hier.** Im Browser trägt das 30-Tage-Cookie den
+ *   Alltag (E6). Als installierte App kommt vor diese Maske die App-Sperre
+ *   (`AppSperre.tsx`, Spec §15): dort ist das Passwort nur der Weg, den
+ *   Fingerabdruck einzurichten — oder ihn zu ersetzen, wenn er nicht mehr geht.
  *
  * **«Passwort vergessen» gibt es hier seit dem 2026-09-18.** Der Grund, aus dem
  * es fehlte, war nicht der Aufwand, sondern dass die Reset-Seite nach getaner
@@ -27,7 +28,7 @@
  * Das Rollen-Gate hier spart nur die leere Oberfläche — abgewiesen wird ohnehin
  * serverseitig an jeder Route (`require_superadmin`).
  */
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ReactNode } from 'react'
 import { getMe, logout, type UserInfo } from '../api/auth'
 import { loginWithPassword, requestPasswordReset } from '../api/admin/staff'
 import { WerkoraMark } from '../brand/WerkoraMark'
@@ -61,9 +62,15 @@ function fehlerText(e: unknown, fallback: string): string {
 
 interface Props {
   onLoggedIn: (user: UserInfo) => void
+  /** Hinweis über dem Formular — die App-Sperre sagt damit, WARUM das
+   *  Passwort gefragt ist (etwa: kein Fingerabdruck mehr auf dem Gerät). */
+  hinweis?: string
+  /** Zusätzlicher Knopf unter «Passwort vergessen?» — die App-Sperre setzt
+   *  dort «Zurück zum Fingerabdruck». */
+  zusatz?: ReactNode
 }
 
-export default function LoginScreen({ onLoggedIn }: Props) {
+export default function LoginScreen({ onLoggedIn, hinweis, zusatz }: Props) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [passwortSichtbar, setPasswortSichtbar] = useState(false)
@@ -223,6 +230,8 @@ export default function LoginScreen({ onLoggedIn }: Props) {
           </div>
         </div>
 
+        {hinweis && <div className="admin-form-hint">{hinweis}</div>}
+
         <label className="admin-form-group">
           <span className="admin-form-label">Benutzername</span>
           <input
@@ -280,6 +289,7 @@ export default function LoginScreen({ onLoggedIn }: Props) {
         >
           Passwort vergessen?
         </button>
+        {zusatz}
       </form>
     </div>
   )

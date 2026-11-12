@@ -4,16 +4,21 @@
  * Spec: docs/specs/admin-werkora-ch.md §4.1, §6.2, §6.3.
  *
  * Drei Zustände, mehr gibt es nicht: lädt / nicht angemeldet / angemeldet.
+ * Als installierte App kommt die Sperre dazu (Spec §15, `AppSperre.tsx`):
+ * statt «nicht angemeldet» beim Start, und über «angemeldet» bei der Rückkehr
+ * aus dem Hintergrund.
  * Kein Mandanten-Branding, kein Offline-Store, keine Push-Registrierung, kein
  * Migrationsbanner — was die Mandanten-App an Apparat mitbringt, braucht ein
  * Betreiber am Schreibtisch nicht (§6.1).
  */
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { getMe, logout, type UserInfo } from '../api/auth'
 import { setAdminPassword } from '../api/admin/staff'
 import { PasswordDialog } from './PasswordDialog'
 import { useToast, ToastHost } from '../admin/components/useToast'
 import LoginScreen from './LoginScreen'
+import AppSperre from './AppSperre'
+import { istAppModus, useSperreBeiRueckkehr } from './appSperreRegeln'
 import AdminSiteShell, { SCREEN_TITEL } from './AdminSiteShell'
 import ScreenBoundary from './ScreenBoundary'
 import { useTenantScope } from './useTenantScope'
@@ -75,6 +80,13 @@ import './adminSite.css'
 export default function AdminSite() {
   const [user, setUser] = useState<UserInfo | null>(null)
   const [pruefend, setPruefend] = useState(true)
+  // Als installierte App geöffnet? Dann geht es nur mit Fingerabdruck hinein
+  // (Spec §15). Einmal je Seitenleben bestimmt — der Modus wechselt nicht,
+  // während die Seite läuft.
+  const [appModus] = useState(istAppModus)
+  // Rückkehr aus dem Hintergrund: die Sperre liegt ÜBER der Seite, damit
+  // ungespeicherte Eingaben darunter stehen bleiben.
+  const [gesperrt, setGesperrt] = useState(false)
   const [passwortDialog, setPasswortDialog] = useState(false)
   const { toast, showToast } = useToast()
   // Erst mit Sitzung laden — sonst bleibt ein 401 von vor dem Login als
@@ -88,16 +100,29 @@ export default function AdminSite() {
   const [neueAnfragen, setNeueAnfragen] = useState(0)
   const [offeneTickets, setOffeneTickets] = useState(0)
 
-  // Beim Start: gibt es schon eine gültige Sitzung? Das 30-Tage-Cookie ist der
-  // Normalfall (E6 — Passkeys kommen erst mit O3), ein Login also die Ausnahme.
+  // Beim Start: gibt es schon eine gültige Sitzung? Im Browser ist das
+  // 30-Tage-Cookie der Normalfall (E6), ein Login also die Ausnahme.
+  //
+  // Als App zählt das Cookie dagegen nicht: hinein geht es nur über die Sperre.
+  // Die alte Sitzung wird beendet, BEVOR die Sperre ihren Knopf anbietet —
+  // käme die Antwort des Logouts erst nach der neuen Anmeldung an, löschte
+  // sie deren Cookie gleich wieder.
   useEffect(() => {
     let abgebrochen = false
+    if (appModus) {
+      logout()
+        .catch(() => { /* offline — die Sperre steht trotzdem */ })
+        .finally(() => { if (!abgebrochen) setPruefend(false) })
+      return () => { abgebrochen = true }
+    }
     getMe()
       .then((u) => { if (!abgebrochen) setUser(u.role === 'superadmin' ? u : null) })
       .catch(() => { if (!abgebrochen) setUser(null) })
       .finally(() => { if (!abgebrochen) setPruefend(false) })
     return () => { abgebrochen = true }
-  }, [])
+  }, [appModus])
+
+  useSperreBeiRueckkehr(appModus && user !== null && !gesperrt, () => setGesperrt(true))
 
   useEffect(() => {
     if (!user) return
@@ -111,8 +136,15 @@ export default function AdminSite() {
     return () => { abgebrochen = true }
   }, [user, screen])
 
+  // Nach einem bewussten «Abmelden» fragt die App-Sperre nicht gleich wieder
+  // nach dem Fingerabdruck — wer sich abmeldet, will gerade nicht hinein.
+  const [abgemeldet, setAbgemeldet] = useState(false)
+
   const abmelden = useCallback(async () => {
-    try { await logout() } finally { setUser(null) }
+    try { await logout() } finally {
+      setAbgemeldet(true)
+      setUser(null)
+    }
   }, [])
 
   if (pruefend) {
@@ -120,7 +152,9 @@ export default function AdminSite() {
   }
 
   if (!user) {
-    return <LoginScreen onLoggedIn={setUser} />
+    return appModus
+      ? <AppSperre onEntsperrt={setUser} sofortFragen={!abgemeldet} />
+      : <LoginScreen onLoggedIn={setUser} />
   }
 
   // Die Screens des Mandanten-Bereichs nehmen `tenantId: string`, nicht
@@ -197,41 +231,51 @@ export default function AdminSite() {
     }
   }
 
+  // Der Schlüssel am Fragment: meldet sich an der Sperre ein ANDERES Konto an
+  // (Passwort-Weg), beginnt die Seite von vorn, statt fremde Eingaben zu zeigen.
   return (
-    <AdminSiteShell
-      screen={screen}
-      onNav={navigate}
-      scope={scope}
-      displayName={user.display_name}
-      onLogout={abmelden}
-      onChangePassword={() => setPasswortDialog(true)}
-      zeigeRechnungen={hatRechnungsbereich(user)}
-      badges={{ 'feature-anfragen': neueAnfragen, support: offeneTickets }}
-    >
-      {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
-          Navigation und Mandanten-Wähler stehen, statt dass die ganze Seite
-          weiss wird (siehe Kopf von ScreenBoundary). */}
-      <ScreenBoundary resetKey={screen} screenTitel={SCREEN_TITEL[screen]}>
-        {inhalt()}
-      </ScreenBoundary>
+    <Fragment key={user.authorized_user_id}>
+      <AdminSiteShell
+        screen={screen}
+        onNav={navigate}
+        scope={scope}
+        displayName={user.display_name}
+        onLogout={abmelden}
+        onChangePassword={() => setPasswortDialog(true)}
+        zeigeRechnungen={hatRechnungsbereich(user)}
+        badges={{ 'feature-anfragen': neueAnfragen, support: offeneTickets }}
+      >
+        {/* Die Grenze liegt INNERHALB der Shell: stürzt ein Screen ab, bleiben
+            Navigation und Mandanten-Wähler stehen, statt dass die ganze Seite
+            weiss wird (siehe Kopf von ScreenBoundary). */}
+        <ScreenBoundary resetKey={screen} screenTitel={SCREEN_TITEL[screen]}>
+          {inhalt()}
+        </ScreenBoundary>
 
-      {/* Eigenes Passwort: `POST /pwa/admin/set-password` verlangt das alte und
-          lässt die eigene Sitzung stehen — deshalb `requireCurrent`. Der
-          Dialog hängt hier und nicht an einem Screen, damit er von überall
-          erreichbar ist, auch ohne gewählten Mandanten. */}
-      {passwortDialog && (
-        <PasswordDialog
-          titel="Eigenes Passwort ändern"
-          requireCurrent
-          onSave={(neu, aktuell) => setAdminPassword(aktuell, neu)}
-          onClose={() => setPasswortDialog(false)}
-          onDone={(meldung) => {
-            setPasswortDialog(false)
-            showToast(meldung)
-          }}
+        {/* Eigenes Passwort: `POST /pwa/admin/set-password` verlangt das alte und
+            lässt die eigene Sitzung stehen — deshalb `requireCurrent`. Der
+            Dialog hängt hier und nicht an einem Screen, damit er von überall
+            erreichbar ist, auch ohne gewählten Mandanten. */}
+        {passwortDialog && (
+          <PasswordDialog
+            titel="Eigenes Passwort ändern"
+            requireCurrent
+            onSave={(neu, aktuell) => setAdminPassword(aktuell, neu)}
+            onClose={() => setPasswortDialog(false)}
+            onDone={(meldung) => {
+              setPasswortDialog(false)
+              showToast(meldung)
+            }}
+          />
+        )}
+        <ToastHost toast={toast} />
+      </AdminSiteShell>
+      {gesperrt && (
+        <AppSperre
+          ueberlagert
+          onEntsperrt={(u) => { setUser(u); setGesperrt(false) }}
         />
       )}
-      <ToastHost toast={toast} />
-    </AdminSiteShell>
+    </Fragment>
   )
 }

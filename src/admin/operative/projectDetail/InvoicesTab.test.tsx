@@ -404,6 +404,25 @@ describe('InvoicesTab — Rapport-Auswahl und Anzahlung', () => {
     expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'anzahlung', anzahlungPct: 30 }))
   })
 
+  it('Anzahlung als Betrag inkl. MWST (WS-41)', async () => {
+    const { onGenerateInvoice } = renderTabWith([])
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Anzahlung/ }))
+    await userEvent.click(screen.getByRole('radio', { name: 'Betrag' }))
+    const betrag = screen.getByLabelText('Anzahlung in CHF (inkl. MWST)')
+    // Leer ist ungültig — erstellen geht erst mit einem Betrag.
+    expect(screen.getByRole('button', { name: 'Anzahlung erstellen' })).toBeDisabled()
+    await userEvent.type(betrag, '100.02')
+    expect(screen.getByRole('alert')).toHaveTextContent('auf 5 Rappen genau')
+    await userEvent.clear(betrag)
+    await userEvent.type(betrag, "9'953.30")
+    await userEvent.click(screen.getByRole('button', { name: 'Anzahlung erstellen' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({
+      mode: 'anzahlung', anzahlungBetrag: 9953.3,
+    }))
+    expect(onGenerateInvoice.mock.calls[0][1]).not.toHaveProperty('anzahlungPct')
+  })
+
   it('offene Anzahlung ist zum Abzug vorbelegt und abwählbar', async () => {
     const { onGenerateInvoice } = renderTabWith([], {
       anzahlungen: [{ id: 10, invoice_number: 'RE-10', total_amount: 540.55, status: 'bezahlt',

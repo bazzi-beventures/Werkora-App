@@ -224,6 +224,12 @@
 .adminsite-login-title { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
 .adminsite-login-subtitle { font-size: 12px; color: var(--text-muted); }
 
+/* App-Sperre über der laufenden Seite (Rückkehr aus dem Hintergrund,
+   docs/specs/admin-werkora-ch.md §15). Deckend und über allem — auch über
+   Dialogen (admin.css bis 300) und den Eastereggs (3000): gesperrt heisst,
+   von der Seite darunter ist nichts zu sehen. */
+.adminsite-sperre { position: fixed; inset: 0; z-index: 4000; background: var(--bg); }
+
 /* ── Abgestürzter Screen ────────────────────────────────────────────────── */
 
 /* Auffällig genug, um nicht als leere Fläche durchzugehen, und ruhig genug, um
