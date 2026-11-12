@@ -25,6 +25,8 @@ import { getMe, logout, type UserInfo } from '../api/auth'
 import { passkeySupported } from '../auth/webauthn'
 import { WerkoraMark } from '../brand/WerkoraMark'
 import LoginScreen from './LoginScreen'
+import MfaBestaetigung from './MfaBestaetigung'
+import { brauchtBestaetigung } from './betreiberMfa'
 import { gemerktesKonto, kontoMerken, kontoVergessen, type AdminPasskeyKonto } from './appSperreRegeln'
 import {
   adminPasskeyEinrichten,
@@ -141,6 +143,12 @@ export default function AppSperre({ onEntsperrt, ueberlagert = false, sofortFrag
         setInfo('Für dieses Gerät ist kein Fingerabdruck mehr hinterlegt. Bitte neu einrichten.')
         return
       }
+      if (brauchtBestaetigung(err) && pwUser) {
+        // MFA-Pflicht: ein neuer Passkey nur nach Bestätigung mit einem
+        // vorhandenen Passkey oder Code (docs/specs/betreiber-mfa.md E7).
+        setPwUser({ ...pwUser, mfa: { pflicht: true, bestaetigt: false, methode: null } })
+        return
+      }
       if (istNichtFrisch(err)) {
         setPwUser(null)
         setHinweis('Die Anmeldung ist zu lange her. Bitte nochmals mit Passwort anmelden.')
@@ -200,6 +208,23 @@ export default function AppSperre({ onEntsperrt, ueberlagert = false, sofortFrag
               Zurück zum Fingerabdruck
             </button>
           ) : undefined}
+        />
+      )
+    }
+
+    // Mit MFA-Pflicht kommt vor «Fingerabdruck einrichten» die Bestätigung —
+    // mit einem vorhandenen Passkey (auf einem neuen iPhone oft schon per
+    // iCloud da) oder einem Wiederherstellungscode. Mit gemerktem Konto
+    // bestätigt der Fingerabdruck unten selbst (Anmeldung = Bestätigung).
+    if (schritt === 'bestaetigen' && pwUser && !kontoPasst
+        && pwUser.mfa?.pflicht && !pwUser.mfa.bestaetigt) {
+      return (
+        <MfaBestaetigung
+          user={pwUser}
+          appModus
+          angebotNachher={false}
+          onBestaetigt={(u) => { setFehler(null); setPwUser(u) }}
+          onAbmelden={() => { void abmelden() }}
         />
       )
     }

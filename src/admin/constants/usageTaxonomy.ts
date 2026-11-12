@@ -90,7 +90,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // `public_rueckmeldung`: die Antwort eines Kunden auf die Umfrage
   // (docs/specs/kunden-rueckmeldung-kampagne.md) — sie schreibt Bemerkung und
   // Fotos ins Projekt, trägt das Wort aber nicht im Namen.
-  { test: /project|customer|staff|user|pin|beta_tester|public_rueckmeldung/, module: 'grundfunktion' },
+  // `^mfa_`: Passkeys und Wiederherstellungscodes des Betreiber-Kontos
+  // (docs/specs/betreiber-mfa.md) — Kontoverwaltung wie `admin_generate_pin`.
+  { test: /project|customer|staff|user|pin|beta_tester|public_rueckmeldung|^mfa_/, module: 'grundfunktion' },
 ]
 
 /**
@@ -307,6 +309,12 @@ const ACTION_LABELS: Record<string, string> = {
   admin_set_user_permissions: 'Zusatzrechte geändert',
   admin_set_user_password: 'Passwort gesetzt',
   admin_generate_pin: 'PIN erzeugt',
+  // MFA der Betreiber-Konten (docs/specs/betreiber-mfa.md §6.8)
+  mfa_aktiviert: 'Zwei-Faktor-Anmeldung eingeschaltet',
+  mfa_codes_neu: 'Wiederherstellungscodes erzeugt',
+  mfa_code_eingeloest: 'Wiederherstellungscode eingelöst',
+  mfa_passkey_neu: 'Passkey eingerichtet',
+  mfa_passkey_entfernt: 'Passkey entfernt',
 
   // ── Rapporte ──
   log_report: 'Rapport erfasst',

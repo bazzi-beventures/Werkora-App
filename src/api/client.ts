@@ -65,6 +65,15 @@ function handleExpiredSession(status: number, detail: string, path: string): boo
   return true
 }
 
+// Die Sitzung eines Betreiber-Kontos ist gültig, aber noch nicht mit zweitem
+// Faktor bestätigt (docs/specs/betreiber-mfa.md §6.2). Kein «abgelaufen»: die
+// Betreiber-Seite zeigt daraufhin «Anmeldung bestätigen».
+function meldeFehlendeBestaetigung(status: number, code: string | undefined) {
+  if (status === 403 && code === 'mfa_required') {
+    window.dispatchEvent(new CustomEvent('auth:mfa-required'))
+  }
+}
+
 async function parseErrorDetail(res: Response): Promise<{ text: string; code?: string }> {
   // Diagnose-Breadcrumb (Spec docs/specs/support-ticket.md §5.3). Hier, weil
   // JEDER Fehlerpfad des Clients durch diese Funktion läuft — ein Aufruf statt
@@ -183,6 +192,7 @@ export async function apiFetch<T = unknown>(path: string, options: ApiFetchOptio
       if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
+      meldeFehlendeBestaetigung(res.status, code)
       throw new ApiError(res.status, text, code)
     }
 
@@ -230,6 +240,7 @@ export async function apiBlobFetch(
       if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
+      meldeFehlendeBestaetigung(res.status, code)
       throw new ApiError(res.status, text, code)
     }
 
@@ -262,6 +273,7 @@ export async function apiTextFetch(path: string): Promise<string> {
       if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
+      meldeFehlendeBestaetigung(res.status, code)
       throw new ApiError(res.status, text, code)
     }
     return await res.text()
@@ -302,6 +314,7 @@ export async function* apiStreamFetch(
     if (handleExpiredSession(res.status, text, path)) {
       throw new ApiError(res.status, 'Sitzung abgelaufen')
     }
+    meldeFehlendeBestaetigung(res.status, code)
     throw new ApiError(res.status, text, code)
   }
 
@@ -363,6 +376,7 @@ export async function apiFormFetch<T = unknown>(path: string, form: FormData): P
       if (handleExpiredSession(res.status, text, path)) {
         throw new ApiError(res.status, 'Sitzung abgelaufen')
       }
+      meldeFehlendeBestaetigung(res.status, code)
       throw new ApiError(res.status, text, code)
     }
 

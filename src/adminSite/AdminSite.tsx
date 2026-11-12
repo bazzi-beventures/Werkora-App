@@ -18,6 +18,8 @@ import { PasswordDialog } from './PasswordDialog'
 import { useToast, ToastHost } from '../admin/components/useToast'
 import LoginScreen from './LoginScreen'
 import AppSperre from './AppSperre'
+import MfaBestaetigung from './MfaBestaetigung'
+import SicherheitDialog from './SicherheitDialog'
 import { istAppModus, useSperreBeiRueckkehr } from './appSperreRegeln'
 import AdminSiteShell, { SCREEN_TITEL } from './AdminSiteShell'
 import ScreenBoundary from './ScreenBoundary'
@@ -88,10 +90,16 @@ export default function AdminSite() {
   // ungespeicherte Eingaben darunter stehen bleiben.
   const [gesperrt, setGesperrt] = useState(false)
   const [passwortDialog, setPasswortDialog] = useState(false)
+  const [sicherheitDialog, setSicherheitDialog] = useState(false)
   const { toast, showToast } = useToast()
-  // Erst mit Sitzung laden — sonst bleibt ein 401 von vor dem Login als
-  // «Sitzung abgelaufen» im Wähler stehen (siehe useTenantScope).
-  const scope = useTenantScope(user !== null)
+  // Passwort stimmt, aber der zweite Faktor fehlt noch (docs/specs/betreiber-mfa.md
+  // §6.9): dann gibt es nur «Anmeldung bestätigen». Jede andere Route antwortet
+  // bis dahin mit 403 — deshalb lädt auch sonst nichts, was die Seite braucht.
+  const mfaOffen = user !== null && user.mfa?.pflicht === true && !user.mfa.bestaetigt
+  const freigeschaltet = user !== null && !mfaOffen
+  // Erst mit (bestätigter) Sitzung laden — sonst bleibt ein 401/403 von vor dem
+  // Login als «Sitzung abgelaufen» im Wähler stehen (siehe useTenantScope).
+  const scope = useTenantScope(freigeschaltet)
   const { screen, detail, navigate } = useAdminSiteNav()
   // Neue Feature-Anfragen als Abzeichen in der Leiste (docs/specs/feature-anfragen.md
   // §7, §9.2): der Betreiber bekommt je Anfrage weder Push noch Mail — die Zahl
@@ -124,8 +132,23 @@ export default function AdminSite() {
 
   useSperreBeiRueckkehr(appModus && user !== null && !gesperrt, () => setGesperrt(true))
 
+  // Mitten in der Arbeit 403 «mfa_required» (eine Sitzung von vor der
+  // Aktivierung): dieselbe Bestätigung wie nach dem Login. Ist sie schon
+  // offen, bleibt der Zustand unverändert — sonst löste jedes weitere 403
+  // einen neuen Render und damit neue Anfragen aus.
   useEffect(() => {
-    if (!user) return
+    function beiFehlenderBestaetigung() {
+      setUser((u) => {
+        if (!u || (u.mfa?.pflicht && !u.mfa.bestaetigt)) return u
+        return { ...u, mfa: { pflicht: true, bestaetigt: false, methode: null } }
+      })
+    }
+    window.addEventListener('auth:mfa-required', beiFehlenderBestaetigung)
+    return () => window.removeEventListener('auth:mfa-required', beiFehlenderBestaetigung)
+  }, [])
+
+  useEffect(() => {
+    if (!user || !freigeschaltet) return
     let abgebrochen = false
     fetchNewRequestCount()
       .then((r) => { if (!abgebrochen) setNeueAnfragen(r.count) })
@@ -134,7 +157,7 @@ export default function AdminSite() {
       .then((r) => { if (!abgebrochen) setOffeneTickets(r.count) })
       .catch(() => { /* dito */ })
     return () => { abgebrochen = true }
-  }, [user, screen])
+  }, [user, freigeschaltet, screen])
 
   // Nach einem bewussten «Abmelden» fragt die App-Sperre nicht gleich wieder
   // nach dem Fingerabdruck — wer sich abmeldet, will gerade nicht hinein.
@@ -155,6 +178,17 @@ export default function AdminSite() {
     return appModus
       ? <AppSperre onEntsperrt={setUser} sofortFragen={!abgemeldet} />
       : <LoginScreen onLoggedIn={setUser} />
+  }
+
+  if (mfaOffen) {
+    return (
+      <MfaBestaetigung
+        user={user}
+        appModus={appModus}
+        onBestaetigt={setUser}
+        onAbmelden={() => { void abmelden() }}
+      />
+    )
   }
 
   // Die Screens des Mandanten-Bereichs nehmen `tenantId: string`, nicht
@@ -242,6 +276,7 @@ export default function AdminSite() {
         displayName={user.display_name}
         onLogout={abmelden}
         onChangePassword={() => setPasswortDialog(true)}
+        onSecurity={() => setSicherheitDialog(true)}
         zeigeRechnungen={hatRechnungsbereich(user)}
         badges={{ 'feature-anfragen': neueAnfragen, support: offeneTickets }}
       >
@@ -266,6 +301,16 @@ export default function AdminSite() {
               setPasswortDialog(false)
               showToast(meldung)
             }}
+          />
+        )}
+        {/* Passkeys und Wiederherstellungscodes des eigenen Kontos
+            (docs/specs/betreiber-mfa.md §5.1) — wie das Passwort am Konto,
+            nicht am gewählten Mandanten. */}
+        {sicherheitDialog && (
+          <SicherheitDialog
+            appModus={appModus}
+            onClose={() => setSicherheitDialog(false)}
+            onMeldung={showToast}
           />
         )}
         <ToastHost toast={toast} />

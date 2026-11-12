@@ -128,6 +128,27 @@ describe('apiFetch — abgelaufene Session', () => {
     window.removeEventListener('auth:expired', handler)
   })
 
+  it('meldet eine fehlende MFA-Bestätigung als eigenes Ereignis, nicht als abgelaufen', async () => {
+    // docs/specs/betreiber-mfa.md §6.2: die Sitzung ist gültig, nur unbestätigt.
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeRes({
+      ok: false, status: 403,
+      body: { detail: { code: 'mfa_required', message: 'Anmeldung noch nicht bestätigt.' } },
+    })))
+    const mfa = vi.fn()
+    const abgelaufen = vi.fn()
+    window.addEventListener('auth:mfa-required', mfa)
+    window.addEventListener('auth:expired', abgelaufen)
+
+    const err = await apiFetch('/pwa/superadmin/tenants').catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect((err as ApiError).code).toBe('mfa_required')
+    expect(mfa).toHaveBeenCalledTimes(1)
+    expect(abgelaufen).not.toHaveBeenCalled()
+
+    window.removeEventListener('auth:mfa-required', mfa)
+    window.removeEventListener('auth:expired', abgelaufen)
+  })
+
   it('feuert auth:expired NICHT auf Auth-Endpoints (kein Loop bei Falsch-Passwort)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeRes({ ok: false, status: 401, body: { detail: 'falsch' } })))
     const handler = vi.fn()

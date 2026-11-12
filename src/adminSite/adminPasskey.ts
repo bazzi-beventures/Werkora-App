@@ -10,7 +10,7 @@ import { ApiError, apiFetch } from '../api/client'
 import { b64urlToBuffer, bufferToB64url } from '../auth/webauthn'
 import type { AdminPasskeyKonto } from './appSperreRegeln'
 
-interface CredentialDescriptorJson { id: string; type: 'public-key' }
+interface CredentialDescriptorJson { id: string; type: 'public-key'; transports?: string[] }
 
 interface CreationOptionsJson {
   challenge: string
@@ -23,7 +23,7 @@ interface CreationOptionsJson {
   attestation?: AttestationConveyancePreference
 }
 
-interface RequestOptionsJson {
+export interface RequestOptionsJson {
   challenge: string
   rpId: string
   timeout?: number
@@ -38,7 +38,40 @@ function konto(k: KontoJson): AdminPasskeyKonto {
 }
 
 function descriptors(list: CredentialDescriptorJson[] | undefined): PublicKeyCredentialDescriptor[] {
-  return (list ?? []).map((c) => ({ type: 'public-key' as const, id: b64urlToBuffer(c.id) }))
+  return (list ?? []).map((c) => ({
+    type: 'public-key' as const,
+    id: b64urlToBuffer(c.id),
+    // Mit «hybrid» bietet der Browser für den Handy-Passkey gleich den
+    // QR-Code an (docs/specs/betreiber-mfa.md §6.4).
+    ...(c.transports?.length ? { transports: c.transports as AuthenticatorTransport[] } : {}),
+  }))
+}
+
+/** Server-Optionen → `navigator.credentials.get`-Optionen. */
+export function anfrageOptionen(o: RequestOptionsJson): PublicKeyCredentialRequestOptions {
+  return {
+    challenge: b64urlToBuffer(o.challenge),
+    rpId: o.rpId,
+    allowCredentials: descriptors(o.allowCredentials),
+    userVerification: o.userVerification,
+    timeout: o.timeout,
+  }
+}
+
+/** Die Signatur des Geräts in der JSON-Form, die der Server prüft. */
+export function signaturAlsJson(credential: PublicKeyCredential): Record<string, unknown> {
+  const response = credential.response as AuthenticatorAssertionResponse
+  return {
+    id: credential.id,
+    rawId: bufferToB64url(credential.rawId),
+    type: credential.type,
+    response: {
+      clientDataJSON: bufferToB64url(response.clientDataJSON),
+      authenticatorData: bufferToB64url(response.authenticatorData),
+      signature: bufferToB64url(response.signature),
+      userHandle: response.userHandle ? bufferToB64url(response.userHandle) : null,
+    },
+  }
 }
 
 /**
@@ -56,8 +89,10 @@ export class SchonEingerichtet extends Error {
 }
 
 /**
- * Fingerabdruck für die App einrichten. Verlangt eine frische Anmeldung mit
- * Passwort (Server: höchstens zehn Minuten alt, sonst `fresh_login_required`).
+ * Passkey auf diesem Gerät einrichten (App-Sperre, «Diesen Computer merken»).
+ * Ohne MFA-Pflicht genügt eine frische Anmeldung (`fresh_login_required`),
+ * mit Pflicht braucht es eine frische Bestätigung (`bestaetigung_erforderlich`,
+ * docs/specs/betreiber-mfa.md E7).
  */
 export async function adminPasskeyEinrichten(): Promise<AdminPasskeyKonto> {
   const begin = await apiFetch<{ options: CreationOptionsJson; account: KontoJson }>(
@@ -96,6 +131,9 @@ export async function adminPasskeyEinrichten(): Promise<AdminPasskeyKonto> {
         response: {
           clientDataJSON: bufferToB64url(response.clientDataJSON),
           attestationObject: bufferToB64url(response.attestationObject),
+          // Welche Wege das Gerät kennt (internal, hybrid, …) — damit der
+          // Browser beim Bestätigen den QR-Code fürs Handy gleich anbietet.
+          transports: typeof response.getTransports === 'function' ? response.getTransports() : [],
         },
       },
     }),
@@ -113,32 +151,10 @@ export async function adminPasskeyEntsperren(k: AdminPasskeyKonto): Promise<void
     method: 'POST',
     body: JSON.stringify(ident),
   })
-  const publicKey: PublicKeyCredentialRequestOptions = {
-    challenge: b64urlToBuffer(o.challenge),
-    rpId: o.rpId,
-    allowCredentials: descriptors(o.allowCredentials),
-    userVerification: o.userVerification,
-    timeout: o.timeout,
-  }
-  const credential = (await navigator.credentials.get({ publicKey })) as PublicKeyCredential
-  const response = credential.response as AuthenticatorAssertionResponse
-
+  const credential = (await navigator.credentials.get({ publicKey: anfrageOptionen(o) })) as PublicKeyCredential
   await apiFetch('/pwa/auth/admin-passkey/login-complete', {
     method: 'POST',
-    body: JSON.stringify({
-      ...ident,
-      credential: {
-        id: credential.id,
-        rawId: bufferToB64url(credential.rawId),
-        type: credential.type,
-        response: {
-          clientDataJSON: bufferToB64url(response.clientDataJSON),
-          authenticatorData: bufferToB64url(response.authenticatorData),
-          signature: bufferToB64url(response.signature),
-          userHandle: response.userHandle ? bufferToB64url(response.userHandle) : null,
-        },
-      },
-    }),
+    body: JSON.stringify({ ...ident, credential: signaturAlsJson(credential) }),
   })
 }
 

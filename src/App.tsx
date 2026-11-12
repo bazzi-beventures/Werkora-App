@@ -8,6 +8,8 @@ import {
 import PinScreen from './auth/PinScreen'
 import LoginScreen from './auth/LoginScreen'
 import ConsentScreen from './auth/ConsentScreen'
+import BetreiberMfaHinweis from './auth/BetreiberMfaHinweis'
+import { brauchtBetreiberBestaetigung } from './auth/betreiberBestaetigung'
 import HomeScreen from './screens/HomeScreen'
 import ChatScreen from './chat/ChatScreen'
 import ArbeitsZeitScreen from './screens/ArbeitsZeitScreen'
@@ -678,6 +680,10 @@ export default function App() {
         }}
       />
     )
+  } else if (brauchtBetreiberBestaetigung(user)) {
+    // Nur Betreiber-Konten mit MFA-Pflicht nach einem Passwort-Login
+    // (docs/specs/betreiber-mfa.md §6.10) — der Server lässt sie sonst nirgends hin.
+    inner = <BetreiberMfaHinweis logoUrl={effectiveLogo} onAbgemeldet={() => { setUser(null); resetTo('login') }} />
   } else if (screen === 'consent' && user) {
     inner = (
       <ConsentScreen

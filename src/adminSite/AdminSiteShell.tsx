@@ -123,6 +123,8 @@ interface Props {
   onLogout: () => void
   /** Öffnet den Dialog fürs eigene Passwort (Selbstbedienung). */
   onChangePassword: () => void
+  /** Passkeys und Wiederherstellungscodes (docs/specs/betreiber-mfa.md §5.1). */
+  onSecurity?: () => void
   /** Module des ANGEMELDETEN Kontos aus `/pwa/me` — nicht die des gewählten
    *  Mandanten. Trägt es `invoicing` + `payment_matching`, sitzt es im
    *  Betreiber-Mandanten und der Bereich «Rechnungen» erscheint (§8.3). */
@@ -134,7 +136,7 @@ interface Props {
 }
 
 export default function AdminSiteShell({
-  screen, onNav, scope, displayName, onLogout, onChangePassword, zeigeRechnungen, badges, children,
+  screen, onNav, scope, displayName, onLogout, onChangePassword, onSecurity, zeigeRechnungen, badges, children,
 }: Props) {
   const isMobile = useIsMobile()
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
@@ -227,6 +229,11 @@ export default function AdminSiteShell({
         >
           Passwort ändern
         </button>
+        {onSecurity && (
+          <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm" onClick={onSecurity}>
+            Sicherheit
+          </button>
+        )}
         <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm" onClick={onLogout}>
           Abmelden
         </button>

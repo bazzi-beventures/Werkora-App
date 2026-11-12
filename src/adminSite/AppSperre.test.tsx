@@ -40,6 +40,14 @@ vi.mock('./adminPasskey', async (importOriginal) => {
   }
 })
 
+vi.mock('./MfaBestaetigung', () => ({
+  default: ({ onBestaetigt, user }: { onBestaetigt: (u: unknown) => void; user: { display_name: string } }) => (
+    <button type="button" onClick={() => onBestaetigt({ ...user, mfa: { pflicht: true, bestaetigt: true, methode: 'wiederherstellung' } })}>
+      Anmeldung bestätigen
+    </button>
+  ),
+}))
+
 import AppSperre from './AppSperre'
 import { SchonEingerichtet } from './adminPasskey'
 
@@ -174,6 +182,29 @@ describe('AppSperre', () => {
     expect(entsperren).not.toHaveBeenCalled()
     fireEvent.click(knopf)
     await waitFor(() => expect(onEntsperrt).toHaveBeenCalledWith(BETREIBER))
+  })
+
+  it('MFA-Pflicht, neues Gerät: erst bestätigen, dann Fingerabdruck einrichten', async () => {
+    // docs/specs/betreiber-mfa.md §5.3, E7: das Passwort allein richtet
+    // keinen neuen Passkey ein.
+    getMe.mockResolvedValue({ ...BETREIBER, mfa: { pflicht: true, bestaetigt: false, methode: null } })
+    const onEntsperrt = vi.fn()
+    render(<AppSperre onEntsperrt={onEntsperrt} />)
+    mitPasswortAnmelden()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Anmeldung bestätigen' }))
+    expect(einrichten).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('button', { name: 'Fingerabdruck einrichten' }))
+    await waitFor(() => expect(onEntsperrt).toHaveBeenCalled())
+    expect(einrichten).toHaveBeenCalledTimes(1)
+  })
+
+  it('Server verlangt Bestätigung beim Einrichten: zurück zur Bestätigung', async () => {
+    einrichten.mockRejectedValueOnce(new ApiError(403, 'bestaetigung_erforderlich'))
+    render(<AppSperre onEntsperrt={vi.fn()} />)
+    mitPasswortAnmelden()
+    fireEvent.click(await screen.findByRole('button', { name: 'Fingerabdruck einrichten' }))
+    expect(await screen.findByRole('button', { name: 'Anmeldung bestätigen' })).toBeTruthy()
   })
 
   it('über der laufenden Seite als Dialog', async () => {

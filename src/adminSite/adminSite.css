@@ -404,3 +404,30 @@
 }
 .adminsite-rm-knoepfe { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .adminsite-rm-tabelle { max-height: 560px; overflow-y: auto; margin-bottom: var(--s-3); }
+
+/* Dialog «Sicherheit» — Passkeys und Wiederherstellungscodes
+   (docs/specs/betreiber-mfa.md §5.1). */
+.adminsite-mfa-dialog { width: min(560px, 100%); }
+.adminsite-mfa-body { display: flex; flex-direction: column; gap: 18px; }
+.adminsite-mfa-section { display: flex; flex-direction: column; gap: 10px; }
+.adminsite-mfa-heading { font-weight: 650; font-size: var(--font-md, 15px); }
+.adminsite-mfa-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.adminsite-mfa-liste li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+}
+.adminsite-mfa-name { font-weight: 600; }
+.adminsite-mfa-meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+/* Die Codes: gross, gleich breit, zum Abtippen und Ausdrucken. */
+.adminsite-mfa-codes {
+  margin: 0; padding: 14px 14px 14px 36px;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 24px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px; letter-spacing: 0.04em;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+}
+.adminsite-mfa-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.adminsite-mfa-check { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+@media (max-width: 420px) {
+  .adminsite-mfa-codes { grid-template-columns: minmax(0, 1fr); }
+}

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  getHealthStatus, getHealthHistory, getMigrationStatus,
+  getHealthStatus, getHealthHistory, getMigrationStatus, getMfaStatus,
   HealthStatusResponse, HealthHistoryResponse, HistoryDay, DayUptime,
-  MigrationGateStatus, MigrationStatus,
+  MigrationGateStatus, MigrationStatus, MfaStatus,
   ServiceHealth, ServiceName, ServiceStatus,
 } from '../../api/serviceHealth'
 import RouteMetricsPanel from './RouteMetricsPanel'
+import JobsPanel from './JobsPanel'
 
 const SERVICE_LABELS: Record<ServiceName, string> = {
   railway: 'Railway',
@@ -175,6 +176,43 @@ function migrationBadge(status: MigrationGateStatus, fehlend: number): { text: s
  * ist kurz nach einem Merge nach develop normal — db-migrate läuft parallel zum
  * Deploy. Erst wenn es bleibt, ist es ein Befund (dann steht er auch im error_log).
  */
+/**
+ * Betreiber-Konten ohne MFA-Pflicht (docs/specs/betreiber-mfa.md §6.8). Grün
+ * erst, wenn jedes Superadmin-Konto dieser Umgebung die Pflicht hat — ein
+ * Konto ohne ist eines, bei dem das Passwort allein reicht.
+ */
+export function MfaCard({ data }: { data: MfaStatus }) {
+  const ok = data.status === 'ok' && data.ohne_mfa.length === 0
+  const dot = data.status === 'nicht_lesbar' ? COLOR_BAD : ok ? COLOR_OK : COLOR_WARN
+  return (
+    <div className="svc-card" style={{ ['--svc-accent' as string]: 'var(--warning)' }} data-testid="mfa-card">
+      <div className="svc-card-head">
+        <div>
+          <div className="svc-card-title">Betreiber-Konten</div>
+          <div className="svc-card-sub">Zwei-Faktor-Anmeldung (Passkey)</div>
+        </div>
+        <div className="svc-card-dot" style={{ background: dot }} />
+      </div>
+      <div>
+        <div className="svc-card-value">
+          {data.status === 'ok' ? data.konten - data.ohne_mfa.length : '—'}
+          <span className="svc-card-value-unit"> / {data.konten}</span>
+        </div>
+        <div className="svc-card-caption">mit MFA-Pflicht / Superadmin-Konten</div>
+      </div>
+      {data.status === 'nicht_lesbar' && (
+        <div className="svc-card-caption">Stand nicht lesbar.</div>
+      )}
+      {data.ohne_mfa.length > 0 && (
+        <div style={{ fontSize: 12, color: 'var(--warning-ink)', background: 'var(--warning-soft)', padding: '8px 10px', borderRadius: 'var(--radius-xs)', lineHeight: 1.5 }}>
+          Ohne MFA: {data.ohne_mfa.map((k) => `${k.name} (${k.mandant})`).join(', ')}.
+          {' '}Unter «Sicherheit» Wiederherstellungscodes erzeugen schaltet sie ein.
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function MigrationCard({ data }: { data: MigrationStatus }) {
   const badge = migrationBadge(data.status, data.fehlend.length)
   const dot = data.status === 'aktuell' ? COLOR_OK
@@ -389,11 +427,13 @@ export default function ServiceStatusScreen() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [migrations, setMigrations] = useState<MigrationStatus | null>(null)
+  const [mfaStand, setMfaStand] = useState<MfaStatus | null>(null)
 
   async function load(range: HistoryRange = historyRange) {
     // Eigener Aufruf ohne Einfluss auf den Rest: ein Fehler beim Migrationsstand
     // (Tabelle nicht lesbar, älteres Backend) darf die Service-Ampeln nicht ausblenden.
     getMigrationStatus().then(setMigrations).catch(() => setMigrations(null))
+    getMfaStatus().then(setMfaStand).catch(() => setMfaStand(null))
     try {
       const [status, hist] = await Promise.all([getHealthStatus(), getHealthHistory(range)])
       setData(status)
@@ -461,6 +501,7 @@ export default function ServiceStatusScreen() {
           <StatusCard name="supabase" data={data.services.supabase} />
           <StatusCard name="mistral" data={data.services.mistral} />
           {migrations && <MigrationCard data={migrations} />}
+          {mfaStand && <MfaCard data={mfaStand} />}
         </div>
       )}
 
@@ -494,6 +535,8 @@ export default function ServiceStatusScreen() {
           <Heatmap days={history.days} />
         </div>
       )}
+
+      <JobsPanel />
 
       <RouteMetricsPanel />
 

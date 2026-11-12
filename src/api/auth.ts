@@ -46,6 +46,10 @@ export interface UserInfo {
     offen: number
     ueberfaellig: boolean
   } | null
+  /** MFA des Betreiber-Kontos (docs/specs/betreiber-mfa.md) — nur für
+   *  `superadmin`, sonst `null`. `pflicht && !bestaetigt` heisst: diese Sitzung
+   *  kommt nur an die Bestätigung, jede andere Route antwortet 403. */
+  mfa?: { pflicht: boolean; bestaetigt: boolean; methode: string | null } | null
 }
 
 export async function getMe(): Promise<UserInfo> {

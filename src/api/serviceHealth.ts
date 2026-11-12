@@ -78,6 +78,18 @@ export async function getMigrationStatus(): Promise<MigrationStatus> {
   return apiFetch<MigrationStatus>('/pwa/superadmin/health/migrations')
 }
 
+// Betreiber-Konten ohne MFA-Pflicht (docs/specs/betreiber-mfa.md §6.8) — nur
+// Name und Mandant. `nicht_lesbar` statt «alle haben MFA», wenn es scheitert.
+export interface MfaStatus {
+  status: 'ok' | 'nicht_lesbar'
+  konten: number
+  ohne_mfa: { name: string; mandant: string }[]
+}
+
+export async function getMfaStatus(): Promise<MfaStatus> {
+  return apiFetch<MfaStatus>('/pwa/superadmin/health/mfa')
+}
+
 // Routen-Messung (docs/specs/refactoring-wachstum.md §9): Dauer bis zur Antwort,
 // Antwort-Bytes vor GZip und DB-Roundtrips je Route-Schablone — ohne Nutzer und
 // Mandant. `nicht_lesbar` statt einer leeren Liste, wenn die Messung fehlt.
@@ -114,4 +126,43 @@ export type RouteMetricsResponse =
 
 export async function getRouteMetrics(days = 7): Promise<RouteMetricsResponse> {
   return apiFetch<RouteMetricsResponse>(`/pwa/superadmin/health/routes?days=${days}`)
+}
+
+// Hintergrundläufe unter dem Job-Runner (docs/specs/refactoring-wachstum.md §3):
+// letzter Lauf und Fehler je Job, dazu wer die Lease hält. Nur die Umgebung
+// dieses Backends — Staging und Produktion haben je einen eigenen Runner.
+export interface JobLauf {
+  status: 'laeuft' | 'ok' | 'fehler'
+  tenant_id: string | null
+  due_at: string
+  started_at?: string
+  finished_at: string | null
+  dauer_ms: number | null
+  attempts?: number
+  ergebnis?: Record<string, unknown> | null
+  error: string | null
+}
+
+export interface JobUebersicht {
+  name: string
+  beschreibung: string
+  plan: string
+  je_mandant: boolean
+  laeufe: number
+  fehler: number
+  letzter: JobLauf | null
+  letzter_fehler: Pick<JobLauf, 'tenant_id' | 'due_at' | 'finished_at' | 'error'> | null
+}
+
+export type JobsResponse =
+  | { status: 'nicht_lesbar'; days: number }
+  | {
+      status: 'ok'
+      days: number
+      lease: { holder: string; expires_at: string; acquired_at: string } | null
+      jobs: JobUebersicht[]
+    }
+
+export async function getJobs(days = 7): Promise<JobsResponse> {
+  return apiFetch<JobsResponse>(`/pwa/superadmin/health/jobs?days=${days}`)
 }
