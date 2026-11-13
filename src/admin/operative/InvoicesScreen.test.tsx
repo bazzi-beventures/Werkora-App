@@ -37,7 +37,7 @@ function invoice(over: Record<string, unknown> = {}) {
 function listAnswer(rawPath: unknown, invoices: Record<string, unknown>[]): unknown {
   const path = String(rawPath)
   if (path.startsWith('/pwa/admin/invoices/list')) {
-    return { rows: invoices, total: invoices.length, page: 1, page_size: 50, open_total: 0 }
+    return { rows: invoices, total: invoices.length, page: 1, page_size: 50 }
   }
   const m = /^\/pwa\/admin\/projects\/([^/]+)\/invoices$/.exec(path)
   if (m) return invoices.filter(i => i.project_id === m[1])
@@ -238,33 +238,23 @@ describe('InvoicesScreen — seitenweise', () => {
     return new URLSearchParams(paths[paths.length - 1].split('?')[1])
   }
 
-  it('zeigt Gesamtzahl und den offenen Betrag des Servers', async () => {
+  it('zeigt die Gesamtzahl des Servers, aber keine «Offen»-Summe', async () => {
     mockFetch.mockImplementation(async (path: string) => {
       if (String(path).startsWith('/pwa/admin/invoices/list')) {
-        return { rows: [invoice()], total: 412, page: 1, page_size: 50, open_total: 8047 }
+        return { rows: [invoice()], total: 412, page: 1, page_size: 50 }
       }
       return listAnswer(path, []) ?? {}
     })
     render(<InvoicesScreen />)
-    // Der Betrag kommt vom Server (alle offenen, nicht nur die der Seite).
-    expect(await screen.findByText(/412 Einträge · Offen: CHF 8.047\.00/)).toBeInTheDocument()
+    expect(await screen.findByText('412 Einträge')).toBeInTheDocument()
+    // Die Summe zählte auch nie versendete Rechnungen und widersprach der
+    // Kennzahl «Fakturiert, offen» — sie ist weg (20261113).
+    expect(screen.queryByText(/Offen:/)).not.toBeInTheDocument()
     expect(screen.getByText('1–50 von 412')).toBeInTheDocument()
 
     const q = lastListCall()
     expect(q.get('page')).toBe('1')
     expect(q.get('status')!.split(',').sort()).toEqual(['ausstehend', 'bezahlt', 'gesendet', 'inaktiv', 'offen'])
-  })
-
-  it('lässt «Offen» weg, wenn der Server den Betrag nicht liefern konnte', async () => {
-    mockFetch.mockImplementation(async (path: string) => {
-      if (String(path).startsWith('/pwa/admin/invoices/list')) {
-        return { rows: [invoice()], total: 1, page: 1, page_size: 50, open_total: null }
-      }
-      return listAnswer(path, []) ?? {}
-    })
-    render(<InvoicesScreen />)
-    expect(await screen.findByText('1 Einträge')).toBeInTheDocument()
-    expect(screen.queryByText(/Offen:/)).not.toBeInTheDocument()
   })
 
   it('blättert und schickt die Suche an den Server', async () => {
@@ -273,7 +263,7 @@ describe('InvoicesScreen — seitenweise', () => {
         const page = Number(new URLSearchParams(String(path).split('?')[1]).get('page'))
         return {
           rows: [invoice({ id: page, invoice_number: `RE-SEITE-${page}` })],
-          total: 120, page, page_size: 50, open_total: 0,
+          total: 120, page, page_size: 50,
         }
       }
       return listAnswer(path, []) ?? {}
@@ -310,7 +300,7 @@ describe('InvoicesScreen — was die Liste allein nicht mehr weiss', () => {
       if (p === '/pwa/admin/projects') return [{ id: 'p-9', name: 'Lorca Winterthur', is_closed: false }]
       // Die Seite selbst enthält die Rechnung des Projekts NICHT (anderer Filter).
       if (p.startsWith('/pwa/admin/invoices/list')) {
-        return { rows: [], total: 0, page: 1, page_size: 50, open_total: 0 }
+        return { rows: [], total: 0, page: 1, page_size: 50 }
       }
       return listAnswer(p, [projektRechnung]) ?? {}
     })

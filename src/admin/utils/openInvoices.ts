@@ -1,7 +1,8 @@
 // «Offen» heisst hier: es wird noch Geld erwartet. Archivierte (annullierte) und
 // inaktive Rechnungen zählen deshalb nicht mit, bezahlte ohnehin nicht.
-// Grundlage für die Offen-Summe in der Rechnungsübersicht und für den Hinweis
-// beim Projektabschluss.
+// Grundlage für den Hinweis beim Projektabschluss und für die Betreiber-
+// Rechnungen auf admin.werkora.ch. (Die Offen-Summe im Kopf der Rechnungsliste
+// der Betriebe gibt es seit 20261113 nicht mehr.)
 //
 // ⚠️ Zweite Wahrheit im Backend: `db/invoices.py::OPEN_INVOICE_STATUSES` führt
 // dieselbe Liste (dort entscheidet sie, welche Rechnungen beim Neu-Generieren

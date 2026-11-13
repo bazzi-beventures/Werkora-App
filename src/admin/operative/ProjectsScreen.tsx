@@ -18,6 +18,7 @@ import { addressLocality, type StaffLite } from './scheduleShared'
 import ProjectTermine from './ProjectTermine'
 import { readSpalten, writeSpalten } from './projektlisteSpalten'
 import { useIsMobile } from '../useIsMobile'
+import { SortIcon } from '../components/SortableTh'
 import { projectWarranty, warrantyBadge } from '../../shared/warranty'
 import type { WarrantyConfig } from '../../shared/warranty'
 
@@ -82,14 +83,6 @@ const QUOTE_FILTER_VALUES = ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', '
 const INVOICE_FILTER_VALUES = ['ausstehend', 'offen', 'gesendet', 'bezahlt', 'archiviert']
 const LIFECYCLE_VALUES: ProjectStatus[] = ['offen', 'abgeschlossen', 'archiviert']
 const BESCHAFFUNG_KEYS = BESCHAFFUNG_STEPS.map(s => s.key)
-
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  return (
-    <span style={{ marginLeft: 4, opacity: active ? 1 : 0.3, fontSize: 11 }}>
-      {active && dir === 'desc' ? '↓' : '↑'}
-    </span>
-  )
-}
 
 interface ProjectsScreenProps {
   openNew?: boolean

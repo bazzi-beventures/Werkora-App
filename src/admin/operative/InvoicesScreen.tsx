@@ -47,6 +47,8 @@ import {
 } from '../utils/generalDeduction'
 import { useIsMobile } from '../useIsMobile'
 import { LIST_PAGE_SIZE, usePagedList } from '../usePagedList'
+import { useListSort } from '../useListSort'
+import { SortableTh } from '../components/SortableTh'
 import { isInvoiceOpen, openInvoicesHint } from '../utils/openInvoices'
 import type { AdminScreen } from '../useAdminNav'
 import { useToast, ToastHost } from '../components/useToast'
@@ -65,6 +67,8 @@ const ALL_STATUSES = ['ausstehend', 'offen', 'gesendet', 'bezahlt', 'archiviert'
 // Stabile Referenz für «noch nichts geladen»: die bexio-Abfrage hängt an der
 // Zeilenliste, ein frisches [] je Render löste sie endlos neu aus.
 const NO_INVOICES: Invoice[] = []
+// Sortierbare Spalten = Katalog des Endpoints (db/invoices.py, `_INVOICE_SORT_MAP`).
+type InvoiceSortKey = 'invoice_number' | 'project_name' | 'total_amount' | 'status' | 'created_at' | 'paid_at'
 
 /** Weitere offene Rechnungen desselben Projekts. Die soeben bezahlte ist
  *  ausgenommen — falls ihr neuer Status noch nicht durch ist. */
@@ -83,16 +87,18 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     () => new Set(['ausstehend', 'offen', 'gesendet', 'bezahlt', 'inaktiv'])
   )
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
-  // Seitenweise vom Server: Status, Suche und Projektleiter filtert die
-  // Datenbank, über die Leitung gehen 50 Zeilen (api/admin/listPage.ts).
+  const [sort, toggleSort] = useListSort<InvoiceSortKey>({ key: 'created_at', dir: 'desc' })
+  // Seitenweise vom Server: Filter und Reihenfolge macht die Datenbank, über
+  // die Leitung gehen 50 Zeilen (api/admin/listPage.ts).
   const fetchPage = useCallback(
     (page: number, search: string) => listInvoicesPage({
       page, pageSize: LIST_PAGE_SIZE, statuses: statusFilters, search,
-      projektleiterId: projektleiterFilter,
+      projektleiterId: projektleiterFilter, sort: sort.key, dir: sort.dir,
     }),
-    [statusFilters, projektleiterFilter],
+    [statusFilters, projektleiterFilter, sort],
   )
   const list = usePagedList(fetchPage)
+  const onSort = (key: InvoiceSortKey) => { toggleSort(key); list.setPage(1) }
   const invoices = list.data?.rows ?? NO_INVOICES
   const total = list.data?.total ?? 0
   const load = list.reload
@@ -560,9 +566,6 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     }
   }
 
-  // Summe aller offenen Rechnungen, unabhängig von Seite und Filter — rechnet
-  // der Server (db.invoices.sum_open_invoices). null = nicht verfügbar.
-  const totalOpen = list.data?.open_total ?? null
   const emptyText = list.failed ? 'Rechnungen konnten nicht geladen werden.' : 'Keine Rechnungen gefunden.'
 
   const closeProjectWarning = !confirmCloseProject
@@ -577,7 +580,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
         <div>
           <div className="admin-page-title">Rechnungen</div>
           <div className="admin-page-subtitle">
-            {total} Einträge{totalOpen !== null && ` · Offen: ${fmtCHF(totalOpen)}`}
+            {/* Bewusst ohne «Offen: CHF …» (20261113): die Summe zählte auch nie
+                versendete Rechnungen und widersprach der Kennzahl «Fakturiert,
+                offen». Was beim Kunden aussteht, steht in den Kennzahlen. */}
+            {total} Einträge
           </div>
         </div>
         <div className="admin-page-actions">
@@ -696,12 +702,12 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
           <table className="admin-table" aria-busy={list.loading} style={list.loading ? { opacity: 0.6 } : undefined}>
             <thead>
               <tr>
-                <th>Nr.</th>
-                <th>Projekt</th>
-                <th>Betrag</th>
-                <th>Status</th>
-                <th>Erstellt</th>
-                <th>Bezahlt am</th>
+                <SortableTh label="Nr." sortKey="invoice_number" sort={sort} onSort={onSort} />
+                <SortableTh label="Projekt" sortKey="project_name" sort={sort} onSort={onSort} />
+                <SortableTh label="Betrag" sortKey="total_amount" sort={sort} onSort={onSort} />
+                <SortableTh label="Status" sortKey="status" sort={sort} onSort={onSort} title="Alphabetisch nach Status" />
+                <SortableTh label="Erstellt" sortKey="created_at" sort={sort} onSort={onSort} />
+                <SortableTh label="Bezahlt am" sortKey="paid_at" sort={sort} onSort={onSort} title="Unbezahlte stehen immer am Ende" />
                 <th>Aktionen</th>
               </tr>
             </thead>

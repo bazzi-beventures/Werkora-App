@@ -499,6 +499,9 @@ export interface PipelineRechnung {
   gesendet_am: string | null
   bezahlt_am: string | null
   bezahlt_betrag: number // paid_amount, Fallback betrag; 0 solange unbezahlt
+  // Anzahlungsrechnung: steht neben den Reihen und macht das Projekt nicht
+  // «fakturiert» — sie wird vom Auftrag abgezogen (pipelineAggregation.ts).
+  anzahlung?: boolean
 }
 
 export interface PipelineProjektRow {
@@ -513,5 +516,5 @@ export interface PipelineProjektRow {
   projektleiter_name: string | null
   offerten: PipelineOfferte[]
   rapporte: (string | null)[] // report_date je Rapport
-  rechnungen: PipelineRechnung[] // max. 1 Eintrag: nur die aktuellste Rechnung des Projekts
+  rechnungen: PipelineRechnung[] // je Rechnungsreihe die aktuellste, dazu Anzahlungen (db/kpis.py)
 }

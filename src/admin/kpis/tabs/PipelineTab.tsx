@@ -251,7 +251,8 @@ export default function PipelineTab() {
       <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
         Offerten zählen aufs Erstellungsdatum, Rapporte aufs Rapportdatum, Rechnungen auf Versand- bzw. Zahlungsdatum.
         Archivierte Offerten (ersetzte Versionen) und archivierte/inaktive Rechnungen sind ausgeklammert;
-        pro Projekt zählt nur die aktuellste Rechnung (Fehlversand-/Ersatz-Zeilen zählen nicht doppelt).
+        je Rechnung zählt nur die aktuellste Fassung (Fehlversand-/Ersatz-Zeilen zählen nicht doppelt), eine weitere
+        Rechnung und Anzahlungen zählen daneben. Eine versendete Anzahlung wird vom Auftrag abgezogen.
         Projekt-Zeile anklicken für die Detail-Ansicht.
       </div>
 

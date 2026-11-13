@@ -22,7 +22,13 @@ export interface ListPageQuery {
   search?: string
   /** Heutiger Projektleiter des Projekts; null/leer = alle. */
   projektleiterId?: string | null
+  /** Spaltenkopf, nach dem sortiert wird (Katalog je Liste im Backend:
+   *  `_QUOTE_SORT_MAP`/`_INVOICE_SORT_MAP`). Fehlt er, neueste zuerst. */
+  sort?: string
+  dir?: SortDir
 }
+
+export type SortDir = 'asc' | 'desc'
 
 /** Query-String für `…/list`. `status` steht immer drin, auch leer: ein
  *  fehlender Parameter hiesse beim Server «alle Status». */
@@ -35,6 +41,10 @@ export function listPageParams(q: ListPageQuery): string {
   const search = q.search?.trim()
   if (search) params.set('search', search)
   if (q.projektleiterId) params.set('projektleiter_id', q.projektleiterId)
+  if (q.sort) {
+    params.set('sort', q.sort)
+    params.set('dir', q.dir ?? 'asc')
+  }
   return params.toString()
 }
 

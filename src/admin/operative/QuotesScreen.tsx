@@ -18,6 +18,8 @@ import { AdminCardList } from '../components/AdminCardList'
 import { ListPager } from '../components/ListPager'
 import { useIsMobile } from '../useIsMobile'
 import { LIST_PAGE_SIZE, usePagedList } from '../usePagedList'
+import { useListSort } from '../useListSort'
+import { SortableTh } from '../components/SortableTh'
 import { QUOTE_EDITABLE_STATUSES, QuoteRowActions, QuoteStatusCell } from './quotes/QuoteListParts'
 import type { QuoteActionHandlers, QuoteListFlags } from './quotes/QuoteListParts'
 import { QuoteCreateForm } from './quotes/QuoteCreateForm'
@@ -29,6 +31,10 @@ const ALL_STATUSES = ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage'
 // Stabile Referenz für «noch nichts geladen» — ein frisches [] je Render wäre für
 // jede Abhängigkeitsliste eine neue Liste.
 const NO_QUOTES: Quote[] = []
+
+// Sortierbare Spalten = Katalog des Endpoints (db/quotes.py, `_QUOTE_SORT_MAP`).
+type QuoteSortKey =
+  'quote_number' | 'project_name' | 'customer_name' | 'projektleiter' | 'total_amount' | 'status' | 'created_at'
 
 // ─── Main Screen ────────────────────────────────────────────
 
@@ -107,16 +113,21 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
   // eine versendete Offerte als unbeantwortet gilt. 0 = Feature aus, keine Kennzeichnung.
   const [feedbackWaitHours, setFeedbackWaitHours] = useState(0)
 
-  // Seitenweise vom Server: Status, Suche und Projektleiter filtert die
-  // Datenbank, über die Leitung gehen 50 Zeilen (api/admin/listPage.ts).
+  // Vorgabe wie bisher: neueste zuerst.
+  const [sort, toggleSort] = useListSort<QuoteSortKey>({ key: 'created_at', dir: 'desc' })
+  // Seitenweise vom Server: Status, Suche und Projektleiter filtert, die
+  // Reihenfolge bestimmt die Datenbank, über die Leitung gehen 50 Zeilen
+  // (api/admin/listPage.ts).
   const fetchPage = useCallback(
     (page: number, search: string) => listQuotesPage({
       page, pageSize: LIST_PAGE_SIZE, statuses: statusFilters, search,
-      projektleiterId: projektleiterFilter,
+      projektleiterId: projektleiterFilter, sort: sort.key, dir: sort.dir,
     }),
-    [statusFilters, projektleiterFilter],
+    [statusFilters, projektleiterFilter, sort],
   )
   const list = usePagedList(fetchPage)
+  // Sortieren → Seite 1, im selben Handler (wie die Filter).
+  const onSort = (key: QuoteSortKey) => { toggleSort(key); list.setPage(1) }
   const quotes = list.data?.rows ?? NO_QUOTES
   const total = list.data?.total ?? 0
   const load = list.reload
@@ -311,13 +322,13 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
           <table className="admin-table" aria-busy={list.loading} style={list.loading ? { opacity: 0.6 } : undefined}>
             <thead>
               <tr>
-                <th>Nr.</th>
-                <th>Projekt</th>
-                <th>Kunde</th>
-                <th>Projektleiter</th>
-                <th>Betrag</th>
-                <th>Status</th>
-                <th>Erstellt</th>
+                <SortableTh label="Nr." sortKey="quote_number" sort={sort} onSort={onSort} />
+                <SortableTh label="Projekt" sortKey="project_name" sort={sort} onSort={onSort} />
+                <SortableTh label="Kunde" sortKey="customer_name" sort={sort} onSort={onSort} />
+                <SortableTh label="Projektleiter" sortKey="projektleiter" sort={sort} onSort={onSort} />
+                <SortableTh label="Betrag" sortKey="total_amount" sort={sort} onSort={onSort} />
+                <SortableTh label="Status" sortKey="status" sort={sort} onSort={onSort} title="Alphabetisch nach Status" />
+                <SortableTh label="Erstellt" sortKey="created_at" sort={sort} onSort={onSort} />
                 <th>Aktionen</th>
               </tr>
             </thead>

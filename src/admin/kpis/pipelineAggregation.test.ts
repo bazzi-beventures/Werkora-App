@@ -112,6 +112,30 @@ describe('aggregatePipeline — Gruppierung', () => {
     expect(perLeiter[0].offertenNichtFakturiert).toBe(0)
   })
 
+  it('angenommen, nicht fakturiert: eine versendete Anzahlung wird abgezogen, macht aber nicht fakturiert', () => {
+    // Spiegel von test_pipeline_anzahlung_wird_vom_auftrag_abgezogen (Python).
+    const anz = rechnung({ betrag: 3000, anzahlung: true })
+    const schluss = rechnung({ betrag: 7000, gesendet_am: '2026-06-20' })
+    const nurAnz = aggregatePipeline([row({ offerten: [offerte('akzeptiert', 10000)], rechnungen: [anz] })], ALLE)
+    expect(nurAnz.perLeiter[0].offertenNichtFakturiert).toBe(1)
+    expect(nurAnz.perLeiter[0].offertenNichtFakturiertChf).toBe(7000)
+    expect(nurAnz.perLeiter[0].rechnungenOffenChf).toBe(3000)
+
+    // Schlussrechnung noch nicht versendet: Rest bleibt Auftrag
+    const entwurf = rechnung({ betrag: 7000, status: 'ausstehend', gesendet_am: null })
+    const mitEntwurf = aggregatePipeline([row({ offerten: [offerte('akzeptiert', 10000)], rechnungen: [anz, entwurf] })], ALLE)
+    expect(mitEntwurf.perLeiter[0].offertenNichtFakturiertChf).toBe(7000)
+
+    const beide = aggregatePipeline([row({ offerten: [offerte('akzeptiert', 10000)], rechnungen: [anz, schluss] })], ALLE)
+    expect(beide.perLeiter[0].offertenNichtFakturiertChf).toBe(0)
+    expect(beide.perLeiter[0].rechnungenOffenChf).toBe(10000)
+
+    // Anzahlung über dem Auftrag: nie unter 0
+    const gross = rechnung({ betrag: 12000, anzahlung: true })
+    const ueber = aggregatePipeline([row({ offerten: [offerte('akzeptiert', 10000)], rechnungen: [gross] })], ALLE)
+    expect(ueber.perLeiter[0].offertenNichtFakturiertChf).toBe(0)
+  })
+
   it('zählt Projekte mit Rapport nur einmal, Rapporte aber alle', () => {
     const rows = [
       row({ rapporte: ['2026-05-03', '2026-05-04'] }),

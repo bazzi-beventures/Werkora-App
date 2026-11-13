@@ -102,12 +102,7 @@ export async function listInvoices(status?: string): Promise<Invoice[]> {
   return apiFetch<Invoice[]>(`/pwa/admin/invoices${status ? `?status=${status}` : ''}`)
 }
 
-export interface InvoicesPage extends ListPage<Invoice> {
-  /** Summe aller offenen Rechnungen des Mandanten (ausstehend/offen/gesendet),
-   *  unabhängig von Suche und Filtern. `null`, wenn der Server sie nicht holen
-   *  konnte — die Liste kommt trotzdem. */
-  open_total: number | null
-}
+export type InvoicesPage = ListPage<Invoice>
 
 /** Eine Seite der Rechnungsliste — Status, Suche (Nummer, Projekt) und
  *  Projektleiter filtert der Server. */

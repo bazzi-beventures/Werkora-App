@@ -32,6 +32,15 @@ describe('listPageParams — Abfrage einer seitenweisen Admin-Liste', () => {
     expect(new URLSearchParams(listPageParams({ page: 1, pageSize: 50, statuses: [], projektleiterId: null })).has('projektleiter_id'))
       .toBe(false)
   })
+
+  it('schickt die Sortierung nur, wenn ein Spaltenkopf gewählt ist', () => {
+    const p = new URLSearchParams(listPageParams({ page: 1, pageSize: 50, statuses: [], sort: 'total_amount', dir: 'desc' }))
+    expect(p.get('sort')).toBe('total_amount')
+    expect(p.get('dir')).toBe('desc')
+    const ohne = new URLSearchParams(listPageParams({ page: 1, pageSize: 50, statuses: [] }))
+    expect(ohne.has('sort')).toBe(false)
+    expect(ohne.has('dir')).toBe(false)
+  })
 })
 
 describe('pageCount', () => {

@@ -108,10 +108,15 @@ export function aggregatePipeline(
     const akzeptiert = offerten.filter((o) => o.status === 'akzeptiert')
     // Fakturiert heisst: das Projekt hat eine versendete Rechnung — unabhängig
     // vom Datumsfilter. Sonst gälte eine im Mai angenommene, im Juni fakturierte
-    // Offerte unter «Letzter Monat = Mai» als nicht fakturiert. Auf Projektebene,
-    // weil das Modell 1 Projekt = 1 Rechnung ist (Backend liefert nur die aktuellste).
-    const fakturiert = row.rechnungen.some((r) => Boolean(r.gesendet_am))
+    // Offerte unter «Letzter Monat = Mai» als nicht fakturiert. Auf Projektebene:
+    // eine Rechnung verrechnet den ganzen Auftrag (das Backend liefert je
+    // Rechnungsreihe die aktuellste). Ausnahme Anzahlung: sie deckt nur einen
+    // Teil — versendete Anzahlungen werden vom Auftrag abgezogen, der Rest
+    // bleibt «Auftrag, nicht fakturiert» (nie unter 0).
+    const fakturiert = row.rechnungen.some((r) => Boolean(r.gesendet_am) && !r.anzahlung)
+    const angezahltChf = sum(row.rechnungen.filter((r) => r.anzahlung && r.gesendet_am).map((r) => r.betrag))
     const nichtFakturiert = fakturiert ? [] : akzeptiert
+    const nichtFakturiertChf = fakturiert ? 0 : Math.max(0, sum(akzeptiert.map((o) => o.betrag)) - angezahltChf)
     const abgelehnt = offerten.filter((o) => o.status === 'abgelehnt')
     const rapporte = row.rapporte.filter((d): d is string => inRange(d, from, to))
     const reVersendet = row.rechnungen.filter((r) => inRange(r.gesendet_am, from, to))
@@ -184,7 +189,7 @@ export function aggregatePipeline(
     agg.offertenAkzeptiert += akzeptiert.length
     agg.offertenAkzeptiertChf += sum(akzeptiert.map((o) => o.betrag))
     agg.offertenNichtFakturiert += nichtFakturiert.length
-    agg.offertenNichtFakturiertChf += sum(nichtFakturiert.map((o) => o.betrag))
+    agg.offertenNichtFakturiertChf += nichtFakturiertChf
     agg.offertenAbgelehnt += abgelehnt.length
     agg.offertenAbgelehntChf += sum(abgelehnt.map((o) => o.betrag))
     agg.projekteMitRapport += rapporte.length > 0 ? 1 : 0

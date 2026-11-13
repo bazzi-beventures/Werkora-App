@@ -32,7 +32,7 @@ interface Props {
 export default function CashflowStufen({ stufen: s, akzeptiert, versendet, zeitraumEingeschraenkt }: Props) {
   const liste: Stufe[] = [
     { key: 'kunde', label: 'Beim Kunden', hinweis: 'Offerten versendet, noch nicht entschieden', anzahl: s.beimKunden, betrag: s.beimKundenChf, color: 'var(--info)' },
-    { key: 'auftrag', label: 'Auftrag, nicht fakturiert', hinweis: 'angenommen, noch keine Rechnung versendet', anzahl: s.auftrag, betrag: s.auftragChf, color: 'var(--accent-purple)' },
+    { key: 'auftrag', label: 'Auftrag, nicht fakturiert', hinweis: 'angenommen, noch nicht verrechnet (Anzahlungen abgezogen)', anzahl: s.auftrag, betrag: s.auftragChf, color: 'var(--accent-purple)' },
     { key: 'fakturiert', label: 'Fakturiert, offen', hinweis: 'Rechnung versendet, noch nicht bezahlt', anzahl: s.fakturiertOffen, betrag: s.fakturiertOffenChf, color: 'var(--warning)' },
     { key: 'bezahlt', label: 'Bezahlt', hinweis: 'Zahlungen im Zeitraum', anzahl: s.bezahlt, betrag: s.bezahltChf, color: 'var(--success)' },
   ]
