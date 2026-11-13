@@ -54,6 +54,13 @@ const PERMISSION_OPTIONS: { key: string; label: string; hint: string; beta?: boo
       + 'für die, die die Ware annehmen und einräumen. Gezeigt werden dabei nur Nummer, Name, '
       + 'Kunde und Ort des Projekts.',
   },
+  {
+    key: 'kreditoren_iban',
+    label: 'Neue Kontoverbindung freigeben',
+    hint: 'Darf eine Lieferantenrechnung visieren, deren Zahlungsverbindung (IBAN) beim Lieferanten '
+      + 'noch nicht bekannt ist — nach telefonischer Bestätigung beim Lieferanten, mit der Nummer aus '
+      + 'dem Lieferantenstamm. Eine Rechnung, die jemand selbst erfasst hat, visiert jemand anderes.',
+  },
 ]
 
 // Spiegelt services/password_policy.py — die verbindliche Prüfung passiert im Backend.

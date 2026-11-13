@@ -1,16 +1,21 @@
 import { useState } from 'react'
+import type { UserInfo } from '../../api/auth'
+import { hasModule } from '../../api/modules'
 import { AufgabenVorlagenPanel } from './quoteTemplates/AufgabenVorlagenPanel'
 import { OffertenVorlagenPanel } from './quoteTemplates/OffertenVorlagenPanel'
+import { MailAntwortenPanel } from './quoteTemplates/MailAntwortenPanel'
 import { RechnungsVorlagenPanel } from './quoteTemplates/RechnungsVorlagenPanel'
 import { useTabStrip } from '../hooks/useTabStrip'
 
-type VorlagenTab = 'offerte' | 'rechnung' | 'aufgaben'
+type VorlagenTab = 'offerte' | 'rechnung' | 'aufgaben' | 'mail'
 
 // "Vorlagen" bündelt die Offert-, Rechnungs- und Aufgaben-Vorlagen unter einem Tab-Layout
 // analog zum Material-Screen. Die Panels und ihre Sektionen liegen in
 // quoteTemplates/ — hier steht nur die Reiter-Schale.
-export default function QuoteTemplatesScreen() {
+export default function QuoteTemplatesScreen({ user = null }: { user?: UserInfo | null }) {
   const [tab, setTab] = useState<VorlagenTab>('offerte')
+  // «Mail-Antworten» nur mit dem Mail-Eingang (docs/specs/mail-eingang-aufgaben-antworten.md §5.3).
+  const mitMail = hasModule(user, 'mail_eingang')
   const tabsRef = useTabStrip(tab)
 
   return (
@@ -36,11 +41,20 @@ export default function QuoteTemplatesScreen() {
         >
           Aufgaben
         </button>
+        {mitMail && (
+          <button
+            className={`kpi-admin-tab${tab === 'mail' ? ' active' : ''}`}
+            onClick={() => setTab('mail')}
+          >
+            Mail-Antworten
+          </button>
+        )}
       </div>
 
       {tab === 'offerte' && <OffertenVorlagenPanel />}
       {tab === 'rechnung' && <RechnungsVorlagenPanel />}
       {tab === 'aufgaben' && <AufgabenVorlagenPanel />}
+      {tab === 'mail' && mitMail && <MailAntwortenPanel />}
     </div>
   )
 }

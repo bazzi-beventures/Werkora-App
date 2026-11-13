@@ -10,7 +10,10 @@
 // uns gekostet — und was bleibt.
 
 import { useEffect, useState } from 'react'
+import { ApiError } from '../../../api/client'
 import { fetchKpiView } from '../../../api/kpiViews'
+import { getProjektEinkauf, type KreditorEinkauf } from '../../../api/kreditoren'
+import { abweichung } from '../../einkauf/kreditorenLogik'
 import type { KpiProjektRow } from '../../kpis/types'
 import { finite } from '../../kpis/aggregate'
 
@@ -25,7 +28,11 @@ const pct = (v: unknown) => {
   return n === null ? '—' : `${n.toLocaleString('de-CH', { maximumFractionDigits: 1 })} %`
 }
 
-export function NachkalkulationTab({ projectId }: { projectId: string }) {
+export function NachkalkulationTab({ projectId, kreditoren = false }: {
+  projectId: string
+  /** Modul «kreditoren»: Block «Lieferantenrechnungen (effektiv)». */
+  kreditoren?: boolean
+}) {
   const [row, setRow] = useState<KpiProjektRow | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -88,6 +95,10 @@ export function NachkalkulationTab({ projectId }: { projectId: string }) {
           <Zeile label="Material intern" value={chf(row.total_materialkosten_intern)} />
           <Zeile label="Total" value={chf(row.total_kosten_intern)} stark />
         </Block>
+
+        {kreditoren && (
+          <EinkaufBlock projectId={projectId} materialGeplant={finite(row.total_materialkosten_intern)} />
+        )}
       </div>
 
       <div className="nachkalk-ergebnis">
@@ -109,6 +120,65 @@ export function NachkalkulationTab({ projectId }: { projectId: string }) {
 
       <Hinweise row={row} />
     </div>
+  )
+}
+
+/**
+ * Effektive Kosten aus visierten Lieferantenrechnungen gegen das geplante
+ * Material (docs/specs/lieferantenrechnung-bexio.md §8.4). Die Zahl ist ab dem
+ * Visum da, nicht erst nach der Buchung. «Noch keine Lieferantenrechnung» statt
+ * 0 — eine 0 sähe aus wie ein Projekt ohne Materialkosten (Ehrlichkeits-Regel).
+ * Ein 403 (Rolle ohne Kennzahlen) lässt den Block still weg.
+ */
+function EinkaufBlock({ projectId, materialGeplant }: { projectId: string; materialGeplant: number | null }) {
+  const [daten, setDaten] = useState<KreditorEinkauf | 'weg' | 'fehler' | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    getProjektEinkauf(projectId)
+      .then(d => { if (!cancelled) setDaten(d) })
+      .catch(e => {
+        if (!cancelled) setDaten(e instanceof ApiError && e.status === 403 ? 'weg' : 'fehler')
+      })
+    return () => { cancelled = true }
+  }, [projectId])
+
+  if (daten === 'weg') return null
+  const title = 'Lieferantenrechnungen (effektiv)'
+  if (daten === null) return <Block title={title}><div className="nachkalk-zeile"><span>Laden…</span></div></Block>
+  if (daten === 'fehler') {
+    return <Block title={title}><div className="nachkalk-zeile"><span>Nicht ladbar</span></div></Block>
+  }
+
+  const offenHinweis = daten.offen > 0 && (
+    <div className="nachkalk-zeile" style={{ color: 'var(--warning-ink)' }}>
+      <span>{daten.offen} Rechnung(en) noch nicht visiert — zählen noch nicht</span>
+    </div>
+  )
+
+  if (daten.rechnungen === 0) {
+    return (
+      <Block title={title}>
+        <div className="nachkalk-zeile"><span>Noch keine Lieferantenrechnung</span></div>
+        {offenHinweis}
+      </Block>
+    )
+  }
+
+  const ab = abweichung(daten.material, materialGeplant)
+  const abText = ab.chf === null
+    ? '—'
+    : `${ab.chf > 0 ? '+' : ''}${chf(ab.chf)}${ab.pct !== null ? ` (${ab.pct > 0 ? '+' : ''}${pct(ab.pct)})` : ''}`
+  return (
+    <Block title={title}>
+      <Zeile label="Material effektiv" value={chf(daten.material)} />
+      <Zeile label="Material geplant" value={chf(materialGeplant)} />
+      <Zeile label="Abweichung" value={abText} />
+      <Zeile label="Fremdleistungen" value={chf(daten.fremdleistung)} />
+      <Zeile label="Übrige" value={chf(daten.uebrige)} />
+      <Zeile label="Total" value={chf(daten.total)} stark />
+      {offenHinweis}
+    </Block>
   )
 }
 

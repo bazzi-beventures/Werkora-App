@@ -35,7 +35,7 @@ export function ProjectTabContent({
   quoteDraftExists, dankEnabled, absageEnabled, teilrapportEnabled, nachkalkulationEnabled,
   verlaufEnabled, warrantyEnabled, warranty, onToast, onOpenProject,
   useAcceptedQuote, onUseAcceptedQuoteChange, defaultInvoiceEmail,
-  allgAbzuege, currentUserId, bexioEnabled = false,
+  allgAbzuege, currentUserId, bexioEnabled = false, kreditorenEnabled = false,
   onShowQuoteForm, onShowReportForm, onAddNextEinsatz, onEditReport, onEditQuote,
   onSendQuote, onSendThankyou, onSendOrderConfirmation, onGenerateInvoice, onShowApprovalForm,
   status, settingStatus, reopening, onStatusAction,
@@ -78,6 +78,8 @@ export function ProjectTabContent({
   currentUserId: string | null
   /** Modul «bexio»: Pille an den Rechnungen. */
   bexioEnabled?: boolean
+  /** Modul «kreditoren»: effektive Kosten aus Lieferantenrechnungen in der Nachkalkulation. */
+  kreditorenEnabled?: boolean
   onShowQuoteForm: () => void
   onShowReportForm: () => void
   // «Weiterer Einsatz» an einem bestehenden Rapport: nimmt ihn in die
@@ -227,7 +229,7 @@ export function ProjectTabContent({
           sonst laendet ein von Hand gebauter Deep-Link (`…/nachkalkulation`)
           ohne Modul/Rolle in einem 403 statt in einer leeren Ansicht. */}
       {tab === 'nachkalkulation' && nachkalkulationEnabled && (
-        <NachkalkulationTab projectId={project.id} />
+        <NachkalkulationTab projectId={project.id} kreditoren={kreditorenEnabled} />
       )}
 
       {/* Nur die Status-Aktion (Abschliessen/Wiedereroeffnen). Kommentare stehen

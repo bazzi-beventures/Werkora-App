@@ -17,6 +17,8 @@ export interface CustomerPrefill {
   email?: string
   phone?: string
   phone_landline?: string
+  /** Nur aus dem Mail-Eingang («Kunde anlegen»): die Adresse aus der Signatur. */
+  address?: string
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

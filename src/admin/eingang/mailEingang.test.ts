@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import type { EingangProjekt, EingangVorschlag } from '../../api/admin/mailEingang'
 import {
-  acceptPayload, anhaengeText, anhangText, entscheidText, ergebnisHinweis, ergebnisZiel, fehltZumUebernehmen,
-  fmtGroesse, istBekannterTyp, neuesteZuerst, offeneVorschlaege, personText, serverSatz, startEingabe, typTitel,
-  uebernehmenLabel,
+  ZUSTAENDIG_AUTO, acceptPayload, anhaengeText, anhangText, belegText, entscheidText, ergebnisHinweis, ergebnisZiel, fehltZumUebernehmen,
+  ergaenzungFuerKandidat, fmtFaellig, fmtGroesse, mailtoLink, istBekannterTyp, kandidatText, kategorieLabel, kundePrefill, neuesteZuerst,
+  offeneVorschlaege, personText, serverSatz, startEingabe, typTitel, uebernehmenLabel,
 } from './mailEingang'
 
 // docs/specs/mail-eingang-triage.md §4 (Vorschläge) und §10 (Oberfläche).
@@ -33,11 +33,12 @@ const kontakt: EingangVorschlag = {
 
 describe('Beschriftungen', () => {
   it('kennt die Typen aus der abschliessenden Liste und nichts sonst', () => {
-    for (const typ of ['projekt_entwurf', 'projektnotiz', 'kundennotiz', 'kontakt_ergaenzen', 'projektdokument']) {
+    for (const typ of ['projekt_entwurf', 'projektnotiz', 'kundennotiz', 'kontakt_ergaenzen', 'projektdokument',
+      'kunde_anlegen', 'aufgabe', 'antwort']) {
       expect(istBekannterTyp(typ)).toBe(true)
       expect(typTitel(typ)).not.toBe('Unbekannter Vorschlag')
     }
-    expect(istBekannterTyp('aufgabe')).toBe(false)
+    expect(istBekannterTyp('frei_formuliert')).toBe(false)
     // Kein geerbtes Property darf als Typ durchgehen.
     expect(istBekannterTyp('toString')).toBe(false)
     expect(typTitel('rechnung')).toBe('Unbekannter Vorschlag')
@@ -76,15 +77,11 @@ describe('Übernehmen', () => {
     }
   })
 
-  it('schickt beim Entwurf nur die geänderten Felder, getrimmt', () => {
-    const e = startEingabe(entwurf)
-    e.felder.title = '  Storen Balkon Süd '
-    e.felder.customer_email = 'hans@muster.ch'
-    expect(acceptPayload(entwurf, e)).toEqual({ title: 'Storen Balkon Süd', customer_email: 'hans@muster.ch' })
-    // Nur Leerraum drumherum ist keine Änderung.
-    const f = startEingabe(entwurf)
-    f.felder.description = ' Zwei Storen ersetzen\n'
-    expect(acceptPayload(entwurf, f)).toBeUndefined()
+  it('lässt die neue Anfrage über die Maske «Projekt anlegen» laufen, nicht über die Karte', () => {
+    // Werte und Prüfung kommen aus ProjektAnlegenFormular (ProjektAusMail.tsx).
+    expect(startEingabe(entwurf)).toEqual({ felder: {}, projekt: null })
+    expect(fehltZumUebernehmen(entwurf, startEingabe(entwurf))).toBeNull()
+    expect(acceptPayload(entwurf, startEingabe(entwurf))).toBeUndefined()
   })
 
   it('verlangt bei der Projektnotiz ohne Zuordnung eine Projektwahl', () => {
@@ -107,16 +104,10 @@ describe('Übernehmen', () => {
     expect(acceptPayload(v, e)).toEqual({ project_id: 'p2', text: 'Kunde bestätigt den Termin am Montag.' })
   })
 
-  it('lässt leere Notizen und Entwürfe ohne Titel oder Kunde nicht durch', () => {
+  it('lässt leere Notizen nicht durch', () => {
     const n = startEingabe(kundennotiz)
     n.felder.text = '   '
     expect(fehltZumUebernehmen(kundennotiz, n)).toMatch(/leer/)
-    const e = startEingabe(entwurf)
-    e.felder.title = ''
-    expect(fehltZumUebernehmen(entwurf, e)).toMatch(/Titel/)
-    e.felder.title = 'x'
-    e.felder.customer_name = ''
-    expect(fehltZumUebernehmen(entwurf, e)).toMatch(/Kunden/)
   })
 
   it('überschreibt bei «Kontakt ergänzen» nichts', () => {
@@ -127,7 +118,7 @@ describe('Übernehmen', () => {
   })
 
   it('lässt einen unbekannten Typ nur verwerfen', () => {
-    const fremd = { ...basis, typ: 'aufgabe', payload: {} } as unknown as EingangVorschlag
+    const fremd = { ...basis, typ: 'frei_formuliert', payload: {} } as unknown as EingangVorschlag
     expect(startEingabe(fremd)).toEqual({ felder: {}, projekt: null })
     expect(fehltZumUebernehmen(fremd, startEingabe(fremd))).toMatch(/nur verwerfen/)
     expect(acceptPayload(fremd, startEingabe(fremd))).toBeUndefined()
@@ -156,7 +147,11 @@ describe('nach dem Entscheid', () => {
 
   it('sagt, wo das Ergebnis liegt — nur nach dem Übernehmen', () => {
     expect(ergebnisHinweis(entwurf)).toBeNull()
-    expect(ergebnisHinweis({ ...entwurf, ...entschieden })).toMatch(/unter Projekt-Entwürfe/)
+    // Bis 2026-11-13 entstand ein Entwurf, seither das Projekt selbst.
+    expect(ergebnisHinweis({ ...entwurf, ...entschieden, created: { type: 'project_draft', id: 'd1' } }))
+      .toMatch(/unter Projekt-Entwürfe/)
+    expect(ergebnisHinweis({ ...entwurf, ...entschieden, created: { type: 'project', id: 'p9' } }))
+      .toBe('Als Projekt angelegt.')
     expect(ergebnisHinweis({ ...projektnotiz('p2'), ...entschieden }))
       .toBe('Steht als Kommentar am Projekt 2600520 · Küche Muster.')
     expect(ergebnisHinweis({ ...projektnotiz(null), ...entschieden })).toBe('Steht als Kommentar am Projekt.')
@@ -168,6 +163,9 @@ describe('nach dem Entscheid', () => {
   it('führt zum Ergebnis, wo es ein Ziel gibt', () => {
     expect(ergebnisZiel(entwurf)).toBeNull()
     expect(ergebnisZiel({ ...entwurf, ...entschieden })).toEqual({ screen: 'project-drafts', label: 'Zu den Projekt-Entwürfen' })
+    expect(ergebnisZiel({ ...entwurf, ...entschieden, created: { type: 'project', id: 'p9' } }))
+      .toEqual({ screen: 'projects', detailId: 'p9', label: 'Projekt öffnen' })
+    expect(ergebnisZiel({ ...entwurf, ...entschieden, created: { type: 'project', id: '' } })).toBeNull()
     expect(ergebnisZiel({ ...projektnotiz('p2'), ...entschieden }))
       .toEqual({ screen: 'projects', detailId: 'p2', label: 'Projekt öffnen' })
     expect(ergebnisZiel({ ...projektnotiz(null), ...entschieden })).toBeNull()
@@ -243,13 +241,133 @@ describe('projektdokument', () => {
 
 describe('Knopfbeschriftung', () => {
   it('sagt je Typ, was der Knopf tut', () => {
-    expect(uebernehmenLabel('projekt_entwurf', false)).toBe('Übernehmen')
-    expect(uebernehmenLabel('projekt_entwurf', true)).toBe('Wird übernommen…')
+    // Die neue Anfrage öffnet die Maske «Projekt anlegen».
+    expect(uebernehmenLabel('projekt_entwurf', false)).toBe('Projekt anlegen')
+    expect(uebernehmenLabel('projekt_entwurf', true)).toBe('Wird angelegt…')
     // Der Anhang wird erst jetzt geholt und abgelegt — das dauert.
     expect(uebernehmenLabel('projektdokument', false)).toBe('Übernehmen')
     expect(uebernehmenLabel('projektdokument', true)).toBe('Wird abgelegt…')
     // «Kontakt ergänzen» schreibt nichts: es öffnet die Kundenmaske.
     expect(uebernehmenLabel('kontakt_ergaenzen', false)).toBe('Im Kundenformular öffnen')
     expect(uebernehmenLabel('kontakt_ergaenzen', true)).toBe('Wird bestätigt…')
+  })
+})
+
+describe('Kunde anlegen', () => {
+  const payload = {
+    name: 'Eva Meier', email: 'eva@meier.ch', phone: '079 555 99 88', phone_landline: '', address: 'Rebbergweg 12, 8610 Uster',
+    kandidaten: [{ id: 'k5', name: 'Meier Eva', address: 'Uster', email: '', phone: '', grund: 'ähnlicher Name' }],
+  }
+  const kunde: EingangVorschlag = { ...basis, typ: 'kunde_anlegen', payload }
+
+  it('füllt das Kundenformular nur mit dem, was dasteht — den Namen ungeteilt', () => {
+    expect(kundePrefill(payload)).toEqual({
+      last_name: 'Eva Meier', email: 'eva@meier.ch', phone: '079 555 99 88', address: 'Rebbergweg 12, 8610 Uster',
+    })
+    expect(kundePrefill({ ...payload, name: ' ', email: '', phone: '', address: '' })).toEqual({})
+  })
+
+  it('ergänzt beim gewählten Kunden zuerst die Mobilnummer, sonst die E-Mail', () => {
+    expect(ergaenzungFuerKandidat(payload)).toEqual({ feld: 'phone', wert: '079 555 99 88' })
+    expect(ergaenzungFuerKandidat({ ...payload, phone: '' })).toEqual({ feld: 'email', wert: 'eva@meier.ch' })
+    expect(ergaenzungFuerKandidat({ ...payload, phone: '', email: '', phone_landline: '' })).toBeUndefined()
+  })
+
+  it('nennt Kandidaten mit Ort und Grund und beschriftet Kategorie und Knopf', () => {
+    expect(kandidatText(payload.kandidaten[0])).toBe('Meier Eva · Uster · ähnlicher Name')
+    expect(kategorieLabel('kontakt')).toBe('Kontaktangaben')
+    expect(uebernehmenLabel('kunde_anlegen', false)).toBe('Neuen Kunden anlegen')
+    expect(fehltZumUebernehmen(kunde, startEingabe(kunde))).toBeNull()
+  })
+
+  it('führt nach dem Übernehmen zum gespeicherten Kunden', () => {
+    const fertig: EingangVorschlag = { ...kunde, status: 'uebernommen', payload: { ...payload, customer_id: 'k9' } }
+    expect(ergebnisHinweis(fertig)).toBe('Im Kundenstamm gespeichert.')
+    expect(ergebnisZiel(fertig)).toEqual({ screen: 'customers', detailId: 'k9', label: 'Kunde öffnen' })
+  })
+})
+
+// docs/specs/mail-eingang-aufgaben-antworten.md §4.3
+describe('Aufgabe', () => {
+  const aufgabe = (project_id: string | null = 'p1'): EingangVorschlag => ({
+    ...basis, typ: 'aufgabe',
+    payload: {
+      title: 'Rückruf Eva Meier', description: '', due_date: '2026-11-20', project_id, projects: [P1, P2],
+      beleg: 'Rufen Sie mich bitte zurück',
+    },
+  })
+
+  it('startet mit dem Vorschlag, dem vorgewählten Projekt und dem Projektleiter als zuständig', () => {
+    const e = startEingabe(aufgabe())
+    expect(e.felder).toEqual({ title: 'Rückruf Eva Meier', description: '', due_date: '2026-11-20', assignee: ZUSTAENDIG_AUTO })
+    expect(e.projekt).toEqual(P1)
+    expect(startEingabe(aufgabe(null)).projekt).toBeNull()
+  })
+
+  it('unverändert übernimmt sie ohne Body', () => {
+    const v = aufgabe()
+    expect(acceptPayload(v, startEingabe(v))).toBeUndefined()
+    expect(fehltZumUebernehmen(v, startEingabe(v))).toBeNull()
+  })
+
+  it('schickt nur, was das Büro geändert hat — auch «ohne Projekt» und «niemand»', () => {
+    const v = aufgabe()
+    const e = startEingabe(v)
+    expect(acceptPayload(v, { felder: { ...e.felder, title: 'Eva zurückrufen', due_date: '' }, projekt: P1 }))
+      .toEqual({ title: 'Eva zurückrufen', due_date: '' })
+    expect(acceptPayload(v, { ...e, projekt: null })).toEqual({ project_id: '' })
+    expect(acceptPayload(v, { ...e, projekt: P2 })).toEqual({ project_id: 'p2' })
+    expect(acceptPayload(v, { felder: { ...e.felder, assignee: '' }, projekt: P1 })).toEqual({ assignee: '' })
+    expect(acceptPayload(v, { felder: { ...e.felder, assignee: 's9' }, projekt: P1 })).toEqual({ assignee: 's9' })
+  })
+
+  it('braucht einen Titel, aber kein Projekt', () => {
+    const v = aufgabe(null)
+    const e = startEingabe(v)
+    expect(fehltZumUebernehmen(v, e)).toBeNull()
+    expect(fehltZumUebernehmen(v, { ...e, felder: { ...e.felder, title: ' ' } })).toBe('Die Aufgabe braucht einen Titel.')
+  })
+
+  it('zeigt Beleg und Fälligkeit lesbar und führt danach zum Board', () => {
+    expect(belegText({ beleg: ' Rufen Sie mich bitte zurück ' })).toBe('Aus der Mail: «Rufen Sie mich bitte zurück»')
+    expect(belegText({ beleg: '' })).toBeNull()
+    expect(fmtFaellig('2026-11-20')).toBe('20.11.2026')
+    expect(fmtFaellig('')).toBe('')
+    const fertig = { ...aufgabe(), status: 'uebernommen' as const }
+    expect(ergebnisHinweis(fertig)).toBe('Liegt auf dem Aufgaben-Board.')
+    expect(ergebnisZiel(fertig)).toEqual({ screen: 'tasks', label: 'Zum Aufgaben-Board' })
+    expect(uebernehmenLabel('aufgabe', false)).toBe('Übernehmen')
+  })
+})
+
+// docs/specs/mail-eingang-aufgaben-antworten.md §5.4
+describe('Antwort', () => {
+  const antwort: EingangVorschlag = {
+    ...basis, typ: 'antwort',
+    payload: { art: 'eingang_bestaetigt', art_label: 'Eingang bestätigt', an: 'eva@meier.ch',
+               betreff: 'AW: Storen', text: 'Guten Tag', fehlend: [] },
+  }
+
+  it('lässt Betreff und Text ändern und schickt nur Änderungen', () => {
+    const e = startEingabe(antwort)
+    expect(e.felder).toEqual({ betreff: 'AW: Storen', text: 'Guten Tag' })
+    expect(acceptPayload(antwort, e)).toBeUndefined()
+    expect(acceptPayload(antwort, { ...e, felder: { ...e.felder, text: 'Hallo' } })).toEqual({ text: 'Hallo' })
+    expect(fehltZumUebernehmen(antwort, { ...e, felder: { ...e.felder, text: ' ' } })).toBe('Die Antwort ist leer.')
+    expect(uebernehmenLabel('antwort', false)).toBe('Als erledigt markieren')
+  })
+
+  it('sagt, ob Werkora gesendet hat oder das Büro selbst', () => {
+    expect(ergebnisHinweis({ ...antwort, status: 'uebernommen', created: { type: 'antwort_verwendet', id: '' } }))
+      .toMatch(/eigenen Mailprogramm/)
+    expect(ergebnisHinweis({ ...antwort, status: 'uebernommen', created: { type: 'antwort_gesendet', id: '' } }))
+      .toBe('Aus Werkora gesendet an eva@meier.ch.')
+    expect(ergebnisZiel({ ...antwort, status: 'uebernommen' })).toBeNull()
+  })
+
+  it('baut einen mailto-Link nur bis zur Längengrenze', () => {
+    expect(mailtoLink('eva@meier.ch', 'AW: Storen', 'Danke')).toBe(
+      'mailto:eva%40meier.ch?subject=AW%3A%20Storen&body=Danke')
+    expect(mailtoLink('eva@meier.ch', 'AW', 'x'.repeat(2000))).toBeNull()
   })
 })

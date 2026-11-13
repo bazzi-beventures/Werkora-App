@@ -71,4 +71,32 @@ describe('DateTimeInput', () => {
     fireEvent.click(screen.getByText('von aussen'))
     expect(input.value).toBe('2026-12-24')
   })
+
+  it('reicht ein unplausibles Jahr nicht weiter und stellt beim Verlassen zurück (Befund 0206)', () => {
+    const onChange = vi.fn()
+    render(<Harness initial="2026-09-08" onChange={onChange} />)
+    const input = screen.getByLabelText('Start') as HTMLInputElement
+    act(() => input.focus())
+
+    fireEvent.change(input, { target: { value: '0206-09-08' } })
+    expect(onChange).not.toHaveBeenCalled()
+
+    fireEvent.blur(input)
+    expect(input.value).toBe('2026-09-08')
+  })
+
+  it('setzt min/max als Default, lässt eigene Grenzen gelten', () => {
+    render(<DateTimeInput type="date" aria-label="A" value="" onValueChange={() => {}} />)
+    render(<DateTimeInput type="date" aria-label="B" value="" min="2026-01-01" onValueChange={() => {}} />)
+    expect(screen.getByLabelText('A').getAttribute('min')).toBe('2000-01-01')
+    expect(screen.getByLabelText('A').getAttribute('max')).toMatch(/^20\d\d-\d\d-\d\d$/)
+    expect(screen.getByLabelText('B').getAttribute('min')).toBe('2026-01-01')
+  })
+
+  it('leeren bleibt erlaubt', () => {
+    const onChange = vi.fn()
+    render(<Harness initial="2026-09-08" onChange={onChange} />)
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '' } })
+    expect(onChange).toHaveBeenLastCalledWith('')
+  })
 })

@@ -82,6 +82,12 @@ export interface ProjectFeatures {
   terminBestaetigung: boolean
   /** Modul «bexio»: Pille «in bexio / wird übertragen / Fehler» an den Rechnungen. */
   bexio: boolean
+  /**
+   * Modul «kreditoren»: Block «Lieferantenrechnungen (effektiv)» in der
+   * Nachkalkulation (docs/specs/lieferantenrechnung-bexio.md §8.4). Steht das
+   * Modul im Betatest, ist es in /pwa/me schon pro Konto gefiltert.
+   */
+  kreditoren: boolean
 }
 
 const NONE: ProjectFeatures = {
@@ -103,6 +109,7 @@ const NONE: ProjectFeatures = {
   plRueckfrage: false,
   terminBestaetigung: false,
   bexio: false,
+  kreditoren: false,
 }
 
 export function useProjectFeatures(): ProjectFeatures {
@@ -137,6 +144,7 @@ export function useProjectFeatures(): ProjectFeatures {
         plRueckfrage: isFeatureEnabled(me, 'projektleiter_rueckfrage'),
         terminBestaetigung: hasModule(me, 'termin_bestaetigung'),
         bexio: hasModule(me, 'bexio'),
+        kreditoren: hasModule(me, 'kreditoren'),
       })
     }).catch(() => {})
   }, [])

@@ -26,10 +26,12 @@ vi.mock('../../api/admin/mailEingang', () => ({
 // was sie ans Netz schickt.
 const getCustomer = vi.fn()
 const saveCustomer = vi.fn()
+const listAllCustomers = vi.fn()
 vi.mock('../../api/admin/customers', async importOriginal => ({
   ...await importOriginal<typeof import('../../api/admin/customers')>(),
   getCustomer: (...a: unknown[]) => getCustomer(...a),
   saveCustomer: (...a: unknown[]) => saveCustomer(...a),
+  listAllCustomers: () => listAllCustomers(),
   checkCustomerName: vi.fn().mockResolvedValue([]),
   getCustomerComments: vi.fn().mockResolvedValue([]),
   getCustomerProjects: vi.fn().mockResolvedValue([]),
@@ -55,6 +57,10 @@ const ENTWURF: EingangVorschlag = {
     title: 'Storen Balkon', customer_name: 'Hans Muster', customer_phone: '', customer_email: 'hans@muster.ch',
     customer_address: '', object_name: '', object_address: '', description: 'Zwei Storen ersetzen',
   },
+}
+const KUNDENNOTIZ: EingangVorschlag = {
+  id: 's-knotiz', typ: 'kundennotiz', ...offen,
+  payload: { customer_id: 'c1', customer_name: 'Hans Muster', text: 'Ruft nächste Woche an.' },
 }
 const NOTIZ: EingangVorschlag = {
   id: 's-notiz', typ: 'projektnotiz', ...offen,
@@ -92,7 +98,7 @@ function item(over: Partial<EingangItem> = {}): EingangItem {
 }
 
 function liste(items: EingangItem[], over: Partial<EingangListe> = {}): EingangListe {
-  return { items, abgewiesen: [], abgewiesen_tage: 7, ...over }
+  return { items, abgewiesen: [], abgewiesen_tage: 7, antworten_senden: false, ...over }
 }
 
 beforeEach(() => {
@@ -103,6 +109,7 @@ beforeEach(() => {
   dismissMailEingang.mockReset().mockResolvedValue(undefined)
   searchMailEingangProjekte.mockReset().mockResolvedValue([])
   getCustomer.mockReset().mockResolvedValue(KUNDE)
+  listAllCustomers.mockReset().mockResolvedValue([])
   saveCustomer.mockReset().mockImplementation(async (input: Record<string, unknown>) => ({ ...KUNDE, ...input }))
 })
 
@@ -218,41 +225,101 @@ describe('MailEingangScreen — Original', () => {
 })
 
 describe('MailEingangScreen — Vorschläge', () => {
-  it('übernimmt mit den geänderten Feldern und zeigt danach, wer übernommen hat und wo es liegt', async () => {
+  it('legt die neue Anfrage direkt als Projekt an und führt danach ins Projekt', async () => {
     const user = userEvent.setup()
     const onChanged = vi.fn()
     const onNav = vi.fn()
     acceptMailVorschlag.mockResolvedValue({
       suggestion: {
-        ...ENTWURF, status: 'uebernommen', created: { type: 'project_draft', id: 'd1' },
+        ...ENTWURF, status: 'uebernommen', created: { type: 'project', id: 'p-neu' },
         decided_by_name: 'Petra Büro', decided_at: '2026-11-12T13:05:00Z',
       },
       item_status: 'erledigt',
     })
     render(<MailEingangScreen onChanged={onChanged} onNav={onNav} />)
     const karte = await oeffne(user)
-
-    const titel = within(karte).getByLabelText('Titel')
-    await user.clear(titel)
-    await user.type(titel, 'Storen Balkon Süd')
-    await user.click(within(karte).getByRole('button', { name: 'Übernehmen' }))
-
-    expect(acceptMailVorschlag).toHaveBeenCalledWith('m1', 's-entwurf', { title: 'Storen Balkon Süd' })
-    expect(await within(karte).findByText('Übernommen von Petra Büro am 12.11.26, 14:05')).toBeInTheDocument()
-    expect(within(karte).getByText(/unter Projekt-Entwürfe/)).toBeInTheDocument()
-    // Entschieden ist entschieden: keine Knöpfe mehr, die Karte bleibt aber stehen.
+    // Die Karte zeigt, was in der Mail steht — angepasst wird in der Maske.
+    expect(within(karte).getByText('Zwei Storen ersetzen')).toBeInTheDocument()
     expect(within(karte).queryByRole('button', { name: 'Übernehmen' })).toBeNull()
+
+    await user.click(within(karte).getByRole('button', { name: 'Projekt anlegen' }))
+    const maske = screen.getByRole('dialog', { name: 'Projekt anlegen' })
+    expect(within(maske).getByText(/Ungeprüfte Angaben aus einer E-Mail/)).toBeInTheDocument()
+    const name = within(maske).getByDisplayValue('Storen Balkon')
+    await user.clear(name)
+    await user.type(name, 'Storen Balkon Süd')
+    await user.click(within(maske).getByRole('button', { name: 'Ohne Kunde' }))
+    expect(acceptMailVorschlag).not.toHaveBeenCalled()
+    await user.click(within(maske).getByRole('button', { name: 'Projekt erstellen' }))
+
+    await waitFor(() => expect(acceptMailVorschlag).toHaveBeenCalledWith('m1', 's-entwurf', {
+      project_name: 'Storen Balkon Süd', customer_id: null, object_name: null, object_address: null,
+      site_contact_name: 'Hans Muster', site_contact_phone: null, art_der_arbeit: [],
+    }))
+    expect(screen.queryByRole('dialog', { name: 'Projekt anlegen' })).toBeNull()
+    expect(await within(karte).findByText('Übernommen von Petra Büro am 12.11.26, 14:05')).toBeInTheDocument()
+    expect(within(karte).getByText('Als Projekt angelegt.')).toBeInTheDocument()
     expect(within(karte).getByText('Erledigt')).toBeInTheDocument()
     expect(onChanged).toHaveBeenCalled()
+    expect(saveCustomer).not.toHaveBeenCalled()
 
-    await user.click(within(karte).getByRole('button', { name: 'Zu den Projekt-Entwürfen' }))
-    expect(onNav).toHaveBeenCalledWith('project-drafts')
+    await user.click(within(karte).getByRole('button', { name: 'Projekt öffnen' }))
+    expect(onNav).toHaveBeenCalledWith('projects', 'p-neu', undefined)
+  })
+
+  it('wählt den bekannten Kunden vor und legt beim Abbrechen nichts an', async () => {
+    const user = userEvent.setup()
+    listAllCustomers.mockResolvedValue([{ id: 'c1', name: 'Hans Muster', address: 'Chur' }])
+    listMailEingang.mockResolvedValue(liste([item({ customer: { id: 'c1', name: 'Hans Muster' } })]))
+    acceptMailVorschlag.mockResolvedValue({ suggestion: { ...ENTWURF, status: 'uebernommen' }, item_status: 'erledigt' })
+    render(<MailEingangScreen />)
+    const karte = await oeffne(user)
+    await user.click(within(karte).getByRole('button', { name: 'Projekt anlegen' }))
+    let maske = screen.getByRole('dialog', { name: 'Projekt anlegen' })
+    await user.click(within(maske).getByRole('button', { name: 'Abbrechen' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(acceptMailVorschlag).not.toHaveBeenCalled()
+
+    await user.click(within(karte).getByRole('button', { name: 'Projekt anlegen' }))
+    maske = screen.getByRole('dialog', { name: 'Projekt anlegen' })
+    await waitFor(() => expect(within(maske).getByPlaceholderText('Kunden suchen…')).toHaveValue('Hans Muster'))
+    await user.click(within(maske).getByRole('button', { name: 'Projekt erstellen' }))
+    await waitFor(() => expect(acceptMailVorschlag).toHaveBeenCalled())
+    expect(acceptMailVorschlag.mock.calls[0][2].customer_id).toBe('c1')
+  })
+
+  it('sagt in der Maske bei 409, dass jemand schneller war, und lädt neu', async () => {
+    const user = userEvent.setup()
+    acceptMailVorschlag.mockRejectedValue(new ApiError(409, 'nicht_mehr_offen'))
+    render(<MailEingangScreen />)
+    const karte = await oeffne(user)
+    await user.click(within(karte).getByRole('button', { name: 'Projekt anlegen' }))
+    const maske = screen.getByRole('dialog', { name: 'Projekt anlegen' })
+    await user.click(within(maske).getByRole('button', { name: 'Ohne Kunde' }))
+    await user.click(within(maske).getByRole('button', { name: 'Projekt erstellen' }))
+    expect(await screen.findByText(/inzwischen von jemand anderem bearbeitet/)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Projekt anlegen' })).toBeNull()
+    await waitFor(() => expect(listMailEingang).toHaveBeenCalledTimes(2))
+  })
+
+  it('zeigt einen Grund des Servers in der Maske und lässt sie offen', async () => {
+    const user = userEvent.setup()
+    acceptMailVorschlag.mockRejectedValue(new ApiError(404, 'Diesen Kunden gibt es nicht (mehr).'))
+    render(<MailEingangScreen />)
+    const karte = await oeffne(user)
+    await user.click(within(karte).getByRole('button', { name: 'Projekt anlegen' }))
+    const maske = screen.getByRole('dialog', { name: 'Projekt anlegen' })
+    await user.click(within(maske).getByRole('button', { name: 'Ohne Kunde' }))
+    await user.click(within(maske).getByRole('button', { name: 'Projekt erstellen' }))
+    expect(await within(maske).findByText('Diesen Kunden gibt es nicht (mehr).')).toBeInTheDocument()
+    expect(within(maske).getByRole('button', { name: 'Projekt erstellen' })).toBeEnabled()
   })
 
   it('löst bei einem Doppelklick nur eine Anfrage aus', async () => {
     const user = userEvent.setup()
     let fertig: (v: unknown) => void = () => {}
     acceptMailVorschlag.mockReturnValue(new Promise(resolve => { fertig = resolve }))
+    listMailEingang.mockResolvedValue(liste([item({ suggestions: [KUNDENNOTIZ] })]))
     render(<MailEingangScreen />)
     const karte = await oeffne(user)
     const knopf = within(karte).getByRole('button', { name: 'Übernehmen' })
@@ -261,7 +328,7 @@ describe('MailEingangScreen — Vorschläge', () => {
     // Solange die Anfrage läuft, sind beide Knöpfe gesperrt.
     expect(within(karte).getByRole('button', { name: 'Wird übernommen…' })).toBeDisabled()
     expect(within(karte).getByRole('button', { name: 'Verwerfen' })).toBeDisabled()
-    fertig({ suggestion: { ...ENTWURF, status: 'uebernommen' }, item_status: 'erledigt' })
+    fertig({ suggestion: { ...KUNDENNOTIZ, status: 'uebernommen' }, item_status: 'erledigt' })
     await waitFor(() => expect(within(karte).queryByRole('button', { name: 'Verwerfen' })).toBeNull())
   })
 
@@ -320,11 +387,12 @@ describe('MailEingangScreen — Vorschläge', () => {
   it('sagt bei 409, dass jemand schneller war, und lädt neu', async () => {
     const user = userEvent.setup()
     acceptMailVorschlag.mockRejectedValue(new ApiError(409, 'nicht_mehr_offen'))
+    listMailEingang.mockResolvedValue(liste([item({ suggestions: [KUNDENNOTIZ] })]))
     render(<MailEingangScreen />)
     const karte = await oeffne(user)
     listMailEingang.mockResolvedValue(liste([item({
       status: 'erledigt',
-      suggestions: [{ ...ENTWURF, status: 'uebernommen', decided_by_name: 'Urs Chef', decided_at: '2026-11-12T13:00:00Z' }],
+      suggestions: [{ ...KUNDENNOTIZ, status: 'uebernommen', decided_by_name: 'Urs Chef', decided_at: '2026-11-12T13:00:00Z' }],
     })]))
     await user.click(within(karte).getByRole('button', { name: 'Übernehmen' }))
 
@@ -338,6 +406,7 @@ describe('MailEingangScreen — Fehler beim Übernehmen', () => {
   it('zeigt den Grund des Servers und lässt den Vorschlag offen', async () => {
     const user = userEvent.setup()
     acceptMailVorschlag.mockRejectedValue(new ApiError(400, 'Die E-Mail-Adresse des Kunden ist ungültig.'))
+    listMailEingang.mockResolvedValue(liste([item({ suggestions: [KUNDENNOTIZ] })]))
     render(<MailEingangScreen />)
     const karte = await oeffne(user)
     await user.click(within(karte).getByRole('button', { name: 'Übernehmen' }))

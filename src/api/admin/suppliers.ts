@@ -17,6 +17,13 @@ export interface Supplier {
   zip?: string | null
   city?: string | null
   notes?: string | null
+  // Nur mit Modul `kreditoren` (docs/specs/lieferantenrechnung-bexio.md §5.3):
+  // UID für die Zuordnung der Rechnung, Vorschlagskonto und Standard-Ziel der
+  // Positionen. Das Backend nimmt die Felder nur an, wenn sie im Body stehen —
+  // ohne Modul schickt das Formular sie deshalb gar nicht mit.
+  uid?: string | null
+  default_account?: string | null
+  default_bucket?: 'projekt' | 'lager' | 'gemeinkosten' | null
 }
 
 // Treffer der Firmen-Suche (Handelsregister/Web) — füllt das Formular vor und ist
@@ -46,6 +53,15 @@ export async function lookupSuppliers(query: string): Promise<SupplierLookupHit[
 export async function saveSupplier(input: SupplierInput, id?: string): Promise<void> {
   await apiFetch(id ? `/pwa/admin/suppliers/${id}` : '/pwa/admin/suppliers', {
     method: id ? 'PATCH' : 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+/** Anlegen und den neuen Lieferanten zurückbekommen — für «Neuen Lieferanten
+ *  anlegen» aus einer Lieferantenrechnung, die gleich danach auf ihn zeigt. */
+export async function createSupplier(input: Partial<SupplierInput> & Pick<SupplierInput, 'name' | 'prefix'>): Promise<Supplier> {
+  return apiFetch<Supplier>('/pwa/admin/suppliers', {
+    method: 'POST',
     body: JSON.stringify(input),
   })
 }

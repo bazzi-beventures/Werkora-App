@@ -272,7 +272,7 @@ export function CustomerForm({
   )
   const [phone, setPhone] = useState(seed?.phone ?? ergaenzt?.werte.phone ?? initial?.phone ?? '')
   const [phoneLandline, setPhoneLandline] = useState(seed?.phone_landline ?? ergaenzt?.werte.phone_landline ?? initial?.phone_landline ?? '')
-  const [address, setAddress] = useState(initial?.address ?? '')
+  const [address, setAddress] = useState(seed?.address ?? initial?.address ?? '')
   const initialBillingDiffers = !!(initial?.billing_name || initial?.billing_address)
   const [billingDiffers, setBillingDiffers] = useState(initialBillingDiffers)
   const [billingName, setBillingName] = useState(initial?.billing_name ?? '')

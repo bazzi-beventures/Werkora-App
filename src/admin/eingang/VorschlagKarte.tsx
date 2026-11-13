@@ -1,15 +1,19 @@
-import { useId, useRef, useState } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import {
   acceptMailVorschlag, rejectMailVorschlag,
   type EingangVorschlag, type VorschlagEntscheid,
 } from '../../api/admin/mailEingang'
 import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 import type { AdminScreen } from '../useAdminNav'
+import AntwortFelder from './AntwortFelder'
+import AufgabeFelder from './AufgabeFelder'
 import EingangProjektAuswahl from './EingangProjektAuswahl'
 import KontaktErgaenzen from './KontaktErgaenzen'
+import KundeAnlegen from './KundeAnlegen'
+import ProjektAusMail from './ProjektAusMail'
 import {
-  ENTWURF_FELDER, NOTIZ_MAX, acceptPayload, entscheidText, ergebnisHinweis, ergebnisZiel,
-  fehltZumUebernehmen, fmtGroesse, istBekannterTyp, startEingabe, typTitel, uebernehmenLabel,
+  ENTWURF_FELDER, KUNDE_ANLEGEN_FELDER, NOTIZ_MAX, acceptPayload, belegText, entscheidText, ergebnisHinweis,
+  ergebnisZiel, fehltZumUebernehmen, fmtFaellig, fmtGroesse, istBekannterTyp, startEingabe, typTitel, uebernehmenLabel,
   type VorschlagEingabe,
 } from './mailEingang'
 
@@ -20,8 +24,9 @@ import {
  * Übernehmen überschreiben lässt. Geschrieben wird erst mit «Übernehmen»; danach
  * steht hier, wer wann entschieden hat und wo das Ergebnis liegt.
  *
- * «Kontakt ergänzen» ist die Ausnahme (§4.2): sein Knopf öffnet die Kundenmaske
- * (KontaktErgaenzen.tsx), und übernommen wird erst, nachdem dort gespeichert ist.
+ * «Kontakt ergänzen» und «Kunde anlegen» sind die Ausnahmen (§4.2): ihr Knopf
+ * öffnet die Kundenmaske (KontaktErgaenzen.tsx, KundeAnlegen.tsx), und übernommen
+ * wird erst, nachdem dort gespeichert ist.
  */
 
 export type EntscheidArt = 'accept' | 'reject'
@@ -34,10 +39,18 @@ interface Props {
   onFehler: (fehler: unknown, art: EntscheidArt) => void
   /** `tab`: der Reiter der Projektmaske, auf dem das Ergebnis liegt. */
   onNav?: (screen: AdminScreen, detailId?: string, tab?: ProjectTab) => void
+  /** Der Kunde, den der Server dem Absender zugeordnet hat — «Projekt anlegen» wählt ihn vor. */
+  kunde?: { id: string | number; name: string } | null
+  /** Beta: darf dieses Konto Antworten aus Werkora senden? Sonst nur kopieren. */
+  antwortenSenden?: boolean
 }
 
-export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, onFehler, onNav }: Props) {
+export default function VorschlagKarte({
+  itemId, vorschlag: v, onEntschieden, onFehler, onNav, kunde, antwortenSenden = false,
+}: Props) {
   const feldId = useId()
+  const [projektMaske, setProjektMaske] = useState(false)
+  const [kopieFehlt, setKopieFehlt] = useState(false)
   const [eingabe, setEingabe] = useState<VorschlagEingabe>(() => startEingabe(v))
   const [laeuft, setLaeuft] = useState<EntscheidArt | null>(null)
   // Zusätzlich zum `disabled` der Knöpfe: zwei Klicks im selben Augenblick
@@ -52,13 +65,14 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
     setEingabe(prev => ({ ...prev, felder: { ...prev.felder, [key]: wert } }))
   }
 
-  async function entscheiden(art: EntscheidArt) {
+  /** `zusatz`: nur «Kunde anlegen» — welcher Kunde in der Maske gespeichert wurde. */
+  async function entscheiden(art: EntscheidArt, zusatz?: Record<string, unknown>) {
     if (sperre.current) return
     sperre.current = true
     setLaeuft(art)
     try {
       const entscheid = art === 'accept'
-        ? await acceptMailVorschlag(itemId, v.id, acceptPayload(v, eingabe))
+        ? await acceptMailVorschlag(itemId, v.id, zusatz ?? acceptPayload(v, eingabe))
         : await rejectMailVorschlag(itemId, v.id)
       onEntschieden(entscheid, art)
     } catch (e) {
@@ -91,29 +105,24 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
     </dl>
   )
 
-  function formular() {
+  // Werte aus Signatur und Absender — Fremdtext, nur als Text.
+  function kundeWerte() {
+    if (v.typ !== 'kunde_anlegen') return null
+    const p = v.payload
+    return (
+      <dl className="eingang-werte">
+        {KUNDE_ANLEGEN_FELDER.filter(f => (p[f.key] ?? '').trim()).map(f => (
+          <div key={f.key}><dt>{f.label}:</dt><dd>{p[f.key]}</dd></div>
+        ))}
+      </dl>
+    )
+  }
+
+  function formular(): ReactNode {
     switch (v.typ) {
       case 'projekt_entwurf':
-        return (
-          <div className="eingang-felder">
-            {ENTWURF_FELDER.map(f => (
-              <label key={f.key} htmlFor={`${feldId}-${f.key}`}
-                     className={`admin-form-group${f.mehrzeilig ? ' eingang-feld-breit' : ''}`}>
-                <span className="admin-form-label">{f.label}</span>
-                {f.mehrzeilig ? (
-                  <textarea id={`${feldId}-${f.key}`} className="admin-form-input" rows={4} maxLength={f.max}
-                            value={eingabe.felder[f.key] ?? ''} disabled={laeuft !== null}
-                            onChange={e => setFeld(f.key, e.target.value)} />
-                ) : (
-                  <input id={`${feldId}-${f.key}`} className="admin-form-input" type="text" autoComplete="off"
-                         maxLength={f.max}
-                         value={eingabe.felder[f.key] ?? ''} disabled={laeuft !== null}
-                         onChange={e => setFeld(f.key, e.target.value)} />
-                )}
-              </label>
-            ))}
-          </div>
-        )
+        // Geprüft und angepasst wird in der Maske «Projekt anlegen».
+        return werte()
       case 'projektnotiz':
         return (
           <div className="eingang-felder">
@@ -142,6 +151,32 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
             <div><dt>{v.payload.feld_label}:</dt><dd>{v.payload.wert}</dd></div>
           </dl>
         )
+      case 'kunde_anlegen':
+        return kundeWerte()
+      case 'antwort':
+        return (
+          <AntwortFelder
+            itemId={itemId}
+            suggestionId={v.id}
+            payload={v.payload}
+            eingabe={eingabe}
+            disabled={laeuft !== null}
+            sendenErlaubt={antwortenSenden}
+            setFeld={setFeld}
+            onGesendet={ergebnis => { setKopieFehlt(!ergebnis.kopie_ok); onEntschieden(ergebnis, 'accept') }}
+            onSchonEntschieden={fehler => onFehler(fehler, 'accept')}
+          />
+        )
+      case 'aufgabe':
+        return (
+          <AufgabeFelder
+            payload={v.payload}
+            eingabe={eingabe}
+            disabled={laeuft !== null}
+            setFeld={setFeld}
+            setProjekt={projekt => setEingabe(prev => ({ ...prev, projekt }))}
+          />
+        )
       case 'projektdokument':
         return (
           <div className="eingang-felder">
@@ -162,7 +197,7 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
   }
 
   /** Ein entschiedener Vorschlag: nur noch lesen. */
-  function werte() {
+  function werte(): ReactNode {
     switch (v.typ) {
       case 'projekt_entwurf':
         return (
@@ -182,7 +217,30 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
           </dl>
         )
       case 'kontakt_ergaenzen':
+      case 'kunde_anlegen':
         return formular()
+      case 'antwort':
+        return (
+          <dl className="eingang-werte">
+            <div><dt>An:</dt><dd>{v.payload.an}</dd></div>
+            <div><dt>Betreff:</dt><dd>{v.payload.betreff}</dd></div>
+            <div><dt>Text:</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{v.payload.text}</dd></div>
+          </dl>
+        )
+      case 'aufgabe': {
+        const p = v.payload
+        const zeilen: [string, string][] = [
+          ['Titel', p.title], ['Fällig am', fmtFaellig(p.due_date)], ['Beschreibung', p.description],
+          ['Beleg', belegText(p) ?? ''],
+        ]
+        return (
+          <dl className="eingang-werte">
+            {zeilen.filter(([, w]) => (w ?? '').trim()).map(([label, w]) => (
+              <div key={label}><dt>{label}:</dt><dd>{w}</dd></div>
+            ))}
+          </dl>
+        )
+      }
       case 'projektdokument':
         return datei(v.payload.filename, v.payload.size)
       default:
@@ -218,7 +276,32 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
               onGespeichert={() => void entscheiden('accept')}
             />
           )}
-          {bekannt && v.typ !== 'kontakt_ergaenzen' && (
+          {bekannt && v.typ === 'kunde_anlegen' && (
+            <KundeAnlegen
+              payload={v.payload}
+              disabled={laeuft !== null}
+              bestaetigt={laeuft === 'accept'}
+              onGespeichert={kunde => void entscheiden('accept', { customer_id: kunde.id })}
+            />
+          )}
+          {bekannt && v.typ === 'projekt_entwurf' && (
+            <button type="button" className="admin-btn admin-btn-primary admin-btn-sm"
+                    disabled={laeuft !== null} onClick={() => setProjektMaske(true)}>
+              {uebernehmenLabel(v.typ, false)}
+            </button>
+          )}
+          {bekannt && v.typ === 'projekt_entwurf' && projektMaske && (
+            <ProjektAusMail
+              itemId={itemId}
+              suggestionId={v.id}
+              payload={v.payload}
+              kunde={kunde}
+              onClose={() => setProjektMaske(false)}
+              onAngelegt={entscheid => { setProjektMaske(false); onEntschieden(entscheid, 'accept') }}
+              onSchonEntschieden={fehler => onFehler(fehler, 'accept')}
+            />
+          )}
+          {bekannt && v.typ !== 'kontakt_ergaenzen' && v.typ !== 'kunde_anlegen' && v.typ !== 'projekt_entwurf' && (
             <button type="button" className="admin-btn admin-btn-primary admin-btn-sm"
                     disabled={laeuft !== null || fehlt !== null} onClick={() => void entscheiden('accept')}>
               {uebernehmenLabel(v.typ, laeuft === 'accept')}
@@ -234,6 +317,11 @@ export default function VorschlagKarte({ itemId, vorschlag: v, onEntschieden, on
         <>
           <div className={`eingang-entscheid${v.status === 'uebernommen' ? ' uebernommen' : ''}`}>{entscheid}</div>
           {hinweis && <div className="eingang-hinweis">{hinweis}</div>}
+          {kopieFehlt && (
+            <div className="admin-form-error" role="alert">
+              Die Kopie ans Firmen-Postfach ging nicht hinaus — die Antwort selbst ist gesendet.
+            </div>
+          )}
           {ziel && onNav && (
             <div className="eingang-aktionen">
               <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm"

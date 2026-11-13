@@ -17,13 +17,27 @@ export const PROJECT_DOC_SECTIONS: { key: ProjectFileCategory; title: string; le
   { key: 'anhang', title: 'Anhänge für Offerte' },
 ]
 
-export const SUPPLIER_DOC_SECTIONS: { key: ProjectFileCategory; title: string }[] = [
+/** Ein Abschnitt der Dateiliste. `readOnly`: kein Hochladen, Umbenennen oder
+ *  Löschen — die Dateien entstehen anderswo; ohne Dateien fällt er ganz weg. */
+export interface DocSection {
+  key: ProjectFileCategory
+  title: string
+  legacyFallback?: boolean
+  readOnly?: boolean
+}
+
+export const SUPPLIER_DOC_SECTIONS: DocSection[] = [
   // Chronologie des Beschaffungsablaufs: erst das Angebot des Lieferanten, dann
-  // Bestellung, AB, Lieferschein.
+  // Bestellung, AB, Lieferschein, Rechnung.
   { key: 'angebot_lieferant', title: 'Angebote Lieferant' },
   { key: 'bestellungen', title: 'Bestellungen' },
   { key: 'auftragsbestaetigung', title: 'Auftragsbestätigung' },
   { key: 'lieferschein', title: 'Lieferschein' },
+  // Die visierte Lieferantenrechnung (Modul `kreditoren`). Sie legt das Visum hier
+  // ab; hochladen geht nicht (der Server lehnt die Kategorie ab), löschen und
+  // umbenennen auch nicht — die Rechnung führt «Lieferantenrechnungen», das hier
+  // ist ihr Abzug am Projekt. Ohne Dateien (Betrieb ohne Modul) kein Abschnitt.
+  { key: 'rechnung_lieferant', title: 'Rechnungen Lieferant', readOnly: true },
 ]
 
 // Hochgeladene Rapporte, die nicht im System erfasst wurden: das ausgefüllte
@@ -75,7 +89,7 @@ export { CATEGORY_LABELS } from '../../../shared/projectDetail/types'
 
 interface FileSectionsProps {
   files: ProjectFile[]
-  sections: { key: ProjectFileCategory; title: string; legacyFallback?: boolean }[]
+  sections: DocSection[]
   /**
    * Je Abschnitt dazuschreiben, ob die Monteure ihn in der App sehen (WW-73).
    * Gesetzt im Reiter Lieferantendokumente — dort, und nur dort, liegen
@@ -90,7 +104,7 @@ interface FileSectionsProps {
 }
 
 interface FileSectionProps {
-  section: { key: ProjectFileCategory; title: string; legacyFallback?: boolean }
+  section: DocSection
   showVisibility?: boolean
   items: ProjectFile[]
   uploading: boolean
@@ -189,7 +203,7 @@ function FileSection({ section, showVisibility = false, items, uploading, isUplo
       </div>
 
       {/* Drag-&-Drop-Feld: Datei reinziehen ODER klicken / Button → Datei-Auswahl */}
-      <div
+      {!section.readOnly && <div
         onClick={pickFiles}
         onDragOver={e => { e.preventDefault(); if (!uploading) setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -235,7 +249,7 @@ function FileSection({ section, showVisibility = false, items, uploading, isUplo
         >
           + Hochladen
         </button>
-      </div>
+      </div>}
 
       {items.length === 0 ? (
         <div style={{ color: 'var(--muted)', fontSize: 12, padding: '4px 12px' }}>—</div>
@@ -307,21 +321,25 @@ function FileSection({ section, showVisibility = false, items, uploading, isUplo
                       <DownloadIcon />
                     </a>
                   )}
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-secondary"
-                    title="Umbenennen"
-                    onClick={() => startEdit(f)}
-                  >
-                    ✎
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-sm admin-btn-danger"
-                    onClick={() => onDelete(f.id)}
-                  >
-                    ✕
-                  </button>
+                  {!section.readOnly && (
+                    <>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-sm admin-btn-secondary"
+                        title="Umbenennen"
+                        onClick={() => startEdit(f)}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        className="admin-btn admin-btn-sm admin-btn-danger"
+                        onClick={() => onDelete(f.id)}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -346,6 +364,7 @@ export function FileSections({ files, sections, showVisibility, uploading, uploa
           if (section.legacyFallback && (f.category == null || !ALL_CATEGORY_KEYS.has(f.category))) return true
           return false
         })
+        if (section.readOnly && items.length === 0) return null
         return (
           <FileSection
             key={section.key}

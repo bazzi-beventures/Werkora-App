@@ -1,0 +1,365 @@
+/* Lieferantenrechnungen — docs/specs/lieferantenrechnung-bexio.md §8.1.
+   Eigenes Stylesheet neben dem Screen (Datei-Budget von admin.css).
+   Nur Tokens, keine eigenen Farben. */
+
+.kred-umschalter {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.kred-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--s-2) var(--s-3);
+  margin: 0 0 var(--s-4);
+}
+
+.kred-filter .admin-form-group {
+  margin: 0;
+}
+
+/* ── Upload ─────────────────────────────────────────── */
+
+.kred-upload {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  margin: 0 0 var(--s-4);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.kred-upload.drag {
+  border-color: var(--primary);
+  background: var(--surface-2);
+}
+
+.kred-upload.busy {
+  cursor: default;
+}
+
+.kred-upload-fehler {
+  margin: 0 0 var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+  font-size: var(--font-sm);
+}
+
+.kred-upload-fehler ul {
+  margin: var(--s-1) 0 0;
+  padding-left: 18px;
+}
+
+/* ── Liste ──────────────────────────────────────────── */
+
+.kred-liste tbody tr {
+  cursor: pointer;
+}
+
+.kred-num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.kred-marken {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+}
+
+.kred-marke {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.kred-marke.sperre {
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+}
+
+.kred-marke.warnung {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+
+.kred-marke.ok {
+  background: var(--success-soft);
+  color: var(--success-ink);
+}
+
+.kred-projekte {
+  color: var(--muted);
+  font-size: var(--font-sm);
+}
+
+/* ── Detail ─────────────────────────────────────────── */
+
+.kred-detail-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin: 0 0 var(--s-3);
+}
+
+.kred-detail-titel {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.kred-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: start;
+}
+
+.kred-beleg {
+  position: sticky;
+  top: var(--s-3);
+  height: 80dvh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.kred-beleg iframe,
+.kred-beleg object {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.kred-beleg img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.kred-beleg-leer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--muted);
+  font-size: var(--font-sm);
+  padding: var(--s-4);
+  text-align: center;
+}
+
+.kred-felder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+
+.kred-karte {
+  padding: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  min-width: 0;
+}
+
+.kred-hinweise {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+}
+
+.kred-hinweis {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  overflow-wrap: anywhere;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.kred-hinweis.sperre {
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+.kred-hinweis.warnung {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+
+.kred-hinweis button {
+  margin-left: var(--s-2);
+}
+
+.kred-vorschlag {
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--primary);
+  background: var(--primary-soft);
+  font-size: var(--font-sm);
+}
+
+.kred-skonto {
+  font-weight: 600;
+  color: var(--warning-ink);
+}
+
+.kred-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.kred-visum-block {
+  font-size: var(--font-sm);
+  color: var(--danger-ink);
+}
+
+.kred-iban-neu {
+  padding: var(--s-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+  font-size: var(--font-sm);
+}
+
+.kred-iban-neu .kred-iban {
+  font-family: var(--mono);
+  font-size: var(--font-md);
+  font-weight: 700;
+  margin: var(--s-1) 0 var(--s-2);
+  overflow-wrap: anywhere;
+}
+
+/* ── Positionen ─────────────────────────────────────── */
+
+.kred-zeilen {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.kred-zeilen th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.kred-zeilen td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+.kred-zeilen input,
+.kred-zeilen select {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--font-sm);
+  padding: 4px 6px;
+}
+
+.kred-zeilen-scroll {
+  overflow-x: auto;
+}
+
+.kred-summe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  margin-top: var(--s-2);
+  font-size: var(--font-sm);
+}
+
+.kred-summe .abweichung {
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+.kred-summe .stimmt {
+  color: var(--success-ink);
+}
+
+.kred-projekt-wahl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.kred-projekt-treffer {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.kred-projekt-treffer button {
+  text-align: left;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.kred-projekt-gewaehlt {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.kred-projekt-gewaehlt span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .kred-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kred-karte {
+    padding: var(--s-3);
+  }
+
+  .kred-aktionen .admin-btn {
+    flex: 1 1 auto;
+  }
+}

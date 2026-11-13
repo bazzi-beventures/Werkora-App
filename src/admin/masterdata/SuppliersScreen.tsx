@@ -19,9 +19,27 @@ const EMPTY_FORM = {
   zip: '',
   city: '',
   notes: '',
+  // Nur mit Modul `kreditoren` (Lieferantenrechnungen, Spec §5.3).
+  uid: '',
+  default_account: '',
+  default_bucket: '',
 }
 
-export default function SuppliersScreen() {
+const BUCKET_OPTIONEN: { value: '' | 'projekt' | 'lager' | 'gemeinkosten'; label: string }[] = [
+  { value: '', label: '— keine Vorgabe' },
+  { value: 'projekt', label: 'Projekt' },
+  { value: 'lager', label: 'Lager' },
+  { value: 'gemeinkosten', label: 'Gemeinkosten' },
+]
+
+interface Props {
+  /** Modul `kreditoren`: UID, Vorschlagskonto und Standard-Ziel im Formular.
+   *  Ohne Modul stehen die Felder weder im Formular noch im Body — das Backend
+   *  nimmt sie nur an, wenn sie mitkommen. */
+  kreditoren?: boolean
+}
+
+export default function SuppliersScreen({ kreditoren = false }: Props) {
   const isMobile = useIsMobile()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
@@ -70,6 +88,9 @@ export default function SuppliersScreen() {
       zip: s.zip ?? '',
       city: s.city ?? '',
       notes: s.notes ?? '',
+      uid: s.uid ?? '',
+      default_account: s.default_account ?? '',
+      default_bucket: s.default_bucket ?? '',
     })
     setLookupHits([])
     setLookupOpen(false)
@@ -143,6 +164,11 @@ export default function SuppliersScreen() {
         zip: form.zip.trim() || null,
         city: form.city.trim() || null,
         notes: form.notes.trim() || null,
+        ...(kreditoren ? {
+          uid: form.uid.trim() || null,
+          default_account: form.default_account.trim() || null,
+          default_bucket: (form.default_bucket || null) as Supplier['default_bucket'],
+        } : {}),
       }, editingId || undefined)
       setShowForm(false)
       showToast(editingId ? 'Lieferant aktualisiert' : 'Lieferant erstellt')
@@ -399,6 +425,49 @@ export default function SuppliersScreen() {
                   />
                 </div>
               </div>
+
+              {kreditoren && (
+                <>
+                  <div className="admin-form-group">
+                    <label className="admin-form-label" htmlFor="supplier-uid">UID</label>
+                    <input
+                      id="supplier-uid"
+                      className="admin-form-input"
+                      value={form.uid}
+                      onChange={e => updateField('uid', e.target.value)}
+                      placeholder="CHE-123.456.789"
+                    />
+                    <div className="admin-form-hint">Ordnet Lieferantenrechnungen diesem Lieferanten zu.</div>
+                  </div>
+                  <div className="admin-form-row">
+                    <div className="admin-form-group">
+                      <label className="admin-form-label" htmlFor="supplier-konto">Vorschlagskonto</label>
+                      <input
+                        id="supplier-konto"
+                        className="admin-form-input"
+                        value={form.default_account}
+                        inputMode="numeric"
+                        onChange={e => updateField('default_account', e.target.value)}
+                        placeholder="z.B. 4000"
+                      />
+                    </div>
+                    <div className="admin-form-group">
+                      <label className="admin-form-label" htmlFor="supplier-ziel">Standard-Ziel</label>
+                      <select
+                        id="supplier-ziel"
+                        className="admin-form-input"
+                        value={form.default_bucket}
+                        onChange={e => updateField('default_bucket', e.target.value)}
+                      >
+                        {BUCKET_OPTIONEN.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="admin-form-hint" style={{ marginTop: -8, marginBottom: 12 }}>
+                    Vorgabe für die Positionen seiner Rechnungen (Lieferantenrechnungen).
+                  </div>
+                </>
+              )}
 
               <div className="admin-form-group">
                 <label className="admin-form-label">Notizen</label>

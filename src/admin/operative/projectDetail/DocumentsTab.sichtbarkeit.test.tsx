@@ -35,7 +35,29 @@ describe('Lieferantendokumente — wer sieht was (WW-73)', () => {
     expect(screen.queryByTestId('file-section-visibility')).toBeNull()
   })
 
-  it('verbirgt genau die drei Einkaufs-Kategorien (Spiegel von ADMIN_ONLY_FILE_CATEGORIES)', () => {
-    expect([...MONTEUR_HIDDEN_FILE_CATEGORIES].sort()).toEqual(['angebot_lieferant', 'auftragsbestaetigung', 'bestellungen'])
+  it('verbirgt genau die vier Einkaufs-Kategorien (Spiegel von ADMIN_ONLY_FILE_CATEGORIES)', () => {
+    expect([...MONTEUR_HIDDEN_FILE_CATEGORIES].sort()).toEqual([
+      'angebot_lieferant', 'auftragsbestaetigung', 'bestellungen', 'rechnung_lieferant',
+    ])
+  })
+
+  // Modul `kreditoren`: die visierte Lieferantenrechnung legt das Visum ab, nicht
+  // das Büro. Kein Upload, kein Löschen — und ohne Datei gar kein Abschnitt.
+  it('«Rechnungen Lieferant» erscheint erst mit einer Datei, nur fürs Büro und ohne Upload', () => {
+    const { unmount } = render(<SupplierDocumentsTab {...props} />)
+    expect(screen.queryByText('Rechnungen Lieferant', { selector: 'span' })).toBeNull()
+    unmount()
+
+    const rechnung = {
+      id: 'r1', filename: 'Griesser_R-100.pdf', storage_path: 'documents/r.pdf',
+      mime_type: 'application/pdf', category: 'rechnung_lieferant' as const, created_at: '2026-11-10T10:00:00Z',
+    }
+    render(<SupplierDocumentsTab {...props} files={[rechnung]} />)
+    expect(badgeOf('Rechnungen Lieferant')).toBe('Nur Büro')
+    const abschnitt = screen.getByText('Rechnungen Lieferant', { selector: 'span' }).parentElement!.parentElement!
+    expect(abschnitt.textContent).toContain('Griesser_R-100.pdf')
+    expect(abschnitt.querySelector('input[type="file"]')).toBeNull()
+    expect(abschnitt.querySelector('button[title="Umbenennen"]')).toBeNull()
+    expect(abschnitt.textContent).not.toContain('Hochladen')
   })
 })

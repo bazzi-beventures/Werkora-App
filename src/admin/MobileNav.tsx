@@ -32,6 +32,8 @@ interface Props {
     deliveryNotes?: number
     /** Eingang: weitergeleitete Mails mit offenen Vorschlägen. */
     mailEingang?: number
+    /** Lieferantenrechnungen: zu prüfen plus eigene zu visieren. */
+    kreditoren?: number
   }
   /** Die dem Konto zugeteilte offene Zählung. Sie ist zugleich die Berechtigung
    *  und der Einstieg: Der Eintrag erscheint, sobald eine Tranche ihm gehört —
@@ -76,6 +78,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
   const hasSecondaryBadge = (badges?.absences ?? 0) > 0 || (showTaskBoard && (badges?.tasks ?? 0) > 0)
     || (has('lieferschein_erfassung') && (badges?.deliveryNotes ?? 0) > 0)
     || (has('mail_eingang') && (badges?.mailEingang ?? 0) > 0)
+    || (has('kreditoren') && (badges?.kreditoren ?? 0) > 0)
     || (has('feature_requests') && (badges?.wishes ?? 0) > 0)
 
   function navigate(target: AdminScreen, detailId?: string) {
@@ -228,6 +231,14 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     <IconDocument /><span>Lieferschein-Eingang</span>
                     {(badges?.deliveryNotes ?? 0) > 0 && (
                       <span className="admin-mobile-drawer-item-badge">{badges!.deliveryNotes}</span>
+                    )}
+                  </button>
+                )}
+                {has('kreditoren') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'kreditoren' ? ' active' : ''}`} onClick={() => navigate('kreditoren')}>
+                    <IconReceipt /><span>Lieferantenrechnungen</span>
+                    {(badges?.kreditoren ?? 0) > 0 && (
+                      <span className="admin-mobile-drawer-item-badge">{badges!.kreditoren}</span>
                     )}
                   </button>
                 )}

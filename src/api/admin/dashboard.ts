@@ -13,7 +13,10 @@ export interface AdminDashboard {
   quotes_pending_reminder: number
   invoices_pending_action: number
   pending_approvals: number
-  projects_overdue: number
+  /** `null` = konnte nicht gelesen werden. Die Kachel zeigt dann «—» statt einer
+   *  Zahl, die nur so aussieht, als wüsste man sie (Spec
+   *  kachel-projekte-ueberfaellig.md §3.2). */
+  projects_overdue: number | null
   pending_drafts: number
   /** Offene Lieferscheine im Eingang — `null` ohne Modul `lieferschein_erfassung`. */
   pending_delivery_notes?: number | null
@@ -40,6 +43,15 @@ export interface OverdueProject {
   end_date: string | null
   start_time: string | null
   end_time: string | null
+  /** `ueberfaellig` = Termin vorbei, weder Rapport noch Rechnung (zählt die
+   *  Kachel); `abschlussreif` = Rapport/Rechnung da, nie geschlossen. Projekte
+   *  mit offener Offerte liefert der Server gar nicht (Spec
+   *  kachel-projekte-ueberfaellig.md §3.3). Fehlt bei einem alten Server. */
+  gruppe?: 'ueberfaellig' | 'abschlussreif'
+  /** Spätestes Ende über ALLE Termine — der Spiegel oben ist der Ersttermin. */
+  last_end?: string | null
+  termin_count?: number
+  datum_pruefen?: boolean
 }
 
 export async function getOverdueProjects(): Promise<OverdueProject[]> {

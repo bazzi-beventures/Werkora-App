@@ -45,11 +45,10 @@ const BESTAND = {
   'admin/operative/ProjectsScreen.tsx': 1050, // 981
   'App.tsx': 1050, // 991
   'adminSite/screens/FeatureRequestsScreen.tsx': 1000, // 971
-  'admin/dashboard/DashboardScreen.tsx': 1000, // 971
+  'admin/dashboard/DashboardScreen.tsx': 750, // 675 — Überfällig-Dialog herausgezogen (20261113)
   'admin/operative/ProjectDetailScreen.tsx': 1000, // 942
   'adminSite/screens/SupportTicketsScreen.tsx': 900, // 863
   'admin/tasks/TaskBoardScreen.tsx': 900, // 850
-  'admin/operative/ProjectDraftsScreen.tsx': 850, // 785
   'admin/mobile.css': 850, // 814
   'admin/personal/MyTimeScreen.tsx': 800, // 755
   'admin/operative/projectDetail/DetailsForm.tsx': 750, // 725

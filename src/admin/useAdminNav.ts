@@ -20,6 +20,7 @@ export type AdminScreen =
   | 'hagelschaden'
   | 'delivery-notes'
   | 'eingang'
+  | 'kreditoren'
   | 'aftersales'
   | 'payment-reconciliation'
   | 'suppliers'

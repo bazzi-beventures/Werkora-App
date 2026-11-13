@@ -29,6 +29,8 @@ interface Props {
   onFehler: (fehler: unknown, art: EntscheidArt) => void
   onDismiss: (item: EingangItem) => void
   onNav?: (screen: AdminScreen, detailId?: string, tab?: ProjectTab) => void
+  /** Beta: darf dieses Konto Antworten aus Werkora senden? */
+  antwortenSenden?: boolean
 }
 
 type OriginalZustand =
@@ -75,7 +77,9 @@ function Original({ itemId }: { itemId: string }) {
   return <pre className="eingang-original" tabIndex={0} aria-label="Originaltext der Mail">{text}</pre>
 }
 
-export default function EingangKarte({ item, busy, onEntschieden, onFehler, onDismiss, onNav }: Props) {
+export default function EingangKarte({
+  item, busy, onEntschieden, onFehler, onDismiss, onNav, antwortenSenden = false,
+}: Props) {
   const [offen, setOffen] = useState(false)
   const status = itemStatus(item.status)
   const zugeleitet = personText(item.weitergeleitet_von)
@@ -168,6 +172,8 @@ export default function EingangKarte({ item, busy, onEntschieden, onFehler, onDi
                     onEntschieden={(entscheid, art) => onEntschieden(item.id, entscheid, art)}
                     onFehler={onFehler}
                     onNav={onNav}
+                    kunde={item.customer}
+                    antwortenSenden={antwortenSenden}
                   />
                 ))}
               </div>

@@ -98,6 +98,10 @@ export type ProjectFileCategory =
   // Fotos und Unterlagen zu Garantiefällen — steht im Reiter «Garantie», nicht
   // im Dokumente-Tab (docs/specs/garantiefall.md §4).
   | 'garantie'
+  // Visierte Lieferantenrechnung (Modul `kreditoren`, docs/specs/lieferantenrechnung-bexio.md
+  // §8.1). Entsteht nur durch das Visum — ein Upload in diese Kategorie lehnt der Server ab.
+  // Admin-only: enthält Einkaufspreise.
+  | 'rechnung_lieferant'
 
 export interface ProjectFile {
   id: string
@@ -121,7 +125,7 @@ export interface ProjectFile {
  * schreibt die Sichtbarkeit deshalb an jeden Abschnitt. Gleichlauf mit dem
  * Backend: tests/unit/test_project_file_authz.py liest diese Zeile mit.
  */
-export const MONTEUR_HIDDEN_FILE_CATEGORIES: ReadonlySet<ProjectFileCategory> = new Set<ProjectFileCategory>(['angebot_lieferant', 'bestellungen', 'auftragsbestaetigung'])
+export const MONTEUR_HIDDEN_FILE_CATEGORIES: ReadonlySet<ProjectFileCategory> = new Set<ProjectFileCategory>(['angebot_lieferant', 'bestellungen', 'auftragsbestaetigung', 'rechnung_lieferant'])
 
 /** Beschriftung je Kategorie. Die Verwaltung gliedert damit ihre Reiter, die
  *  Monteur-PWA schreibt sie unter den Dateinamen. Ein Eintrag, zwei Sichten. */
@@ -139,6 +143,7 @@ export const CATEGORY_LABELS: Record<ProjectFileCategory, string> = {
   offerte: 'Offerte',
   auftragsbestaetigung_kunde: 'Auftragsbestätigung',
   garantie: 'Garantiefall',
+  rechnung_lieferant: 'Rechnung Lieferant',
 }
 
 // ─── Kommentare am Projekt ──────────────────────────────────

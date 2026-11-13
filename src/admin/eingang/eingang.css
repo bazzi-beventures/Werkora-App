@@ -252,3 +252,11 @@
     max-height: 280px;
   }
 }
+
+/* «Kunde anlegen»: mögliche Dubletten vor dem Neuanlegen. */
+.eingang-kandidaten {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}

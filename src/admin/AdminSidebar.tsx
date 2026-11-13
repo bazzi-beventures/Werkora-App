@@ -31,6 +31,8 @@ interface Props {
     deliveryNotes?: number
     /** Eingang: weitergeleitete Mails mit offenen Vorschlägen. */
     mailEingang?: number
+    /** Lieferantenrechnungen: zu prüfen plus eigene zu visieren. */
+    kreditoren?: number
   }
 }
 
@@ -133,6 +135,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         )}
         {has('lieferschein_erfassung') && (
           <NavItem label="Lieferschein-Eingang" target="delivery-notes" current={screen} onNav={onNav} icon={<IconDocument />} badge={badges?.deliveryNotes} />
+        )}
+        {has('kreditoren') && (
+          <NavItem label="Lieferantenrechnungen" target="kreditoren" current={screen} onNav={onNav} icon={<IconReceipt />} badge={badges?.kreditoren} />
         )}
         {has('mail_eingang') && (
           <NavItem label="Eingang" target="eingang" current={screen} onNav={onNav} icon={<IconMail />} badge={badges?.mailEingang} beta />

@@ -190,6 +190,7 @@ export default function MailEingangScreen({ onChanged, onNav }: Props) {
               onFehler={onFehler}
               onDismiss={setDismissFor}
               onNav={onNav}
+              antwortenSenden={liste.antworten_senden}
             />
           ))}
         </div>

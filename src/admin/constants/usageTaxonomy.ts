@@ -69,6 +69,10 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // Lieferschein (docs/specs/lieferschein-erfassung.md) — vor /project/:
   // die Zuordnung hängt am Projekt, gehört aber zum Modul.
   { test: /delivery_note/,                       module: 'lieferschein_erfassung' },
+  // Lieferantenrechnungen (docs/specs/lieferantenrechnung-bexio.md) — vor
+  // /project/ und vor /supplier/ (Lager): die Kontierung hängt am Projekt, ein
+  // aus der Rechnung angelegter Lieferant bleibt aber `admin_create_supplier`.
+  { test: /kreditor|supplier_bill/,              module: 'kreditoren' },
   // Mail-Eingang (docs/specs/mail-eingang-triage.md) — vor /project/ und
   // /customer/: übernommene Vorschläge schreiben Entwurf, Projekt- oder
   // Kundennotiz, gehören aber zum Modul. Auch `mail_eingang_config_set` (der
@@ -276,6 +280,9 @@ const ACTION_LABELS: Record<string, string> = {
   // ── Mail-Eingang ──
   mail_eingang_uebernommen: 'Mail-Eingang: Vorschlag übernommen',
   mail_eingang_verworfen: 'Mail-Eingang: als nicht für Werkora verworfen',
+  mail_eingang_antwort_gesendet: 'Mail-Eingang: Antwort an den Absender gesendet',
+  mail_eingang_vorlage_gespeichert: 'Mail-Eingang: Antwort-Vorlage gespeichert',
+  mail_eingang_vorlage_zurueckgesetzt: 'Mail-Eingang: Antwort-Vorlage zurückgesetzt',
   mail_eingang_config_set: 'Mail-Eingang: Postfach und Absenderschranke gesetzt',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',

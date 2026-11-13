@@ -5,18 +5,24 @@
  * §10 (Oberfläche).
  */
 import type {
-  EingangAnhang, EingangItem, EingangProjekt, EingangVorschlag, ProjektEntwurfPayload, VorschlagTyp,
+  AufgabePayload, EingangAnhang, EingangItem, EingangProjekt, EingangVorschlag, KundeAnlegenPayload, KundeKandidat,
+  ProjektEntwurfPayload, VorschlagTyp,
 } from '../../api/admin/mailEingang'
+import type { KontaktErgaenzung } from '../operative/customerErgaenzung'
+import type { CustomerPrefill } from '../operative/customerPrefill'
 import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 
 // ─── Beschriftungen ─────────────────────────────────────────────────────────
 
 const TYP_TITEL: Record<VorschlagTyp, string> = {
-  projekt_entwurf: 'Projekt-Entwurf anlegen',
+  projekt_entwurf: 'Projekt anlegen',
   projektnotiz: 'Notiz am Projekt',
   kundennotiz: 'Notiz beim Kunden',
   kontakt_ergaenzen: 'Kontakt ergänzen',
   projektdokument: 'Anhang am Projekt ablegen',
+  kunde_anlegen: 'Kunde anlegen',
+  aufgabe: 'Aufgabe aufs Board',
+  antwort: 'Antwort an den Absender',
 }
 
 /** Kennt der Client diesen Vorschlagstyp? Die Liste ist abschliessend (Spec §4.1);
@@ -32,6 +38,7 @@ export function typTitel(typ: string): string {
 const KATEGORIE_LABEL: Record<string, string> = {
   neue_anfrage: 'Neue Anfrage',
   laufendes_projekt: 'Laufendes Projekt',
+  kontakt: 'Kontaktangaben',
 }
 
 export function kategorieLabel(kategorie: string): string {
@@ -65,6 +72,12 @@ export const ENTWURF_FELDER: readonly {
   { key: 'object_address', label: 'Adresse des Objekts', max: 500 },
   { key: 'description', label: 'Beschreibung', max: 4000, mehrzeilig: true },
 ]
+
+/** Grenzen einer Aufgabe — spiegeln `AUFGABE_GRENZEN` (services/mail_eingang_aufgaben.py). */
+export const AUFGABE_MAX = { title: 200, description: 1000 } as const
+
+/** «Zuständig»: der Projektleiter des gewählten Projekts — wie bei «Neue Aufgabe» im Board. */
+export const ZUSTAENDIG_AUTO = 'auto'
 
 /** Längste Notiz (`NOTIZ_MAX` auf dem Server). */
 export const NOTIZ_MAX = 4000
@@ -136,11 +149,6 @@ export interface VorschlagEingabe {
 
 export function startEingabe(v: EingangVorschlag): VorschlagEingabe {
   switch (v.typ) {
-    case 'projekt_entwurf':
-      return {
-        felder: Object.fromEntries(ENTWURF_FELDER.map(f => [f.key, v.payload[f.key] ?? ''])),
-        projekt: null,
-      }
     case 'projektnotiz':
       return {
         felder: { text: v.payload.text ?? '' },
@@ -151,6 +159,18 @@ export function startEingabe(v: EingangVorschlag): VorschlagEingabe {
     case 'projektdokument':
       return {
         felder: {},
+        projekt: (v.payload.projects ?? []).find(p => p.project_id === v.payload.project_id) ?? null,
+      }
+    case 'antwort':
+      return { felder: { betreff: v.payload.betreff ?? '', text: v.payload.text ?? '' }, projekt: null }
+    case 'aufgabe':
+      return {
+        felder: {
+          title: v.payload.title ?? '',
+          description: v.payload.description ?? '',
+          due_date: v.payload.due_date ?? '',
+          assignee: ZUSTAENDIG_AUTO,
+        },
         projekt: (v.payload.projects ?? []).find(p => p.project_id === v.payload.project_id) ?? null,
       }
     default:
@@ -168,8 +188,7 @@ export function fehltZumUebernehmen(v: EingangVorschlag, e: VorschlagEingabe): s
   const leer = (key: string) => !(e.felder[key] ?? '').trim()
   switch (v.typ) {
     case 'projekt_entwurf':
-      if (leer('title')) return 'Der Entwurf braucht einen Titel.'
-      if (leer('customer_name')) return 'Der Entwurf braucht einen Kunden.'
+      // Geprüft wird in der Maske «Projekt anlegen» (ProjektAusMail.tsx).
       return null
     case 'projektnotiz':
       if (!e.projekt && !v.payload.project_id) return 'Bitte zuerst das Projekt wählen.'
@@ -179,7 +198,15 @@ export function fehltZumUebernehmen(v: EingangVorschlag, e: VorschlagEingabe): s
       return leer('text') ? 'Die Notiz ist leer.' : null
     case 'projektdokument':
       return !e.projekt && !v.payload.project_id ? 'Bitte zuerst das Projekt wählen.' : null
+    case 'antwort':
+      if (leer('betreff')) return 'Die Antwort braucht einen Betreff.'
+      return leer('text') ? 'Die Antwort ist leer.' : null
+    case 'aufgabe':
+      if (leer('title')) return 'Die Aufgabe braucht einen Titel.'
+      if (!leer('due_date') && !/^\d{4}-\d{2}-\d{2}$/.test(e.felder.due_date.trim())) return 'Das Datum ist ungültig.'
+      return null
     case 'kontakt_ergaenzen':
+    case 'kunde_anlegen':
       return null
     default:
       return 'Diesen Vorschlag kennt die App noch nicht — er lässt sich nur verwerfen.'
@@ -197,9 +224,6 @@ export function acceptPayload(v: EingangVorschlag, e: VorschlagEingabe): Record<
     if (neu !== (original ?? '').trim()) out[key] = neu
   }
   switch (v.typ) {
-    case 'projekt_entwurf':
-      for (const f of ENTWURF_FELDER) geaendert(f.key, v.payload[f.key])
-      break
     case 'projektnotiz':
       if (e.projekt && e.projekt.project_id !== v.payload.project_id) out.project_id = e.projekt.project_id
       geaendert('text', v.payload.text)
@@ -211,6 +235,21 @@ export function acceptPayload(v: EingangVorschlag, e: VorschlagEingabe): Record<
       // Überschreibbar ist nur das Projekt — Datei und Anhang stehen fest.
       if (e.projekt && e.projekt.project_id !== v.payload.project_id) out.project_id = e.projekt.project_id
       break
+    case 'antwort':
+      geaendert('betreff', v.payload.betreff)
+      geaendert('text', v.payload.text)
+      break
+    case 'aufgabe': {
+      geaendert('title', v.payload.title)
+      geaendert('description', v.payload.description)
+      geaendert('due_date', v.payload.due_date)
+      // Anders als bei der Notiz ist «ohne Projekt» eine gültige Wahl.
+      const projekt = e.projekt?.project_id ?? ''
+      if (projekt !== (v.payload.project_id ?? '')) out.project_id = projekt
+      const zustaendig = e.felder.assignee ?? ZUSTAENDIG_AUTO
+      if (zustaendig !== ZUSTAENDIG_AUTO) out.assignee = zustaendig
+      break
+    }
     default:
       // kontakt_ergaenzen: nichts überschreibbar — gespeichert wird im
       // Kundenformular, das Übernehmen bestätigt danach nur.
@@ -228,6 +267,10 @@ export function acceptPayload(v: EingangVorschlag, e: VorschlagEingabe): Record<
 export function uebernehmenLabel(typ: string, laeuft: boolean): string {
   if (typ === 'projektdokument') return laeuft ? 'Wird abgelegt…' : 'Übernehmen'
   if (typ === 'kontakt_ergaenzen') return laeuft ? 'Wird bestätigt…' : 'Im Kundenformular öffnen'
+  if (typ === 'kunde_anlegen') return laeuft ? 'Wird bestätigt…' : 'Neuen Kunden anlegen'
+  if (typ === 'projekt_entwurf') return laeuft ? 'Wird angelegt…' : 'Projekt anlegen'
+  // B1: Werkora sendet nichts — «Übernehmen» heisst hier «im eigenen Mailprogramm gesendet».
+  if (typ === 'antwort') return laeuft ? 'Wird markiert…' : 'Als erledigt markieren'
   return laeuft ? 'Wird übernommen…' : 'Übernehmen'
 }
 
@@ -257,7 +300,10 @@ export function ergebnisHinweis(v: EingangVorschlag): string | null {
   if (v.status !== 'uebernommen') return null
   switch (v.typ) {
     case 'projekt_entwurf':
-      return 'Liegt unter Projekt-Entwürfe und wird dort wie jeder andere Entwurf umgewandelt.'
+      // Bis 2026-11-13 entstand ein Entwurf; seither direkt das Projekt.
+      return v.created?.type === 'project'
+        ? 'Als Projekt angelegt.'
+        : 'Liegt unter Projekt-Entwürfe und wird dort wie jeder andere Entwurf umgewandelt.'
     case 'projektnotiz': {
       const p = (v.payload.projects ?? []).find(x => x.project_id === v.payload.project_id)
       return p
@@ -268,8 +314,16 @@ export function ergebnisHinweis(v: EingangVorschlag): string | null {
       return `Steht als Kommentar beim Kunden ${v.payload.customer_name}.`
     case 'kontakt_ergaenzen':
       return `Im Kundenstamm bei ${v.payload.customer_name} gespeichert (${v.payload.feld_label}).`
+    case 'kunde_anlegen':
+      return 'Im Kundenstamm gespeichert.'
     case 'projektdokument':
       return 'Liegt bei den Projektdokumenten.'
+    case 'aufgabe':
+      return 'Liegt auf dem Aufgaben-Board.'
+    case 'antwort':
+      return v.created?.type === 'antwort_gesendet'
+        ? `Aus Werkora gesendet an ${v.payload.an}.`
+        : 'Als erledigt markiert — gesendet aus dem eigenen Mailprogramm.'
     default:
       return null
   }
@@ -277,13 +331,16 @@ export function ergebnisHinweis(v: EingangVorschlag): string | null {
 
 /** Wohin der Knopf neben dem Hinweis führt — `null`, wenn es kein Ziel gibt. */
 export type ErgebnisZiel =
-  | { screen: 'project-drafts'; label: string }
+  | { screen: 'project-drafts' | 'tasks'; label: string }
   | { screen: 'projects' | 'customers'; detailId: string; label: string; tab?: ProjectTab }
 
 export function ergebnisZiel(v: EingangVorschlag): ErgebnisZiel | null {
   if (v.status !== 'uebernommen') return null
   switch (v.typ) {
     case 'projekt_entwurf':
+      if (v.created?.type === 'project') {
+        return v.created.id ? { screen: 'projects', detailId: v.created.id, label: 'Projekt öffnen' } : null
+      }
       return { screen: 'project-drafts', label: 'Zu den Projekt-Entwürfen' }
     case 'projektnotiz':
       return v.payload.project_id
@@ -294,12 +351,89 @@ export function ergebnisZiel(v: EingangVorschlag): ErgebnisZiel | null {
       return v.payload.project_id
         ? { screen: 'projects', detailId: v.payload.project_id, label: 'Projekt öffnen', tab: 'documents' }
         : null
+    case 'aufgabe':
+      return { screen: 'tasks', label: 'Zum Aufgaben-Board' }
     case 'kundennotiz':
     case 'kontakt_ergaenzen':
+    case 'kunde_anlegen':
       return v.payload.customer_id != null && v.payload.customer_id !== ''
         ? { screen: 'customers', detailId: String(v.payload.customer_id), label: 'Kunde öffnen' }
         : null
     default:
       return null
   }
+}
+
+// ─── Kunde anlegen ──────────────────────────────────────────────────────────
+
+/** Die Werte des Vorschlags, die die Karte zeigt — in der Reihenfolge der Kundenmaske. */
+export const KUNDE_ANLEGEN_FELDER: readonly {
+  key: 'name' | 'email' | 'phone' | 'phone_landline' | 'address'; label: string
+}[] = [
+  { key: 'name', label: 'Name' },
+  { key: 'email', label: 'E-Mail' },
+  { key: 'phone', label: 'Mobil' },
+  { key: 'phone_landline', label: 'Festnetz' },
+  { key: 'address', label: 'Adresse' },
+]
+
+/**
+ * Startwerte eines neuen Kunden. Der Name kommt ungeteilt ins Feld «Nachname /
+ * Bezeichnung» — die Maske bietet die Aufteilung an (wie beim Suchtext, customerPrefill.ts).
+ */
+export function kundePrefill(p: KundeAnlegenPayload): CustomerPrefill {
+  const out: CustomerPrefill = {}
+  const setze = (key: keyof CustomerPrefill, wert: string | undefined) => {
+    const w = (wert ?? '').trim()
+    if (w) out[key] = w
+  }
+  setze('last_name', p.name)
+  setze('email', p.email)
+  setze('phone', p.phone)
+  setze('phone_landline', p.phone_landline)
+  setze('address', p.address)
+  return out
+}
+
+/**
+ * Wählt das Büro statt eines neuen Kunden einen bestehenden: welcher Kontakt aus
+ * der Mail dort ins leere Feld kommt (Mobil vor E-Mail vor Festnetz) — die
+ * Kundenmaske füllt ihn nur ein, wenn das Feld leer ist (customerErgaenzung.ts).
+ */
+export function ergaenzungFuerKandidat(p: KundeAnlegenPayload): KontaktErgaenzung | undefined {
+  if (p.phone?.trim()) return { feld: 'phone', wert: p.phone.trim() }
+  if (p.email?.trim()) return { feld: 'email', wert: p.email.trim() }
+  if (p.phone_landline?.trim()) return { feld: 'phone_landline', wert: p.phone_landline.trim() }
+  return undefined
+}
+
+/** «Eva Meier · Rebbergweg 12, Uster · gleiche Telefonnummer» */
+export function kandidatText(k: KundeKandidat): string {
+  return [k.name?.trim() || '(ohne Namen)', k.address?.trim(), k.grund?.trim()].filter(Boolean).join(' · ')
+}
+
+// ─── Aufgabe ────────────────────────────────────────────────────────────────
+
+/** `2026-11-20` → «20.11.2026»; leer bei leerem oder unlesbarem Wert. */
+export function fmtFaellig(iso: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec((iso ?? '').trim())
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : ''
+}
+
+/** «Aus der Mail: „Rufen Sie mich bitte zurück“» — `null` ohne Beleg. */
+export function belegText(p: Pick<AufgabePayload, 'beleg'>): string | null {
+  const b = (p.beleg ?? '').trim()
+  return b ? `Aus der Mail: «${b}»` : null
+}
+
+// ─── Antwort ────────────────────────────────────────────────────────────────
+
+/** Ein `mailto:` darf nicht beliebig lang werden — darüber bleibt nur «Text kopieren». */
+export const MAILTO_MAX = 1800
+
+/** `mailto:` mit Empfänger, Betreff und Text — `null`, wenn er zu lang würde. */
+export function mailtoLink(an: string, betreff: string, text: string): string | null {
+  const link = `mailto:${encodeURIComponent(an.trim())}?subject=${encodeURIComponent(betreff)}`
+    + `&body=${encodeURIComponent(text)}`
+  return link.length <= MAILTO_MAX ? link : null
 }

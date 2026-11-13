@@ -6,13 +6,12 @@ import {
   PendingActionInvoice, getPendingActionInvoices, sendZahlungserinnerung, sendMahnung,
   MahnStufe, mahnschreibenPdfUrl, markReminderSentByPost,
   PendingApproval, getPendingApprovals, approveApproval, rejectApproval,
-  OverdueProject, getOverdueProjects, updateProjectSchedule, closeProject,
 } from '../../api/admin'
 import { AdminScreen } from '../useAdminNav'
-import { fmtCHF, fmtDate, todayISO } from '../utils/format'
+import { daysSince, fmtCHF, fmtDate } from '../utils/format'
 import { apiUrl } from '../../api/client'
 import { useToast, ToastHost } from '../components/useToast'
-import { DateTimeInput } from '../components/DateTimeInput'
+import { OverdueProjectsModal } from './OverdueProjectsModal'
 
 // Nachgeladen: nur mit Modul `reminders` gebraucht, und der Haupt-Chunk der
 // Mandanten-App steht an der 2-MiB-Grenze des Precache (siehe AdminApp).
@@ -24,6 +23,8 @@ interface Props {
   onBadgeChange?: () => void
   /** Modul `reminders` für dieses Konto an → «Meine Erinnerungen» zuoberst. */
   showReminders?: boolean
+  /** Der Überfällig-Dialog hat frisch gezählt — die Kachel übernimmt die Zahl. */
+  onOverdueCount?: (n: number) => void
 }
 
 interface KpiCardProps {
@@ -88,11 +89,6 @@ function IconClipboardCount() {
 }
 function IconBoxLow() {
   return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 0 0-1 1v2h14V4a1 1 0 0 0-1-1H4zm13 5H3v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zm-9 3h4a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2z"/></svg>
-}
-
-function daysSince(iso: string | null): number {
-  if (!iso) return 0
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000)
 }
 
 // ─── Modal: Offerten-Erinnerungen ───────────────────────────
@@ -471,302 +467,9 @@ function ApprovalModal({ onClose, onSent }: ApprovalModalProps) {
   )
 }
 
-// ─── Modal: Überfällige Projekte ─────────────────────────────
-
-interface OverdueProjectsModalProps {
-  onClose: () => void
-  onChanged: () => void
-}
-
-interface RowDraft {
-  startDate: string
-  endDate: string
-  startTime: string
-  endTime: string
-}
-
-function rowFromProject(p: OverdueProject): RowDraft {
-  return {
-    startDate: p.start_date?.slice(0, 10) ?? '',
-    endDate: p.end_date?.slice(0, 10) ?? '',
-    startTime: p.start_time?.slice(0, 5) ?? '',
-    endTime: p.end_time?.slice(0, 5) ?? '',
-  }
-}
-
-/** Das effektive Ende eines Termins: Enddatum, sonst Startdatum. `end_date` ist am
- *  Termin optional — ein eintägiger Termin trägt nur ein Startdatum, und die Zeile
- *  stünde sonst mit "Geplant bis —" da (Pendant zu
- *  db/project_appointments.py::effective_appointment_end). */
-function effectiveEnd(p: OverdueProject): string | null {
-  return p.end_date ?? p.start_date ?? null
-}
-
-/** Ab wie vielen ausgewählten Projekten das Sammel-Schliessen rückfragt. */
-const BULK_CLOSE_CONFIRM_FROM = 50
-
-function OverdueProjectsModal({ onClose, onChanged }: OverdueProjectsModalProps) {
-  const [projects, setProjects] = useState<OverdueProject[] | null>(null)
-  const [drafts, setDrafts] = useState<Record<string, RowDraft>>({})
-  const [busy, setBusy] = useState<{ id: string; type: 'save' | 'close' } | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [bulkClosing, setBulkClosing] = useState(false)
-  const { toast, showToast } = useToast(3000)
-
-  useEffect(() => {
-    getOverdueProjects()
-      .then(list => {
-        setProjects(list)
-        const init: Record<string, RowDraft> = {}
-        list.forEach(p => { init[p.id] = rowFromProject(p) })
-        setDrafts(init)
-      })
-      .catch(() => setProjects([]))
-  }, [])
-
-  function patchDraft(id: string, patch: Partial<RowDraft>) {
-    setDrafts(d => ({ ...d, [id]: { ...d[id], ...patch } }))
-  }
-
-  function toggleSelected(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      return next
-    })
-  }
-
-  function toggleAll() {
-    setSelected(prev => (
-      projects && prev.size < projects.length ? new Set(projects.map(p => p.id)) : new Set()
-    ))
-  }
-
-  async function handleSave(p: OverdueProject) {
-    const d = drafts[p.id]
-    if (!d) return
-    if (d.startDate && d.endDate && d.endDate < d.startDate) {
-      showToast('Enddatum muss ≥ Startdatum sein', 'error')
-      return
-    }
-    setBusy({ id: p.id, type: 'save' })
-    try {
-      await updateProjectSchedule(
-        p.id,
-        d.startDate || null,
-        d.endDate || null,
-        d.startTime || null,
-        d.endTime || null,
-      )
-      // todayISO() statt toISOString(): letzteres rechnet nach UTC um und liefert in
-      // der Schweiz nachts noch das Datum von gestern — die Zeile bliebe dann stehen,
-      // obwohl der Termin repariert ist. Verglichen wird das effektive Ende, damit ein
-      // eintägiger Termin (nur Startdatum) genauso zählt.
-      const today = todayISO()
-      const newEnd = d.endDate || d.startDate
-      if (newEnd && newEnd >= today) {
-        setProjects(list => list ? list.filter(x => x.id !== p.id) : list)
-        showToast('Termin aktualisiert', 'success')
-        onChanged()
-      } else {
-        showToast('Gespeichert', 'success')
-      }
-    } catch {
-      showToast('Fehler beim Speichern', 'error')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function handleClose(p: OverdueProject) {
-    if (!window.confirm(`Projekt "${p.name}" als abgeschlossen markieren?`)) return
-    setBusy({ id: p.id, type: 'close' })
-    try {
-      await closeProject(p.id)
-      setProjects(list => list ? list.filter(x => x.id !== p.id) : list)
-      setSelected(prev => {
-        if (!prev.has(p.id)) return prev
-        const next = new Set(prev)
-        next.delete(p.id)
-        return next
-      })
-      showToast('Projekt geschlossen', 'success')
-      onChanged()
-    } catch {
-      showToast('Fehler beim Schliessen', 'error')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  // Sammel-Schliessen für den Altbestand: nie geschlossene Projekte von vor Jahren
-  // (beim Pilotkunden dreistellig) sind einzeln nicht abzuarbeiten, und solange sie
-  // in der Kachel stehen, ist die Zahl als Signal wertlos. Sequentiell über den
-  // bestehenden Endpoint — kein Auto-Schliessen durch das System: die Auswahl bleibt
-  // eine bewusste Handlung des Admins (Spec §4.6/§6.2).
-  async function handleCloseSelected() {
-    if (!projects || selected.size === 0) return
-    const ids = projects.filter(p => selected.has(p.id)).map(p => p.id)
-    if (ids.length >= BULK_CLOSE_CONFIRM_FROM
-      && !window.confirm(`${ids.length} Projekte als abgeschlossen markieren?`)) return
-
-    setBulkClosing(true)
-    const failed: string[] = []
-    for (const id of ids) {
-      try {
-        await closeProject(id)
-      } catch {
-        failed.push(id)
-      }
-    }
-    const closed = new Set(ids.filter(id => !failed.includes(id)))
-    setProjects(list => list ? list.filter(p => !closed.has(p.id)) : list)
-    setSelected(new Set(failed))
-    setBulkClosing(false)
-    if (failed.length === 0) {
-      showToast(`${closed.size} Projekte geschlossen`, 'success')
-    } else {
-      showToast(`${closed.size} geschlossen, ${failed.length} fehlgeschlagen`, 'error')
-    }
-    if (closed.size > 0) onChanged()
-  }
-
-  const isBusy = (id: string, type: 'save' | 'close') =>
-    busy?.id === id && busy?.type === type
-
-  return (
-    <div className="admin-modal-overlay" {...backdropCloseProps(onClose)}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 640 }}>
-        <div className="admin-modal-header">
-          <div className="admin-modal-title">Überfällige Projekte</div>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="admin-modal-body">
-          <ToastHost toast={toast} />
-          {projects === null && <div className="admin-loading"><div className="admin-spinner" />Lade…</div>}
-          {projects !== null && projects.length === 0 && <div className="admin-empty">Keine überfälligen Projekte</div>}
-          {projects !== null && projects.length > 0 && (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
-                paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid var(--border)',
-              }}
-            >
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-                <input
-                  type="checkbox"
-                  checked={selected.size === projects.length}
-                  ref={el => { if (el) el.indeterminate = selected.size > 0 && selected.size < projects.length }}
-                  onChange={toggleAll}
-                  disabled={bulkClosing}
-                />
-                <span>Alle ({projects.length})</span>
-              </label>
-              <button
-                className="admin-btn admin-btn-secondary"
-                style={{ marginLeft: 'auto' }}
-                disabled={selected.size === 0 || bulkClosing || busy !== null}
-                onClick={handleCloseSelected}
-              >
-                {bulkClosing ? 'Schliesse…' : `Ausgewählte schliessen${selected.size > 0 ? ` (${selected.size})` : ''}`}
-              </button>
-            </div>
-          )}
-          {projects !== null && projects.length > 0 && (
-            <div className="admin-list">
-              {projects.map(p => {
-                const d = drafts[p.id]
-                if (!d) return null
-                const ende = effectiveEnd(p)
-                return (
-                  <div key={p.id} className="admin-list-item" style={{ flexDirection: 'column', gap: 10, alignItems: 'stretch' }}>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <input
-                        type="checkbox"
-                        style={{ marginTop: 4 }}
-                        checked={selected.has(p.id)}
-                        onChange={() => toggleSelected(p.id)}
-                        disabled={bulkClosing}
-                        aria-label={`${p.name} auswählen`}
-                      />
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{p.name}</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{p.customer_name ?? '—'}</div>
-                        <div style={{ fontSize: 12, color: 'var(--danger)', marginTop: 2 }}>
-                          Geplant bis {fmtDate(ende)} ({daysSince(ende)} Tage überfällig)
-                        </div>
-                      </div>
-                    </div>
-                    <div className="admin-form-row">
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
-                        <span>Start</span>
-                        <DateTimeInput
-                          type="date"
-                          className="admin-input"
-                          value={d.startDate}
-                          onValueChange={v => patchDraft(p.id, { startDate: v })}
-                        />
-                      </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
-                        <span>Ende</span>
-                        <DateTimeInput
-                          type="date"
-                          className="admin-input"
-                          value={d.endDate}
-                          onValueChange={v => patchDraft(p.id, { endDate: v })}
-                        />
-                      </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
-                        <span>Startzeit</span>
-                        <DateTimeInput
-                          type="time"
-                          className="admin-input"
-                          value={d.startTime}
-                          onValueChange={v => patchDraft(p.id, { startTime: v })}
-                        />
-                      </label>
-                      <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
-                        <span>Endzeit</span>
-                        <DateTimeInput
-                          type="time"
-                          className="admin-input"
-                          value={d.endTime}
-                          onValueChange={v => patchDraft(p.id, { endTime: v })}
-                        />
-                      </label>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        className="admin-btn admin-btn-primary"
-                        style={{ flex: 1 }}
-                        disabled={busy !== null || bulkClosing}
-                        onClick={() => handleSave(p)}
-                      >
-                        {isBusy(p.id, 'save') ? 'Speichere…' : 'Speichern'}
-                      </button>
-                      <button
-                        className="admin-btn admin-btn-secondary"
-                        style={{ flex: 1 }}
-                        disabled={busy !== null || bulkClosing}
-                        onClick={() => handleClose(p)}
-                      >
-                        {isBusy(p.id, 'close') ? '…' : 'Projekt schliessen'}
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Dashboard ───────────────────────────────────────────────
 
-export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showReminders }: Props) {
+export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showReminders, onOverdueCount }: Props) {
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [showMahnungModal, setShowMahnungModal] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
@@ -964,6 +667,8 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
         <OverdueProjectsModal
           onClose={() => setShowOverdueProjectsModal(false)}
           onChanged={() => onBadgeChange?.()}
+          onCount={onOverdueCount}
+          onOpenProject={id => { setShowOverdueProjectsModal(false); onNav('projects', id) }}
         />
       )}
     </div>

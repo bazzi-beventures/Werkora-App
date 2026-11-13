@@ -44,6 +44,7 @@ import { trackNav } from '../shared/breadcrumbs'
 import { DEEP_LINK_EVENT, takeCustomerDeepLink, takeKpiDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
+import { getKreditorenZaehler, type KreditorZaehler } from '../api/kreditoren'
 import { appointmentJumpState, readScheduleView, writeScheduleView } from './operative/scheduleViewState'
 import { hasKpiAccess, isManagementRole } from '../shared/roles'
 import { Theme, loadTheme, applyTheme, toggleTheme as flipTheme } from '../theme'
@@ -61,6 +62,7 @@ const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
 const HagelschadenScreen = lazy(() => import('./operative/hagelschaden/HagelschadenScreen'))
 const DeliveryNotesScreen = lazy(() => import('./operative/DeliveryNotesScreen'))
 const MailEingangScreen = lazy(() => import('./eingang/MailEingangScreen'))
+const KreditorenScreen = lazy(() => import('./einkauf/KreditorenScreen'))
 
 function ComingSoon({ title }: { title: string }) {
   return (
@@ -175,12 +177,32 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     return true
   })
 
+  // Lieferantenrechnungen (docs/specs/lieferantenrechnung-bexio.md §8.1): eigene
+  // Zähler-Route statt eines Felds im Dashboard. Der Screen führt sie nach jedem
+  // Laden seiner Liste selbst nach (onZaehler).
+  const kreditorenAktiv = hasModule(user, 'kreditoren')
+  const [kreditorenZaehler, setKreditorenZaehler] = useState<KreditorZaehler | null>(null)
+
   async function loadDashboard() {
+    if (kreditorenAktiv) {
+      getKreditorenZaehler().then(setKreditorenZaehler).catch(() => { /* Zahl bleibt, wie sie war */ })
+    }
     try { setDashboard(await getAdminDashboard()) } catch { /* ignore */ }
   }
 
   useEffect(() => { loadDashboard() }, [])
   useEffect(() => { if (screen === 'dashboard') loadDashboard() }, [screen])
+  // Rückkehr in die App (am Handy: aus dem Hintergrund geholt) frischt das
+  // Dashboard auf, solange es offen ist. Sonst standen dort Zahlen von vor
+  // Stunden, und der Dialog dahinter zählte anders (Spec
+  // kachel-projekte-ueberfaellig.md §2.2). Kein Intervall — das Dashboard kostet
+  // ein gutes Dutzend Abfragen.
+  useEffect(() => {
+    if (screen !== 'dashboard') return
+    const beiRueckkehr = () => { if (document.visibilityState === 'visible') loadDashboard() }
+    document.addEventListener('visibilitychange', beiRueckkehr)
+    return () => document.removeEventListener('visibilitychange', beiRueckkehr)
+  }, [screen])
 
   // Zahl am Navigationspunkt «Wünsche & Roadmap» — wie das Abzeichen
   // «Feature-Anfragen» auf admin.werkora.ch, nur aus Sicht des Einreichers:
@@ -197,6 +219,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     wishes: hasModule(user, 'feature_requests') ? wishAttention : 0,
     deliveryNotes: dashboard?.pending_delivery_notes ?? 0,
     mailEingang: dashboard?.pending_mail_eingang ?? 0,
+    kreditoren: kreditorenZaehler?.badge ?? 0,
   }
 
   const isManagement = isManagementRole(user.role)
@@ -240,6 +263,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           onNav={guardedNav}
           onBadgeChange={loadDashboard}
           showReminders={hasModule(user, 'reminders')}
+          onOverdueCount={n => setDashboard(d => (d && d.projects_overdue !== n ? { ...d, projects_overdue: n } : d))}
         />
       )
       case 'tasks':        return showTaskBoard
@@ -321,6 +345,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'delivery-notes': return guard('lieferschein_erfassung', (
         <DeliveryNotesScreen onChanged={loadDashboard} />
       ))
+      // Lieferantenrechnungen (docs/specs/lieferantenrechnung-bexio.md §8.1).
+      case 'kreditoren': return guard('kreditoren', (
+        <KreditorenScreen startZaehler={kreditorenZaehler} onZaehler={setKreditorenZaehler} />
+      ))
       // Mail-Eingang (docs/specs/mail-eingang-triage.md §10): Vorschläge aus
       // weitergeleiteten Mails. Büro-Oberfläche — die Monteur-App kennt ihn nicht.
       case 'eingang': return guard('mail_eingang', (
@@ -340,7 +368,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       ))
       case 'aftersales':   return guard('aftersales', <AftersalesScreen />)
       case 'payment-reconciliation': return guard('payment_matching', <PaymentReconciliationScreen />)
-      case 'suppliers':    return <SuppliersScreen />
+      case 'suppliers':    return <SuppliersScreen kreditoren={hasModule(user, 'kreditoren')} />
       case 'supplier-wiki': return guard('supplier_wiki', <SupplierWikiScreen />)
       case 'roadmap':      return guard('feature_requests', (
         // admin-page-wide: das Board hat sechs Spalten à mindestens 200px. Bei
@@ -365,7 +393,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
         <MaterialsScreen user={user} detailId={detailId ?? undefined} onConsumed={clearDetail} />
       )
       case 'pricing-rules':return <PricingRulesScreen />
-      case 'quote-templates': return <QuoteTemplatesScreen />
+      case 'quote-templates': return <QuoteTemplatesScreen user={user} />
       case 'users':        return (
         // «Zusatzrechte» (docs/specs/ferien-freigabe-recht.md §4,
         // lieferschein-erfassung.md §3.5): vergeben nur Management/Superadmin,
@@ -379,6 +407,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
               ? [
                   ...(isFeatureEnabled(user, 'ferien_freigabe_recht') ? ['absence_approve'] : []),
                   ...(hasModule(user, 'lieferschein_erfassung') ? ['wareneingang'] : []),
+                  // Neue Zahlungsverbindung einer Lieferantenrechnung freigeben (E5).
+                  ...(hasModule(user, 'kreditoren') ? ['kreditoren_iban'] : []),
                 ]
               : []
           }
