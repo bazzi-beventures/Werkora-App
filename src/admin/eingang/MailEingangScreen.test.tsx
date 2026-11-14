@@ -370,6 +370,46 @@ describe('MailEingangScreen — Vorschläge', () => {
     expect(await within(karte).findByText('Steht als Kommentar am Projekt 2600520 · Küche Muster.')).toBeInTheDocument()
   })
 
+  it('klappt die Auswahl nach der Wahl zu — die übrigen Projekte erst wieder auf Wunsch', async () => {
+    const user = userEvent.setup()
+    listMailEingang.mockResolvedValue(liste([item({ kategorie: 'laufendes_projekt', suggestions: [NOTIZ] })]))
+    render(<MailEingangScreen />)
+    const karte = await oeffne(user)
+
+    await user.click(within(karte).getByRole('button', { name: '2600520 Küche Muster' }))
+    expect(within(karte).queryByRole('button', { name: '2600515 Bad Muster' })).toBeNull()
+    expect(within(karte).queryByLabelText(/Projekt suchen/)).toBeNull()
+    expect(within(karte).getByRole('button', { name: '2600520 Küche Muster' })).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(within(karte).getByRole('button', { name: 'Anderes Projekt wählen' }))
+    expect(within(karte).getByRole('button', { name: '2600515 Bad Muster' })).toBeInTheDocument()
+    expect(within(karte).getByLabelText('Anderes Projekt suchen')).toBeInTheDocument()
+  })
+
+  it('übernimmt das gewählte Projekt in den nächsten Vorschlag derselben Mail, änderbar', async () => {
+    const user = userEvent.setup()
+    listMailEingang.mockResolvedValue(liste([item({ kategorie: 'laufendes_projekt', suggestions: [NOTIZ, DOKUMENT] })]))
+    acceptMailVorschlag.mockResolvedValue({ suggestion: { ...DOKUMENT, status: 'uebernommen' }, item_status: 'offen' })
+    render(<MailEingangScreen />)
+    const karte = await oeffne(user)
+    const notiz = within(karte).getByTestId('vorschlag-s-notiz')
+    const dokument = within(karte).getByTestId('vorschlag-s-dok')
+    expect(within(dokument).getByRole('button', { name: 'Übernehmen' })).toBeDisabled()
+
+    await user.click(within(notiz).getByRole('button', { name: '2600520 Küche Muster' }))
+    // Der Anhang hat dasselbe Projekt, zugeklappt und mit Herkunft.
+    expect(within(dokument).getByRole('button', { name: '2600520 Küche Muster' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(dokument).getByText(/Vom anderen Vorschlag dieser Mail übernommen/)).toBeInTheDocument()
+    expect(within(dokument).queryByRole('button', { name: '2600515 Bad Muster' })).toBeNull()
+
+    // … und lässt sich trotzdem ändern, ohne die Notiz mitzuziehen.
+    await user.click(within(dokument).getByRole('button', { name: 'Anderes Projekt wählen' }))
+    await user.click(within(dokument).getByRole('button', { name: '2600515 Bad Muster' }))
+    expect(within(notiz).getByRole('button', { name: '2600520 Küche Muster' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(within(dokument).getByRole('button', { name: 'Übernehmen' }))
+    expect(acceptMailVorschlag).toHaveBeenCalledWith('m1', 's-dok', { project_id: 'p1' })
+  })
+
   it('findet ein Projekt über die Suche, wenn kein Kandidat passt', async () => {
     const user = userEvent.setup()
     const P3 = { project_id: 'p3', number: '2600601', name: 'Dach Beispiel', customer: 'Beispiel GmbH', locality: 'Thusis' }

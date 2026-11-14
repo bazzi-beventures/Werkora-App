@@ -10,6 +10,11 @@ import { searchMailEingangProjekte, type EingangProjekt } from '../../api/admin/
  * Suche. Anders als dort löst das Antippen hier nichts aus: es wählt nur, geschrieben
  * wird erst mit «Übernehmen». Deshalb eine eigene, kleinere Komponente statt der
  * geteilten, die beim Antippen sofort zuordnet.
+ *
+ * **Gewählt heisst zugeklappt:** steht ein Projekt fest (vom Server vorgewählt,
+ * vom Büro angetippt oder von einem anderen Vorschlag derselben Mail übernommen),
+ * zeigt die Auswahl nur noch diese eine Zeile und «Anderes Projekt wählen». Sonst
+ * stünden zwanzig Suchtreffer zwischen der Wahl und dem Knopf «Übernehmen».
  */
 
 interface Props {
@@ -17,13 +22,16 @@ interface Props {
   selected: EingangProjekt | null
   disabled?: boolean
   onPick: (p: EingangProjekt) => void
+  /** Zeile über dem gewählten Projekt, z.B. woher es übernommen ist. */
+  hinweis?: string
 }
 
 const SEARCH_DELAY_MS = 300
 const MIN_QUERY = 2
 
-export default function EingangProjektAuswahl({ candidates, selected, disabled, onPick }: Props) {
+export default function EingangProjektAuswahl({ candidates, selected, disabled, onPick, hinweis }: Props) {
   const feldId = useId()
+  const [aendern, setAendern] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<EingangProjekt[] | null>(null)
   const [searching, setSearching] = useState(false)
@@ -65,13 +73,28 @@ export default function EingangProjektAuswahl({ candidates, selected, disabled, 
         aria-pressed={gewaehlt}
         aria-label={`${p.number} ${p.name}`.trim()}
         disabled={disabled}
-        onClick={() => onPick(p)}
+        onClick={() => { onPick(p); setAendern(false); setQuery('') }}
       >
         <span className="eingang-projekt-name">{p.number ? `${p.number} · ` : ''}{p.name}</span>
         {(p.customer || p.locality) && (
           <span className="eingang-projekt-zusatz">{[p.customer, p.locality].filter(Boolean).join(' · ')}</span>
         )}
       </button>
+    )
+  }
+
+  if (selected && !aendern) {
+    return (
+      <div className="eingang-projekte">
+        <div className="eingang-hinweis">{hinweis ?? 'Projekt'}</div>
+        {zeile(selected)}
+        <div>
+          <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm"
+                  disabled={disabled} onClick={() => setAendern(true)}>
+            Anderes Projekt wählen
+          </button>
+        </div>
+      </div>
     )
   }
 

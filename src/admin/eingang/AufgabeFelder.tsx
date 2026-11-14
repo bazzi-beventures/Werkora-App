@@ -21,9 +21,11 @@ interface Props {
   disabled: boolean
   setFeld: (key: string, wert: string) => void
   setProjekt: (projekt: VorschlagEingabe['projekt']) => void
+  /** Woher das gewählte Projekt kommt, wenn nicht von hier (VorschlagKarte). */
+  projektHinweis?: string
 }
 
-export default function AufgabeFelder({ payload, eingabe, disabled, setFeld, setProjekt }: Props) {
+export default function AufgabeFelder({ payload, eingabe, disabled, setFeld, setProjekt, projektHinweis }: Props) {
   const feldId = useId()
   const [personen, setPersonen] = useState<EingangZustaendig[] | null>(null)
   const [ladeFehler, setLadeFehler] = useState(false)
@@ -73,6 +75,7 @@ export default function AufgabeFelder({ payload, eingabe, disabled, setFeld, set
           selected={eingabe.projekt}
           disabled={disabled}
           onPick={setProjekt}
+          hinweis={projektHinweis}
         />
         {eingabe.projekt && (
           <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm"

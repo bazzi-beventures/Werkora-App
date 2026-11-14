@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type ReactNode } from 'react'
 import {
   acceptMailVorschlag, rejectMailVorschlag,
-  type EingangVorschlag, type VorschlagEntscheid,
+  type EingangProjekt, type EingangVorschlag, type VorschlagEntscheid,
 } from '../../api/admin/mailEingang'
 import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 import type { AdminScreen } from '../useAdminNav'
@@ -13,7 +13,7 @@ import KundeAnlegen from './KundeAnlegen'
 import ProjektAusMail from './ProjektAusMail'
 import {
   ENTWURF_FELDER, KUNDE_ANLEGEN_FELDER, NOTIZ_MAX, acceptPayload, belegText, entscheidText, ergebnisHinweis,
-  ergebnisZiel, fehltZumUebernehmen, fmtFaellig, fmtGroesse, istBekannterTyp, startEingabe, typFarbe, typTitel,
+  ergebnisZiel, fehltZumUebernehmen, fmtFaellig, fmtGroesse, istBekannterTyp, mitProjektwahl, startEingabe, typFarbe, typTitel,
   uebernehmenLabel,
   type VorschlagEingabe,
 } from './mailEingang'
@@ -44,15 +44,34 @@ interface Props {
   kunde?: { id: string | number; name: string } | null
   /** Beta: darf dieses Konto Antworten aus Werkora senden? Sonst nur kopieren. */
   antwortenSenden?: boolean
+  /** Das Projekt, das das Büro an einem anderen Vorschlag derselben Mail gewählt hat. */
+  vorgabeProjekt?: EingangProjekt | null
+  /** Das Büro hat hier ein Projekt gewählt — die übrigen Vorschläge übernehmen es. */
+  onProjektGewaehlt?: (p: EingangProjekt) => void
 }
 
 export default function VorschlagKarte({
   itemId, vorschlag: v, onEntschieden, onFehler, onNav, kunde, antwortenSenden = false,
+  vorgabeProjekt = null, onProjektGewaehlt,
 }: Props) {
   const feldId = useId()
   const [projektMaske, setProjektMaske] = useState(false)
   const [kopieFehlt, setKopieFehlt] = useState(false)
-  const [eingabe, setEingabe] = useState<VorschlagEingabe>(() => startEingabe(v))
+  const [eingabeRoh, setEingabe] = useState<VorschlagEingabe>(() => startEingabe(v))
+  // Hat das Büro hier selbst ein Projekt gewählt? Bis dahin gilt die Wahl an einem
+  // anderen Vorschlag derselben Mail (auch vor der Vorauswahl des Servers: sie ist
+  // jünger und von einem Menschen). Danach nur noch die eigene.
+  const [eigeneWahl, setEigeneWahl] = useState(false)
+  const vonNebenan = !eigeneWahl && vorgabeProjekt != null && mitProjektwahl(v.typ)
+    && vorgabeProjekt.project_id !== eingabeRoh.projekt?.project_id
+  const eingabe: VorschlagEingabe = vonNebenan ? { ...eingabeRoh, projekt: vorgabeProjekt } : eingabeRoh
+  const projektHinweis = vonNebenan ? 'Vom anderen Vorschlag dieser Mail übernommen — änderbar' : undefined
+
+  function waehleProjekt(p: EingangProjekt | null) {
+    setEigeneWahl(true)
+    setEingabe(prev => ({ ...prev, projekt: p }))
+    if (p) onProjektGewaehlt?.(p)
+  }
   const [laeuft, setLaeuft] = useState<EntscheidArt | null>(null)
   // Zusätzlich zum `disabled` der Knöpfe: zwei Klicks im selben Augenblick
   // kommen beide an, bevor React den gesperrten Knopf gerendert hat.
@@ -132,7 +151,8 @@ export default function VorschlagKarte({
                 candidates={v.payload.projects ?? []}
                 selected={eingabe.projekt}
                 disabled={laeuft !== null}
-                onPick={p => setEingabe(prev => ({ ...prev, projekt: p }))}
+                onPick={waehleProjekt}
+                hinweis={projektHinweis}
               />
             </div>
             {textFeld('Notiz')}
@@ -175,7 +195,8 @@ export default function VorschlagKarte({
             eingabe={eingabe}
             disabled={laeuft !== null}
             setFeld={setFeld}
-            setProjekt={projekt => setEingabe(prev => ({ ...prev, projekt }))}
+            setProjekt={waehleProjekt}
+            projektHinweis={projektHinweis}
           />
         )
       case 'projektdokument':
@@ -187,7 +208,8 @@ export default function VorschlagKarte({
                 candidates={v.payload.projects ?? []}
                 selected={eingabe.projekt}
                 disabled={laeuft !== null}
-                onPick={p => setEingabe(prev => ({ ...prev, projekt: p }))}
+                onPick={waehleProjekt}
+                hinweis={projektHinweis}
               />
             </div>
           </div>

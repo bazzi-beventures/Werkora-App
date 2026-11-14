@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   getMailEingangText,
-  type EingangItem, type EingangOriginal, type VorschlagEntscheid,
+  type EingangItem, type EingangOriginal, type EingangProjekt, type VorschlagEntscheid,
 } from '../../api/admin/mailEingang'
 import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 import type { AdminScreen } from '../useAdminNav'
@@ -107,6 +107,9 @@ export default function EingangKarte({
   item, busy, onEntschieden, onFehler, onDismiss, onNav, antwortenSenden = false,
 }: Props) {
   const [offen, setOffen] = useState(false)
+  // Das zuletzt am Vorschlag gewählte Projekt: die übrigen Vorschläge dieser Mail
+  // übernehmen es (Notiz und Anhang gehören fast immer zum selben Auftrag).
+  const [kartenProjekt, setKartenProjekt] = useState<EingangProjekt | null>(null)
   const status = itemStatus(item.status)
   const zugeleitet = personText(item.weitergeleitet_von)
   const absender = personText(item.absender)
@@ -225,6 +228,8 @@ export default function EingangKarte({
                     onNav={onNav}
                     kunde={item.customer}
                     antwortenSenden={antwortenSenden}
+                    vorgabeProjekt={kartenProjekt}
+                    onProjektGewaehlt={setKartenProjekt}
                   />
                 ))}
               </div>

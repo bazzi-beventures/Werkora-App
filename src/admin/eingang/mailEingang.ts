@@ -31,6 +31,14 @@ export function istBekannterTyp(typ: string): typ is VorschlagTyp {
   return Object.prototype.hasOwnProperty.call(TYP_TITEL, typ)
 }
 
+/** Vorschläge, an denen ein Projekt gewählt wird. Wählt das Büro an einem davon ein
+ *  Projekt, übernehmen die übrigen derselben Mail es — änderbar (EingangKarte). */
+const MIT_PROJEKTWAHL: ReadonlySet<string> = new Set(['projektnotiz', 'projektdokument', 'aufgabe'])
+
+export function mitProjektwahl(typ: string): boolean {
+  return MIT_PROJEKTWAHL.has(typ)
+}
+
 export function typTitel(typ: string): string {
   return istBekannterTyp(typ) ? TYP_TITEL[typ] : 'Unbekannter Vorschlag'
 }

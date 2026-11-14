@@ -112,7 +112,8 @@ export interface AufgabePayload {
   assignee?: string
 }
 
-export type AntwortArt = 'eingang_bestaetigt' | 'angaben_fehlen' | 'termin_bestaetigt' | 'kontakt_bestaetigt'
+export type AntwortArt =
+  | 'eingang_bestaetigt' | 'angaben_fehlen' | 'termin_bestaetigt' | 'kontakt_bestaetigt' | 'projekt_erfragen'
 
 /**
  * Antwort an den ursprünglichen Absender (docs/specs/mail-eingang-aufgaben-antworten.md §5).
