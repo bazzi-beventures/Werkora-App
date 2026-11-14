@@ -20,7 +20,7 @@ const KNOWN_MODULES = [
   'aftersales', 'document_backup',
   'rapport_check_mail', 'task_board', 'newsletter', 'support', 'supplier_wiki',
   'feature_requests', 'warranty', 'reminders', 'hagelschaden', 'lieferschein_erfassung',
-  'termin_bestaetigung', 'bexio', 'mail_eingang', 'kreditoren',
+  'termin_bestaetigung', 'bexio', 'mail_eingang', 'kreditoren', 'service_begleitung',
 ]
 
 describe('moduleOfAction', () => {
@@ -50,6 +50,9 @@ describe('moduleOfAction', () => {
     ['mail_eingang_uebernommen',           'mail_eingang'],
     ['mail_eingang_verworfen',             'mail_eingang'],
     ['mail_eingang_config_set',            'mail_eingang'],
+    // Servicebegleitung: die Kundennachricht hängt am Termin, gehört aber zum Modul.
+    ['einsatz_meldung_kunde',              'service_begleitung'],
+    ['service_begleitung_config_set',      'service_begleitung'],
     // Lieferantenrechnungen: vor /project/ und /supplier/ (Lager).
     ['admin_kreditor_visieren',            'kreditoren'],
     ['admin_update_supplier_bill_project', 'kreditoren'],

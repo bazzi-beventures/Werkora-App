@@ -198,3 +198,8 @@ export type {
 
 export { getMailEingang, setMailEingang } from '../api/platform'
 export type { MailEingangEinstellung, MailEingangView, MailSystem } from '../api/platform'
+
+// ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ──────────────
+
+export { getServiceBegleitung, setServiceBegleitung } from '../api/platform'
+export type { ServiceBegleitungView, WerkzeugKatalogEintrag } from '../api/platform'

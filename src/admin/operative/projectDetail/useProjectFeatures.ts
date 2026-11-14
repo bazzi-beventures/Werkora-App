@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getMe } from '../../../api/auth'
 import { getFeature, hasModule, isFeatureEnabled } from '../../../api/modules'
+import { hasWerkzeug } from '../../../api/serviceBegleitung'
 import { hasKpiAccess } from '../../../shared/roles'
 import { BeschaffungStep, enabledBeschaffungSteps } from '../../constants/beschaffungSteps'
 import type { GeneralDeductionConfig } from '../../utils/generalDeduction'
@@ -80,6 +81,10 @@ export interface ProjectFeatures {
    * es in /pwa/me schon pro Konto gefiltert.
    */
   terminBestaetigung: boolean
+  /** Servicebegleitung (docs/specs/servicebegleitung.md §7, §8): Terminwahl per Link
+   *  bzw. Statusseite — Kachel «Termin mit dem Kunden» mit Kundenlink. */
+  terminwahl: boolean
+  statusseite: boolean
   /** Modul «bexio»: Pille «in bexio / wird übertragen / Fehler» an den Rechnungen. */
   bexio: boolean
   /**
@@ -108,6 +113,8 @@ const NONE: ProjectFeatures = {
   currentStaffId: null,
   plRueckfrage: false,
   terminBestaetigung: false,
+  terminwahl: false,
+  statusseite: false,
   bexio: false,
   kreditoren: false,
 }
@@ -143,6 +150,8 @@ export function useProjectFeatures(): ProjectFeatures {
         currentStaffId: me.staff_id ?? null,
         plRueckfrage: isFeatureEnabled(me, 'projektleiter_rueckfrage'),
         terminBestaetigung: hasModule(me, 'termin_bestaetigung'),
+        terminwahl: hasWerkzeug(me, 'terminwahl'),
+        statusseite: hasWerkzeug(me, 'statusseite'),
         bexio: hasModule(me, 'bexio'),
         kreditoren: hasModule(me, 'kreditoren'),
       })

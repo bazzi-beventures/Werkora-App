@@ -33,9 +33,9 @@ const SPIELRAUM = 100
 const BESTAND = {
   'admin/admin.css': 5350, // 5322
   'index.css': 2750, // 2705
-  'admin/operative/ProjectScheduleScreen.tsx': 2400, // 2343
+  'admin/operative/ProjectScheduleScreen.tsx': 1500, // 1428 (Charge M4c; M4b 1732, M4a 1915, vorher 2343)
   'screens/ProjekteScreen.tsx': 2200, // 2164
-  'admin/operative/ProjectScheduleCalendar.tsx': 1600, // 1550
+  'admin/operative/ProjectScheduleCalendar.tsx': 750, // 713 (Charge M4d, vorher 1550)
   'admin/operative/ReportCreateForm.tsx': 1300, // 1253
   'chat/ChatScreen.tsx': 1250, // 1222
   'admin/operative/InvoicesScreen.tsx': 1200, // 1142

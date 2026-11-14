@@ -1,31 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEinsatzStaende } from './useEinsatzStaende'
+import { RESERVATION_PREFIX, reservationEntries, reservationHinweis, useTerminwahlPlanung } from './useTerminwahlPlanung'
+import { TerminwahlLeiste } from './TerminwahlLeiste'
 import {
   upsertProject, loadSchedulingConfig, readCachedSchedulingConfig, SchedulingConfig,
-  ProjectAppointment, AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS,
-  DEFAULT_APPOINTMENT_KIND, AppointmentRecurrence,
-  listAppointments, createAppointment, updateAppointment, deleteAppointment,
-  listScheduleAbsences, absenceConflictMessage, type ScheduleAbsence,
-  getProjectAppointments, SERIES_ACTIVITY_CODE, getScheduleStand,
-  type AppointmentScope, type ScheduleStand, type SeriesExtras, type SeriesRule,
+  ProjectAppointment, createAppointment, updateAppointment, deleteAppointment,
+  absenceConflictMessage, getProjectAppointments, SERIES_ACTIVITY_CODE, type AppointmentScope, type SeriesExtras,
 } from '../../api/admin'
 import { ApiError } from '../../api/client'
 import {
-  SCOPE_LABELS, describeRule, scopeHint, seriesChangeError, seriesEnd, seriesRows, seriesSavedMessage,
+  seriesChangeError, seriesEnd, seriesRows, seriesSavedMessage,
 } from './seriesEdit'
+import { useScheduleTasks } from './useScheduleTasks'
+import { useScheduleData } from './useScheduleData'
+import { ScheduleTasksSection } from './ScheduleTasksSection'
+import { ScheduleApptEditor } from './ScheduleApptEditor'
+import { ScheduleApptList } from './ScheduleApptList'
+import { AbsenzRueckfrageDialog, SerienLoeschenDialog, TeamFrageDialog } from './ScheduleDialogs'
 import {
-  ProjectTask,
-  listAdminProjectTasks, addAdminProjectTask, updateAdminProjectTask, deleteAdminProjectTask,
-} from '../../api/projectTasks'
-import {
-  apptToDraft, draftPayload, effectiveTeamIds, emptyDraft, isOpenAppointment, newAppointmentDraft,
-  NO_MONTEUR_ERROR, pastAppointmentHint, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO, validateDraft,
-  type AppointmentDraft,
+  draftPayload, effectiveTeamIds, isOpenAppointment,
+  NO_MONTEUR_ERROR, suggestAppointmentKind, teamlessFollowersError, teamsDiffer, todayISO, validateDraft,
 } from './projectAppointments'
 import { AdminScreen } from '../useAdminNav'
-import { downloadSchedulePdf, getProject, getScheduleProjects } from '../../api/admin/projects'
+import { downloadSchedulePdf, getProject } from '../../api/admin/projects'
 import type { ProjectKind, ScheduleProject } from '../../api/admin/projects'
 import { listAllCustomers } from '../../api/admin/customers'
-import { getAdminStaff } from '../../api/admin/staff'
 import { PROJECT_KIND_LABELS, kindHasProjektleiter, projectCustomerName } from '../utils/project'
 import ProjectScheduleCalendar, { CalendarEntry, type CalendarFocus } from './ProjectScheduleCalendar'
 import ScheduleSearch from './ScheduleSearch'
@@ -34,293 +33,48 @@ import { setNewProjectPrefill } from './newProjectPrefill'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { shiftISO, hhmmToMin, minToHHMM, toDateStr } from '../utils/calendarHelpers'
 import { useToast, ToastHost } from '../components/useToast'
-import { ConfirmDialog } from '../components/ConfirmDialog'
-import { DateTimeInput } from '../components/DateTimeInput'
 import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
-import { getVorschlaege, patchVormerkung, type Vormerkung } from '../../api/admin/hagelschadenDispo'
+import { patchVormerkung, type Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { VorschlagPanel } from './hagelschaden/dispo/VorschlagPanel'
 import {
   findStaffOverlaps, formatStaffOverlaps, isVorschlag, VORSCHLAG_PREFIX, vorschlagVerschoben,
   type PlannedSlot,
 } from './scheduleShared'
 import { STATUS_LABELS as VORSCHLAG_STATUS } from './hagelschaden/dispo/dispoFormat'
-import { getAllProjectSkills, getSkillMatrix, type Skill, type StaffSkill } from '../../api/admin/skills'
 import { anforderung, fehlende, pillenJeMitarbeiter } from '../utils/skillMatch'
 import { SkillPill } from '../components/SkillPills'
-
-interface StaffLite {
-  id: string
-  name: string
-  projektleiter: boolean
-  // Personal-Kürzel (z.B. "MW") — steht im Tagesplan vorne auf dem Balken.
-  kuerzel?: string | null
-}
-
-interface CustomerLite {
-  id: string
-  name: string | null
-  billing_name: string | null
-}
-
-// Projekt-Stammdaten im Panel. Die TERMINE liegen seit Phase 2 nicht mehr hier,
-// sondern in project_appointments (eigener Editor-State ApptFormState).
-interface FormState {
-  id: string
-  name: string
-  kind: ProjectKind
-  customerId: string
-  projektleiterId: string
-  monteurIds: string[]
-  bemerkung: string
-}
-
-// ─── Serientermine ──────────────────────────────────────────────────────────
-// Die Auswahl im Editor ist bewusst eine flache Liste gängiger Muster statt
-// «alle N Tage/Wochen/Monate» mit eigenem Zahlenfeld — die fünf decken ab, was
-// in der Disposition vorkommt (Sitzung, Werkstatt-Tag, Monatsrapport), und
-// ersparen zwei Eingabefelder. Umgesetzt wird jedes Muster als freq+interval.
-
-type RepeatPreset = '' | 'daily' | 'workdays' | 'weekly' | 'biweekly' | 'monthly'
-
-const REPEAT_LABELS: Record<Exclude<RepeatPreset, ''>, string> = {
-  daily: 'Täglich',
-  workdays: 'Werktags (Mo–Fr)',
-  weekly: 'Wöchentlich',
-  biweekly: 'Alle 2 Wochen',
-  monthly: 'Monatlich (gleicher Tag)',
-}
-
-function repeatToRecurrence(preset: RepeatPreset, until: string): AppointmentRecurrence | null {
-  if (!preset) return null
-  const map: Record<Exclude<RepeatPreset, ''>, AppointmentRecurrence> = {
-    daily:    { freq: 'daily', interval: 1 },
-    workdays: { freq: 'workdays', interval: 1 },
-    weekly:   { freq: 'weekly', interval: 1 },
-    biweekly: { freq: 'weekly', interval: 2 },
-    monthly:  { freq: 'monthly', interval: 1 },
-  }
-  return { ...map[preset], until }
-}
-
-// Editor für EINEN Termin (id = null → neuer Termin).
-//
-// Das Termin-Modell ist `AppointmentDraft` aus projectAppointments.ts — dasselbe,
-// das der Projekt-Detail-Editor nutzt (Charge H, H4 Punkt 2). Vorher stand hier
-// ein zweites, feldgleiches Modell; Payload-Bau und Validierung liefen doppelt.
-// Hinzu kommen nur die Felder, die es im Detail-Editor nicht gibt: Serien und die
-// Monteur-Pflicht beim Aufziehen im Kalender.
-type ApptFormState = AppointmentDraft & {
-  // Beim Aufziehen eines neuen Termins gesetzt: mind. ein Monteur ist Pflicht.
-  requireMonteur?: boolean
-  // Serie, zu der dieser Termin gehört (null = Einzeltermin). Nur bei einem
-  // BESTEHENDEN Termin gesetzt — beim Anlegen entsteht sie erst serverseitig.
-  seriesId: string | null
-  // Reichweite einer Änderung am bestehenden Serientermin (Spec
-  // einsatzplanung-rueckmeldungen-2026-10.md §3): nur dieser, dieser und
-  // folgende, ganze Serie. Default «nur dieser» — ein versehentliches «Serie»
-  // trifft Dutzende Termine.
-  scope: AppointmentScope
-  // Gespeicherte Regel (null = Serie von vor 20261024, der Server leitet sie ab).
-  seriesRule: SeriesRule | null
-  // «Serie bis»: Ende beim Öffnen und das bearbeitete. Ungleich = verlängern
-  // oder verkürzen.
-  seriesUntilOriginal: string
-  seriesUntil: string
-  // Neuer Rhythmus ab diesem Termin ('' = unverändert), nur mit «folgende».
-  seriesRhythm: RepeatPreset
-  // Startdatum beim Öffnen — ein anderes heisst bei Serien-Reichweite «verschieben».
-  originalStartDate: string
-  // Wiederholung eines NEUEN Termins ('' = Einzeltermin). Eine Serie braucht ein
-  // Ende — repeatUntil ist Pflicht, sobald ein Muster gewählt ist.
-  repeat: RepeatPreset
-  repeatUntil: string
-}
-
-// Serien-Felder in ihrem Ausgangszustand — an drei Stellen gebraucht
-// (bestehender Termin laden, leerer Termin, aufgezogener Slot).
-const EMPTY_SERIES_FIELDS = {
-  scope: 'single' as AppointmentScope,
-  seriesRule: null as SeriesRule | null,
-  seriesUntilOriginal: '',
-  seriesUntil: '',
-  seriesRhythm: '' as RepeatPreset,
-  originalStartDate: '',
-  repeat: '' as RepeatPreset,
-  repeatUntil: '',
-}
-
-// Ein per Drag im Kalender aufgezogener, noch nicht zugeordneter Termin. Wird
-// beim Wählen eines Projekts oder Anlegen eines internen Einsatzes übernommen.
-interface PendingSlot {
-  startDate: string
-  endDate: string
-  startTime: string
-  endTime: string
-  monteurIds: string[]
-}
-
-// Kalender-Einträge: EIN Eintrag je Termin. id = Termin-ID (eindeutige Keys/
-// Lanes/Drag), Terminfelder überlagern das Projekt; Team = Termin-Team,
-// Fallback Projekt-Team. Termine geschlossener/archivierter/gefilterter Projekte
-// fehlen. Zweimal gebraucht: für den Kalender (mit Projektleiter-Filter) und für
-// die Doppelbelegungs-Warnung (ohne).
-function appointmentEntries(projectList: ScheduleProject[], appointments: ProjectAppointment[]): CalendarEntry[] {
-  const projById = new Map(projectList.map(p => [p.id, p]))
-  const entries: CalendarEntry[] = []
-  for (const a of appointments) {
-    const p = projById.get(a.project_id)
-    if (!p) continue
-    entries.push({
-      ...p,
-      id: a.id,
-      start_date: a.start_date,
-      end_date: a.end_date ?? a.start_date,
-      start_time: a.start_time,
-      end_time: a.end_time,
-      monteur_ids: (a.monteur_ids && a.monteur_ids.length ? a.monteur_ids : p.monteur_ids) ?? [],
-      termin_badge: p.kind === 'project' && a.kind !== DEFAULT_APPOINTMENT_KIND
-        ? (a.kind === 'sonstiges' && a.label ? a.label : APPOINTMENT_KIND_LABELS[a.kind])
-        : undefined,
-      termin_kind: p.kind === 'project' ? a.kind : undefined,
-    })
-  }
-  return entries
-}
-
-function projectToForm(p: ScheduleProject): FormState {
-  return {
-    id: p.id,
-    name: p.name,
-    kind: (p.kind || 'project') as ProjectKind,
-    customerId: p.customer_id ?? '',
-    projektleiterId: p.projektleiter_id ?? '',
-    monteurIds: p.monteur_ids ?? [],
-    bemerkung: p.bemerkung ?? '',
-  }
-}
-
-function apptToForm(a: ProjectAppointment): ApptFormState {
-  const until = a.series_rule?.until ?? ''
-  return {
-    ...apptToDraft(a), seriesId: a.series_id ?? null, ...EMPTY_SERIES_FIELDS,
-    seriesRule: a.series_rule ?? null,
-    seriesUntilOriginal: until,
-    seriesUntil: until,
-    originalStartDate: a.start_date?.slice(0, 10) ?? '',
-  }
-}
-
-function emptyApptForm(kind: AppointmentKind = 'montage'): ApptFormState {
-  return { ...emptyDraft(kind), seriesId: null, ...EMPTY_SERIES_FIELDS }
-}
-
-// «+ Termin» am Projekt: gleicher Ausgangsstand wie in der Projektmaske —
-// «eigenes Team» ist gesetzt, die Monteur-Auswahl steht also sofort offen.
-function newApptForm(kind: AppointmentKind = 'montage'): ApptFormState {
-  return { ...newAppointmentDraft(kind), seriesId: null, ...EMPTY_SERIES_FIELDS }
-}
-
-function slotToApptForm(slot: PendingSlot, kind: AppointmentKind = 'montage'): ApptFormState {
-  return {
-    ...emptyDraft(kind),
-    startDate: slot.startDate,
-    endDate: slot.endDate,
-    startTime: slot.startTime,
-    endTime: slot.endTime,
-    ownTeam: slot.monteurIds.length > 0,
-    monteurIds: [...slot.monteurIds],
-    // Ein aufgezogener Slot ohne Monteur wäre ein Termin, den niemand sieht.
-    requireMonteur: true,
-    seriesId: null,
-    ...EMPTY_SERIES_FIELDS,
-  }
-}
-
-// 'YYYY-MM-DD' → z.B. "Di, 30.06." für Termin-Zeilen im Panel.
-function fmtSlotDate(iso: string): string {
-  if (!iso) return ''
-  return new Date(`${iso}T00:00:00`).toLocaleDateString('de-CH', {
-    weekday: 'short', day: '2-digit', month: '2-digit',
-  })
-}
-
-function fmtApptRow(a: ProjectAppointment): string {
-  const from = fmtSlotDate(a.start_date)
-  const to = a.end_date && a.end_date !== a.start_date ? ` – ${fmtSlotDate(a.end_date)}` : ''
-  const t = a.start_time
-    ? `${a.start_time.slice(0, 5)}${a.end_time ? `–${a.end_time.slice(0, 5)}` : ''}`
-    : 'ganztägig'
-  return `${from}${to} · ${t}`
-}
-
-// Vorbelegter Titel eines neuen internen Einsatzes. Beim Blocker hängt er an
-// der Konfiguration: pflegt der Mandant Blocker-Kategorien, bleibt das Feld LEER
-// und die Auswahl entscheidet. Sonst stünden im Kalender wieder fünf Kacheln
-// namens «Blocker» nebeneinander, und niemand weiss mehr, wofür sie stehen.
-// Ohne gepflegte Kategorien bleibt es beim bisherigen Verhalten.
-function internalFormTitle(kind: ProjectKind, blockerCategories: string[] = []): string {
-  if (kind === 'blocker' && blockerCategories.length > 0) return ''
-  return PROJECT_KIND_LABELS[kind]
-}
-
-// Ein geleertes Feld muss beim Ändern als `''` ankommen: der PATCH filtert `null`
-// weg (agents/routers/admin_projects.py, `_LEERBAR`), der Eintrag bliebe stehen,
-// während die Planung «Eintrag aktualisiert» meldet. Beim Anlegen dagegen `null`
-// — dort gibt es nichts zu leeren, und `''` landete als Wert in der Zeile.
-function leerbar(value: string, isUpdate: boolean): string | null {
-  return value || (isUpdate ? '' : null)
-}
-
-function emptyInternalForm(kind: ProjectKind, blockerCategories: string[] = []): FormState {
-  return {
-    id: '',
-    name: internalFormTitle(kind, blockerCategories),
-    kind,
-    customerId: '',
-    projektleiterId: '',
-    monteurIds: [],
-    bemerkung: '',
-  }
-}
-
-// Zeitfenster der geladenen Termine rund um heute (Tage) — deckt jede
-// realistische Kalender-Navigation ab, ohne Range-State durchzureichen.
-const APPT_WINDOW_BACK_DAYS = 400
-const APPT_WINDOW_AHEAD_DAYS = 600
-// Das nahe Fenster kommt zuerst: geplant wird fast nur in den nächsten 100
-// Tagen (Gehlhaar 20261106: 600 der 2'310 Termine im vollen Fenster liegen
-// darin). Der Kalender steht, sobald es da ist; das volle Fenster läuft
-// parallel und ersetzt es, sobald es eintrifft — eine Obermenge davon.
-const NEAR_WINDOW_BACK_DAYS = 14
-const NEAR_WINDOW_AHEAD_DAYS = 100
-
-// Live-Aktualisierung: alle 2 s nur der Fingerabdruck (getScheduleStand);
-// Projekte bzw. Termine kommen erst, wenn sich ihr Wert geändert hat.
-// Absenzen und Mitarbeiter (ändern sich selten) höchstens einmal pro Minute,
-// beide Listen alle 5 Minuten voll als Netz. Siehe refreshLive().
-const LIVE_REFRESH_MS = 2000
-const SLOW_REFRESH_MS = 60_000
-const FULL_SYNC_MS = 5 * 60_000
-
-// Liegt der Termin im Fenster [from, to]? Dieselbe Regel wie der Server bei
-// GET /admin/appointments (db/project_appointments.py::list_project_appointments).
-function overlapsWindow(a: ProjectAppointment, from: string, to: string): boolean {
-  const start = a.start_date.slice(0, 10)
-  if (start > to) return false
-  return a.end_date ? a.end_date.slice(0, 10) >= from : start >= from
-}
-
-// Gleiche Zeilen wie vorher? Dann den alten Array behalten — kein Re-Render der
-// Tafel, keine neue Distanz-Signatur, keine Unruhe beim Tippen im Panel.
-function sameRows<T>(a: T[], b: T[]): boolean {
-  return a.length === b.length && JSON.stringify(a) === JSON.stringify(b)
-}
+import {
+  repeatToRecurrence,
+  appointmentEntries,
+  projectToForm,
+  apptToForm,
+  emptyApptForm,
+  newApptForm,
+  slotToApptForm,
+  fmtSlotDate,
+  internalFormTitle,
+  leerbar,
+  emptyInternalForm,
+  APPT_WINDOW_BACK_DAYS,
+  APPT_WINDOW_AHEAD_DAYS,
+  LIVE_REFRESH_MS,
+  overlapsWindow,
+  type CustomerLite,
+  type FormState,
+  type ApptFormState,
+  type PendingSlot,
+} from './scheduleScreenModel'
 
 interface Props {
   canton?: string
   onNav?: (screen: AdminScreen, detailId?: string) => void
   /** Ebene «Vorschläge» der Hagelschaden-Disposition (Modul + Feature). */
   hagelVorschlaege?: boolean
+  /** Servicebegleitung, Unterwegs-Meldung: Stand der heutigen Einsätze in der Plantafel. */
+  einsatzStand?: boolean
+  /** Servicebegleitung, Terminwahl: Reservationen; `ohneBoard` zeigt zusätzlich den Zähler. */
+  terminwahl?: boolean
+  ohneBoard?: boolean
 }
 
 const VORSCHLAEGE_KEY = 'einsatzplanung-vorschlaege-zeigen'
@@ -329,22 +83,16 @@ function vorschlaegeZeigenGespeichert(): boolean {
   try { return window.localStorage.getItem(VORSCHLAEGE_KEY) !== '0' } catch { return true }
 }
 
-export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorschlaege = false }: Props) {
-  const [projects, setProjects] = useState<ScheduleProject[]>([])
-  const [appointments, setAppointments] = useState<ProjectAppointment[]>([])
-  // Genehmigte Absenzen im geladenen Fenster — Markierung in der Plantafel.
-  const [absences, setAbsences] = useState<ScheduleAbsence[]>([])
-  // Vorgemerkte Hagel-Einsätze (keine Termine) — gestrichelte Ebene, Phase 2b.
-  const [vorschlaege, setVorschlaege] = useState<Vormerkung[]>([])
-  // Skill-Pillen (Spec mitarbeiterdisposition-faehigkeiten-routen.md §4): wer für
-  // einen Einsatz passt, markiert an den Team-Chips. Fehlt etwas, bleibt die
-  // Markierung einfach weg — geplant wird wie bisher.
-  const [skillKatalog, setSkillKatalog] = useState<Skill[]>([])
-  const [staffPillen, setStaffPillen] = useState<StaffSkill[]>([])
-  const [projektPillen, setProjektPillen] = useState<Map<string, string[]>>(new Map())
+export default function ProjectScheduleScreen({
+  canton = 'ZH', onNav, hagelVorschlaege = false, einsatzStand = false, terminwahl = false, ohneBoard = false,
+}: Props) {
+  const einsatzStaende = useEinsatzStaende(einsatzStand)
+  const twPlanung = useTerminwahlPlanung(terminwahl, terminwahl && ohneBoard)
+  // §7.3: ein Termin über einer Reservation warnt in derselben Rückfrage wie die Doppelbelegung.
+  const reservationWarnung = (slot: PlannedSlot) => reservationHinweis(
+    twPlanung.reservationen, slot, staffLite, id => projects.find(p => p.id === id)?.name ?? 'Projekt') ?? ''
   const [vorschlaegeZeigen, setVorschlaegeZeigen] = useState(vorschlaegeZeigenGespeichert)
   const [vorschlagOffen, setVorschlagOffen] = useState<Vormerkung | null>(null)
-  const [staff, setStaff] = useState<StaffLite[]>([])
   // Kundenstamm: nur für die «Kunde»-Auswahl im Planungs-Panel. Er lag früher im
   // Erst-Ladepaket des Kalenders und hielt ihn auf — eine volle Tabelle, die der
   // Planer erst sieht, wenn er das Panel überhaupt öffnet.
@@ -364,7 +112,6 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     () => (schedulingConfig?.blocker_categories ?? []).map(c => c.trim()).filter(Boolean),
     [schedulingConfig],
   )
-  const [loading, setLoading] = useState(true)
   const [form, setForm] = useState<FormState | null>(null)
   const [apptForm, setApptForm] = useState<ApptFormState | null>(null)
   const [saving, setSaving] = useState(false)
@@ -382,132 +129,34 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   const [absencePrompt, setAbsencePrompt] = useState<
     { message: string; onConfirm: () => void; onCancel?: () => void; kind?: 'absence' | 'overlap' } | null
   >(null)
+  // Projekte, Termine, Absenzen, Mitarbeiter, Vorschläge und Skills samt
+  // Live-Aktualisierung (seit Charge M4b in useScheduleData).
+  const {
+    projects, appointments, setAppointments, absences, vorschlaege, setVorschlaege,
+    skillKatalog, staffPillen, projektPillen, staff, loading,
+    beginWrite, endWrite, verwerfeLaufendeAbrufe, refreshLive, ladeVorschlaege, loadAll,
+  } = useScheduleData({ hagelVorschlaege, showToast, pausiert: absencePrompt !== null })
+  // Vor den Handlern deklariert, die sie lesen (Doppelbelegungs-Prüfung): der
+  // React Compiler bewahrt die Memoisierung sonst nicht (preserve-manual-memoization).
+  const staffLite = useMemo(
+    () => staff.map(s => ({ id: s.id, name: s.name, kuerzel: s.kuerzel })),
+    [staff],
+  )
+
+  // Für die Doppelbelegungs-Warnung (WW-70) alle Termine, auch die, die der
+  // Projektleiter-Filter gerade ausblendet: ein Monteur ist auch dann besetzt,
+  // wenn sein anderer Einsatz einem anderen Projektleiter gehört.
+  const allEntries = useMemo(() => appointmentEntries(projects, appointments), [projects, appointments])
   const [visibleWeekIso, setVisibleWeekIso] = useState<string>('')
   const [visibleStaffIds, setVisibleStaffIds] = useState<string[] | null>(null)
   const [exporting, setExporting] = useState(false)
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
 
-  // Aufgaben (Checkliste) des im Panel geöffneten Projekts
-  const [tasks, setTasks] = useState<ProjectTask[]>([])
-  const [tasksLoading, setTasksLoading] = useState(false)
-  const [newTaskText, setNewTaskText] = useState('')
-  const [taskBusy, setTaskBusy] = useState(false)
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-  const [editingTaskText, setEditingTaskText] = useState('')
 
   // Picker-State
   const [pickerSearch, setPickerSearch] = useState('')
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerWrapRef = useRef<HTMLDivElement>(null)
-
-  // ─── Live-Aktualisierung ────────────────────────────────────────────────
-  // Termine, die anderswo entstehen (Projektmaske, ein Kollege, die App),
-  // erschienen hier bisher erst nach Verlassen und Wiederöffnen der Ansicht.
-  // Jetzt fragt die Ansicht alle 2 s nach — still (kein Spinner, kein Toast),
-  // nur bei sichtbarem Tab und nie zwei Abrufe übereinander
-  // (useVisibilityPolling). Unveränderte Antworten lösen kein Re-Render aus
-  // (sameRows); die Fahrdistanzen fragt die Tafel erst nach ein paar Sekunden
-  // Ruhe an (scheduleShared.ts, DISTANCE_SETTLE_MS).
-  //
-  // Gefragt wird seit 20261106 nur der Fingerabdruck (`standRef`), nicht mehr
-  // die Listen selbst: bis dahin holte jeder Takt alle Projekte und das volle
-  // Terminfenster, rund 4 MB alle 2 s — 159 GB Railway-Egress in zehn Tagen,
-  // und der Browser verglich dabei jedes Mal zwei Mal 4 MB Text (sameRows).
-  //
-  // Eigene Änderungen haben Vorrang: `localGen` zählt jede lokale Änderung,
-  // und ein Abruf, der davor gestartet ist, wird verworfen — sonst spränge ein
-  // eben verschobener Einsatz für 2 s an seinen alten Platz zurück.
-  // `pendingWrites` hält den Abruf an, solange ein optimistisch angezeigtes
-  // Verschieben noch nicht beim Server ist.
-  const localGen = useRef(0)
-  const pendingWrites = useRef(0)
-  const lastSlowRefresh = useRef(0)
-  const lastFullSync = useRef(0)
-  // Der Fingerabdruck, zu dem die angezeigten Listen gehören.
-  const standRef = useRef<ScheduleStand | null>(null)
-  // Liegt das volle Terminfenster vor, oder erst das nahe (erste Sekunde nach
-  // dem Öffnen)? Ohne volles Fenster holt der nächste Takt die Termine.
-  const fullLoaded = useRef(false)
-  // Gestaffelt geladen wird nur beim ERSTEN Öffnen. Nach einer eigenen Änderung
-  // (loadAll aus handleSave & Co.) ersetzte das nahe Fenster sonst kurz das
-  // volle — wer gerade in fünf Monaten plant, sähe seine Woche leer blinken.
-  const loadedOnce = useRef(false)
-  // Klammer um jeden eigenen Schreibvorgang (Speichern, Verschieben, Löschen).
-  function beginWrite() { pendingWrites.current += 1; localGen.current += 1 }
-  function endWrite() { pendingWrites.current -= 1; localGen.current += 1 }
-
-  async function refreshLive() {
-    if (loading || absencePrompt || pendingWrites.current > 0) return
-    const gen = localGen.current
-    const todayIso = toDateStr(new Date())
-    const now = Date.now()
-    const slowDue = now - lastSlowRefresh.current >= SLOW_REFRESH_MS
-    const fullSyncDue = now - lastFullSync.current >= FULL_SYNC_MS
-    // Erst der Fingerabdruck, DANN die Listen: was sich zwischen den beiden
-    // Abrufen ändert, steckt schon in den Listen und meldet sich beim nächsten
-    // Takt noch einmal als Änderung — schlimmstenfalls ein Abruf zu viel, nie
-    // einer zu wenig.
-    const stand = await getScheduleStand()
-    const prev = standRef.current
-    // Ohne Fingerabdruck (Route oder Datenbank-Funktion nicht erreichbar) wird
-    // blind voll abgeglichen — aber nur im Minutentakt, nicht alle 2 s wie früher.
-    const changed = (k: keyof ScheduleStand) =>
-      stand === null ? slowDue : fullSyncDue || prev === null || stand[k] !== prev[k]
-    const needProjects = changed('projekte')
-    const needAppts = changed('termine') || (stand !== null && !fullLoaded.current)
-    if (!needProjects && !needAppts && !slowDue) return
-    try {
-      // Anders als loadAll ohne `.catch(() => [])`: ein fehlgeschlagener
-      // Hintergrund-Abruf darf die Tafel nicht leeren — er fällt aus, der
-      // nächste Takt versucht es wieder (der Fingerabdruck bleibt dafür alt).
-      const [proj, appts, abs, st] = await Promise.all([
-        needProjects ? getScheduleProjects() : null,
-        needAppts
-          ? listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
-          : null,
-        slowDue ? listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS)) : null,
-        slowDue ? getAdminStaff() : null,
-      ])
-      if (gen !== localGen.current || pendingWrites.current > 0) return
-      if (proj) setProjects(prev => sameRows(prev, proj) ? prev : proj)
-      if (appts) {
-        setAppointments(prev => sameRows(prev, appts) ? prev : appts)
-        fullLoaded.current = true
-      }
-      if (abs) setAbsences(prev => sameRows(prev, abs) ? prev : abs)
-      if (st) setStaff(prev => sameRows(prev, st) ? prev : st)
-      if (stand) standRef.current = stand
-      if (proj && appts) lastFullSync.current = Date.now()
-      if (slowDue) {
-        lastSlowRefresh.current = Date.now()
-        void ladeVorschlaege()
-      void ladeSkills()
-      }
-    } catch {
-      // still — siehe oben
-    }
-  }
-
-  // Vorschläge laden — still bei Fehlern: ohne Ebene plant man wie bisher.
-  async function ladeSkills() {
-    try {
-      const [m, p] = await Promise.all([getSkillMatrix(), getAllProjectSkills()])
-      setSkillKatalog(m.skills)
-      setStaffPillen(m.cells)
-      const map = new Map<string, string[]>()
-      for (const r of p.project_skills) map.set(r.project_id, [...(map.get(r.project_id) ?? []), r.skill_id])
-      setProjektPillen(map)
-    } catch { /* still: ohne Pillen keine Markierung */ }
-  }
-
-  async function ladeVorschlaege() {
-    if (!hagelVorschlaege) return
-    const todayIso = toDateStr(new Date())
-    try {
-      const r = await getVorschlaege(shiftISO(todayIso, -7), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
-      setVorschlaege(prev => sameRows(prev, r.vorschlaege) ? prev : r.vorschlaege)
-    } catch { /* still */ }
-  }
 
   function vorschlaegeUmschalten() {
     setVorschlaegeZeigen(v => {
@@ -516,67 +165,6 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
     })
   }
 
-  async function loadAll() {
-    localGen.current += 1
-    const gen = localGen.current
-    fullLoaded.current = false
-    setLoading(true)
-    const todayIso = toDateStr(new Date())
-    // Fingerabdruck zuerst abschicken: er ist die Basis, gegen die der
-    // Live-Takt vergleicht (Reihenfolge-Begründung bei refreshLive).
-    const standP = getScheduleStand()
-    // Das volle Terminfenster läuft PARALLEL zum nahen. Der Kalender wartet
-    // nicht darauf; es ersetzt das nahe Fenster, sobald es da ist. Bei Gehlhaar
-    // sind das drei Seiten à 1000 Termine nacheinander beim Server — die
-    // musste der Kalender bis 20261106 abwarten, bevor er etwas zeigte.
-    const fullP = listAppointments(shiftISO(todayIso, -APPT_WINDOW_BACK_DAYS), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
-      .catch(() => null)
-    const firstP = loadedOnce.current
-      ? fullP.then(full => full ?? [])
-      : listAppointments(shiftISO(todayIso, -NEAR_WINDOW_BACK_DAYS), shiftISO(todayIso, NEAR_WINDOW_AHEAD_DAYS))
-        .catch(() => [] as ProjectAppointment[])
-    let ok = false
-    try {
-      const [proj, appts, abs, st] = await Promise.all([
-        // /projects/schedule statt /projects: schon server-seitig auf planbare
-        // Projekte gefiltert, ohne Offerten-/Rechnungs-Embeds und nur mit den
-        // Feldern, die der Kalender liest (SCHEDULE_PROJECT_FIELDS).
-        getScheduleProjects(),
-        firstP,
-        // Absenzen nur für das Fenster, in dem geplant wird — rückwärts kurz
-        // (die Vergangenheit ändert niemand mehr), vorwärts so weit wie die
-        // Termine. Fehler bleiben still: ohne Markierung plant man wie bisher,
-        // und die Sperre sitzt ohnehin serverseitig.
-        listScheduleAbsences(shiftISO(todayIso, -60), shiftISO(todayIso, APPT_WINDOW_AHEAD_DAYS))
-          .catch(() => [] as ScheduleAbsence[]),
-        getAdminStaff(),
-      ])
-      setProjects(proj)
-      setAppointments(appts)
-      setAbsences(abs)
-      setStaff(st)
-      lastSlowRefresh.current = Date.now()
-      loadedOnce.current = true
-      ok = true
-      void ladeVorschlaege()
-    } catch {
-      showToast('Daten konnten nicht geladen werden.', 'error')
-    } finally {
-      setLoading(false)
-    }
-    // Erst nach dem nahen Fenster einhängen: so ersetzt das volle es immer,
-    // nie umgekehrt. Hat inzwischen eine eigene Änderung stattgefunden, ist
-    // das Ergebnis veraltet — dann holt der nächste Takt die Termine
-    // (fullLoaded bleibt false).
-    const [full, stand] = await Promise.all([fullP, standP])
-    if (gen !== localGen.current) return
-    if (full) {
-      setAppointments(full)
-      fullLoaded.current = true
-    }
-    standRef.current = stand
-    if (ok && full) lastFullSync.current = Date.now()
-  }
 
   // «Serie bis» beim Öffnen eines Serientermins: das echte Ende steht in den
   // Zeilen, nicht im geladenen Kalenderfenster — deshalb die Termine des
@@ -660,78 +248,9 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   // Escape und Backdrop-Klick der Serien-Rückfrage kommen vom ConfirmDialog.
 
   // ─── Aufgaben ─────────────────────────────────────────────────────────────
-  // Die Checkliste hängt am einzelnen Projekt und wird deshalb erst beim Öffnen
-  // im Panel geladen — nicht in loadAll, das den ganzen Kalender füllt.
-  useEffect(() => {
-    setEditingTaskId(null)
-    setEditingTaskText('')
-    setNewTaskText('')
-    const pid = form?.id
-    if (!panelOpen || !pid) {
-      setTasks([])
-      return
-    }
-    let cancelled = false
-    setTasksLoading(true)
-    listAdminProjectTasks(pid)
-      .then(t => { if (!cancelled) setTasks(t) })
-      .catch(() => { if (!cancelled) setTasks([]) })
-      .finally(() => { if (!cancelled) setTasksLoading(false) })
-    return () => { cancelled = true }
-  }, [form?.id, panelOpen])
-
-  async function reloadTasks() {
-    if (!form?.id) return
-    try {
-      setTasks(await listAdminProjectTasks(form.id))
-    } catch { /* Liste bleibt wie sie ist */ }
-  }
-
-  async function handleAddTask() {
-    const text = newTaskText.trim()
-    if (!form?.id || !text || taskBusy) return
-    setTaskBusy(true)
-    try {
-      await addAdminProjectTask(form.id, text)
-      setNewTaskText('')
-      await reloadTasks()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Aufgabe konnte nicht angelegt werden.', 'error')
-    } finally {
-      setTaskBusy(false)
-    }
-  }
-
-  async function handleSaveTaskEdit() {
-    const text = editingTaskText.trim()
-    if (!form?.id || !editingTaskId || !text || taskBusy) return
-    setTaskBusy(true)
-    try {
-      await updateAdminProjectTask(form.id, editingTaskId, text)
-      setEditingTaskId(null)
-      setEditingTaskText('')
-      await reloadTasks()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Aufgabe konnte nicht gespeichert werden.', 'error')
-    } finally {
-      setTaskBusy(false)
-    }
-  }
-
-  async function handleDeleteTask(taskId: string) {
-    if (!form?.id || taskBusy) return
-    if (!window.confirm('Aufgabe wirklich löschen?')) return
-    setTaskBusy(true)
-    try {
-      await deleteAdminProjectTask(form.id, taskId)
-      setTasks(prev => prev.filter(t => t.id !== taskId))
-      if (editingTaskId === taskId) { setEditingTaskId(null); setEditingTaskText('') }
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Aufgabe konnte nicht gelöscht werden.', 'error')
-    } finally {
-      setTaskBusy(false)
-    }
-  }
+  // Die Checkliste des geöffneten Projekts: Zustand und Laden in useScheduleTasks,
+  // Darstellung in ScheduleTasksSection (beide seit Charge M4a).
+  const aufgaben = useScheduleTasks(form?.id, panelOpen, showToast)
 
   // Nächster (ab heute) Termin eines Projekts als Editor-State; ohne künftigen
   // Termin der letzte vergangene, ohne Termine null. «Ab heute» ist
@@ -811,7 +330,8 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
   function handleCalendarOpen(entry: ScheduleProject) {
     if (isVorschlag(entry.id)) {
       const v = vorschlagZu(entry.id)
-      if (v && onNav) onNav('projects', v.project_id)
+      const r = twPlanung.reservationen.find(x => `${RESERVATION_PREFIX}${x.id}` === entry.id)
+      if ((v || r) && onNav) onNav('projects', (v ?? r)!.project_id)
       return
     }
     const project = resolveEntryProject(entry)
@@ -936,14 +456,14 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       const team = teamChanged
         ? monteurIds!
         : ((appt.monteur_ids?.length ? appt.monteur_ids : projects.find(p => p.id === appt.project_id)?.monteur_ids) ?? [])
-      const hits = findStaffOverlaps(allEntries, {
-        start_date: newStartDate, end_date: newEndDate,
-        start_time: newStartTime, end_time: newEndTime, staffIds: team,
-      }, staffLite, [appt.id])
-      if (hits.length) {
+      const ziel = { start_date: newStartDate, end_date: newEndDate,
+        start_time: newStartTime, end_time: newEndTime, staffIds: team }
+      const hits = findStaffOverlaps(allEntries, ziel, staffLite, [appt.id])
+      const warnung = [hits.length ? formatStaffOverlaps(hits) : '', reservationWarnung(ziel)].filter(Boolean).join(' ')
+      if (warnung) {
         setAbsencePrompt({
           kind: 'overlap',
-          message: formatStaffOverlaps(hits),
+          message: warnung,
           onConfirm: () => void handleReschedule(id, deltaDays, startTime, monteurIds, true),
         })
         return
@@ -994,7 +514,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
             endWrite()
           }
         },
-        onCancel: () => { localGen.current += 1; revert() },
+        onCancel: () => { verwerfeLaufendeAbrufe(); revert() },
       })
     } finally {
       endWrite()
@@ -1044,7 +564,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       for (const a of appointments) if (a.series_id === apptForm.seriesId) exclude.add(a.id)
     }
     const hits = findStaffOverlaps(allEntries, slot, staffLite, exclude)
-    return hits.length ? formatStaffOverlaps(hits) : null
+    return [hits.length ? formatStaffOverlaps(hits) : '', reservationWarnung(slot)].filter(Boolean).join(' ') || null
   }
 
   /**
@@ -1320,10 +840,6 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
 
   const projektleiterOptions = useMemo(() => staff.filter(s => s.projektleiter), [staff])
   const monteurOptions = staff
-  const staffLite = useMemo(
-    () => staff.map(s => ({ id: s.id, name: s.name, kuerzel: s.kuerzel })),
-    [staff],
-  )
   const projektleiterFilterOptions = useMemo(
     () => projektleiterOptions
       .map(s => ({ id: s.id, name: s.name }))
@@ -1368,13 +884,10 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
         })
       }
     }
+    if (twPlanung.zeigen) entries.push(...reservationEntries(projById, twPlanung.reservationen))
     return entries
-  }, [filteredByPl, appointments, vorschlaege, vorschlaegeZeigen])
+  }, [filteredByPl, appointments, vorschlaege, vorschlaegeZeigen, twPlanung.zeigen, twPlanung.reservationen])
 
-  // Für die Doppelbelegungs-Warnung (WW-70) alle Termine, auch die, die der
-  // Projektleiter-Filter gerade ausblendet: ein Monteur ist auch dann besetzt,
-  // wenn sein anderer Einsatz einem anderen Projektleiter gehört.
-  const allEntries = useMemo(() => appointmentEntries(projects, appointments), [projects, appointments])
 
   const scheduledProjectIds = useMemo(
     () => new Set(appointments.map(a => a.project_id)),
@@ -1488,6 +1001,10 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
             value={projektleiterFilter}
             onChange={setProjektleiterFilter}
           />
+          {terminwahl && (
+            <TerminwahlLeiste planung={twPlanung} onOpenProject={onNav ? id => onNav('projects', id) : undefined}
+              projektName={id => projects.find(p => p.id === id)?.name ?? 'Projekt'} />
+          )}
           {hagelVorschlaege && (
             <button
               className="admin-btn admin-btn-secondary"
@@ -1550,6 +1067,7 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
             configPending={configPending && !schedulingConfig}
             absences={absences}
             focus={calendarFocus}
+            einsatzStaende={einsatzStaende}
           />
         </div>
 
@@ -1804,288 +1322,32 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                 <div className="project-schedule-divider" />
 
                 {showApptExtras && (
-                  <div className="project-schedule-field">
-                    <div className="project-schedule-field-head">
-                      <span>Termine</span>
-                      <button
-                        type="button"
-                        className="project-schedule-mini-btn"
-                        onClick={() => {
-                          // Vorbelegt aus der Art der Arbeit des Projekts (WW-67).
-                          const project = projects.find(p => p.id === form.id)
-                          setApptForm(newApptForm(suggestAppointmentKind(project, panelAppointments.map(a => a.kind))))
-                          setError(null)
-                        }}
-                      >
-                        + Termin
-                      </button>
-                    </div>
-                    {panelAppointments.length === 0 && !apptForm && (
-                      <div style={{ color: 'var(--muted)', fontSize: 12 }}>Noch keine Termine geplant.</div>
-                    )}
-                    {panelAppointments.map(a => (
-                      <div
-                        key={a.id}
-                        className={`project-schedule-appt-row${apptForm?.id === a.id ? ' active' : ''}`}
-                        onClick={() => { setApptForm(apptToForm(a)); setError(null) }}
-                      >
-                        <span className="project-schedule-appt-kind">
-                          {a.series_id && (
-                            <span title="Teil einer Serie" aria-label="Serientermin">🔁 </span>
-                          )}
-                          {a.kind === 'sonstiges' && a.label ? a.label : APPOINTMENT_KIND_LABELS[a.kind]}
-                        </span>
-                        <span className="project-schedule-appt-when">{fmtApptRow(a)}</span>
-                        <button
-                          type="button"
-                          className="admin-btn-icon danger"
-                          title={a.series_id ? 'Termin oder Serie entfernen' : 'Termin entfernen'}
-                          onClick={e => { e.stopPropagation(); requestDeleteAppt(a) }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <ScheduleApptList
+                    appointments={panelAppointments}
+                    activeId={apptForm?.id}
+                    editorOffen={apptForm !== null}
+                    onNew={() => {
+                      // Vorbelegt aus der Art der Arbeit des Projekts (WW-67).
+                      const project = projects.find(p => p.id === form.id)
+                      setApptForm(newApptForm(suggestAppointmentKind(project, panelAppointments.map(a => a.kind))))
+                      setError(null)
+                    }}
+                    onSelect={a => { setApptForm(apptToForm(a)); setError(null) }}
+                    onDelete={requestDeleteAppt}
+                  />
                 )}
 
                 {apptForm && (
-                  <>
-                    {showApptExtras && (
-                      <div className="project-schedule-row">
-                        <label className="project-schedule-field">
-                          <span>Termin-Typ</span>
-                          <select
-                            className="admin-input"
-                            value={apptForm.kind}
-                            onChange={e => setApptForm(a => a && ({ ...a, kind: e.target.value as AppointmentKind }))}
-                          >
-                            {APPOINTMENT_KINDS.map(k => (
-                              <option key={k} value={k}>{APPOINTMENT_KIND_LABELS[k]}</option>
-                            ))}
-                          </select>
-                        </label>
-                        {apptForm.kind === 'sonstiges' && (
-                          <label className="project-schedule-field">
-                            <span>Bezeichnung</span>
-                            <input
-                              className="admin-input"
-                              value={apptForm.label}
-                              onChange={e => setApptForm(a => a && ({ ...a, label: e.target.value }))}
-                              placeholder="z.B. Besprechung"
-                            />
-                          </label>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="project-schedule-row">
-                      <label className="project-schedule-field">
-                        <span>Start</span>
-                        <DateTimeInput
-                          type="date"
-                          className="admin-input"
-                          value={apptForm.startDate}
-                          onValueChange={v => setApptForm(a => {
-                            if (!a) return a
-                            // Enddatum vorbelegen bzw. nachziehen: leer oder vor dem Start → gleicher Tag.
-                            const endDate = (v && (!a.endDate || a.endDate < v)) ? v : a.endDate
-                            return { ...a, startDate: v, endDate }
-                          })}
-                        />
-                      </label>
-                      <label className="project-schedule-field">
-                        <span>Ende</span>
-                        <DateTimeInput
-                          type="date"
-                          className="admin-input"
-                          value={apptForm.endDate}
-                          min={apptForm.startDate || undefined}
-                          onValueChange={v => setApptForm(a => a && ({ ...a, endDate: v }))}
-                        />
-                      </label>
-                    </div>
-                    {/* WW-72: nur ein Hinweis, Speichern bleibt frei. Bei einem
-                        gespeicherten Termin erst, wenn sein Datum geändert wird —
-                        nicht schon beim Aufklappen eines alten. */}
-                    {(() => {
-                      const hint = (!apptForm.id || apptForm.startDate !== apptForm.originalStartDate)
-                        ? pastAppointmentHint(apptForm.startDate, apptForm.endDate, todayISO())
-                        : null
-                      return hint
-                        ? <div className="admin-form-hint-warn" role="status">{hint}</div>
-                        : null
-                    })()}
-
-                    <div className="project-schedule-row">
-                      <label className="project-schedule-field">
-                        <span>Startzeit</span>
-                        <DateTimeInput
-                          type="time"
-                          className="admin-input"
-                          value={apptForm.startTime}
-                          onValueChange={v => setApptForm(a => a && ({ ...a, startTime: v }))}
-                        />
-                      </label>
-                      <label className="project-schedule-field">
-                        <span>Endzeit</span>
-                        <DateTimeInput
-                          type="time"
-                          className="admin-input"
-                          value={apptForm.endTime}
-                          onValueChange={v => setApptForm(a => a && ({ ...a, endTime: v }))}
-                        />
-                      </label>
-                    </div>
-
-                    {/* Wiederholung beim ANLEGEN. Ein bestehender Serientermin
-                        ändert seine Serie unten über «Reichweite», «Serie bis»
-                        und «Rhythmus ab hier». */}
-                    {!apptForm.id && (
-                      <div className="project-schedule-row">
-                        <label className="project-schedule-field">
-                          <span>Wiederholung</span>
-                          <select
-                            className="admin-input"
-                            value={apptForm.repeat}
-                            onChange={e => setApptForm(a => a && ({ ...a, repeat: e.target.value as RepeatPreset }))}
-                          >
-                            <option value="">Einmalig</option>
-                            {(Object.keys(REPEAT_LABELS) as Exclude<RepeatPreset, ''>[]).map(k => (
-                              <option key={k} value={k}>{REPEAT_LABELS[k]}</option>
-                            ))}
-                          </select>
-                        </label>
-                        {apptForm.repeat && (
-                          <label className="project-schedule-field">
-                            <span>Serie bis<span className="project-schedule-req"> *</span></span>
-                            <DateTimeInput
-                              type="date"
-                              className="admin-input"
-                              value={apptForm.repeatUntil}
-                              min={apptForm.startDate || undefined}
-                              onValueChange={v => setApptForm(a => a && ({ ...a, repeatUntil: v }))}
-                            />
-                          </label>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Bestehender Serientermin: Reichweite wie in jedem Kalender
-                        (Spec einsatzplanung-rueckmeldungen-2026-10.md §3). Ein
-                        neues Datum verschiebt bei «folgende»/«Serie» um gleich
-                        viele Tage; «Serie bis» verlängert oder verkürzt; ein neuer
-                        Rhythmus gilt ab hier. Eins davon pro Speichern. */}
-                    {apptForm.id && apptForm.seriesId && (
-                      <div className="project-schedule-field">
-                        <label className="project-schedule-field">
-                          <span>
-                            🔁 Änderung gilt für
-                            {describeRule(apptForm.seriesRule) && ` (Serie ${describeRule(apptForm.seriesRule)})`}
-                          </span>
-                          <select
-                            className="admin-input"
-                            value={apptForm.scope}
-                            onChange={e => setApptForm(a => a && ({
-                              ...a,
-                              scope: e.target.value as AppointmentScope,
-                              // Ein neuer Rhythmus gilt nur «ab hier».
-                              seriesRhythm: e.target.value === 'following' ? a.seriesRhythm : '',
-                            }))}
-                          >
-                            {(Object.keys(SCOPE_LABELS) as AppointmentScope[]).map(s => (
-                              <option key={s} value={s}>{SCOPE_LABELS[s]}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <div className="project-schedule-lead-hint">{scopeHint(apptForm.scope)}</div>
-                        {apptForm.scope !== 'single' && (
-                          <div className="project-schedule-row">
-                            <label className="project-schedule-field">
-                              <span>Serie bis</span>
-                              <DateTimeInput
-                                type="date"
-                                className="admin-input"
-                                value={apptForm.seriesUntil}
-                                min={apptForm.startDate || undefined}
-                                onValueChange={v => setApptForm(a => a && ({ ...a, seriesUntil: v }))}
-                              />
-                            </label>
-                            {apptForm.scope === 'following' && (
-                              <label className="project-schedule-field">
-                                <span>Rhythmus ab hier</span>
-                                <select
-                                  className="admin-input"
-                                  value={apptForm.seriesRhythm}
-                                  onChange={e => setApptForm(a => a && ({ ...a, seriesRhythm: e.target.value as RepeatPreset }))}
-                                >
-                                  <option value="">Unverändert</option>
-                                  {(Object.keys(REPEAT_LABELS) as Exclude<RepeatPreset, ''>[]).map(k => (
-                                    <option key={k} value={k}>{REPEAT_LABELS[k]}</option>
-                                  ))}
-                                </select>
-                              </label>
-                            )}
-                          </div>
-                        )}
-                        {apptForm.scope !== 'single' && apptForm.seriesUntil
-                          && apptForm.seriesUntilOriginal && apptForm.seriesUntil < apptForm.seriesUntilOriginal
-                          && !apptForm.seriesRhythm && (
-                          <div className="project-schedule-lead-hint">
-                            Verkürzen entfernt die Termine nach dem {fmtSlotDate(apptForm.seriesUntil)}.
-                            Termine, an denen schon rapportiert wurde, bleiben stehen — dann wird nicht gekürzt.
-                          </div>
-                        )}
-                        {apptForm.seriesRhythm && (
-                          <div className="project-schedule-lead-hint">
-                            Dieser und alle folgenden Termine werden durch eine neue Serie
-                            ersetzt — {REPEAT_LABELS[apptForm.seriesRhythm as Exclude<RepeatPreset, ''>]}
-                            {apptForm.seriesUntil ? ` bis ${fmtSlotDate(apptForm.seriesUntil)}` : ''}.
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {showApptExtras && (
-                      <div className="project-schedule-field">
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
-                          <input
-                            type="checkbox"
-                            checked={apptForm.ownTeam}
-                            onChange={e => setApptForm(a => a && ({ ...a, ownTeam: e.target.checked }))}
-                          />
-                          Eigenes Team für diesen Termin
-                          {apptForm.requireMonteur && <span className="project-schedule-req"> *</span>}
-                        </label>
-                        {apptForm.kind !== 'montage' || apptForm.ownTeam ? brauchtZeile(terminBraucht) : null}
-                        {apptForm.ownTeam && (
-                          <div className="project-schedule-monteur-chips" style={{ marginTop: 6 }}>
-                            {monteurOptions.map(s => {
-                              const active = apptForm.monteurIds.includes(s.id)
-                              const lead = apptForm.monteurIds[0] === s.id
-                              const sk = skillChip(s.id, terminBraucht)
-                              return (
-                                <button
-                                  key={s.id}
-                                  type="button"
-                                  className={`project-schedule-chip${active ? ' active' : ''}${lead ? ' lead' : ''}${sk.cls}`}
-                                  onClick={() => toggleApptMonteur(s.id)}
-                                  title={[lead ? 'Lead-Monteur (zuerst gewählt)' : '', sk.title ?? ''].filter(Boolean).join(' · ') || undefined}
-                                >
-                                  {s.name}{sk.marke}
-                                </button>
-                              )
-                            })}
-                            {apptForm.monteurIds.length === 0 && !apptForm.requireMonteur && (
-                              <span style={{ color: 'var(--muted)', fontSize: 12, alignSelf: 'center' }}>
-                                Keine Auswahl = Projekt-Team.
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </>
+                  <ScheduleApptEditor
+                    apptForm={apptForm}
+                    setApptForm={setApptForm}
+                    showApptExtras={showApptExtras}
+                    monteurOptions={monteurOptions}
+                    terminBraucht={terminBraucht}
+                    skillChip={skillChip}
+                    brauchtZeile={brauchtZeile}
+                    toggleApptMonteur={toggleApptMonteur}
+                  />
                 )}
 
                 <label className="project-schedule-field">
@@ -2098,123 +1360,8 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
                   />
                 </label>
 
-                {/* ── Aufgaben (Checkliste) ────────────────────────── */}
-                <div className="project-schedule-divider" />
-
-                <div className="project-schedule-field">
-                  <div className="project-schedule-field-head">
-                    <span>Aufgaben</span>
-                    {tasks.length > 0 && (
-                      <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                        {tasks.filter(t => t.is_done).length}/{tasks.length} erledigt
-                      </span>
-                    )}
-                  </div>
-
-                  {!form.id ? (
-                    // Aufgaben brauchen eine Projekt-ID — die entsteht erst beim
-                    // ersten Speichern (neuer interner Einsatz).
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>
-                      Nach dem Speichern lassen sich hier Aufgaben erfassen.
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <input
-                          className="admin-input"
-                          style={{ flex: 1 }}
-                          value={newTaskText}
-                          onChange={e => setNewTaskText(e.target.value)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') { e.preventDefault(); void handleAddTask() }
-                          }}
-                          placeholder="Neue Aufgabe… (z.B. Schlüssel beim Hauswart abholen)"
-                        />
-                        <button
-                          type="button"
-                          className="admin-btn admin-btn-secondary admin-btn-sm"
-                          onClick={handleAddTask}
-                          disabled={taskBusy || !newTaskText.trim()}
-                        >
-                          + Aufgabe
-                        </button>
-                      </div>
-
-                      {tasksLoading && tasks.length === 0 && (
-                        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>Lade Aufgaben…</div>
-                      )}
-                      {!tasksLoading && tasks.length === 0 && (
-                        <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 6 }}>
-                          Noch keine Aufgaben. Der Monteur hakt sie in der App ab.
-                        </div>
-                      )}
-
-                      {tasks.map(t => (
-                        <div key={t.id} className="project-schedule-task-row">
-                          {editingTaskId === t.id ? (
-                            <>
-                              <input
-                                className="admin-input"
-                                style={{ flex: 1, minWidth: 0 }}
-                                value={editingTaskText}
-                                onChange={e => setEditingTaskText(e.target.value)}
-                                onKeyDown={e => {
-                                  if (e.key === 'Enter') { e.preventDefault(); void handleSaveTaskEdit() }
-                                  if (e.key === 'Escape') { setEditingTaskId(null); setEditingTaskText('') }
-                                }}
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                className="project-schedule-mini-btn"
-                                onClick={handleSaveTaskEdit}
-                                disabled={taskBusy || !editingTaskText.trim()}
-                              >
-                                {/* Bewusst nicht «Speichern»: das steht unten am
-                                    Panel und meint die Projekt-Stammdaten. */}
-                                Übernehmen
-                              </button>
-                              <button
-                                type="button"
-                                className="project-schedule-mini-btn"
-                                onClick={() => { setEditingTaskId(null); setEditingTaskText('') }}
-                                disabled={taskBusy}
-                              >
-                                Abbrechen
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <span
-                                className={`project-schedule-task-text${t.is_done ? ' done' : ''}`}
-                                title={t.is_done && t.done_by_name ? `Erledigt von ${t.done_by_name}` : t.text}
-                              >
-                                {t.is_done ? '✓ ' : ''}{t.text}
-                              </span>
-                              <button
-                                type="button"
-                                className="project-schedule-mini-btn"
-                                onClick={() => { setEditingTaskId(t.id); setEditingTaskText(t.text) }}
-                                disabled={taskBusy}
-                              >
-                                Bearbeiten
-                              </button>
-                              <button
-                                type="button"
-                                className="admin-btn-icon danger"
-                                title="Aufgabe löschen"
-                                onClick={() => void handleDeleteTask(t.id)}
-                                disabled={taskBusy}
-                              >
-                                ✕
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
+                {/* ── Aufgaben (Checkliste) — ScheduleTasksSection.tsx ── */}
+                <ScheduleTasksSection projectId={form.id} aufgaben={aufgaben} />
 
                 {error && <div className="project-schedule-error">{error}</div>}
 
@@ -2245,76 +1392,25 @@ export default function ProjectScheduleScreen({ canton = 'ZH', onNav, hagelVorsc
       </div>
 
       {teamQuestion && (
-        <ConfirmDialog
-          title="Projekt-Team geändert"
-          message={<>
-            {teamQuestion.count === 1
-              ? 'Ein bereits geplanter Termin dieses Projekts hat kein eigenes Team'
-              : `${teamQuestion.count} bereits geplante Termine dieses Projekts haben kein eigenes Team`}
-            {' '}und würde{teamQuestion.count === 1 ? '' : 'n'} das neue Projekt-Team
-            übernehmen — auch vergangene Termine.
-          </>}
-          confirmLabel="Bestehende behalten"
-          cancelLabel="Abbrechen"
-          extraAction={{ label: 'Überall übernehmen', variant: 'danger', onClick: () => answerTeamQuestion('apply') }}
-          onConfirm={() => answerTeamQuestion('keep')}
-          onCancel={() => answerTeamQuestion('cancel')}
-        />
+        <TeamFrageDialog count={teamQuestion.count} onAnswer={answerTeamQuestion} />
       )}
 
-      {/* Reichweite wie beim Bearbeiten — Vorgabe «nur dieser»: die Serie ist
-          nicht wiederherstellbar, ein versehentliches «ganze Serie» schon gar nicht. */}
+      {/* Reichweite wie beim Bearbeiten — Vorgabe «nur dieser» (ScheduleDialogs.tsx). */}
       {seriesDeletePrompt && (
-        <ConfirmDialog
-          title="Serientermin entfernen"
-          message={
-            <>
-              <strong>{fmtApptRow(seriesDeletePrompt)}</strong> gehört zu einer Serie.
-              Was soll entfernt werden?
-            </>
-          }
-          warning={seriesDeleteScope === 'series'
-            ? '«Ganze Serie» entfernt auch die bereits vergangenen Termine der Serie und lässt sich nicht rückgängig machen.'
-            : seriesDeleteScope === 'following'
-              ? 'Die früheren Termine der Serie bleiben stehen; die Serie endet vor diesem Termin.'
-              : undefined}
-          confirmLabel="Entfernen"
-          variant="danger"
+        <SerienLoeschenDialog
+          appt={seriesDeletePrompt}
+          scope={seriesDeleteScope}
+          setScope={setSeriesDeleteScope}
           busy={saving}
           onConfirm={() => void handleDeleteAppt(seriesDeletePrompt, seriesDeleteScope)}
           onCancel={() => setSeriesDeletePrompt(null)}
-        >
-          <div role="radiogroup" aria-label="Was entfernen"
-               style={{ display: 'flex', flexDirection: 'column', gap: 4, margin: '4px 0 12px' }}>
-            {(Object.keys(SCOPE_LABELS) as AppointmentScope[]).map(s => (
-              <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="series-delete-scope"
-                  value={s}
-                  checked={seriesDeleteScope === s}
-                  onChange={() => setSeriesDeleteScope(s)}
-                />
-                {SCOPE_LABELS[s]}
-              </label>
-            ))}
-          </div>
-        </ConfirmDialog>
+        />
       )}
 
-      {/* Absenz-Rückfrage: der Server hat den Schreibvorgang mit 409 abgelehnt,
-          weil ein Eingeplanter an dem Tag genehmigte Absenz hat. Ferien werden
-          getauscht und Krankmeldungen enden früher als eingetragen — deshalb
-          eine Rückfrage statt einer verschlossenen Tür (Spec §5.2). */}
+      {/* Absenz- bzw. Doppelbelegungs-Rückfrage (ScheduleDialogs.tsx). */}
       {absencePrompt && (
-        <ConfirmDialog
-          title={absencePrompt.kind === 'overlap' ? 'Mitarbeiter bereits eingeplant' : 'Absenz im Einsatzzeitraum'}
-          message={absencePrompt.message}
-          warning={absencePrompt.kind === 'overlap'
-            ? 'Der Termin wird trotzdem gespeichert — beide Einsätze bleiben im Plan.'
-            : 'Der Einsatz wird trotzdem gespeichert — die Absenz bleibt bestehen.'}
-          confirmLabel={absencePrompt.kind === 'overlap' ? 'Trotzdem speichern' : 'Trotzdem einplanen'}
-          cancelLabel="Abbrechen"
+        <AbsenzRueckfrageDialog
+          prompt={absencePrompt}
           onConfirm={() => {
             const { onConfirm } = absencePrompt
             setAbsencePrompt(null)

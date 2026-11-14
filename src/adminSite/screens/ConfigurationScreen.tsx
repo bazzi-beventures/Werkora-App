@@ -8,10 +8,11 @@ import { SchedulingTab } from './tabs/SchedulingTab'
 import { HelpDocsTab } from './tabs/HelpDocsTab'
 import { BexioTab } from './tabs/BexioTab'
 import { MailEingangTab } from './tabs/MailEingangTab'
+import { ServiceBegleitungTab } from './tabs/ServiceBegleitungTab'
 
 type Tab =
   | 'modules' | 'notifications' | 'workflows'
-  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'mail-eingang'
+  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'mail-eingang' | 'service-begleitung'
 
 /**
  * Kalibrierung eines Mandanten durch den Betreiber.
@@ -103,6 +104,12 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
           >
             Mail-Eingang
           </button>
+                  <button
+            className={`kpi-admin-tab${tab === 'service-begleitung' ? ' active' : ''}`}
+            onClick={() => setTab('service-begleitung')}
+          >
+            Servicebegleitung
+          </button>
       </div>
 
       {tab === 'modules' && <ModulesTab view="modules" tenantId={tenantId} />}
@@ -116,6 +123,8 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
       {tab === 'bexio' && <BexioTab key={tenantId} tenantId={tenantId} />}
       {/* key: eine halb ausgefüllte Absenderschranke darf nie beim nächsten Mandanten stehen bleiben */}
       {tab === 'mail-eingang' && <MailEingangTab key={tenantId} tenantId={tenantId} />}
+      {/* key: halb gesetzte Schalter dürfen nie beim nächsten Mandanten stehen bleiben */}
+      {tab === 'service-begleitung' && <ServiceBegleitungTab key={tenantId} tenantId={tenantId} />}
 
     </div>
   )

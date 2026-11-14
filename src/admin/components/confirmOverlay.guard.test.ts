@@ -40,6 +40,10 @@ const ALLOWED: Record<string, number> = {
   // Terminbestätigung an den Kunden: Versand-Formular wie SendQuoteMailDialog,
   // mit backdropCloseProps (docs/specs/termin-bestaetigung-kunde.md).
   'admin/operative/projectDetail/AppointmentNoticeDialog.tsx': 1,
+  // Terminwahl per Link: Versand-Formular mit Fenstern, Empfänger, CC und Frist —
+  // dieselbe Bauart wie der Dialog darüber, mit backdropCloseProps
+  // (docs/specs/servicebegleitung.md §7.1).
+  'admin/operative/projectDetail/TerminwahlDialog.tsx': 1,
   // Die Kundenmaske des Kundenstamms als Overlay, backdropCloseProps mit
   // blockWhen — ein Klick daneben leert die Maske nicht. Ein Overlay für zwei
   // Aufrufer: «Neuer Kunde» aus dem Kundenfeld der Projektmaske (WW-71, bis

@@ -44,6 +44,7 @@ import { trackNav } from '../shared/breadcrumbs'
 import { DEEP_LINK_EVENT, takeCustomerDeepLink, takeKpiDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
+import { hasWerkzeug } from '../api/serviceBegleitung'
 import { getKreditorenZaehler, type KreditorZaehler } from '../api/kreditoren'
 import { appointmentJumpState, readScheduleView, writeScheduleView } from './operative/scheduleViewState'
 import { hasKpiAccess, isManagementRole } from '../shared/roles'
@@ -327,7 +328,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'project-drafts': return <ProjectDraftsScreen user={user} onBadgeChange={loadDashboard} />
       case 'project-schedule': return guard('scheduling', (
         <ProjectScheduleScreen canton={canton} onNav={guardedNav}
-          hagelVorschlaege={hasModule(user, 'hagelschaden') && isFeatureEnabled(user, 'hagelschaden_disposition')} />
+          hagelVorschlaege={hasModule(user, 'hagelschaden') && isFeatureEnabled(user, 'hagelschaden_disposition')}
+          einsatzStand={hasWerkzeug(user, 'unterwegs_meldung')}
+          terminwahl={hasWerkzeug(user, 'terminwahl')} ohneBoard={!hasModule(user, 'task_board')} />
       ))
       // detailId = Kunden-id aus einer Erinnerung (Dashboard, Mail-Knopf).
       case 'customers':    return (

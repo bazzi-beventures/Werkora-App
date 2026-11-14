@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { getProject, reopenProject, saveProjectForm, setProjectStatus } from '../../api/admin/projects'
 import type { RepairCaseRef, RepairProjectRef, WarrantyInfo } from '../../api/admin/projects'
 import { getAdminStaff } from '../../api/admin/staff'
+import { TerminwahlKachel } from './projectDetail/TerminwahlKachel'
 import { getAllCustomers } from '../../api/admin/customers'
 import type { Kontakt, Project } from '../../api/admin/projects'
 import type { Customer } from '../../api/admin/customers'
@@ -623,6 +624,11 @@ export default function ProjectDetailScreen({
           // Interne Einsätze haben keinen Kunden (Spec E7).
           customerNotice={features.terminBestaetigung && !isNew && (project?.kind ?? 'project') === 'project'}
         />
+      )}
+      {/* Servicebegleitung: Terminwahl per Link und Kundenlink (servicebegleitung.md §7, §8). */}
+      {!isNew && project && activeTab === 'details' && (project.kind ?? 'project') === 'project'
+        && (features.terminwahl || features.statusseite) && (
+        <TerminwahlKachel projectId={project.id} staff={staff} terminwahl={features.terminwahl} />
       )}
 
       {!isNew && project && (

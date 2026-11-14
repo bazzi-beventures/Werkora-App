@@ -78,6 +78,9 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // Kundennotiz, gehören aber zum Modul. Auch `mail_eingang_config_set` (der
   // Betreiber setzt Postfach und Absenderschranke) zählt hierher.
   { test: /^mail_eingang_/,                      module: 'mail_eingang' },
+  // Servicebegleitung (docs/specs/servicebegleitung.md): die Unterwegs-Meldung an
+  // den Kunden und die Einstellung des Betreibers.
+  { test: /^einsatz_meldung|^service_begleitung_|^terminanfrage_|^kundenlink_/, module: 'service_begleitung' },
   // Hagelschaden (docs/specs/hagelschaden-dashboard.md) — vor /project/.
   { test: /hagelschaden/,                        module: 'hagelschaden' },
   // Terminbestätigung (docs/specs/termin-bestaetigung-kunde.md) — vor /appointment/:
@@ -284,6 +287,13 @@ const ACTION_LABELS: Record<string, string> = {
   mail_eingang_vorlage_gespeichert: 'Mail-Eingang: Antwort-Vorlage gespeichert',
   mail_eingang_vorlage_zurueckgesetzt: 'Mail-Eingang: Antwort-Vorlage zurückgesetzt',
   mail_eingang_config_set: 'Mail-Eingang: Postfach und Absenderschranke gesetzt',
+  einsatz_meldung_kunde: 'Servicebegleitung: Kunde über Ankunft informiert',
+  service_begleitung_config_set: 'Servicebegleitung: Werkzeuge und Depot gesetzt',
+  terminanfrage_gesendet: 'Servicebegleitung: Termine zur Wahl gesendet',
+  terminanfrage_gewaehlt: 'Servicebegleitung: Kunde hat Termin gewählt',
+  terminanfrage_keiner_passt: 'Servicebegleitung: Kunde meldet «kein Termin passt»',
+  terminanfrage_zurueckgezogen: 'Servicebegleitung: Terminanfrage zurückgezogen',
+  kundenlink_gesperrt: 'Servicebegleitung: Kundenlink gesperrt',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
   admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',

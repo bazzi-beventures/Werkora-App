@@ -69,6 +69,8 @@ const PROCESS_BOUND_HINTS: Record<string, string> = {
   approval_pending: 'Erledigt sich, sobald der eingetragene Freigeber entscheidet — oder der Ersteller die Anfrage löscht.',
   aftersales_review: 'Erledigt sich, sobald der Text freigegeben ist. Soll nichts rausgehen: Nachfass-Aufgabe deaktivieren.',
   warranty_case_review: 'Erledigt sich, sobald der Fall entschieden ist — auch ein «abgelehnt» ist ein Entscheid.',
+  service_termin_nachfassen: 'Erledigt sich, sobald das Projekt einen Termin hat oder eine neue Terminanfrage läuft.',
+  service_termin_kein_fenster: 'Erledigt sich, sobald das Projekt einen Termin hat oder eine neue Terminanfrage läuft.',
 }
 
 export const PROCESS_BOUND_HINT = 'Fester Prozessschritt — erledigt sich automatisch, sobald die Arbeit getan ist.'

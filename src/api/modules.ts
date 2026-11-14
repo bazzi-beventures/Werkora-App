@@ -33,6 +33,7 @@ export type ModuleName =
   | 'termin_bestaetigung'
   | 'bexio'
   | 'kreditoren'
+  | 'service_begleitung'
 
 export function hasModule(user: UserInfo | null, name: ModuleName): boolean {
   if (!user) return false

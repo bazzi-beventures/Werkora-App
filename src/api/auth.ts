@@ -50,6 +50,9 @@ export interface UserInfo {
    *  `superadmin`, sonst `null`. `pflicht && !bestaetigt` heisst: diese Sitzung
    *  kommt nur an die Bestätigung, jede andere Route antwortet 403. */
   mfa?: { pflicht: boolean; bestaetigt: boolean; methode: string | null } | null
+  /** Werkzeuge der Servicebegleitung, die dieses Konto sieht — Modul, Betatest und
+   *  Schalter des Werkzeugs schon verrechnet (docs/specs/servicebegleitung.md §4.2). */
+  service_werkzeuge?: string[]
 }
 
 export async function getMe(): Promise<UserInfo> {

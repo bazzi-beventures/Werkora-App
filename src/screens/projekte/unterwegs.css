@@ -1,0 +1,48 @@
+/* Knopf «Unterwegs» am Einsatz von heute — Servicebegleitung
+   (docs/specs/servicebegleitung.md §5.2). Eigene Datei statt index.css: die steht
+   an ihrer Grössen-Decke. */
+.unterwegs {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.unterwegs-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.unterwegs-btn {
+  min-height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  align-self: flex-start;
+}
+.unterwegs-btn:disabled { opacity: 0.5; }
+.unterwegs-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-size: 13px;
+  text-decoration: underline;
+}
+.unterwegs-stand { font-size: 13px; font-weight: 600; }
+.unterwegs-sub { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.unterwegs-sub a { color: var(--accent); }
+.unterwegs-fehler { font-size: 12px; color: #c0392b; }
+.unterwegs-blatt { display: flex; flex-direction: column; gap: 8px; }
+.unterwegs-label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.unterwegs-label input { font-size: 16px; padding: 4px 6px; }
+.unterwegs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.unterwegs-chip {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-40);
+  background: var(--accent-dim);
+  font-size: 13px;
+}
+

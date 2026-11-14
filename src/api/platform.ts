@@ -439,3 +439,62 @@ export function setMailEingang(tenantId: string, einstellung: MailEingangEinstel
     body: JSON.stringify(einstellung),
   })
 }
+
+// ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ───────────────
+//
+// Welche Werkzeuge ein Mandant hat und mit welchen Parametern. Nur auf der
+// Betreiber-Seite: ein falsch gestellter Schalter verschickt Mails an fremde
+// Kunden, und die Werte entstehen im Workshop mit dem Betrieb.
+
+export interface WerkzeugFeld {
+  key: string
+  label: string
+  type: 'bool' | 'number' | 'time'
+  min?: number
+  max?: number
+  step?: number
+}
+
+export interface WerkzeugKatalogEintrag {
+  key: string
+  label: string
+  description: string
+  /** Schickt oder zeigt dem Kunden des Betriebs etwas. */
+  kundenwirksam: boolean
+  hinweis_kunde: string
+  default: Record<string, boolean | number | string>
+  schema: WerkzeugFeld[]
+}
+
+export interface ServiceDepot {
+  adresse: string
+  lat: number | null
+  lon: number | null
+}
+
+export interface ServiceBegleitungView {
+  katalog: WerkzeugKatalogEintrag[]
+  werkzeuge: Record<string, Record<string, boolean | number | string>>
+  depot: ServiceDepot
+  modul_aktiv: boolean
+  info_mitarbeitende: string
+  updated_at: string | null
+  updated_by: string | null
+}
+
+const servicePfad = (tenantId: string) => `${tenantBase(tenantId)}/service-begleitung`
+
+export function getServiceBegleitung(tenantId: string): Promise<ServiceBegleitungView> {
+  return apiFetch<ServiceBegleitungView>(servicePfad(tenantId))
+}
+
+/** Validierungsfehler kommen als 400 mit Klartext in `detail` (→ `ApiError.message`). */
+export function setServiceBegleitung(
+  tenantId: string,
+  einstellung: { werkzeuge: ServiceBegleitungView['werkzeuge']; depot: { adresse: string } },
+): Promise<ServiceBegleitungView> {
+  return apiFetch<ServiceBegleitungView>(servicePfad(tenantId), {
+    method: 'PUT',
+    body: JSON.stringify(einstellung),
+  })
+}

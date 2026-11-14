@@ -26,6 +26,9 @@ import SignaturePad from '../chat/SignaturePad'
 import { useBackButton } from '../shared/backButton'
 import { SK } from '../api/storageKeys'
 import { Wochenplan } from './projekte/Wochenplan'
+import { UnterwegsKnopf } from './projekte/UnterwegsKnopf'
+import { hasWerkzeug, terminIstHeute } from '../api/serviceBegleitung'
+import { todayISO } from '../api/schedule'
 import {
   QueuedTaskToggle, enqueueTaskToggle, loadTaskQueue, reconcileTaskQueue, saveTaskQueue, taskKey,
 } from './projekte/taskQueue'
@@ -1650,6 +1653,10 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
                 {formatDateRange(selected)}
                 {formatTimeRange(selected) && ` · ${formatTimeRange(selected)}`}
               </div>
+              {selected.next_appointment_id && hasWerkzeug(user, 'unterwegs_meldung')
+                && terminIstHeute(selected.start_date, selected.end_date, todayISO()) && (
+                <UnterwegsKnopf appointmentId={selected.next_appointment_id} />
+              )}
             </div>
           )}
 
@@ -1909,7 +1916,8 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       )}
 
       {viewMode === 'wochenplan' && (
-        <Wochenplan projects={projects} userId={userId} onSelect={setSelected} onLoggedOut={onLoggedOut} />
+        <Wochenplan projects={projects} userId={userId} onSelect={setSelected} onLoggedOut={onLoggedOut}
+          unterwegs={hasWerkzeug(user, 'unterwegs_meldung')} />
       )}
 
       {/* Suche über Name und Projektnummer. Steht ausserhalb von

@@ -12,6 +12,7 @@ import type { ProjectKind } from '../../shared/projectDetail/types'
 import { mapsUrl } from '../../shared/mapsLink'
 import { useSwipe } from '../../shared/swipe'
 import { kindColor } from '../kindColors'
+import { UnterwegsKnopf } from './UnterwegsKnopf'
 
 // Der Wochenplan des Monteurs — zweite Ansicht in «Meine Projekte», neben den
 // Kacheln. Form: EIN Tag pro Bildschirm, gewischt wird die Woche.
@@ -44,6 +45,9 @@ interface Props<P extends WochenplanProject> {
   /** Tippen auf einen Einsatz — dasselbe Verhalten wie das Tippen auf eine Kachel. */
   onSelect: (project: P) => void
   onLoggedOut: () => void
+  /** Werkzeug «Unterwegs-Meldung» der Servicebegleitung ist für dieses Konto an:
+   *  Kundeneinsätze von heute tragen den Knopf (docs/specs/servicebegleitung.md §5.2). */
+  unterwegs?: boolean
 }
 
 const DOW = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
@@ -72,7 +76,7 @@ function ChevronRight() {
   )
 }
 
-function EntryCard({ entry, onOpen }: { entry: ScheduleEntry; onOpen?: () => void }) {
+function EntryCard({ entry, onOpen, unterwegs = false }: { entry: ScheduleEntry; onOpen?: () => void; unterwegs?: boolean }) {
   const color = kindColor(entry.kind)
   const address = entry.object_address || entry.billing_address
   const maps = mapsUrl(address)
@@ -123,11 +127,14 @@ function EntryCard({ entry, onOpen }: { entry: ScheduleEntry; onOpen?: () => voi
         <div className="wplan-card-team">👥 {entry.monteur_names.join(', ')}</div>
       )}
       {entry.bemerkung && <div className="wplan-card-note">{entry.bemerkung}</div>}
+      {unterwegs && entry.appointment_id && (
+        <UnterwegsKnopf appointmentId={entry.appointment_id} telefonOffline={entry.phone} />
+      )}
     </div>
   )
 }
 
-export function Wochenplan<P extends WochenplanProject>({ projects, userId, onSelect, onLoggedOut }: Props<P>) {
+export function Wochenplan<P extends WochenplanProject>({ projects, userId, onSelect, onLoggedOut, unterwegs = false }: Props<P>) {
   // Der ausgewählte TAG ist der ganze Navigationszustand — die Woche ergibt sich
   // aus ihm. Wer am Sonntag weiterwischt, landet am Montag der Folgewoche, ohne
   // dass Tag und Woche getrennt nachgeführt werden müssten.
@@ -314,6 +321,7 @@ export function Wochenplan<P extends WochenplanProject>({ projects, userId, onSe
                   key={`${e.appointment_id ?? e.id}-${i}`}
                   entry={e}
                   onOpen={project ? () => onSelect(project) : undefined}
+                  unterwegs={unterwegs && selectedIso === today && !e.is_internal}
                 />
               )
             })}

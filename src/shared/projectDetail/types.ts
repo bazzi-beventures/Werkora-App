@@ -192,6 +192,9 @@ export interface MonteurProject {
   end_date: string | null
   start_time: string | null
   end_time: string | null
+  // Id dieses nächsten Termins — für den Knopf «Unterwegs» der Servicebegleitung
+  // (docs/specs/servicebegleitung.md §5.2). Fehlt ohne offenen Termin und in alten Snapshots.
+  next_appointment_id?: string | null
   kontakte: Kontakt[]
   bemerkung: string | null
   // Fehlt in Offline-Snapshots von vor 20260930 — Leser nehmen `?? []`.
