@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest'
 import type { EingangProjekt, EingangVorschlag } from '../../api/admin/mailEingang'
 import {
   ZUSTAENDIG_AUTO, acceptPayload, anhaengeText, anhangText, belegText, entscheidText, ergebnisHinweis, ergebnisZiel, fehltZumUebernehmen,
-  ergaenzungFuerKandidat, fmtFaellig, fmtGroesse, mailtoLink, istBekannterTyp, kandidatText, kategorieLabel, kundePrefill, neuesteZuerst,
-  offeneVorschlaege, personText, serverSatz, startEingabe, typTitel, uebernehmenLabel,
+  ergaenzungFuerKandidat, fmtFaellig, fmtGroesse, initialen, istBekannterTyp, kandidatText, kategorieFarbe, kategorieLabel,
+  kundePrefill, mailtoLink, neuesteZuerst, offeneVorschlaege, personText, serverSatz, startEingabe, typFarbe, typKurz,
+  typTitel, uebernehmenLabel,
 } from './mailEingang'
 
 // docs/specs/mail-eingang-triage.md §4 (Vorschläge) und §10 (Oberfläche).
@@ -250,6 +251,50 @@ describe('Knopfbeschriftung', () => {
     // «Kontakt ergänzen» schreibt nichts: es öffnet die Kundenmaske.
     expect(uebernehmenLabel('kontakt_ergaenzen', false)).toBe('Im Kundenformular öffnen')
     expect(uebernehmenLabel('kontakt_ergaenzen', true)).toBe('Wird bestätigt…')
+  })
+})
+
+describe('Kennfarben und Abzeichen', () => {
+  it('gibt jeder Tätigkeit eine eigene Farbe', () => {
+    const typen = [
+      'projekt_entwurf', 'projektnotiz', 'projektdokument', 'kundennotiz', 'kontakt_ergaenzen',
+      'kunde_anlegen', 'aufgabe', 'antwort',
+    ]
+    const farben = typen.map(typFarbe)
+    expect(farben).not.toContain(null)
+    expect(new Set(farben).size).toBe(typen.length)
+    // Ein Typ, den erst ein neuerer Server kennt, bleibt neutral.
+    expect(typFarbe('rueckruf')).toBeNull()
+    expect(typKurz('rueckruf')).toBe('Unbekannt')
+  })
+
+  it('färbt die Kategorie wie ihren typischen Vorschlag', () => {
+    expect(kategorieFarbe('neue_anfrage')).toBe(typFarbe('projekt_entwurf'))
+    expect(kategorieFarbe('laufendes_projekt')).toBe(typFarbe('projektnotiz'))
+    expect(kategorieFarbe('kontakt')).toBe(typFarbe('kontakt_ergaenzen'))
+    expect(kategorieFarbe('unbekannt')).toBeNull()
+  })
+
+  it('hat für jeden bekannten Typ eine Kurzform', () => {
+    expect(typKurz('projektdokument')).toBe('Anhang ablegen')
+    expect(typKurz('kontakt_ergaenzen')).toBe('Kontakt ergänzen')
+    expect(typKurz('projekt_entwurf')).toBe('Projekt anlegen')
+    expect(typKurz('antwort')).toBe('Antwort')
+  })
+})
+
+describe('Kürzel im Kreis', () => {
+  it('nimmt die ersten zwei Wörter des Namens', () => {
+    expect(initialen({ name: 'Muster Immobilien AG', email: null })).toBe('MI')
+    expect(initialen({ name: 'eva meier', email: 'eva@example.com' })).toBe('EM')
+    expect(initialen({ name: '  Hans  ', email: null })).toBe('H')
+  })
+
+  it('überspringt Zeichen ohne Buchstaben und weicht auf die Adresse aus', () => {
+    expect(initialen({ name: '(Büro) «Ölwerk»', email: null })).toBe('BÖ')
+    expect(initialen({ name: '', email: 'info@betrieb.ch' })).toBe('I')
+    expect(initialen({ name: null, email: null })).toBeNull()
+    expect(initialen(null)).toBeNull()
   })
 })
 

@@ -121,6 +121,27 @@ describe('OperatorInvoicesScreen', () => {
     expect(within(tabelle).queryByText('Umfang: …')).toBeNull()
   })
 
+  it('«Senden» füllt die Adresse aus dem Kunden der Rechnung vor', async () => {
+    listInvoices.mockResolvedValue([
+      rechnung({ id: 8, invoice_number: 'RE-2026-008', customer_email: 'kreditoren@gehlhaar.ch' }),
+    ])
+    render(<OperatorInvoicesScreen />)
+
+    await userEvent.click(await within(await screen.findByRole('table')).findByRole('button', { name: 'Senden' }))
+    expect((screen.getByLabelText('E-Mail des Empfängers') as HTMLInputElement).value)
+      .toBe('kreditoren@gehlhaar.ch')
+    expect(screen.getByText(/Aus dem Kundenstamm/)).toBeTruthy()
+  })
+
+  it('ohne Kunden-E-Mail bleibt das Feld leer, statt eine Adresse zu raten', async () => {
+    listInvoices.mockResolvedValue([rechnung({ id: 9, invoice_number: 'RE-2026-005' })])
+    render(<OperatorInvoicesScreen />)
+
+    await userEvent.click(await within(await screen.findByRole('table')).findByRole('button', { name: 'Senden' }))
+    expect((screen.getByLabelText('E-Mail des Empfängers') as HTMLInputElement).value).toBe('')
+    expect(screen.getByText(/keine E-Mail hinterlegt/)).toBeTruthy()
+  })
+
   it('«+ Rechnung erstellen» öffnet die freie Rechnung, nicht den Projekt-Weg', async () => {
     listInvoices.mockResolvedValue([])
     render(<OperatorInvoicesScreen />)

@@ -8,7 +8,8 @@ import type { AdminScreen } from '../useAdminNav'
 import { CustomerLink } from '../components/CustomerLink'
 import VorschlagKarte, { type EntscheidArt } from './VorschlagKarte'
 import {
-  anhaengeText, fmtWann, itemStatus, kategorieLabel, offeneVorschlaege, personText,
+  anhaengeText, fmtWann, initialen, itemStatus, kategorieFarbe, kategorieLabel, offeneVorschlaege,
+  personText, typFarbe, typKurz,
 } from './mailEingang'
 
 /**
@@ -77,6 +78,31 @@ function Original({ itemId }: { itemId: string }) {
   return <pre className="eingang-original" tabIndex={0} aria-label="Originaltext der Mail">{text}</pre>
 }
 
+// Kleine Symbole der Karte — rein dekorativ, die Zeilen tragen ihren Text selbst.
+const IconFunke = () => (
+  <svg className="eingang-funke" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 2l2.2 7.8L22 12l-7.8 2.2L12 22l-2.2-7.8L2 12l7.8-2.2z" />
+  </svg>
+)
+const IconWeiter = () => (
+  <svg className="eingang-symbol" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="m15 14 5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5V20" />
+  </svg>
+)
+const IconKlammer = () => (
+  <svg className="eingang-symbol" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5" />
+  </svg>
+)
+const IconHaken = () => (
+  <svg className="eingang-symbol" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg>
+)
+const IconUmschlag = () => (
+  <svg className="eingang-symbol" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 6L2 7" />
+  </svg>
+)
+
 export default function EingangKarte({
   item, busy, onEntschieden, onFehler, onDismiss, onNav, antwortenSenden = false,
 }: Props) {
@@ -87,46 +113,49 @@ export default function EingangKarte({
   const anzahlOffen = offeneVorschlaege(item)
   const anhaenge = anhaengeText(item.anhaenge)
   const istOffen = item.status === 'offen'
+  const kuerzel = initialen(item.absender)
+  const wann = fmtWann(item.received_at)
 
   return (
-    <article className="eingang-karte" aria-label={item.subject || 'Mail ohne Betreff'}>
+    <article className={`eingang-karte${offen ? ' ist-offen' : ''}${istOffen ? '' : ' ist-erledigt'}`}
+             data-farbe={kategorieFarbe(item.kategorie) ?? undefined}
+             aria-label={item.subject || 'Mail ohne Betreff'}>
       <div className="eingang-kopf">
-        <div className="eingang-betreff">{item.subject?.trim() || '(ohne Betreff)'}</div>
-        <div className="eingang-marken">
-          <span className="admin-badge admin-badge-draft">{kategorieLabel(item.kategorie)}</span>
-          <span className={`admin-badge ${status.badge}`}>{status.label}</span>
+        <div className="eingang-avatar" aria-hidden="true">{kuerzel ?? <IconUmschlag />}</div>
+        <div className="eingang-kopf-text">
+          <div className="eingang-titelzeile">
+            <div className="eingang-betreff">{item.subject?.trim() || '(ohne Betreff)'}</div>
+            {wann && <time className="eingang-zeit" dateTime={item.received_at} title="Eingang">{wann}</time>}
+          </div>
+          {/* Der Zusatz ist fest (Spec §6.4, §9 R2): Werkora kann den ursprünglichen
+              Absender nicht prüfen — die Adresse steht nur im weitergeleiteten Text. */}
+          <div className="eingang-meta">
+            Ursprünglicher Absender:{' '}
+            {absender
+              ? <><strong>{absender}</strong> <span className="eingang-ungeprueft">— aus der Mail gelesen</span></>
+              : <span className="eingang-ungeprueft">in der Mail nicht gefunden</span>}
+          </div>
+          {zugeleitet && (
+            <div className="eingang-meta"><IconWeiter /> weitergeleitet von <strong>{zugeleitet}</strong></div>
+          )}
+          {item.customer && (
+            <div className="eingang-meta">
+              Vermuteter Kunde:{' '}
+              <CustomerLink customerId={String(item.customer.id)}
+                            onOpen={onNav ? id => onNav('customers', id) : undefined}>
+                <strong>{item.customer.name}</strong>
+              </CustomerLink>
+            </div>
+          )}
+          {/* Dateinamen sind Fremdtext aus der Mail — eine Zeile Text, keine Links.
+              Kopiert wird ein Anhang erst, wenn jemand ihn als Vorschlag übernimmt. */}
+          {anhaenge && (
+            <div className="eingang-meta" data-testid="eingang-anhaenge">
+              <IconKlammer /> {item.anhaenge!.length === 1 ? 'Anhang' : 'Anhänge'}: {anhaenge}
+            </div>
+          )}
         </div>
       </div>
-
-      <div className="eingang-meta">
-        Eingang {fmtWann(item.received_at)}
-        {zugeleitet && <> · weitergeleitet von <strong>{zugeleitet}</strong></>}
-      </div>
-      {/* Der Zusatz ist fest (Spec §6.4, §9 R2): Werkora kann den ursprünglichen
-          Absender nicht prüfen — die Adresse steht nur im weitergeleiteten Text. */}
-      <div className="eingang-meta">
-        Ursprünglicher Absender:{' '}
-        {absender
-          ? <><strong>{absender}</strong> <span className="eingang-ungeprueft">— aus der Mail gelesen</span></>
-          : <span className="eingang-ungeprueft">in der Mail nicht gefunden</span>}
-      </div>
-      {item.customer && (
-        <div className="eingang-meta">
-          Vermuteter Kunde:{' '}
-          <CustomerLink customerId={String(item.customer.id)}
-                        onOpen={onNav ? id => onNav('customers', id) : undefined}>
-            <strong>{item.customer.name}</strong>
-          </CustomerLink>
-        </div>
-      )}
-
-      {/* Dateinamen sind Fremdtext aus der Mail — eine Zeile Text, keine Links.
-          Kopiert wird ein Anhang erst, wenn jemand ihn als Vorschlag übernimmt. */}
-      {anhaenge && (
-        <div className="eingang-meta" data-testid="eingang-anhaenge">
-          {item.anhaenge!.length === 1 ? 'Anhang' : 'Anhänge'}: {anhaenge}
-        </div>
-      )}
 
       {item.summary?.trim()
         ? <p className="eingang-zusammenfassung">{item.summary}</p>
@@ -134,8 +163,30 @@ export default function EingangKarte({
             {istOffen ? 'Keine Zusammenfassung vorhanden.' : 'Die Zusammenfassung wurde gelöscht.'}
           </p>}
 
+      {/* Was der Agent aus der Mail gelesen hat: das Anliegen und, je Vorschlag,
+          ein Abzeichen in der Farbe seiner Tätigkeit — wie auf werkora.ch. */}
+      <div className="eingang-ki">
+        <IconFunke />
+        <span className="eingang-kat">{kategorieLabel(item.kategorie)}</span>
+        {item.suggestions.length > 0 && (
+          <ul className="eingang-chips" aria-label="Vorschläge">
+            {item.suggestions.map(v => (
+              <li key={v.id} className="eingang-chip" data-farbe={typFarbe(v.typ) ?? undefined}
+                  data-status={v.status}>
+                {v.status === 'uebernommen' && <IconHaken />}
+                {typKurz(v.typ)}
+                {v.status === 'verworfen' && <span className="eingang-sr"> (verworfen)</span>}
+                {v.status === 'uebernommen' && <span className="eingang-sr"> (übernommen)</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        <span className={`admin-badge ${status.badge} eingang-status`}>{status.label}</span>
+      </div>
+
       <div className="eingang-aktionen">
-        <button type="button" className="admin-btn admin-btn-secondary admin-btn-sm"
+        <button type="button"
+                className={`admin-btn ${!offen && istOffen && anzahlOffen > 0 ? 'admin-btn-primary' : 'admin-btn-secondary'} admin-btn-sm`}
                 aria-expanded={offen} onClick={() => setOffen(o => !o)}>
           {offen
             ? 'Zuklappen'

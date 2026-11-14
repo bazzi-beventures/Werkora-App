@@ -22,6 +22,8 @@ export interface Invoice {
    *  null = voll bezahlt. */
   paid_amount?: number | null
   storage_path?: string | null
+  /** E-Mail des Kunden: auf der Betreiber-Liste aus `invoices.customer_id`
+   *  (Rechnung ohne Projekt) — Vorbelegung im Senden-Dialog. */
   customer_email?: string | null
   projektleiter_id: string | null
   // Projektbezug: nach dem Bezahlen fragt die Übersicht, ob das Projekt

@@ -74,6 +74,38 @@
   --kpi-tab-garantie:        #EA580C;
   --kpi-tab-leistungsart:    #0891B2;
 
+  /* Eingang (Mail-Triage): je Taetigkeit des Agenten eine Kennfarbe — nach der
+     Nachbildung auf werkora.ch, deren Paletten (Amber, Blau, Tuerkis, Violett,
+     Gruen) hier wiederkehren. Je Farbe drei Stufen: der Akzent (Balken, Punkt), die
+     Schrift (-ink, auf der eigenen Flaeche lesbar) und die Flaeche (-soft).
+     Welche Kategorie und welcher Vorschlag welche Farbe traegt, steht in
+     admin/eingang/mailEingang.ts. Dark: helle Schrift auf durchscheinender Flaeche. */
+  --eingang-ki:            #E9A227;
+  --eingang-entwurf:       #E9A227;
+  --eingang-entwurf-ink:   #F4BC55;
+  --eingang-entwurf-soft:  rgba(233, 162, 39, 0.16);
+  --eingang-notiz:         #4F9BD3;
+  --eingang-notiz-ink:     #93C5EC;
+  --eingang-notiz-soft:    rgba(79, 155, 211, 0.18);
+  --eingang-dokument:      #2BB3A6;
+  --eingang-dokument-ink:  #6FD6CB;
+  --eingang-dokument-soft: rgba(43, 179, 166, 0.16);
+  --eingang-kunde:         #9B7BF0;
+  --eingang-kunde-ink:     #C4B5FD;
+  --eingang-kunde-soft:    rgba(155, 123, 240, 0.18);
+  --eingang-kontakt:       #E8618F;
+  --eingang-kontakt-ink:   #F7A8C4;
+  --eingang-kontakt-soft:  rgba(232, 97, 143, 0.16);
+  --eingang-neukunde:      #F08A4B;
+  --eingang-neukunde-ink:  #F8B98E;
+  --eingang-neukunde-soft: rgba(240, 138, 75, 0.16);
+  --eingang-aufgabe:       #34C26F;
+  --eingang-aufgabe-ink:   #7EDCA2;
+  --eingang-aufgabe-soft:  rgba(52, 194, 111, 0.15);
+  --eingang-antwort:       #7C7CF0;
+  --eingang-antwort-ink:   #B4B4FA;
+  --eingang-antwort-soft:  rgba(124, 124, 240, 0.18);
+
   /* Spacing (8px grid) */
   --s-1: 4px;
   --s-2: 8px;
@@ -118,6 +150,32 @@
   --success-ink:   #166534;
   --warning-ink:   #92400E;
   --danger-ink:    #991B1B;
+
+  /* Eingang, Light: die Toene von werkora.ch. -ink auf -soft 5,3–8,2:1 (Dark 5,9–6,7:1 auf --surface). */
+  --eingang-entwurf:       #E9A227;
+  --eingang-entwurf-ink:   #8A5B12;
+  --eingang-entwurf-soft:  #FDF3DF;
+  --eingang-notiz:         #3D84B8;
+  --eingang-notiz-ink:     #245B80;
+  --eingang-notiz-soft:    #E7F0F6;
+  --eingang-dokument:      #14A094;
+  --eingang-dokument-ink:  #0F665F;
+  --eingang-dokument-soft: #E0F2F1;
+  --eingang-kunde:         #8B5CF6;
+  --eingang-kunde-ink:     #5B32B8;
+  --eingang-kunde-soft:    #F0EAFB;
+  --eingang-kontakt:       #DB4C7E;
+  --eingang-kontakt-ink:   #9D1F4C;
+  --eingang-kontakt-soft:  #FCE8F0;
+  --eingang-neukunde:      #EA6A1F;
+  --eingang-neukunde-ink:  #9A3412;
+  --eingang-neukunde-soft: #FDEBDD;
+  --eingang-aufgabe:       #2E9E5B;
+  --eingang-aufgabe-ink:   #166534;
+  --eingang-aufgabe-soft:  #E4F6EA;
+  --eingang-antwort:       #5B5BD6;
+  --eingang-antwort-ink:   #3730A3;
+  --eingang-antwort-soft:  #E8E8FB;
 
   --shadow-card:  0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
   --shadow-hover: 0 4px 14px rgba(15, 23, 42, 0.10);

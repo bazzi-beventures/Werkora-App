@@ -84,6 +84,11 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
 
       <nav className="admin-nav">
         <NavItem label="Dashboard" target="dashboard" current={screen} onNav={onNav} icon={<IconDashboard />} />
+        {/* Eingang gleich unter dem Dashboard: was dort wartet, ist die Post des
+            Tages — nicht ein Bereich unter vielen weiter unten in «Operativ». */}
+        {has('mail_eingang') && (
+          <NavItem label="Eingang" target="eingang" current={screen} onNav={onNav} icon={<IconMail />} badge={badges?.mailEingang} beta />
+        )}
         {showTaskBoard && (
           <NavItem label="Aufgaben" target="tasks" current={screen} onNav={onNav} icon={<IconTasks />} badge={badges?.tasks} />
         )}
@@ -138,9 +143,6 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         )}
         {has('kreditoren') && (
           <NavItem label="Lieferantenrechnungen" target="kreditoren" current={screen} onNav={onNav} icon={<IconReceipt />} badge={badges?.kreditoren} />
-        )}
-        {has('mail_eingang') && (
-          <NavItem label="Eingang" target="eingang" current={screen} onNav={onNav} icon={<IconMail />} badge={badges?.mailEingang} beta />
         )}
         {has('payment_matching') && (
           <NavItem label="Zahlungsabgleich" target="payment-reconciliation" current={screen} onNav={onNav} icon={<IconCash />} />

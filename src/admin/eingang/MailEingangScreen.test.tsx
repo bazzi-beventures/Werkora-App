@@ -134,6 +134,23 @@ describe('MailEingangScreen — Liste', () => {
     expect(getMailEingangText).not.toHaveBeenCalled()
   })
 
+  it('zeigt Anliegen und Vorschläge als farbige Abzeichen, je Tätigkeit eine Farbe', async () => {
+    listMailEingang.mockResolvedValue(liste([item({
+      kategorie: 'laufendes_projekt', suggestions: [NOTIZ, { ...DOKUMENT, status: 'verworfen' }],
+    })]))
+    render(<MailEingangScreen />)
+    const karte = await screen.findByRole('article', { name: 'Anfrage Storen' })
+    expect(karte).toHaveAttribute('data-farbe', 'notiz')
+    expect(within(karte).getByText('Laufendes Projekt')).toBeInTheDocument()
+    const abzeichen = within(within(karte).getByRole('list', { name: 'Vorschläge' })).getAllByRole('listitem')
+    expect(abzeichen.map(a => [a.textContent, a.getAttribute('data-farbe')])).toEqual([
+      ['Projektnotiz', 'notiz'],
+      ['Anhang ablegen (verworfen)', 'dokument'],
+    ])
+    // Das Kürzel im Kreis kommt aus dem (ungeprüften) Absender.
+    expect(karte.querySelector('.eingang-avatar')).toHaveTextContent('HM')
+  })
+
   it('stellt die neueste Mail zuoberst', async () => {
     listMailEingang.mockResolvedValue(liste([
       item({ id: 'alt', subject: 'Alt', received_at: '2026-11-10T08:00:00Z' }),

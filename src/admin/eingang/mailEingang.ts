@@ -45,6 +45,75 @@ export function kategorieLabel(kategorie: string): string {
   return KATEGORIE_LABEL[kategorie] ?? kategorie
 }
 
+// ─── Kennfarben ─────────────────────────────────────────────────────────────
+//
+// Jede Tätigkeit des Agenten hat ihre eigene Farbe, nach dem Vorbild der
+// Nachbildung auf werkora.ch: Karte, Abzeichen und Vorschlag zeigen auf einen
+// Blick, was aus der Mail werden soll. Die Werte stehen als `--eingang-<farbe>`
+// in admin/tokens.css (je Theme); hier steht nur, wer welche Farbe trägt.
+
+export type EingangFarbe =
+  | 'entwurf' | 'notiz' | 'dokument' | 'kunde' | 'kontakt' | 'neukunde' | 'aufgabe' | 'antwort'
+
+const TYP_FARBE: Record<VorschlagTyp, EingangFarbe> = {
+  projekt_entwurf: 'entwurf',
+  projektnotiz: 'notiz',
+  projektdokument: 'dokument',
+  kundennotiz: 'kunde',
+  kontakt_ergaenzen: 'kontakt',
+  kunde_anlegen: 'neukunde',
+  aufgabe: 'aufgabe',
+  antwort: 'antwort',
+}
+
+/** Kennfarbe eines Vorschlags; `null` (= neutral) für einen unbekannten Typ. */
+export function typFarbe(typ: string): EingangFarbe | null {
+  return istBekannterTyp(typ) ? TYP_FARBE[typ] : null
+}
+
+/** Eine Kategorie trägt die Farbe ihres typischen Vorschlags: aus einer neuen
+ *  Anfrage wird ein Projekt, zu einem laufenden Projekt eine Notiz, aus
+ *  Kontaktangaben ein ergänzter Kontakt. */
+const KATEGORIE_FARBE: Record<string, EingangFarbe> = {
+  neue_anfrage: 'entwurf',
+  laufendes_projekt: 'notiz',
+  kontakt: 'kontakt',
+}
+
+export function kategorieFarbe(kategorie: string): EingangFarbe | null {
+  return KATEGORIE_FARBE[kategorie] ?? null
+}
+
+/** Kurzform eines Vorschlags für das Abzeichen auf der zugeklappten Karte. */
+const TYP_KURZ: Record<VorschlagTyp, string> = {
+  projekt_entwurf: 'Projekt anlegen',
+  projektnotiz: 'Projektnotiz',
+  kundennotiz: 'Kundennotiz',
+  kontakt_ergaenzen: 'Kontakt ergänzen',
+  projektdokument: 'Anhang ablegen',
+  kunde_anlegen: 'Kunde anlegen',
+  aufgabe: 'Aufgabe',
+  antwort: 'Antwort',
+}
+
+export function typKurz(typ: string): string {
+  return istBekannterTyp(typ) ? TYP_KURZ[typ] : 'Unbekannt'
+}
+
+/**
+ * Kürzel für den Kreis vor der Karte: die Anfangsbuchstaben der ersten zwei
+ * Wörter des Namens («Muster Immobilien AG» → «MI»), sonst der erste Buchstabe
+ * der Adresse; `null`, wenn beides fehlt. Der Name ist Fremdtext aus der Mail —
+ * er wird nur als Text gesetzt.
+ */
+export function initialen(p: { name?: string | null; email?: string | null } | null | undefined): string | null {
+  const buchstabe = (wort: string) => wort.match(/\p{L}|\p{N}/u)?.[0] ?? ''
+  const woerter = (p?.name ?? '').split(/\s+/).map(buchstabe).filter(Boolean)
+  if (woerter.length > 0) return woerter.slice(0, 2).join('').toUpperCase()
+  const lokal = buchstabe(p?.email?.trim() ?? '')
+  return lokal ? lokal.toUpperCase() : null
+}
+
 const ITEM_STATUS: Record<string, { label: string; badge: string }> = {
   offen: { label: 'Offen', badge: 'admin-badge-open' },
   erledigt: { label: 'Erledigt', badge: 'admin-badge-approved' },

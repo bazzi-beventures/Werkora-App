@@ -138,7 +138,7 @@ export default function OperatorInvoicesScreen() {
           <button
             className="admin-btn admin-btn-primary admin-btn-sm"
             disabled={acting === inv.id}
-            onClick={() => { setSendEmail(''); setConfirmSend(inv) }}
+            onClick={() => { setSendEmail(inv.customer_email || ''); setConfirmSend(inv) }}
           >
             Senden
           </button>
@@ -323,12 +323,14 @@ export default function OperatorInvoicesScreen() {
               value={sendEmail}
               onChange={(e) => setSendEmail(e.target.value)}
             />
-            {/* Keine Vorbelegung: Die freie Rechnung trägt keinen Kundenbezug in
-                der Zeile (`project_id` ist leer, eine `customer_id` hat die
-                Tabelle nicht). Eine geratene Adresse wäre hier teurer als eine
-                leere — die Rechnung ginge an den Falschen. */}
+            {/* Vorbelegt aus dem Kunden der Rechnung (`invoices.customer_id`, seit
+                20261114 — das Backend liefert `customer_email`). Ältere Rechnungen
+                tragen keinen Kunden: dann bleibt das Feld leer, statt eine Adresse
+                zu raten — die Rechnung ginge sonst an den Falschen. */}
             <div className="admin-form-hint">
-              Die Adresse des Mandanten. Sie steht im Kundenstamm.
+              {confirmSend.customer_email
+                ? 'Aus dem Kundenstamm. Änderungen gelten nur für diesen Versand.'
+                : 'Beim Kunden ist keine E-Mail hinterlegt — bitte eintragen.'}
             </div>
           </div>
         </ConfirmDialog>

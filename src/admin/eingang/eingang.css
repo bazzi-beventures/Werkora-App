@@ -20,38 +20,121 @@
   gap: var(--s-4);
 }
 
+/* ─── Kennfarben ──────────────────────────────────────────────
+   Karte, Abzeichen und Vorschlag lesen ihre Farbe aus drei lokalen Tokens;
+   `data-farbe` (mailEingang.ts) setzt sie auf die Palette aus tokens.css.
+   Ohne Attribut (unbekannte Kategorie, unbekannter Typ) bleibt es neutral. */
+.eingang-karte,
+.eingang-chip,
+.eingang-vorschlag {
+  --ak: var(--border);
+  --ak-ink: var(--text-muted);
+  --ak-soft: var(--surface-2);
+}
+
+[data-farbe="entwurf"]  { --ak: var(--eingang-entwurf);  --ak-ink: var(--eingang-entwurf-ink);  --ak-soft: var(--eingang-entwurf-soft); }
+[data-farbe="notiz"]    { --ak: var(--eingang-notiz);    --ak-ink: var(--eingang-notiz-ink);    --ak-soft: var(--eingang-notiz-soft); }
+[data-farbe="dokument"] { --ak: var(--eingang-dokument); --ak-ink: var(--eingang-dokument-ink); --ak-soft: var(--eingang-dokument-soft); }
+[data-farbe="kunde"]    { --ak: var(--eingang-kunde);    --ak-ink: var(--eingang-kunde-ink);    --ak-soft: var(--eingang-kunde-soft); }
+[data-farbe="kontakt"]  { --ak: var(--eingang-kontakt);  --ak-ink: var(--eingang-kontakt-ink);  --ak-soft: var(--eingang-kontakt-soft); }
+[data-farbe="neukunde"] { --ak: var(--eingang-neukunde); --ak-ink: var(--eingang-neukunde-ink); --ak-soft: var(--eingang-neukunde-soft); }
+[data-farbe="aufgabe"]  { --ak: var(--eingang-aufgabe);  --ak-ink: var(--eingang-aufgabe-ink);  --ak-soft: var(--eingang-aufgabe-soft); }
+[data-farbe="antwort"]  { --ak: var(--eingang-antwort);  --ak-ink: var(--eingang-antwort-ink);  --ak-soft: var(--eingang-antwort-soft); }
+
 /* min-width: 0 — sonst wächst die Karte auf die Breite einer langen Zeile im
-   Originaltext und schiebt am Handy rechts aus dem Bild. */
+   Originaltext und schiebt am Handy rechts aus dem Bild.
+   Links ein Balken in der Farbe des Anliegens: die Liste sortiert sich so
+   schon beim Überfliegen. */
 .eingang-karte {
+  position: relative;
   min-width: 0;
-  padding: var(--s-4);
+  padding: var(--s-4) var(--s-4) var(--s-4) calc(var(--s-4) + 4px);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.eingang-karte::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--ak);
+}
+
+.eingang-karte:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* Geöffnet: der Rahmen nimmt die Farbe auf — wie die angetippte Mail auf werkora.ch. */
+.eingang-karte.ist-offen {
+  border-color: var(--ak);
+  box-shadow: 0 0 0 1px var(--ak), var(--shadow-hover);
+}
+
+/* Erledigtes tritt zurück, bleibt aber lesbar. */
+.eingang-karte.ist-erledigt::before {
+  opacity: 0.45;
 }
 
 .eingang-kopf {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: start;
+}
+
+.eingang-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ak-soft);
+  color: var(--ak-ink);
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.eingang-avatar .eingang-symbol {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.eingang-kopf-text {
+  min-width: 0;
+}
+
+.eingang-titelzeile {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: baseline;
   flex-wrap: wrap;
-  gap: var(--s-2) var(--s-3);
+  gap: 2px var(--s-3);
 }
 
 .eingang-betreff {
-  flex: 1 1 240px;
+  flex: 1 1 220px;
   min-width: 0;
   font-size: var(--font-lg);
   font-weight: 600;
+  line-height: 1.35;
   color: var(--text-strong);
   overflow-wrap: anywhere;
 }
 
-.eingang-marken {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
+.eingang-zeit {
+  flex: none;
+  font-family: var(--mono);
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .eingang-meta {
@@ -66,6 +149,19 @@
   font-weight: 600;
 }
 
+.eingang-symbol {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 2px;
+  vertical-align: -2px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* «aus der Mail gelesen» — der Zusatz, der die Adresse als ungeprüft ausweist. */
 .eingang-ungeprueft {
   font-style: italic;
@@ -73,9 +169,101 @@
 
 .eingang-zusammenfassung {
   margin: var(--s-3) 0 0;
-  line-height: 1.5;
+  font-size: var(--font-md);
+  line-height: 1.55;
+  color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* ─── Was der Agent gelesen hat ─────────────────────────────────
+   Gestrichelt abgesetzt wie auf werkora.ch: Funke, Anliegen in seiner Farbe,
+   dann je Vorschlag ein Abzeichen in der Farbe seiner Tätigkeit. */
+.eingang-ki {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px dashed var(--border);
+}
+
+.eingang-funke {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: var(--eingang-ki);
+}
+
+/* Das Anliegen: eckiger, in Mono — damit es sich von den runden Abzeichen der
+   Vorschläge abhebt, die danach kommen. */
+.eingang-kat {
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--ak-soft);
+  border: 1px solid var(--ak);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ak-ink);
+}
+
+.eingang-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eingang-chips::before {
+  content: '→';
+  margin-right: 2px;
+  color: var(--text-muted);
+}
+
+.eingang-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ak-soft);
+  color: var(--ak-ink);
+  font-size: var(--font-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.eingang-chip .eingang-symbol {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  stroke-width: 3;
+}
+
+.eingang-chip[data-status="verworfen"] {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.eingang-status {
+  margin-left: auto;
+}
+
+/* Nur für Screenreader: ob ein Abzeichen übernommen oder verworfen ist, sieht
+   man am Haken bzw. am Durchstrich — gehört werden soll es auch. */
+.eingang-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .eingang-aktionen {
@@ -94,10 +282,11 @@
 
 .eingang-abschnitt-titel {
   margin-bottom: var(--s-2);
-  font-size: var(--font-xs);
-  font-weight: 700;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.14em;
   color: var(--text-muted);
 }
 
@@ -130,17 +319,26 @@
   gap: var(--s-3);
 }
 
+/* Jeder Vorschlag in der Farbe seiner Tätigkeit — dieselbe wie sein
+   Abzeichen auf der zugeklappten Karte. */
 .eingang-vorschlag {
   min-width: 0;
-  padding: var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-3) calc(var(--s-3) + 2px);
   background: var(--surface-2);
   border: 1px solid var(--border);
+  border-left: 4px solid var(--ak);
   border-radius: var(--radius-md);
 }
 
 .eingang-vorschlag-titel {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ak-soft);
+  color: var(--ak-ink);
+  font-size: var(--font-sm);
   font-weight: 600;
-  color: var(--text-strong);
 }
 
 .eingang-felder {
@@ -241,6 +439,18 @@
 @media (max-width: 767px) {
   .eingang-felder {
     grid-template-columns: 1fr;
+  }
+
+  /* Am Handy zählt jede Spalte: kleinerer Kreis, weniger Abstand. */
+  .eingang-kopf {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .eingang-avatar {
+    width: 32px;
+    height: 32px;
+    font-size: var(--font-xs);
   }
 
   /* Knöpfe am Handy in Daumengrösse — wie .admin-card-actions. */

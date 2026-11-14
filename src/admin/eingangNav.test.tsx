@@ -31,6 +31,15 @@ describe('Navigationspunkt «Eingang»', () => {
     expect(onNav).toHaveBeenCalledWith('eingang')
   })
 
+  it('steht in der Seitenleiste gleich unter dem Dashboard, vor Aufgaben und Meine Zeit', () => {
+    render(
+      <AdminSidebar {...basis} onNav={() => {}} showTaskBoard
+                    enabledModules={['mail_eingang', 'timekeeping', 'lieferschein_erfassung']} />,
+    )
+    const titel = Array.from(document.querySelectorAll('.admin-nav-item')).map(b => b.getAttribute('title'))
+    expect(titel.slice(0, 4)).toEqual(['Dashboard', 'Eingang', 'Aufgaben', 'Meine Zeit'])
+  })
+
   it('zeigt ohne offene Mails keine Zahl', () => {
     render(<AdminSidebar {...basis} onNav={() => {}} enabledModules={['mail_eingang']} badges={{ mailEingang: 0 }} />)
     expect(within(screen.getByTitle('Eingang')).queryByText('0')).toBeNull()
@@ -46,6 +55,8 @@ describe('Navigationspunkt «Eingang»', () => {
     await userEvent.click(screen.getByRole('button', { name: /Mehr/ }))
     const punkt = screen.getByRole('button', { name: /^Eingang/ })
     expect(within(punkt).getByText('2')).toBeInTheDocument()
+    // Zuoberst in «Häufig genutzt», wie in der Seitenleiste.
+    expect(container.ownerDocument.querySelector('.admin-mobile-drawer-item')).toBe(punkt)
     await userEvent.click(punkt)
     expect(onNav).toHaveBeenCalledWith('eingang', undefined)
   })

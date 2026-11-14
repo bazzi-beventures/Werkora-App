@@ -170,6 +170,15 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
               <div className="admin-mobile-drawer-group">
                 <div className="admin-mobile-drawer-group-label">Häufig genutzt</div>
 
+                {/* Eingang zuerst — wie in der Seitenleiste direkt unter dem Dashboard. */}
+                {has('mail_eingang') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'eingang' ? ' active' : ''}`} onClick={() => navigate('eingang')}>
+                    <IconMail /><span>Eingang <BetaBadge /></span>
+                    {(badges?.mailEingang ?? 0) > 0 && (
+                      <span className="admin-mobile-drawer-item-badge">{badges!.mailEingang}</span>
+                    )}
+                  </button>
+                )}
                 {showTaskBoard && (
                   <button className={`admin-mobile-drawer-item${screen === 'tasks' ? ' active' : ''}`} onClick={() => navigate('tasks')}>
                     <IconTasks /><span>Aufgaben</span>
@@ -239,14 +248,6 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     <IconReceipt /><span>Lieferantenrechnungen</span>
                     {(badges?.kreditoren ?? 0) > 0 && (
                       <span className="admin-mobile-drawer-item-badge">{badges!.kreditoren}</span>
-                    )}
-                  </button>
-                )}
-                {has('mail_eingang') && (
-                  <button className={`admin-mobile-drawer-item${screen === 'eingang' ? ' active' : ''}`} onClick={() => navigate('eingang')}>
-                    <IconMail /><span>Eingang <BetaBadge /></span>
-                    {(badges?.mailEingang ?? 0) > 0 && (
-                      <span className="admin-mobile-drawer-item-badge">{badges!.mailEingang}</span>
                     )}
                   </button>
                 )}

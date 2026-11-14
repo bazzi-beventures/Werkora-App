@@ -13,7 +13,8 @@ import KundeAnlegen from './KundeAnlegen'
 import ProjektAusMail from './ProjektAusMail'
 import {
   ENTWURF_FELDER, KUNDE_ANLEGEN_FELDER, NOTIZ_MAX, acceptPayload, belegText, entscheidText, ergebnisHinweis,
-  ergebnisZiel, fehltZumUebernehmen, fmtFaellig, fmtGroesse, istBekannterTyp, startEingabe, typTitel, uebernehmenLabel,
+  ergebnisZiel, fehltZumUebernehmen, fmtFaellig, fmtGroesse, istBekannterTyp, startEingabe, typFarbe, typTitel,
+  uebernehmenLabel,
   type VorschlagEingabe,
 } from './mailEingang'
 
@@ -253,7 +254,7 @@ export default function VorschlagKarte({
   const ziel = ergebnisZiel(v)
 
   return (
-    <div className="eingang-vorschlag" data-testid={`vorschlag-${v.id}`}>
+    <div className="eingang-vorschlag" data-testid={`vorschlag-${v.id}`} data-farbe={typFarbe(v.typ) ?? undefined}>
       <div className="eingang-vorschlag-titel">{typTitel(v.typ)}</div>
 
       {offen ? formular() : werte()}
