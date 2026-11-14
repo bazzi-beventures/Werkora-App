@@ -26,6 +26,8 @@ import { backdropCloseProps } from '../../shared/backdropClose'
 /** Wie `services/free_invoice.py`: mehr Zeilen nimmt der Server nicht an. */
 const MAX_POSITIONEN = 100
 const STANDARD_FRIST_TAGE = 30
+// Wie services/rechnungs_bezug.INHALT_MAX — steht im Mail-Betreff und im PDF-Titel.
+const INHALT_MAX = 120
 
 /** Eine Zeile im Formular. Getrennt vom API-Typ, weil Mengen und Preise hier
  *  als Text leben — ein halb getipptes «12.» ist keine Zahl, und ein Feld, das
@@ -89,6 +91,7 @@ interface Props {
 
 export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Props) {
   const [customerId, setCustomerId] = useState('')
+  const [inhalt, setInhalt] = useState('')
   const [zeilen, setZeilen] = useState<Zeile[]>([{ ...LEERE_ZEILE }])
   const [frist, setFrist] = useState(String(STANDARD_FRIST_TAGE))
   const [remark, setRemark] = useState('')
@@ -111,6 +114,8 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
   async function absenden() {
     setFehler('')
     if (!customerId) { setFehler('Kunde wählen.'); return }
+    // Der Bezug der Rechnung — ohne ihn spräche die Mail von «Projekt <Kunde>».
+    if (!inhalt.trim()) { setFehler('Inhalt angeben — worum geht es auf dieser Rechnung?'); return }
 
     const { fehler: f, positionen } = zeilenPruefen(zeilen)
     if (f) { setFehler(f); return }
@@ -125,6 +130,7 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
     try {
       const res = await generateFreeInvoice({
         customer_id: customerId,
+        inhalt: inhalt.trim(),
         positions: positionen,
         payment_terms_days: tage,
         remark: remark.trim() || undefined,
@@ -140,7 +146,7 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
   // Ein Klick daneben wirft keine halb erfasste Rechnung weg — schliessen
   // geht dann nur über «Abbrechen» bzw. das ×.
   const angefangen =
-    customerId !== '' || remark.trim() !== '' ||
+    customerId !== '' || inhalt.trim() !== '' || remark.trim() !== '' ||
     zeilen.some((z) => z.text.trim() !== '' || z.einzelpreis.trim() !== '')
 
   return (
@@ -155,6 +161,19 @@ export default function FreeInvoiceDialog({ customers, onClose, onCreated }: Pro
           <label className="admin-form-label">
             Kunde
             <CustomerCombobox customers={customers} value={customerId} onChange={setCustomerId} />
+          </label>
+
+          {/* Worum es geht — steht im PDF-Titel und im Betreff der Mail. Die Rechnung
+              hat kein Projekt; ohne Inhalt hätte sie keinen Bezug. */}
+          <label className="admin-form-label">
+            Inhalt
+            <input
+              className="admin-form-input"
+              value={inhalt}
+              maxLength={INHALT_MAX}
+              placeholder="z. B. Hagelschaden-Modul"
+              onChange={(e) => setInhalt(e.target.value)}
+            />
           </label>
 
           <div className="admin-form-label">Positionen</div>

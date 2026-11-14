@@ -34,9 +34,11 @@ export interface Invoice {
    *  und Mahnung laufen. `null` heisst: noch nicht versendet, also nie verspätet. */
   due_date?: string | null
   sent_at?: string | null
-  /** Freitext auf der Rechnung. Auf der freien Rechnung ist er das, was sonst der
-   *  Projektname erklären würde — die Betreiber-Liste zeigt ihn als «Beschreibung». */
+  /** Freitext auf der Rechnung («Bemerkung»). */
   remark?: string | null
+  /** Bezug einer Rechnung ohne Projekt («Hagelschaden-Modul», Migration 20261114);
+   *  `null` = Projektrechnung. Die Betreiber-Liste zeigt ihn als «Beschreibung». */
+  inhalt?: string | null
   /** 'anzahlung' = Anzahlungsrechnung (WW-47), null = gewöhnliche Rechnung. */
   invoice_kind?: string | null
 }
@@ -137,6 +139,9 @@ export interface FreePosition {
 
 export interface GenerateFreeInvoiceInput {
   customer_id: string
+  /** Worum es geht, kurz («Hagelschaden-Modul») — Pflicht. Der Bezug einer Rechnung
+   *  ohne Projekt: PDF-Titel und Mail-Betreff (services/rechnungs_bezug.py). */
+  inhalt: string
   positions: FreePosition[]
   payment_terms_days: number
   remark?: string

@@ -38,6 +38,11 @@ import { REITER, anzeigeStatus, passtZuReiter, type Reiter } from './operatorInv
  * Liste zeigt und welcher Knopf oben steht.
  */
 
+/** «Wofür»: der Inhalt der Rechnung (seit 20261114), bei älteren die Bemerkung. */
+function beschreibung(inv: Pick<Invoice, 'inhalt' | 'remark'>): string {
+  return inv.inhalt || inv.remark || ''
+}
+
 export default function OperatorInvoicesScreen() {
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +85,7 @@ export default function OperatorInvoicesScreen() {
       return (
         (inv.project_name || '').toLowerCase().includes(q) ||
         (inv.invoice_number || '').toLowerCase().includes(q) ||
+        (inv.inhalt || '').toLowerCase().includes(q) ||
         (inv.remark || '').toLowerCase().includes(q)
       )
     })
@@ -232,7 +238,7 @@ export default function OperatorInvoicesScreen() {
                     <span className={`admin-badge ${st.badge}`}>{st.label}</span>
                   </div>
                   <div className="admin-card-meta"><strong>{inv.project_name}</strong></div>
-                  {inv.remark && <div className="admin-card-meta">{inv.remark}</div>}
+                  {beschreibung(inv) && <div className="admin-card-meta">{beschreibung(inv)}</div>}
                   <div className="admin-card-meta">
                     {fmtCHF(inv.total_amount)} · erstellt {fmtDate(inv.created_at)}
                     {inv.paid_at ? ` · bezahlt ${fmtDate(inv.paid_at)}` : ''}
@@ -265,7 +271,7 @@ export default function OperatorInvoicesScreen() {
                   <tr key={inv.id}>
                     <td style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{inv.invoice_number}</td>
                     <td><strong>{inv.project_name}</strong></td>
-                    <td style={{ color: 'var(--muted)' }}>{inv.remark || '—'}</td>
+                    <td style={{ color: 'var(--muted)' }}>{beschreibung(inv) || '—'}</td>
                     <td style={{ fontWeight: 700 }}>{fmtCHF(inv.total_amount)}</td>
                     <td><span className={`admin-badge ${st.badge}`}>{st.label}</span></td>
                     <td style={{ color: 'var(--muted)' }}>{fmtDate(inv.created_at)}</td>

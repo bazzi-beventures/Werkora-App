@@ -96,6 +96,7 @@ describe('FreeInvoiceDialog', () => {
   it('sendet Kunde, Positionen und Frist so, wie das Backend sie erwartet', async () => {
     zeige()
     fireEvent.change(screen.getByLabelText('Kunde'), { target: { value: 'k-1' } })
+    fireEvent.change(screen.getByLabelText('Inhalt'), { target: { value: 'Hagelschaden-Modul' } })
     fireEvent.change(screen.getByLabelText('Beschreibung Position 1'), {
       target: { value: 'KI App, August' },
     })
@@ -104,16 +105,29 @@ describe('FreeInvoiceDialog', () => {
 
     await waitFor(() => expect(generateFreeInvoice).toHaveBeenCalledWith({
       customer_id: 'k-1',
+      inhalt: 'Hagelschaden-Modul',
       positions: [{ text: 'KI App, August', menge: 1, einheit: 'Stk', einzelpreis: 70 }],
       payment_terms_days: 30,
       remark: undefined,
     }))
   })
 
+  it('sendet nicht ohne Inhalt — die Mail spräche sonst von «Projekt <Kunde>»', async () => {
+    zeige()
+    fireEvent.change(screen.getByLabelText('Kunde'), { target: { value: 'k-1' } })
+    fireEvent.change(screen.getByLabelText('Beschreibung Position 1'), { target: { value: 'Abo' } })
+    fireEvent.change(screen.getByLabelText('Einzelpreis Position 1'), { target: { value: '70' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Rechnung erzeugen' }))
+
+    expect(screen.getByText(/Inhalt angeben/)).toBeTruthy()
+    expect(generateFreeInvoice).not.toHaveBeenCalled()
+  })
+
   it('meldet einen Fehler des Servers, statt ihn zu verschlucken', async () => {
     generateFreeInvoice.mockRejectedValue(new Error('feature_disabled'))
     zeige()
     fireEvent.change(screen.getByLabelText('Kunde'), { target: { value: 'k-1' } })
+    fireEvent.change(screen.getByLabelText('Inhalt'), { target: { value: 'Hagelschaden-Modul' } })
     fireEvent.change(screen.getByLabelText('Beschreibung Position 1'), { target: { value: 'Abo' } })
     fireEvent.change(screen.getByLabelText('Einzelpreis Position 1'), { target: { value: '70' } })
     fireEvent.click(screen.getByRole('button', { name: 'Rechnung erzeugen' }))
@@ -124,6 +138,7 @@ describe('FreeInvoiceDialog', () => {
   it('weist eine unmögliche Zahlungsfrist ab', async () => {
     zeige()
     fireEvent.change(screen.getByLabelText('Kunde'), { target: { value: 'k-1' } })
+    fireEvent.change(screen.getByLabelText('Inhalt'), { target: { value: 'Hagelschaden-Modul' } })
     fireEvent.change(screen.getByLabelText('Beschreibung Position 1'), { target: { value: 'Abo' } })
     fireEvent.change(screen.getByLabelText('Einzelpreis Position 1'), { target: { value: '70' } })
     fireEvent.change(screen.getByLabelText('Zahlungsfrist (Tage)'), { target: { value: '400' } })

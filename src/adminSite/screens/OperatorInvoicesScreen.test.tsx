@@ -110,6 +110,17 @@ describe('OperatorInvoicesScreen', () => {
     expect(within(kopf).getByText('KI App für Gehlhaar')).toBeTruthy()
   })
 
+  it('«Beschreibung» ist der Inhalt der Rechnung, bei älteren die Bemerkung', async () => {
+    listInvoices.mockResolvedValue([
+      rechnung({ id: 7, invoice_number: 'RE-2026-008', inhalt: 'Hagelschaden-Modul', remark: 'Umfang: …' }),
+    ])
+    render(<OperatorInvoicesScreen />)
+
+    const tabelle = await screen.findByRole('table')
+    expect(within(tabelle).getByText('Hagelschaden-Modul')).toBeTruthy()
+    expect(within(tabelle).queryByText('Umfang: …')).toBeNull()
+  })
+
   it('«+ Rechnung erstellen» öffnet die freie Rechnung, nicht den Projekt-Weg', async () => {
     listInvoices.mockResolvedValue([])
     render(<OperatorInvoicesScreen />)
