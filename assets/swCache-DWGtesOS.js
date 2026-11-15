@@ -1,0 +1,1 @@
+async function e(){try{`caches`in window&&await caches.delete(`api-cache`)}catch{}}export{e as t};
