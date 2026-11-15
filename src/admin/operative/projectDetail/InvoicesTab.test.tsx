@@ -370,6 +370,7 @@ describe('InvoicesTab — Rapport-Auswahl und Anzahlung', () => {
 
   const R = (id: number, date: string): BillableReport => ({
     id, report_date: date, created_by: 'Monteur', description: 'Montage', hours: 4, signed: true,
+    is_warranty: false,
   })
 
   it('abgewählter Rapport bleibt offen und der Vorschlag lädt neu', async () => {

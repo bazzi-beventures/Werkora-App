@@ -3,6 +3,7 @@ import * as scoped from '../../tenantScopedApi'
 import type { MailEingangView } from '../../tenantScopedApi'
 import { useToast, ToastHost } from '../../../admin/components/useToast'
 import { abgewiesenTeile } from '../../../shared/mailEingangGruende'
+import { MailEingangZustaendigkeiten } from './MailEingangZustaendigkeiten'
 import {
   MAILSYSTEM_LABEL, TAGESLIMIT_MAX, abholungText, einstellungAus, formAus, geaendert, offenePunkte,
   postfachBereit, pruefe, type MailEingangForm,
@@ -262,6 +263,7 @@ export function MailEingangTab({ tenantId }: { tenantId: string }) {
           </button>
         </div>
       </div>
+      <MailEingangZustaendigkeiten tenantId={tenantId} onMeldung={showToast} />
       <ToastHost toast={toast} />
     </div>
   )

@@ -44,6 +44,9 @@ const ALLOWED: Record<string, number> = {
   // dieselbe Bauart wie der Dialog darüber, mit backdropCloseProps
   // (docs/specs/servicebegleitung.md §7.1).
   'admin/operative/projectDetail/TerminwahlDialog.tsx': 1,
+  // Terminvorschläge: Eingaben und Vorschlags-Karten, backdropCloseProps; reicht
+  // «zur Wahl senden» an den Dialog darüber weiter (servicebegleitung.md §6.6).
+  'admin/operative/projectDetail/TerminVorschlagDialog.tsx': 1,
   // Die Kundenmaske des Kundenstamms als Overlay, backdropCloseProps mit
   // blockWhen — ein Klick daneben leert die Maske nicht. Ein Overlay für zwei
   // Aufrufer: «Neuer Kunde» aus dem Kundenfeld der Projektmaske (WW-71, bis

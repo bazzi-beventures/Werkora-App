@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { getMe, getTenantInfo, TenantInfo, UserInfo } from './api/auth'
 import { ApiError, apiUrl, resetSessionExpiredFlag } from './api/client'
 import { SK } from './api/storageKeys'
@@ -23,7 +23,16 @@ import AbsenzenScreen from './screens/AbsenzenScreen'
 import InventurScreen from './inventur/InventurScreen'
 import FerienantraegeScreen from './screens/FerienantraegeScreen'
 import LieferscheinScreen from './screens/LieferscheinScreen'
-import AdminApp from './admin/AdminApp'
+// Der Admin-Bereich kommt als eigener Chunk erst, wenn jemand ihn öffnet (Charge O5,
+// docs/specs/refactoring-wachstum.md §19): vorher lud jeder Monteur ihn beim Start mit.
+// Seine drei globalen Stylesheets bleiben im Einstieg, an derselben Stelle der
+// CSS-Reihenfolge wie bisher — die Mitarbeiter-App nutzt daraus Tokens (`--danger`)
+// und Knöpfe (`admin-btn` im Zähl-Assistenten der Inventur). Offline fehlt nichts:
+// der Service Worker cacht alle Chunks vor.
+import './admin/tokens.css'
+import './admin/admin.css'
+import './admin/mobile.css'
+const AdminApp = lazy(() => import('./admin/AdminApp'))
 import { WerkoraMark } from './brand/WerkoraMark'
 import { derivePalette, paletteCss } from './brand/palette'
 import { MigrationBanner, MIGRATION_STREIFEN_HOEHE, aktuelleMigrationStufe } from './shared/MigrationBanner'
@@ -931,14 +940,16 @@ export default function App() {
     )
   } else if (screen === 'admin' && user) {
     inner = (
-      <AdminApp
-        user={user}
-        logoUrl={effectiveLogo}
-        tenantName={tenantName || localStorage.getItem(SK.TENANT_SLUG) || ''}
-        canton={canton}
-        onLoggedOut={goToAuth}
-        onSwitchToUser={() => go('home')}
-      />
+      <Suspense fallback={<div className="loading-screen"><p className="loading-text">Laden…</p></div>}>
+        <AdminApp
+          user={user}
+          logoUrl={effectiveLogo}
+          tenantName={tenantName || localStorage.getItem(SK.TENANT_SLUG) || ''}
+          canton={canton}
+          onLoggedOut={goToAuth}
+          onSwitchToUser={() => go('home')}
+        />
+      </Suspense>
     )
   }
 

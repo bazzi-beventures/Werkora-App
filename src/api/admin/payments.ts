@@ -3,38 +3,13 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFormFetch } from '../client'
+import type { Antwort } from '../generated'
 
-export type ReconcileStatus = 'matched' | 'amount_mismatch' | 'already_paid' | 'unmatched'
-
-export interface ReconcileResult {
-  status: ReconcileStatus
-  reference: string | null
-  paid_amount: number
-  currency: string | null
-  value_date: string | null
-  debtor_name: string | null
-  invoice_id: number | null
-  invoice_number: string | null
-  project_name: string | null
-  expected_amount: number | null
-  amount_diff: number | null
-}
-
-export interface ReconcileSummary {
-  total: number
-  matched: number
-  amount_mismatch: number
-  already_paid: number
-  unmatched: number
-  applied: number
-  dry_run: boolean
-}
-
-export interface ReconcileResponse {
-  status: string
-  summary: ReconcileSummary
-  results: ReconcileResult[]
-}
+// Generiert aus den Antwort-Modellen in agents/routers/antworten/rechnungen.py.
+export type ReconcileResult = Antwort<'AbgleichZeile'>
+export type ReconcileStatus = ReconcileResult['status']
+export type ReconcileSummary = Antwort<'AbgleichSumme'>
+export type ReconcileResponse = Antwort<'CamtAbgleich'>
 
 export async function reconcileCamt(file: File, dryRun: boolean): Promise<ReconcileResponse> {
   const form = new FormData()

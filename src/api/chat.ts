@@ -1,4 +1,5 @@
 import { apiFetch, apiBlobFetch, apiFormFetch, apiStreamFetch } from './client'
+import type { Antwort } from './generated'
 
 export interface DisambiguationOption {
   name: string
@@ -282,31 +283,8 @@ export async function deleteOwnRapport(reportId: number): Promise<void> {
 // sonst schreibt der zweite Mann denselben Tag nochmals. `is_own` trägt die
 // Selbstkorrektur: nur eigene Rapporte sind löschbar (der Server prüft dieselbe
 // Regel nochmals).
-export interface ProjectReport {
-  id: number
-  report_date: string
-  description: string | null
-  created_by: string | null
-  signature_timestamp: string | null
-  invoice_id: number | null
-  // Hängt der Rapport an einer Rechnung, die der Kunde bereits hat (gesendet/
-  // bezahlt)? Nur dann ist die Unterschrift endgültig weg. Die blosse Verknüpfung
-  // sperrt sie nicht mehr — die Rechnungsaggregation nimmt auch unsignierte
-  // Rapporte mit, und die waren danach nie mehr nachsignierbar.
-  invoice_locked?: boolean
-  created_at: string
-  source: string | null
-  is_own: boolean
-  // Teilrapport/Sammelrapport (docs/specs/teilrapport.md). Alle vier optional:
-  // ein Alt-Server ohne die Spalten liefert sie nicht, dann verhält sich die Liste
-  // wie vor dem Feature.
-  is_partial?: boolean
-  is_aggregate?: boolean
-  merged_into_report_id?: number | null
-  dissolved_at?: string | null
-  // Vom Projektleiter ohne Kundenunterschrift abgeschlossen (20260824d).
-  pl_accepted_at?: string | null
-}
+// Ein Rapport in der Projektansicht der Monteur-App — generiert aus `MonteurRapport`.
+export type ProjectReport = Antwort<'MonteurRapport'>
 
 export async function fetchProjectReports(projectId: string): Promise<ProjectReport[]> {
   return apiFetch<ProjectReport[]>(`/pwa/projects/${projectId}/reports`)

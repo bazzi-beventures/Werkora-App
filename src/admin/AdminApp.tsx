@@ -419,7 +419,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={s => guardedNav(s)} />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
-      case 'settings':     return <SettingsScreen />
+      case 'settings':     return <SettingsScreen terminDauer={hasWerkzeug(user, 'terminwahl')} />
       case 'profile':      return (
         <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}
                             onToggleTheme={toggleTheme} onLoggedOut={onLoggedOut} />

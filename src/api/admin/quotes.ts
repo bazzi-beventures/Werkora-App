@@ -8,16 +8,13 @@
 // rawAdminFetch.guard.test.ts).
 
 import { apiBlobFetch, apiFetch, apiFormFetch } from '../client'
+import type { Antwort } from '../generated'
 import { listPageParams, type ListPage, type ListPageQuery } from './listPage'
 import type { ConfirmedPosition, PdfExtractionResponse } from '../../admin/operative/PdfExtractionReviewModal'
 
 // Teilmenge der Listen-Antwort: was für die Frage «gibt es zu diesem Projekt eine
 // angenommene Offerte?» reicht.
-export interface QuoteProjectRef {
-  project_id?: string | null
-  project_name: string
-  status: string
-}
+export type QuoteProjectRef = Pick<Quote, 'project_id' | 'project_name' | 'status'>
 
 export async function listQuoteProjectRefs(): Promise<QuoteProjectRef[]> {
   return apiFetch<QuoteProjectRef[]>('/pwa/admin/quotes')
@@ -149,95 +146,14 @@ export async function sendQuoteRejection(quoteId: number): Promise<{ message?: s
 
 // ─── Liste und Detail ───────────────────────────────────────
 
-/** Eine Offerte in der Liste. `sent_at` trägt die Kennzeichnung «Kein Feedback»
- *  (Feature offerte_kein_feedback_meldung, siehe quoteFeedback.ts). */
-export interface Quote {
-  id: number
-  quote_number: string
-  project_name: string
-  /** Null bei einer freistehenden Offerte ohne Projekt. */
-  project_id?: string | null
-  total_amount: number
-  status: string
-  created_at: string
-  storage_path?: string | null
-  xlsx_storage_path?: string | null
-  reminder_sent_at: string | null
-  /** Heutiger Projektleiter des Projekts — danach filtert die Liste. */
-  projektleiter_id: string | null
-  /** Projektleiter beim Erstellen der Offerte (Snapshot, steht so auf dem PDF).
-   *  Leer bei sehr alten Offerten; dann zeigt die Liste den heutigen. */
-  projektleiter_name?: string | null
-  // Text-Snapshot des Rechnungsempfängers (siehe quotes.customer_id) — für die
-  // Kunden-Spalte und die Suche in der Liste.
-  customer_name?: string | null
-  customer_email?: string | null
-  thankyou_sent_at?: string | null
-  rejection_mail_sent_at?: string | null
-  order_confirmation_sent_at?: string | null
-  sent_at?: string | null
-}
+/** Eine Offerte in der Liste — generiert aus `OfferteZeile`
+ *  (agents/routers/antworten/offerten.py, Feldbeschreibungen dort). */
+export type Quote = Antwort<'OfferteZeile'>
 
-/** Offerte mit allen Positionen — was die Bearbeiten-Maske füllt.
- *
- * Die Metadaten der Produktzeilen (ek_price/margin_factor/supplier_id/category/
- * positions) stammen aus PDF-Extraktion oder manueller Erfassung. Sie sind
- * preisneutral (das Total zählt nur total_price), aber für die Nachkalkulation
- * relevant — sie dürfen ein Bearbeiten nicht verlieren. */
-export interface QuoteDetail {
-  id: number
-  quote_number: string
-  project_name: string
-  project_id?: string | null
-  // Kunde der Offerte — eigenständig gegenüber dem Projektkunden (quotes.customer_id).
-  // Alt-Offerten haben nur den Text-Snapshot customer_name, customer_id ist dort null.
-  customer_id: string | null
-  customer_name: string | null
-  labor_items: { description: string; quantity: number; unit: string; unit_price: number; total_price: number; hidden?: boolean }[]
-  // `werkora_bonus_base_*`: Preis der Zeile VOR der Endziffern-Aufrundung (Feature
-  // `werkora_bonus`). Beim Bearbeiten unverändert zurückschicken — sonst kann das
-  // Backend die bonusfreie Basis nicht mehr herstellen und rechnet den Aufschlag
-  // gar nicht erst neu (docs/specs/werkora-bonus-produktpositionen.md §4.3).
-  material_items: {
-    description: string; quantity: number; unit: string; unit_price: number; total_price: number
-    optional?: boolean
-    werkora_bonus_base_unit_price?: number
-    werkora_bonus_base_total_price?: number
-  }[]
-  travel_items: { description: string; total_price: number }[]
-  extra_product_items: {
-    description: string; quantity: number; unit: string; unit_price: number; total_price: number
-    optional?: boolean
-    ek_price?: number
-    margin_factor?: number
-    supplier_id?: string | null
-    category?: string | null
-    positions?: ConfirmedPosition[]
-    werkora_bonus_base_unit_price?: number
-    werkora_bonus_base_total_price?: number
-  }[]
-  // `werkora_bonus`: automatisch ergänzte Endziffern-Aufrundung (Feature
-  // `werkora_bonus`). Beim Bearbeiten unverändert zurückschicken — das Backend
-  // erkennt die Zeile daran und nimmt sie aus der Rechenbasis.
-  extra_charge_items: { description: string; total_price: number; werkora_bonus?: boolean }[]
-  installation_items: { description: string; quantity: number; unit: string; unit_price: number; total_price: number }[]
-  special_items: { description: string; quantity: number; unit: string; unit_price: number; total_price: number }[]
-  labor_discount_pct: number
-  material_discount_pct: number
-  skonto_pct: number | null
-  skonto_days: number | null
-  // Fixpreis brutto inkl. MwSt (Migration 20260813). null = kein Fixpreis.
-  fixed_price: number | null
-  notes: string | null
-  product_description: string | null
-  // Zeitpunkt des Versands (Mail oder "Per Post versendet"); null = nie versendet.
-  // Die Bearbeiten-Maske entscheidet daran, ob der Typ noch umstellbar ist — der
-  // Status taugt dafür nicht, den setzt jedes Speichern auf 'entwurf' zurück.
-  sent_at?: string | null
-  // 'offerte' | 'richtofferte' (Feature richtofferte). Fehlt bei älteren
-  // Server-Ständen; dann gilt 'offerte'.
-  quote_type?: string | null
-}
+/** Offerte mit allen Positionen — was die Bearbeiten-Maske füllt (generiert aus
+ *  `OfferteDetail`). Die Metadaten der Produktzeilen (EK, Faktor, Lieferant,
+ *  Positionen) sind preisneutral, dürfen ein Bearbeiten aber nicht verlieren. */
+export type QuoteDetail = Antwort<'OfferteDetail'>
 
 export async function listQuotes(): Promise<Quote[]> {
   return apiFetch<Quote[]>('/pwa/admin/quotes')
@@ -252,13 +168,8 @@ export async function listQuotesPage(q: ListPageQuery): Promise<ListPage<Quote>>
 
 // ─── Anlegen und Bearbeiten ─────────────────────────────────
 
-/** Antwort beider Schreibpfade. `fixed_price_missed` heisst: gespeichert, aber der
- *  Fixpreis geht nicht auf (über der Kalkulation oder unter Lohn + Fahrt) — das
- *  Total der Offerte ist dann ein anderes als der eingegebene Betrag. */
-export interface QuoteWriteResult {
-  total_amount?: number
-  fixed_price_missed?: boolean
-}
+/** Antwort beider Schreibpfade (generiert aus `OfferteGespeichert`). */
+export type QuoteWriteResult = Antwort<'OfferteGespeichert'>
 
 // Der Payload wird in admin/operative/quotes/quotePayload.ts gebaut (dort liegt die
 // Zeilentotal-Rechnung samt Test). Hier steht bewusst kein zweites Schema davon —
@@ -289,36 +200,20 @@ export async function extractQuotePdf(file: File): Promise<PdfExtractionResponse
 
 // ─── Versand ────────────────────────────────────────────────
 
-/** Antwort von GET /pwa/admin/quotes/{id}/send-attachments — steuert, welche
- *  Anhang-Quellen der Versand-Dialog anbietet. Zwei getrennte Schalter: `enabled`
- *  für die Dokumente (Feature prospekt_mit_offerte), `fotos_enabled` für die
- *  Projekt-Fotos (Feature fotos_mit_offerte). */
-export interface SendAttachmentsInfo {
-  enabled: boolean
-  fotos_enabled: boolean
-  project_id: string | null
-  projekt_anhaenge: { id: string; filename: string }[]
-  vorlagen: { id: string; filename: string }[]
-  projekt_fotos: { id: string; filename: string; mime_type: string | null; created_at?: string | null }[]
-}
+/** Anhang-Quellen des Versand-Dialogs — generiert aus `VersandAnhaenge`. */
+export type SendAttachmentsInfo = Antwort<'VersandAnhaenge'>
 
 export async function getQuoteSendAttachments(quoteId: number): Promise<SendAttachmentsInfo> {
   return apiFetch<SendAttachmentsInfo>(`/pwa/admin/quotes/${quoteId}/send-attachments`)
 }
 
 /** Eine Offerte, die beim Versand zusammen mit der gewählten in EIN Mail geht
- *  (offene Mitglieder der Varianten-Gruppe, WW-34). */
-export interface QuoteSendGroupMember {
-  id: number
-  label: string
-  quote_number: string
-  amount: number
-  status: string | null
-}
+ *  (generiert aus `Gruppenmitglied`, WW-34). */
+export type QuoteSendGroupMember = Antwort<'Gruppenmitglied'>
 
 /** Leer = Einzelversand, der Dialog zeigt dann keine Auswahl. */
 export async function getQuoteSendGroup(quoteId: number): Promise<QuoteSendGroupMember[]> {
-  const res = await apiFetch<{ members?: QuoteSendGroupMember[] }>(`/pwa/admin/quotes/${quoteId}/send-group`)
+  const res = await apiFetch<Antwort<'Versandgruppe'>>(`/pwa/admin/quotes/${quoteId}/send-group`)
   return res?.members ?? []
 }
 

@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import type { Antwort } from '../generated'
 import { SK } from '../storageKeys'
 
 export interface TenantModulesResponse {
@@ -193,16 +194,12 @@ export async function loadSchedulingConfig(): Promise<SchedulingConfig> {
 // Fahrdistanzen (km) zwischen Objektadressen für die Plantafel — cache-first,
 // fehlende Paare via Google (serverseitig gedeckelt); nicht auflösbare Paare
 // fehlen in der Antwort. Antwort-Paare sind normalisiert (getrimmt, a <= b).
-export interface ScheduleDistance {
-  a: string
-  b: string
-  km: number
-}
+export type ScheduleDistance = Antwort<'Distanz'>
 
 export async function resolveScheduleDistances(
   pairs: [string, string][],
-): Promise<{ distances: ScheduleDistance[] }> {
-  return apiFetch<{ distances: ScheduleDistance[] }>('/pwa/admin/schedule/distances', {
+): Promise<Antwort<'Distanzen'>> {
+  return apiFetch<Antwort<'Distanzen'>>('/pwa/admin/schedule/distances', {
     method: 'POST',
     body: JSON.stringify({ pairs }),
   })

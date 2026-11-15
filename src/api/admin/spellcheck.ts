@@ -4,12 +4,9 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import type { Antwort } from '../generated'
 
-export interface SpellcheckResult {
-  corrected: string
-  // false = das Modell hat nichts geändert; die Maske zeigt dann "keine Fehler".
-  changed: boolean
-}
+export type SpellcheckResult = Antwort<'Rechtschreibung'>
 
 export async function checkSpelling(text: string): Promise<SpellcheckResult> {
   return apiFetch<SpellcheckResult>('/pwa/admin/spellcheck', {
@@ -19,16 +16,7 @@ export async function checkSpelling(text: string): Promise<SpellcheckResult> {
 }
 
 
-export interface QuoteDescriptionResult {
-  description: string
-  // false = es kam nichts Brauchbares zurück (leer, oder identisch zur Eingabe);
-  // die Maske zeigt dann eine Meldung statt eines Vorschlags, der nichts ändert.
-  changed: boolean
-  // Offene Punkte zum Vorschlag (fehlende Angabe, Widerspruch, Zahl, die nicht aus
-  // den Stichworten stammt). Stehen im Popup, kommen nie in den Text. Optional,
-  // weil ein Backend vor diesem Stand das Feld nicht kennt.
-  hints?: string[]
-}
+export type QuoteDescriptionResult = Antwort<'BeschreibungVorschlag'>
 
 /**
  * Stichworte zu einer Offertbeschreibung ausformulieren.

@@ -470,3 +470,91 @@
   display: grid;
   gap: 6px;
 }
+
+/* Filter über der Liste (mail-eingang-zustaendigkeiten.md §7.1). */
+.eingang-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin: 0 0 var(--s-4);
+}
+
+.eingang-filter-feld {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-width: 0;
+}
+
+.eingang-filter-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.eingang-filter-feld select {
+  width: auto;
+  max-width: 100%;
+}
+
+/* Die Aufgabe an einer offenen Karte: dieselbe Stelle wie das Anliegen, als Auswahl (§7.2). */
+.eingang-aufgabe-wahl {
+  width: auto;
+  max-width: 100%;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 13px;
+}
+
+/* «Zuständig: …» an der offenen Karte (mail-eingang-zustaendigkeiten.md §7.2). */
+.eingang-zustaendig {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Das Organigramm, nur lesend (§7.4). */
+.eingang-organigramm {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--s-3) var(--s-4);
+  margin: 0 0 var(--s-4);
+}
+
+.eingang-organigramm-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+
+.eingang-organigramm-bloecke {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--s-3);
+}
+
+.eingang-organigramm-block {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.eingang-organigramm-titel {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.eingang-organigramm-block dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.eingang-organigramm-block dt {
+  color: var(--text-muted);
+}
+
+.eingang-organigramm-block dd {
+  margin: 0;
+}

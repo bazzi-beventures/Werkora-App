@@ -24,6 +24,9 @@ vi.mock('./api/auth', async () => {
   return { ...actual, getMe: vi.fn(), getTenantInfo: vi.fn() }
 })
 vi.mock('./screens/HomeScreen', () => ({ default: () => <div>home-stub</div> }))
+// Der Admin-Bereich wird nachgeladen (Charge O5) — gestubbt, geprüft wird der Übergang.
+// Dass er nicht im Einstieg landet, hält einstieg.guard.test.mjs fest.
+vi.mock('./admin/AdminApp', () => ({ default: () => <div>admin-stub</div> }))
 vi.mock('./auth/PinScreen', () => ({ default: () => <div>pin-stub</div> }))
 vi.mock('./auth/LoginScreen', () => ({ default: () => <div>login-stub</div> }))
 vi.mock('./api/registerSW', () => ({ registerPwaUpdates: () => {} }))
@@ -142,3 +145,13 @@ describe('App — Start aus dem Snapshot', () => {
     expect(loadStartSnapshot('u1')?.me?.display_name).toBe('Neu')
   })
 })
+
+describe('App — Admin-Bereich als eigener Chunk', () => {
+  it('ein Admin landet nach dem Nachladen im Admin-Bereich', async () => {
+    mockGetMe.mockResolvedValue(user({ role: 'admin' }))
+
+    render(<App />)
+    expect(await screen.findByText('admin-stub')).toBeInTheDocument()
+  })
+})
+

@@ -28,7 +28,7 @@ export interface StaffMember {
 export function DetailsForm({
   form, staff, customers, schedulingEnabled, showGeruestfach, showAbnahme, onSubmit, onCancel,
   autosave, onCreateCustomerFromKontakt, onCreateCustomer, onOpenCustomer, onOpenSchedule, projectId = null,
-  linkCustomer, customerNotice = false,
+  linkCustomer, customerNotice = false, terminVorschlag,
 }: {
   form: UseProjectForm
   staff: StaffMember[]
@@ -74,6 +74,8 @@ export function DetailsForm({
    * Kunden senden» an jedem gespeicherten Termin (docs/specs/termin-bestaetigung-kunde.md).
    */
   customerNotice?: boolean
+  /** Werkzeug «terminvorschlag»: Knopf in der Termin-Kachel (servicebegleitung.md §6.6). */
+  terminVorschlag?: { terminwahl: boolean }
 }) {
   // Verbatim aus dem Screen uebernommen: die Felder heissen hier wie dort, damit
   // der Umzug am JSX nichts geaendert hat und im Diff nachvollziehbar bleibt.
@@ -672,6 +674,7 @@ export function DetailsForm({
               staff={staff}
               projectTeam={monteurIds}
               project={{ art_der_arbeit: artDerArbeit, is_warranty: isWarranty }}
+              vorschlag={terminVorschlag && projectId ? { projectId, ...terminVorschlag } : undefined}
               isDateChanged={form.isAppointmentDateChanged}
               onOpenSchedule={onOpenSchedule}
               notice={customerNotice && autosave

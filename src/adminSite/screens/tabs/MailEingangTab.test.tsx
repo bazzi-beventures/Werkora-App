@@ -7,10 +7,29 @@ import { MailEingangTab } from './MailEingangTab'
 const getMailEingang = vi.fn()
 const setMailEingang = vi.fn()
 
+const getEingangZustaendigkeiten = vi.fn()
+const setEingangZustaendigkeiten = vi.fn()
+
 vi.mock('../../tenantScopedApi', () => ({
   getMailEingang: (...a: unknown[]) => getMailEingang(...a),
   setMailEingang: (...a: unknown[]) => setMailEingang(...a),
+  getEingangZustaendigkeiten: (...a: unknown[]) => getEingangZustaendigkeiten(...a),
+  setEingangZustaendigkeiten: (...a: unknown[]) => setEingangZustaendigkeiten(...a),
 }))
+
+// docs/specs/mail-eingang-zustaendigkeiten.md §8 — Abschnitt «Zuständigkeiten».
+const ZUST_VIEW = {
+  aufgaben: [
+    { key: 'reparatur', label: 'Reparatur- und Serviceauftrag', beschreibung: 'Defekt.' },
+    { key: 'kunde', label: 'Kunden anlegen und ändern', beschreibung: 'Kunde.' },
+  ],
+  standard_ansicht: 'alle',
+  zustaendigkeiten: { reparatur: { zustaendig: ['weg'], stellvertretung: [] }, kunde: { zustaendig: [], stellvertretung: [] } },
+  personen: [{ id: 'tina', name: 'Tina Caduff', rolle: 'admin' }, { id: 'marco', name: 'Marco Bianchi', rolle: 'management' }],
+  ruhend: [{ aufgabe: 'reparatur', rolle: 'zustaendig', user_id: 'weg', name: 'Petra Alt', grund: 'deaktiviert',
+             grund_text: 'Konto deaktiviert' }],
+  modul_aktiv: true, updated_at: null, updated_by: null,
+}
 
 const leer = {
   mailbox: '', domains: [], funktionsadressen: [], tageslimit: 50,
@@ -27,6 +46,8 @@ const eingerichtet = {
 beforeEach(() => {
   getMailEingang.mockReset().mockResolvedValue(leer)
   setMailEingang.mockReset().mockResolvedValue(eingerichtet)
+  getEingangZustaendigkeiten.mockReset().mockResolvedValue(ZUST_VIEW)
+  setEingangZustaendigkeiten.mockReset().mockImplementation(async (_t: string, e: object) => ({ ...ZUST_VIEW, ...e, ruhend: [] }))
 })
 
 describe('MailEingangTab', () => {
@@ -128,5 +149,37 @@ describe('MailEingangTab', () => {
     getMailEingang.mockRejectedValue(new Error('Serverfehler (HTTP 500)'))
     render(<MailEingangTab tenantId="t-1" />)
     expect(await screen.findByRole('alert')).toHaveTextContent('Serverfehler (HTTP 500)')
+  })
+})
+
+describe('MailEingangTab — Zuständigkeiten', () => {
+  it('zeigt Blöcke, Hinweise und ruhende Einträge und speichert das Ganze', async () => {
+    render(<MailEingangTab tenantId="t-1" />)
+    const abschnitt = await screen.findByRole('region', { name: 'Zuständigkeiten' })
+    expect(await screen.findByText(/Petra Alt — Konto deaktiviert/)).toBeInTheDocument()
+    expect(screen.getAllByText('Niemand zuständig — diese Mails sehen alle.')).toHaveLength(2)
+    expect(screen.getByText('Tina Caduff ist keiner Aufgabe zugeteilt und sieht immer alle Mails.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Reparatur- und Serviceauftrag: Tina Caduff'), { target: { value: 'zustaendig' } })
+    fireEvent.change(screen.getByLabelText('Kunden anlegen und ändern: Marco Bianchi'), { target: { value: 'stellvertretung' } })
+    fireEvent.click(screen.getByLabelText(/nur die eigenen/))
+    fireEvent.click(screen.getByRole('button', { name: 'Entfernen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Zuständigkeiten speichern' }))
+
+    await waitFor(() => expect(setEingangZustaendigkeiten).toHaveBeenCalled())
+    expect(setEingangZustaendigkeiten).toHaveBeenCalledWith('t-1', {
+      standard_ansicht: 'meine',
+      zustaendigkeiten: {
+        reparatur: { zustaendig: ['tina'], stellvertretung: [] },
+        kunde: { zustaendig: [], stellvertretung: ['marco'] },
+      },
+    })
+    expect(abschnitt).toBeInTheDocument()
+  })
+
+  it('erklärt, wenn niemand den Eingang öffnen kann', async () => {
+    getEingangZustaendigkeiten.mockResolvedValue({ ...ZUST_VIEW, personen: [], ruhend: [], modul_aktiv: false })
+    render(<MailEingangTab tenantId="t-1" />)
+    expect(await screen.findByText(/Das Modul Mail-Eingang ist aus/)).toBeInTheDocument()
   })
 })

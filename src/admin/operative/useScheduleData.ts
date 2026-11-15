@@ -12,7 +12,6 @@ import {
 } from '../../api/admin'
 import { getScheduleProjects, type ScheduleProject } from '../../api/admin/projects'
 import { getAdminStaff } from '../../api/admin/staff'
-import { getAllProjectSkills, getSkillMatrix, type Skill, type StaffSkill } from '../../api/admin/skills'
 import { getVorschlaege, type Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { shiftISO, toDateStr } from '../utils/calendarHelpers'
 import type { ToastFn } from '../components/useToast'
@@ -20,6 +19,7 @@ import {
   APPT_WINDOW_AHEAD_DAYS, APPT_WINDOW_BACK_DAYS, FULL_SYNC_MS, NEAR_WINDOW_AHEAD_DAYS,
   NEAR_WINDOW_BACK_DAYS, SLOW_REFRESH_MS, sameRows, type StaffLite,
 } from './scheduleScreenModel'
+import { useSkillPillen } from './useSkillPillen'
 
 interface Optionen {
   /** Ebene «Vorschläge» der Hagelschaden-Disposition (Modul + Feature). */
@@ -36,12 +36,9 @@ export function useScheduleData({ hagelVorschlaege, showToast, pausiert }: Optio
   const [absences, setAbsences] = useState<ScheduleAbsence[]>([])
   // Vorgemerkte Hagel-Einsätze (keine Termine) — gestrichelte Ebene, Phase 2b.
   const [vorschlaege, setVorschlaege] = useState<Vormerkung[]>([])
-  // Skill-Pillen (Spec mitarbeiterdisposition-faehigkeiten-routen.md §4): wer für
-  // einen Einsatz passt, markiert an den Team-Chips. Fehlt etwas, bleibt die
-  // Markierung einfach weg — geplant wird wie bisher.
-  const [skillKatalog, setSkillKatalog] = useState<Skill[]>([])
-  const [staffPillen, setStaffPillen] = useState<StaffSkill[]>([])
-  const [projektPillen, setProjektPillen] = useState<Map<string, string[]>>(new Map())
+  // Skill-Pillen: seit Charge O2 eine eigene Abfrage (TanStack Query, useSkillPillen.ts)
+  // mit demselben Takt — beim Einhängen und alle 60 s, nicht während einer Rückfrage.
+  const { skillKatalog, staffPillen, projektPillen } = useSkillPillen({ pausiert })
   const [staff, setStaff] = useState<StaffLite[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -126,7 +123,6 @@ export function useScheduleData({ hagelVorschlaege, showToast, pausiert }: Optio
       if (slowDue) {
         lastSlowRefresh.current = Date.now()
         void ladeVorschlaege()
-      void ladeSkills()
       }
     } catch {
       // still — siehe oben
@@ -134,17 +130,6 @@ export function useScheduleData({ hagelVorschlaege, showToast, pausiert }: Optio
   }
 
   // Vorschläge laden — still bei Fehlern: ohne Ebene plant man wie bisher.
-  async function ladeSkills() {
-    try {
-      const [m, p] = await Promise.all([getSkillMatrix(), getAllProjectSkills()])
-      setSkillKatalog(m.skills)
-      setStaffPillen(m.cells)
-      const map = new Map<string, string[]>()
-      for (const r of p.project_skills) map.set(r.project_id, [...(map.get(r.project_id) ?? []), r.skill_id])
-      setProjektPillen(map)
-    } catch { /* still: ohne Pillen keine Markierung */ }
-  }
-
   async function ladeVorschlaege() {
     if (!hagelVorschlaege) return
     const todayIso = toDateStr(new Date())

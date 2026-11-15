@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTabStrip } from '../hooks/useTabStrip'
 import { WeeklyPlanTab } from './tabs/WeeklyPlanTab'
 import { YearEndTab } from './tabs/YearEndTab'
+import { TerminDauerTab } from './tabs/TerminDauerTab'
 
 /**
  * Einstellungen des Mandanten — Wochenplan und Jahresabschluss.
@@ -24,12 +25,16 @@ import { YearEndTab } from './tabs/YearEndTab'
  * gewählten Mandanten, läsen und schrieben aber den Wochenplan des
  * Betreiber-Mandanten (§12).
  *
+ * Dritter Reiter «Termindauer» (Servicebegleitung, nur mit Werkzeug `terminwahl`):
+ * Dauer-Vorgaben je Termin-Art. Ebenfalls eine Entscheidung des Betriebs — jeder hat
+ * andere Einsätze —, Schreiben verlangt im Backend `require_management`.
+ *
  * Sichtbar für `management` (und damit auch `superadmin`), nicht für
  * eingeschränkte Adminkonten — geführt wird das über `isManagement` in
  * AdminSidebar/MobileNav, durchgesetzt vom Backend.
  */
-export default function SettingsScreen() {
-  const [tab, setTab] = useState<'weekly-plan' | 'year-end'>('weekly-plan')
+export default function SettingsScreen({ terminDauer = false }: { terminDauer?: boolean }) {
+  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'termin-dauer'>('weekly-plan')
   const tabsRef = useTabStrip(tab)
 
   return (
@@ -37,7 +42,9 @@ export default function SettingsScreen() {
       <div className="admin-page-header">
         <div>
           <div className="admin-page-title">Einstellungen</div>
-          <div className="admin-page-subtitle">Wochenplan und Jahresabschluss</div>
+          <div className="admin-page-subtitle">
+            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}
+          </div>
         </div>
       </div>
 
@@ -54,10 +61,19 @@ export default function SettingsScreen() {
         >
           Jahresabschluss
         </button>
+        {terminDauer && (
+          <button
+            className={`kpi-admin-tab${tab === 'termin-dauer' ? ' active' : ''}`}
+            onClick={() => setTab('termin-dauer')}
+          >
+            Termindauer
+          </button>
+        )}
       </div>
 
       {tab === 'weekly-plan' && <WeeklyPlanTab />}
       {tab === 'year-end' && <YearEndTab />}
+      {tab === 'termin-dauer' && terminDauer && <TerminDauerTab />}
     </div>
   )
 }

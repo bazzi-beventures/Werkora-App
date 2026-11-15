@@ -373,8 +373,6 @@
 .adminsite-rm-def dt { font-weight: 600; color: var(--text-muted); }
 .adminsite-rm-def dd { margin: 0; overflow-wrap: anywhere; }
 .adminsite-rm-liste { margin: 0; padding-left: 1.1em; }
-.adminsite-rm-details { margin: var(--s-4) 0; }
-.adminsite-rm-details summary { cursor: pointer; font-weight: 600; margin-bottom: var(--s-2); }
 .adminsite-rm-tabs { display: flex; gap: var(--s-2); margin: var(--s-2) 0; }
 .adminsite-rm-lauf { margin-top: var(--s-3); }
 

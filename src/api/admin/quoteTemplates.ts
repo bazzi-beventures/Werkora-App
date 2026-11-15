@@ -8,7 +8,7 @@
 // make_tenant_text_endpoints und haben denselben Vertrag für alle Bausteine.
 
 import { apiFetch, apiFormFetch } from '../client'
-import type { TravelCostTable } from '../../admin/utils/quotePricing'
+import type { Antwort } from '../generated'
 
 // Preismodell einer Sonderposition:
 //   pauschal → 1 × Fixbetrag
@@ -19,36 +19,11 @@ import type { TravelCostTable } from '../../admin/utils/quotePricing'
 export type SpecialMode = 'pauschal' | 'stunden' | 'stueck'
 
 // Montage-Vorlage: Pauschalbetrag für eine Montageleistung.
-export interface InstallationTpl {
-  id: string
-  label: string
-  default_fee: number
-  sort_order: number
-  notes: string | null
-}
-
-// Sonderposition (Demontage/Entsorgung): Pauschale, Stundenansatz oder Stückpreis.
-// `default_hours` ist der Vorschlagswert der Mengenspalte — Stunden bei 'stunden',
-// Stückzahl bei 'stueck', ohne Bedeutung bei 'pauschal'.
-export interface SpecialTpl {
-  id: string
-  label: string
-  pricing_mode: SpecialMode
-  default_fee: number
-  default_hours: number | null
-  sort_order: number
-  notes: string | null
-}
-
-// Standard-Anhänge: mandantenweite Dokumente (AGB, Firmenprospekt …), die beim
-// Offerten-Versand als Mail-Anhang wählbar sind (Feature 'prospekt_mit_offerte').
-export interface QuoteAttachmentTpl {
-  id: string
-  filename: string
-  mime_type: string | null
-  file_size: number | null
-  created_at: string
-}
+// Vorlagen — generiert aus agents/routers/antworten/offerten_vorgaben.py.
+// `sort_order` liefert nur die Verwaltungsliste; das Formular bekommt sie sortiert.
+export type InstallationTpl = Antwort<'MontageVorlage'>
+export type SpecialTpl = Antwort<'SonderVorlage'>
+export type QuoteAttachmentTpl = Antwort<'AnhangVorlage'>
 
 export type PositionTemplateKind = 'installation' | 'special'
 
@@ -72,7 +47,7 @@ export async function getQuotePositionTemplates(): Promise<{
   installation: InstallationTpl[]
   special: SpecialTpl[]
 }> {
-  return apiFetch<{ installation: InstallationTpl[]; special: SpecialTpl[] }>(
+  return apiFetch<Antwort<'PositionsVorlagen'>>(
     '/pwa/admin/quote-position-templates',
   )
 }
@@ -97,8 +72,8 @@ export interface QuoteSkontoDefaults {
   days: number | null
 }
 
-export async function getQuoteSkontoDefaults(): Promise<QuoteSkontoDefaults> {
-  return apiFetch<QuoteSkontoDefaults>('/pwa/admin/quote-skonto-defaults')
+export async function getQuoteSkontoDefaults(): Promise<Antwort<'SkontoVorgabe'>> {
+  return apiFetch<Antwort<'SkontoVorgabe'>>('/pwa/admin/quote-skonto-defaults')
 }
 
 /**
@@ -106,8 +81,8 @@ export async function getQuoteSkontoDefaults(): Promise<QuoteSkontoDefaults> {
  * kommt als `null` zurück) — der Aufrufer schreibt sie zurück ins Formular,
  * sonst zeigt es einen Wert, den der Server verworfen hat.
  */
-export async function saveQuoteSkontoDefaults(input: QuoteSkontoDefaults): Promise<QuoteSkontoDefaults> {
-  return apiFetch<QuoteSkontoDefaults>('/pwa/admin/quote-skonto-defaults', {
+export async function saveQuoteSkontoDefaults(input: QuoteSkontoDefaults): Promise<Antwort<'SkontoVorgabe'>> {
+  return apiFetch<Antwort<'SkontoVorgabe'>>('/pwa/admin/quote-skonto-defaults', {
     method: 'PATCH',
     body: JSON.stringify(input),
   })
@@ -117,13 +92,7 @@ export async function saveQuoteSkontoDefaults(input: QuoteSkontoDefaults): Promi
 // Dinge: das "Gültig bis" auf dem PDF, die Laufzeit des Annehmen-/Ablehnen-Links in
 // der Offerten-Mail und die Frist im Standard-Bemerkungstext. `is_default` = der
 // Mandant hat nichts gesetzt, `months` ist der System-Wert.
-export interface QuoteValidity {
-  months: number
-  is_default: boolean
-  min: number
-  max: number
-  default: number
-}
+export type QuoteValidity = Antwort<'OffertenGueltigkeit'>
 
 export async function getQuoteValidity(): Promise<QuoteValidity> {
   return apiFetch<QuoteValidity>('/pwa/admin/quote-validity')
@@ -139,7 +108,7 @@ export async function saveQuoteValidity(months: number | null): Promise<QuoteVal
 }
 
 export async function listQuoteAttachmentTemplates(): Promise<QuoteAttachmentTpl[]> {
-  const res = await apiFetch<{ attachments: QuoteAttachmentTpl[] }>('/pwa/admin/quote-attachment-templates')
+  const res = await apiFetch<Antwort<'AnhangVorlagen'>>('/pwa/admin/quote-attachment-templates')
   return res.attachments ?? []
 }
 
@@ -174,6 +143,6 @@ export async function getQuoteStandardNotes(): Promise<{ notes: string }> {
 /** Wirksame Fahrspesen-Staffelung (Mandanten-Override, sonst System-Default).
  *  Kommt vom Backend, damit die Vorschau im Formular nicht von der verbindlichen
  *  Berechnung abweicht — die Auswertung steht in utils/quotePricing.computeTravelCost. */
-export async function getQuoteTravelCostTable(): Promise<{ travel_cost_table: TravelCostTable }> {
-  return apiFetch<{ travel_cost_table: TravelCostTable }>('/pwa/admin/quote-travel-cost-table')
+export async function getQuoteTravelCostTable(): Promise<Antwort<'FahrspesenTabelle'>> {
+  return apiFetch<Antwort<'FahrspesenTabelle'>>('/pwa/admin/quote-travel-cost-table')
 }

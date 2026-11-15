@@ -3,31 +3,12 @@ import { backdropCloseProps } from '../../shared/backdropClose'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { fmtCHF } from '../utils/format'
 import { parseNum, vkFromEk, factorToPct, pctToFactor } from '../utils/quotePricing'
+import type { Antwort } from '../../api/generated'
 
-export interface ExtractedPosition {
-  label: string
-  ek_price: number
-}
-
-export interface ExtractedProduct {
-  name: string
-  description: string
-  quantity: number
-  unit: string
-  // null = kein EK vorbelegt (manuelle Erfassung); OCR liefert immer eine Zahl.
-  ek_price: number | null
-  /** Griesser: Farbe des Produktblocks («VSR 140 Metallic»), sonst leer/fehlend. */
-  color?: string
-  positions?: ExtractedPosition[]
-  suggested_category: string | null
-  suggested_margin_factor: number | null
-  suggested_vk_price: number | null
-}
-
-export interface PricingRule {
-  category: string
-  margin_factor: number
-}
+// Antwort des PDF-Imports — generiert aus agents/routers/antworten/offerten_vorgaben.py.
+export type ExtractedPosition = Antwort<'AuszugPosition'>
+export type ExtractedProduct = Antwort<'AuszugProdukt'>
+export type PricingRule = Antwort<'Preisregel'>
 
 /** Lieferant zur Auswahl im manuellen Modus. */
 export interface SupplierOption {
@@ -42,16 +23,7 @@ export interface SupplierPricingRule {
   markup_pct: number | null
 }
 
-export interface PdfExtractionResponse {
-  supplier: string
-  supplier_label: string
-  supplier_id: string | null
-  project_ref: string
-  products: ExtractedProduct[]
-  available_pricing_rules?: PricingRule[]
-  /** Gegenprobe gegen die Belegsummen, z. B. eine beim Lesen verlorene Griesser-Zeile. */
-  warnings?: string[]
-}
+export type PdfExtractionResponse = Antwort<'PdfAuszug'>
 
 // Metadaten der Positionsauswahl, die an der Produktzeile mitgespeichert werden.
 export interface ConfirmedPosition {

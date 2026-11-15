@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import type { Antwort } from '../generated'
 
 /**
  * Ein Rapport zum Bearbeiten. Bewusst `unknown` als Rückgabe: die Nutzlast ist
@@ -11,16 +12,11 @@ import { apiFetch } from '../client'
  * Sie wandert mit dem Umbau der Maske hierher — bis dahin wäre ein hier
  * abgeschriebener Typ genau die Art Vermutung, die dieser Umbau abschafft.
  */
-export async function getProjectReport(projectId: string, reportId: number): Promise<unknown> {
+export async function getProjectReport(projectId: string, reportId: number): Promise<Antwort<'RapportInhalt'>> {
   return apiFetch(`/pwa/admin/projects/${projectId}/reports/${reportId}`)
 }
 
-export interface SaveReportResult {
-  report_id?: number
-  // Erfolg mit Vorbehalt (z.B. Lager nicht abgebucht, unbekannte art_nr) — der
-  // Aufrufer zeigt die Hinweise, der Rapport ist gespeichert.
-  warnings?: unknown
-}
+export type SaveReportResult = Antwort<'RapportGespeichert'>
 
 /**
  * Ohne `reportId` anlegen (POST), mit `reportId` ersetzen (PUT) — das Backend
@@ -38,12 +34,7 @@ export async function saveProjectReport(
   )
 }
 
-export interface DeleteReportResult {
-  // Anzahl Materialpositionen, die ins Lager zurückgebucht wurden.
-  stock_restored?: number
-  // Rückbuchung unvollständig (z.B. unbekannte art_nr) — der Rapport ist trotzdem weg.
-  warnings?: string[]
-}
+export type DeleteReportResult = Antwort<'RapportGeloescht'>
 
 /**
  * Löscht einen Rapport samt Kindzeilen und bucht Material ins Lager zurück.

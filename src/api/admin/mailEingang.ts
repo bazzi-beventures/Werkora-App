@@ -6,6 +6,7 @@
 // Karte holt ihn beim Öffnen frisch aus dem Postfach (`getMailEingangText`).
 
 import { apiFetch } from '../client'
+import type { Antwort } from '../generated'
 
 /** Ein Projekt in der schmalen Form der Projektwahl. */
 export interface EingangProjekt {
@@ -167,6 +168,13 @@ export interface EingangItem {
   received_at: string
   subject: string | null
   kategorie: EingangKategorie
+  /**
+   * Aufgabe der Mail (Reparatur, neues Projekt …) — Schlüssel aus `EingangListe.aufgaben`.
+   * `null`: ohne Aufgabe (keine Regel griff, oder ein Wert, den der Katalog nicht mehr kennt).
+   * Fehlt bei einem Server, der das Feld noch nicht führt.
+   * Spec docs/specs/mail-eingang-zustaendigkeiten.md §4.
+   */
+  aufgabe?: string | null
   /** `null`, sobald die Mail als «Nicht für Werkora» verworfen wurde. */
   summary: string | null
   /** Wer im Betrieb zugeleitet hat — bei einer Regel die Funktionsadresse. */
@@ -187,8 +195,42 @@ export interface EingangAbgewiesen {
   anzahl: number
 }
 
+/** Eine Aufgabe des Katalogs — er steht im Code des Servers, nicht im Mandanten. */
+export interface EingangAufgabe {
+  key: string
+  label: string
+  /** Ein Satz, was hineinfällt. */
+  beschreibung: string
+}
+
+/** Eine Aufgabe im heutigen Organigramm — nur wirksame Einträge (mail-eingang-zustaendigkeiten.md §5, §6). */
+export interface EingangZustaendigkeit {
+  zustaendig: string[]
+  stellvertretung: string[]
+  /** Bei wem die Mails dieser Aufgabe in «Meine» stehen; leer = nicht zugeteilt. */
+  verantwortlich: string[]
+  /** Die Stellvertretung ist nachgerückt (niemand Zuständiges hat mehr Zugriff). */
+  vertretung: boolean
+}
+
+export interface EingangZustaendigkeiten {
+  aufgaben: Record<string, EingangZustaendigkeit>
+  /** Namen der Personen im Organigramm, nach Konto — ohne Rollen. */
+  personen: Record<string, string>
+}
+
+export type EingangStartansicht = 'alle' | 'meine'
+
 export interface EingangListe {
   items: EingangItem[]
+  /** Katalog der Aufgaben, in der Reihenfolge der Anzeige. */
+  aufgaben: EingangAufgabe[]
+  /** Heutiges Organigramm; leer = niemand ist zugeteilt (alle sehen alles). */
+  zustaendigkeiten: EingangZustaendigkeiten
+  /** Konto, das gerade schaut — für «Meine». */
+  ich: string
+  /** Womit der Eingang für dieses Konto öffnet (§7.3). */
+  standard_ansicht: EingangStartansicht
   abgewiesen: EingangAbgewiesen[]
   abgewiesen_tage: number
   /** Darf dieses Konto Antworten aus Werkora senden (Beta)? Sonst nur kopieren. */
@@ -199,6 +241,10 @@ export async function listMailEingang(status: EingangAnsicht): Promise<EingangLi
   const res = await apiFetch<Partial<EingangListe>>(`/pwa/admin/eingang?status=${status}`)
   return {
     items: res.items ?? [],
+    aufgaben: res.aufgaben ?? [],
+    zustaendigkeiten: res.zustaendigkeiten ?? { aufgaben: {}, personen: {} },
+    ich: res.ich ?? '',
+    standard_ansicht: res.standard_ansicht === 'meine' ? 'meine' : 'alle',
     abgewiesen: res.abgewiesen ?? [],
     abgewiesen_tage: res.abgewiesen_tage ?? 0,
     antworten_senden: res.antworten_senden ?? false,
@@ -267,6 +313,15 @@ export function rejectMailVorschlag(itemId: string, suggestionId: string): Promi
 }
 
 /** «Nicht für Werkora»: verwirft alles zu dieser Mail, die Zusammenfassung wird gelöscht. */
+export type AufgabeGeaendert = Antwort<'AufgabeGeaendert'>
+
+/** Stellt die Aufgabe einer offenen Mail um. Korrigiert wird die Aufgabe, nie eine Person (§4.3). */
+export function setMailEingangAufgabe(itemId: string, aufgabe: string): Promise<AufgabeGeaendert> {
+  return apiFetch<AufgabeGeaendert>(`/pwa/admin/eingang/${encodeURIComponent(itemId)}`, {
+    method: 'PATCH', body: JSON.stringify({ aufgabe }),
+  })
+}
+
 export async function dismissMailEingang(itemId: string): Promise<void> {
   await apiFetch(`/pwa/admin/eingang/${encodeURIComponent(itemId)}/dismiss`, { method: 'POST' })
 }

@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest'
 import { afterEach } from 'vitest'
 import { cleanup } from '@testing-library/react'
+import { queryClient } from '../shared/queryClient'
 
 // jsdom unter Node 25 liefert hier kein funktionsfähiges Storage-Objekt
 // (localStorage ist ein leeres {} ohne getItem/clear). Der App-Code nutzt das
@@ -78,3 +79,7 @@ afterEach(() => {
   cleanup()
   window.sessionStorage.clear()
 })
+
+// TanStack Query (src/shared/queryClient.ts) hält einen Cache je Prozess — ohne Leeren
+// sähe der nächste Testfall die Antworten des vorigen.
+afterEach(() => { queryClient.clear() })

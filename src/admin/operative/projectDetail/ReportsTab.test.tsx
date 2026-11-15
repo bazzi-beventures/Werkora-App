@@ -10,6 +10,7 @@ function makeReport(over: Partial<ProjectReport> = {}): ProjectReport {
     report_date: '2026-07-21',
     description: 'Arbeiten gemäss Offerte',
     created_by: 'Chef',
+    monteure: null,
     storage_path: null,
     signature_timestamp: null,
     invoice_id: null,

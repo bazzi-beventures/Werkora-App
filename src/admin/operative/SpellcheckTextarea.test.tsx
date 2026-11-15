@@ -28,6 +28,7 @@ describe('SpellcheckTextarea — formatierbar (rich)', () => {
     vi.mocked(composeQuoteDescription).mockResolvedValue({
       description: '**Lieferumfang**\n- Lamellendach STOBAG BAVONA TP6800\n- Montage nach Mass',
       changed: true,
+      hints: [],
     })
     const onChange = vi.fn()
     render(
@@ -69,7 +70,7 @@ describe('SpellcheckTextarea — formatierbar (rich)', () => {
 
 describe('SpellcheckTextarea — Klartext (Standard)', () => {
   it('bleibt ein Textfeld und schickt ohne Projekt nichts mit', async () => {
-    vi.mocked(composeQuoteDescription).mockResolvedValue({ description: 'Wir offerieren Ihnen …', changed: true })
+    vi.mocked(composeQuoteDescription).mockResolvedValue({ description: 'Wir offerieren Ihnen …', changed: true, hints: [] })
     render(<SpellcheckTextarea value="Stichworte" onChange={() => {}} placeholder="x" compose />)
     expect(screen.getByPlaceholderText('x').tagName).toBe('TEXTAREA')
 
@@ -112,7 +113,7 @@ describe('SpellcheckTextarea — Hinweise zum Vorschlag', () => {
   })
 
   it('zeigt keinen Kasten, wenn es nichts zu prüfen gibt', async () => {
-    vi.mocked(composeQuoteDescription).mockResolvedValue({ description: 'Wir offerieren Ihnen …', changed: true })
+    vi.mocked(composeQuoteDescription).mockResolvedValue({ description: 'Wir offerieren Ihnen …', changed: true, hints: [] })
     render(<SpellcheckTextarea value="Stichworte" onChange={() => {}} placeholder="x" compose />)
 
     fireEvent.click(screen.getByRole('button', { name: /Beschreibung formulieren/ }))

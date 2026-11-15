@@ -13,6 +13,7 @@ const acceptMailVorschlag = vi.fn()
 const rejectMailVorschlag = vi.fn()
 const dismissMailEingang = vi.fn()
 const searchMailEingangProjekte = vi.fn()
+const setMailEingangAufgabe = vi.fn()
 vi.mock('../../api/admin/mailEingang', () => ({
   listMailEingang: (...a: unknown[]) => listMailEingang(...a),
   getMailEingangText: (...a: unknown[]) => getMailEingangText(...a),
@@ -20,6 +21,7 @@ vi.mock('../../api/admin/mailEingang', () => ({
   rejectMailVorschlag: (...a: unknown[]) => rejectMailVorschlag(...a),
   dismissMailEingang: (...a: unknown[]) => dismissMailEingang(...a),
   searchMailEingangProjekte: (...a: unknown[]) => searchMailEingangProjekte(...a),
+  setMailEingangAufgabe: (...a: unknown[]) => setMailEingangAufgabe(...a),
 }))
 
 // «Kontakt ergänzen» öffnet die echte Kundenmaske (Spec §4.2) — gemockt ist nur,
@@ -98,7 +100,10 @@ function item(over: Partial<EingangItem> = {}): EingangItem {
 }
 
 function liste(items: EingangItem[], over: Partial<EingangListe> = {}): EingangListe {
-  return { items, abgewiesen: [], abgewiesen_tage: 7, antworten_senden: false, ...over }
+  return {
+    items, aufgaben: [], zustaendigkeiten: { aufgaben: {}, personen: {} }, ich: 'u-tina', standard_ansicht: 'alle',
+    abgewiesen: [], abgewiesen_tage: 7, antworten_senden: false, ...over,
+  }
 }
 
 beforeEach(() => {
@@ -108,6 +113,8 @@ beforeEach(() => {
   rejectMailVorschlag.mockReset()
   dismissMailEingang.mockReset().mockResolvedValue(undefined)
   searchMailEingangProjekte.mockReset().mockResolvedValue([])
+  setMailEingangAufgabe.mockReset()
+  sessionStorage.clear()
   getCustomer.mockReset().mockResolvedValue(KUNDE)
   listAllCustomers.mockReset().mockResolvedValue([])
   saveCustomer.mockReset().mockImplementation(async (input: Record<string, unknown>) => ({ ...KUNDE, ...input }))
@@ -197,10 +204,108 @@ describe('MailEingangScreen — Liste', () => {
     expect(await screen.findByRole('article', { name: 'Anfrage Storen' })).toBeInTheDocument()
   })
 
-  it('bietet keinen Filter und keine Auswertung je Mitarbeiter an (Spec §7.4)', async () => {
+  it('ohne Katalog vom Server: kein Filter, die Karte zeigt die Kategorie', async () => {
     render(<MailEingangScreen />)
     await screen.findByRole('article')
     expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByRole('searchbox')).toBeNull()
+  })
+})
+
+// docs/specs/mail-eingang-zustaendigkeiten.md §4.3, §7.1 (Charge A).
+const AUFGABEN = [
+  { key: 'reparatur', label: 'Reparatur- und Serviceauftrag', beschreibung: 'Defekt.' },
+  { key: 'projekt_neu', label: 'Neues Projekt', beschreibung: 'Neu.' },
+  { key: 'projekt_laufend', label: 'Laufendes Projekt', beschreibung: 'Laufend.' },
+  { key: 'kunde', label: 'Kunden anlegen und ändern', beschreibung: 'Kunde.' },
+]
+
+describe('MailEingangScreen — Aufgabe', () => {
+  beforeEach(() => {
+    listMailEingang.mockResolvedValue(liste([
+      item({ id: 'r1', subject: 'Store klemmt', aufgabe: 'reparatur', received_at: '2026-11-12T09:00:00Z' }),
+      item({ id: 'n1', subject: 'Neue Markise', aufgabe: 'projekt_neu', received_at: '2026-11-12T08:00:00Z' }),
+      item({ id: 'x1', subject: 'Ohne', aufgabe: null, received_at: '2026-11-12T07:00:00Z' }),
+    ], { aufgaben: AUFGABEN }))
+  })
+
+  it('filtert nach Aufgabe, zählt je Aufgabe und sagt, was ausgeblendet ist', async () => {
+    const user = userEvent.setup()
+    render(<MailEingangScreen />)
+    await screen.findByRole('article', { name: 'Store klemmt' })
+    const filter = screen.getByRole('combobox', { name: 'Aufgabe' })
+    expect([...filter.querySelectorAll('option')].map(o => o.textContent)).toEqual([
+      'Alle Aufgaben', 'Reparatur- und Serviceauftrag (1)', 'Neues Projekt (1)', 'Laufendes Projekt (0)',
+      'Kunden anlegen und ändern (0)',
+    ])
+    await user.selectOptions(filter, 'reparatur')
+    expect(screen.getAllByRole('article').map(a => a.getAttribute('aria-label'))).toEqual(['Store klemmt'])
+    expect(screen.getByText('1 in «Reparatur- und Serviceauftrag» · 3 offen insgesamt')).toBeInTheDocument()
+    expect(sessionStorage.getItem('eingang-filter-aufgabe')).toBe('reparatur')
+
+    await user.selectOptions(filter, 'kunde')
+    expect(screen.queryAllByRole('article')).toEqual([])
+    expect(screen.getByText(/Keine offene Mail in «Kunden anlegen und ändern»\. 3 weitere im Eingang/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Alle anzeigen' }))
+    expect(screen.getAllByRole('article')).toHaveLength(3)
+  })
+
+  it('behält den Filter der Sitzung, verwirft aber einen unbekannten Wert', async () => {
+    sessionStorage.setItem('eingang-filter-aufgabe', 'projekt_neu')
+    const { unmount } = render(<MailEingangScreen />)
+    expect(await screen.findAllByRole('article')).toHaveLength(1)
+    unmount()
+    sessionStorage.setItem('eingang-filter-aufgabe', 'storen_ost')
+    render(<MailEingangScreen />)
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(3))
+  })
+
+  it('stellt die Aufgabe an der Karte um — die Karte wandert in den neuen Filter', async () => {
+    const user = userEvent.setup()
+    setMailEingangAufgabe.mockResolvedValue({ id: 'n1', aufgabe: 'reparatur' })
+    render(<MailEingangScreen />)
+    const karte = await screen.findByRole('article', { name: 'Neue Markise' })
+    const wahl = within(karte).getByRole('combobox', { name: 'Aufgabe der Mail' })
+    expect(wahl).toHaveValue('projekt_neu')
+    await user.selectOptions(wahl, 'reparatur')
+    expect(setMailEingangAufgabe).toHaveBeenCalledWith('n1', 'reparatur')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Aufgabe' }), 'reparatur')
+    expect(screen.getAllByRole('article').map(a => a.getAttribute('aria-label'))).toEqual(['Store klemmt', 'Neue Markise'])
+  })
+
+  it('eine Mail ohne Aufgabe bietet die Wahl an', async () => {
+    render(<MailEingangScreen />)
+    const karte = await screen.findByRole('article', { name: 'Ohne' })
+    expect(within(karte).getByRole('combobox', { name: 'Aufgabe der Mail' })).toHaveValue('')
+    expect(within(karte).getByRole('option', { name: 'Ohne Aufgabe — wählen' })).toBeDisabled()
+  })
+
+  it('bei einer inzwischen erledigten Mail bleibt die Aufgabe und der Eingang lädt neu', async () => {
+    const user = userEvent.setup()
+    setMailEingangAufgabe.mockRejectedValue(new ApiError(409, 'nicht_mehr_offen'))
+    render(<MailEingangScreen />)
+    const karte = await screen.findByRole('article', { name: 'Neue Markise' })
+    await user.selectOptions(within(karte).getByRole('combobox', { name: 'Aufgabe der Mail' }), 'kunde')
+    expect(await screen.findByText(/inzwischen erledigt/)).toBeInTheDocument()
+    await waitFor(() => expect(listMailEingang).toHaveBeenCalledTimes(2))
+  })
+
+  it('eine erledigte Mail zeigt die Aufgabe nur als Text', async () => {
+    listMailEingang.mockResolvedValue(liste([item({ status: 'erledigt', aufgabe: 'kunde' })], { aufgaben: AUFGABEN }))
+    render(<MailEingangScreen />)
+    const karte = await screen.findByRole('article')
+    expect(within(karte).queryByRole('combobox')).toBeNull()
+    expect(within(karte).getByText('Kunden anlegen und ändern')).toBeInTheDocument()
+  })
+
+  it('filtert nie nach Personen (Triage-Spec §7.4): keine Namen in den Auswahlen', async () => {
+    render(<MailEingangScreen />)
+    await screen.findAllByRole('article')
+    const optionen = screen.getAllByRole('option').map(o => o.textContent ?? '')
+    expect(optionen.some(o => /Petra|Hans|Büro/.test(o))).toBe(false)
+    // Die einzigen Auswahlen: der Filter und die Aufgabe je Karte.
+    expect(screen.getAllByRole('combobox').map(c => c.getAttribute('aria-label') ?? 'Filter'))
+      .toEqual(['Filter', 'Aufgabe der Mail', 'Aufgabe der Mail', 'Aufgabe der Mail'])
     expect(screen.queryByRole('searchbox')).toBeNull()
   })
 })
@@ -694,5 +799,112 @@ describe('MailEingangScreen — «Kontakt ergänzen» über das Kundenformular',
     await user.click(within(karte).getByRole('button', { name: 'Verwerfen' }))
     expect(rejectMailVorschlag).toHaveBeenCalledWith('m1', 's-kontakt')
     expect(getCustomer).not.toHaveBeenCalled()
+  })
+})
+
+// docs/specs/mail-eingang-zustaendigkeiten.md §6, §7, §9 (Charge B).
+const LEER_BLOCK = { zustaendig: [], stellvertretung: [], verantwortlich: [], vertretung: false }
+const ZUST = {
+  aufgaben: {
+    reparatur: { zustaendig: ['u-tina'], stellvertretung: ['u-marco'], verantwortlich: ['u-tina'], vertretung: false },
+    projekt_neu: { zustaendig: [], stellvertretung: ['u-marco'], verantwortlich: ['u-marco'], vertretung: true },
+    projekt_laufend: LEER_BLOCK,
+    kunde: LEER_BLOCK,
+  },
+  personen: { 'u-tina': 'Tina Caduff', 'u-marco': 'Marco Bianchi' },
+}
+
+function listeB(over: Partial<EingangListe> = {}) {
+  return liste([
+    item({ id: 'r1', subject: 'Store klemmt', aufgabe: 'reparatur', received_at: '2026-11-12T09:00:00Z' }),
+    item({ id: 'n1', subject: 'Neue Markise', aufgabe: 'projekt_neu', received_at: '2026-11-12T08:00:00Z' }),
+    item({ id: 'k1', subject: 'Neue Nummer', aufgabe: 'kunde', received_at: '2026-11-12T07:00:00Z' }),
+  ], { aufgaben: AUFGABEN, zustaendigkeiten: ZUST, ...over })
+}
+
+const titel = () => screen.getAllByRole('article').map(a => a.getAttribute('aria-label'))
+
+describe('MailEingangScreen — Zuständigkeiten', () => {
+  it('öffnet mit «Meine», wenn der Betrieb das so eingestellt hat — samt nicht Zugeteiltem', async () => {
+    listMailEingang.mockResolvedValue(listeB({ standard_ansicht: 'meine' }))
+    render(<MailEingangScreen />)
+    await screen.findAllByRole('article')
+    expect(titel()).toEqual(['Store klemmt', 'Neue Nummer'])
+    expect(screen.getByRole('combobox', { name: 'Verantwortlich' })).toHaveValue('meine')
+    expect(screen.getByText('2 bei dir · 3 offen insgesamt')).toBeInTheDocument()
+  })
+
+  it('öffnet mit «Alle» als Vorgabe und filtert nach Person', async () => {
+    const user = userEvent.setup()
+    listMailEingang.mockResolvedValue(listeB())
+    render(<MailEingangScreen />)
+    await screen.findAllByRole('article')
+    expect(titel()).toHaveLength(3)
+    const filter = screen.getByRole('combobox', { name: 'Verantwortlich' })
+    // Keine Zahlen neben Namen (§7.1)
+    expect([...filter.querySelectorAll('option')].map(o => o.textContent)).toEqual([
+      'Alle', 'Meine', 'Marco Bianchi', 'Tina Caduff', 'Nicht zugeteilt',
+    ])
+    await user.selectOptions(filter, 'u-marco')
+    expect(titel()).toEqual(['Neue Markise'])
+    expect(sessionStorage.getItem('eingang-filter-verantwortlich')).toBe('u-marco')
+    await user.selectOptions(filter, 'nicht_zugeteilt')
+    expect(titel()).toEqual(['Neue Nummer'])
+  })
+
+  it('zeigt an der Karte, wer zuständig ist — die Vertretung als solche', async () => {
+    listMailEingang.mockResolvedValue(listeB())
+    render(<MailEingangScreen />)
+    expect(within(await screen.findByRole('article', { name: 'Store klemmt' })).getByText('Zuständig: Tina Caduff'))
+      .toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Neue Markise' }))
+      .getByText('Zuständig: Marco Bianchi (Vertretung)')).toBeInTheDocument()
+    expect(within(screen.getByRole('article', { name: 'Neue Nummer' })).getByText('Nicht zugeteilt')).toBeInTheDocument()
+  })
+
+  it('leere «Meine»-Liste sagt, was ausgeblendet ist, und «Alle anzeigen» hebt beide Filter auf', async () => {
+    const user = userEvent.setup()
+    listMailEingang.mockResolvedValue(liste([
+      item({ id: 'n1', subject: 'Neue Markise', aufgabe: 'projekt_neu' }),
+    ], { aufgaben: AUFGABEN, zustaendigkeiten: ZUST, standard_ansicht: 'meine' }))
+    render(<MailEingangScreen />)
+    expect(await screen.findByText(/Keine offene Mail in deinen Aufgaben\. 1 weitere im Eingang/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Alle anzeigen' }))
+    expect(titel()).toEqual(['Neue Markise'])
+  })
+
+  it('unter «Erledigt» gibt es keinen Filter nach Person und keine Zuständigkeit an der Karte (§9)', async () => {
+    const user = userEvent.setup()
+    listMailEingang.mockResolvedValue(listeB({ standard_ansicht: 'meine' }))
+    render(<MailEingangScreen />)
+    await screen.findAllByRole('article')
+    listMailEingang.mockResolvedValue(liste([
+      item({ id: 'e1', subject: 'Erledigt', aufgabe: 'projekt_neu', status: 'erledigt' }),
+    ], { aufgaben: AUFGABEN, zustaendigkeiten: ZUST, standard_ansicht: 'meine' }))
+    await user.click(screen.getByRole('button', { name: 'Erledigt' }))
+    const karte = await screen.findByRole('article', { name: 'Erledigt' })
+    expect(screen.queryByRole('combobox', { name: 'Verantwortlich' })).toBeNull()
+    expect(within(karte).queryByText(/Zuständig/)).toBeNull()
+  })
+
+  it('ohne Organigramm gibt es keinen Filter nach Person', async () => {
+    listMailEingang.mockResolvedValue(listeB({ zustaendigkeiten: { aufgaben: {}, personen: {} }, standard_ansicht: 'meine' }))
+    render(<MailEingangScreen />)
+    await screen.findAllByRole('article')
+    expect(titel()).toHaveLength(3)
+    expect(screen.queryByRole('combobox', { name: 'Verantwortlich' })).toBeNull()
+  })
+
+  it('zeigt das Organigramm nur lesend', async () => {
+    const user = userEvent.setup()
+    listMailEingang.mockResolvedValue(listeB())
+    render(<MailEingangScreen />)
+    await screen.findAllByRole('article')
+    await user.click(screen.getByRole('button', { name: 'Zuständigkeiten' }))
+    const ansicht = screen.getByRole('region', { name: 'Zuständigkeiten' })
+    expect(within(ansicht).getByText('Reparatur- und Serviceauftrag').parentElement).toHaveTextContent(
+      'ZuständigTina CaduffStellvertretungMarco Bianchi')
+    expect(within(ansicht).getAllByText('Niemand zuständig — diese Mails sehen alle.')).toHaveLength(2)
+    expect(within(ansicht).queryByRole('combobox')).toBeNull()
   })
 })

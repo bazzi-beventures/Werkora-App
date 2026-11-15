@@ -85,6 +85,8 @@ export interface ProjectFeatures {
    *  bzw. Statusseite — Kachel «Termin mit dem Kunden» mit Kundenlink. */
   terminwahl: boolean
   statusseite: boolean
+  /** Werkzeug «terminvorschlag»: «Termin vorschlagen» in der Termin-Kachel (Phase 3). */
+  terminvorschlag: boolean
   /** Modul «bexio»: Pille «in bexio / wird übertragen / Fehler» an den Rechnungen. */
   bexio: boolean
   /**
@@ -115,6 +117,7 @@ const NONE: ProjectFeatures = {
   terminBestaetigung: false,
   terminwahl: false,
   statusseite: false,
+  terminvorschlag: false,
   bexio: false,
   kreditoren: false,
 }
@@ -152,6 +155,7 @@ export function useProjectFeatures(): ProjectFeatures {
         terminBestaetigung: hasModule(me, 'termin_bestaetigung'),
         terminwahl: hasWerkzeug(me, 'terminwahl'),
         statusseite: hasWerkzeug(me, 'statusseite'),
+        terminvorschlag: hasWerkzeug(me, 'terminvorschlag'),
         bexio: hasModule(me, 'bexio'),
         kreditoren: hasModule(me, 'kreditoren'),
       })

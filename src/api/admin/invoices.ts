@@ -3,47 +3,15 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import type { Antwort } from '../generated'
 import { listPageParams, type ListPage, type ListPageQuery } from './listPage'
 import { requestEasterEggCheck } from './eastereggs'
 
-// `id` ist eine Zahl (invoices.id ist bigint, siehe supabase_full_schema.sql).
-// Die frühere Fassung dieses Typs — nie von einem Screen benutzt — führte hier
-// `string` und ein halbes Dutzend Felder, die es nicht gibt; die gelebte Form
-// stand stattdessen im InvoicesScreen. Wer den Typ ändert, ändert ihn hier.
-export interface Invoice {
-  id: number
-  invoice_number: string
-  project_name: string
-  total_amount: number
-  status: string
-  created_at: string
-  paid_at: string | null
-  /** Tatsächlich eingegangen, wenn weniger als `total_amount` (Skonto u. ä.);
-   *  null = voll bezahlt. */
-  paid_amount?: number | null
-  storage_path?: string | null
-  /** E-Mail des Kunden: auf der Betreiber-Liste aus `invoices.customer_id`
-   *  (Rechnung ohne Projekt) — Vorbelegung im Senden-Dialog. */
-  customer_email?: string | null
-  projektleiter_id: string | null
-  // Projektbezug: nach dem Bezahlen fragt die Übersicht, ob das Projekt
-  // abgeschlossen werden soll — bei einem längst geschlossenen Projekt nicht.
-  project_id: string | null
-  project_status?: string | null
-  project_is_closed?: boolean | null
-  /** Fällig am — gesetzt beim Versand (`set_invoice_sent_at`). Aus ihr leitet die
-   *  Betreiber-Liste «Verspätet» ab, denselben Befund, auf den Zahlungserinnerung
-   *  und Mahnung laufen. `null` heisst: noch nicht versendet, also nie verspätet. */
-  due_date?: string | null
-  sent_at?: string | null
-  /** Freitext auf der Rechnung («Bemerkung»). */
-  remark?: string | null
-  /** Bezug einer Rechnung ohne Projekt («Hagelschaden-Modul», Migration 20261114);
-   *  `null` = Projektrechnung. Die Betreiber-Liste zeigt ihn als «Beschreibung». */
-  inhalt?: string | null
-  /** 'anzahlung' = Anzahlungsrechnung (WW-47), null = gewöhnliche Rechnung. */
-  invoice_kind?: string | null
-}
+// Eine Zeile der Rechnungsliste — generiert aus dem Antwort-Modell `RechnungZeile`
+// (agents/routers/antworten/rechnungen.py, Charge N). Wer ein Feld braucht oder
+// ändert, ändert es dort und zieht nach: `python -m scripts.api_vertrag`, dann
+// `npm run api:gen`. Die Feldbeschreibungen stehen im Modell.
+export type Invoice = Antwort<'RechnungZeile'>
 
 export interface GenerateInvoiceInput {
   project_name: string
@@ -87,20 +55,10 @@ export interface GenerateInvoiceInput {
 /** Basis der Allg. Abzüge; `material` umfasst die weiteren Produkte. */
 export type GeneralDeductionSection = 'labor' | 'material' | 'travel'
 
-export interface GenerateInvoiceResult {
-  invoice_number: string
-  total_amount: number
-  // Sammelrechnung: bei mehreren angenommenen Offerten eines Projekts deckt EINE
-  // Rechnung alle noch unverrechneten ab — hier stehen deren Nummern.
-  quote_numbers?: string[]
-  // Allg. Abzüge: abgezogener Betrag (netto) oder null.
-  general_deduction_amount?: number | null
-  // Abgezogene Anzahlungen (brutto) oder null; 'anzahlung' bei einer Anzahlungsrechnung.
-  anzahlung_total?: number | null
-  kind?: string
-  // Hinweise, die den Erfolg nicht in Frage stellen (z.B. ein Rapport ohne Preis).
-  warnings?: unknown
-}
+/** Antwort von «Rechnung erstellen» — generiert aus `RechnungErstellt`. */
+export type GenerateInvoiceResult = Antwort<'RechnungErstellt'>
+/** Antwort von «Rechnung ohne Projekt» — generiert aus `FreieRechnungErstellt`. */
+export type FreeInvoiceResult = Antwort<'FreieRechnungErstellt'>
 
 export async function listInvoices(status?: string): Promise<Invoice[]> {
   return apiFetch<Invoice[]>(`/pwa/admin/invoices${status ? `?status=${status}` : ''}`)
@@ -163,8 +121,8 @@ export interface GenerateFreeInvoiceInput {
  */
 export async function generateFreeInvoice(
   input: GenerateFreeInvoiceInput,
-): Promise<GenerateInvoiceResult> {
-  const result = await apiFetch<GenerateInvoiceResult>('/pwa/admin/invoices/generate-free', {
+): Promise<FreeInvoiceResult> {
+  const result = await apiFetch<FreeInvoiceResult>('/pwa/admin/invoices/generate-free', {
     method: 'POST',
     body: JSON.stringify(input),
   })
@@ -175,7 +133,7 @@ export async function generateFreeInvoice(
 export async function getInvoiceWorkDescription(
   projectName: string, projectId: string, additional = false, reportIds?: number[],
 ): Promise<string> {
-  const res = await apiFetch<{ work_description: string }>(
+  const res = await apiFetch<Antwort<'Arbeitsbeschrieb'>>(
     `/pwa/admin/invoices/work-description?project_name=${encodeURIComponent(projectName)}`
     + `&project_id=${encodeURIComponent(projectId)}`
     + (additional ? '&additional=true' : '')
@@ -184,23 +142,9 @@ export async function getInvoiceWorkDescription(
   return res.work_description || ''
 }
 
-// Eine Zeile der Offerten-Auswahl im Erstellen-Dialog.
-export interface CoverageQuote {
-  id: number
-  quote_number: string | null
-  total: number
-  accepted: boolean
-}
-
-export interface InvoiceQuoteCoverage {
-  // Was die automatische Auflösung abdecken würde (Standard: angehakt).
-  covered: CoverageQuote[]
-  // Weitere angenommene, unverrechnete Offerten des Projekts (Standard: nicht angehakt).
-  additional: CoverageQuote[]
-  // Sperre der Automatik (z.B. 'all_billed') — covered ist dann leer, additional
-  // kann trotzdem wählbar sein.
-  blocker: string | null
-}
+// Offerten-Auswahl im Erstellen-Dialog — generiert (Feldbeschreibungen im Modell).
+export type CoverageQuote = Antwort<'AbdeckungOfferte'>
+export type InvoiceQuoteCoverage = Antwort<'OffertenAbdeckung'>
 
 /**
  * Offerten-Auswahl für den Rechnung-Erstellen-Dialog. Nicht blockierend gedacht:
@@ -216,39 +160,22 @@ export async function getInvoiceQuoteCoverage(
   )
 }
 
-/** Ein verrechenbarer Rapport in der Auswahl des Erstellen-Dialogs. */
-export interface BillableReport {
-  id: number
-  report_date: string | null
-  created_by: string | null
-  description: string
-  hours: number
-  signed: boolean
-  /** Garantiefall (WW-33): Abzeichen in der Auswahl, nicht vorgewählt. Fehlt bei
-   *  einem älteren Server — dann wie bisher alles vorgewählt. */
-  is_warranty?: boolean
-}
+/** Ein verrechenbarer Rapport in der Auswahl des Erstellen-Dialogs (generiert). */
+export type BillableReport = Antwort<'VerrechenbarerRapport'>
 
 export async function getBillableReports(projectId: string, additional = false): Promise<BillableReport[]> {
-  const res = await apiFetch<{ reports: BillableReport[] }>(
+  const res = await apiFetch<Antwort<'VerrechenbareRapporte'>>(
     `/pwa/admin/invoices/billable-reports?project_id=${encodeURIComponent(projectId)}`
     + (additional ? '&additional=true' : ''),
   )
   return res.reports || []
 }
 
-/** Eine Anzahlungsrechnung, die eine neue Rechnung abziehen kann (WW-47). */
-export interface OpenAnzahlung {
-  id: number
-  invoice_number: string
-  total_amount: number
-  status: string
-  created_at: string
-  anzahlung_pct: number | null
-}
+/** Eine Anzahlungsrechnung, die eine neue Rechnung abziehen kann (WW-47, generiert). */
+export type OpenAnzahlung = Antwort<'OffeneAnzahlung'>
 
 export async function getAnzahlungen(projectId: string, additional = false): Promise<OpenAnzahlung[]> {
-  const res = await apiFetch<{ anzahlungen: OpenAnzahlung[] }>(
+  const res = await apiFetch<Antwort<'OffeneAnzahlungen'>>(
     `/pwa/admin/invoices/anzahlungen?project_id=${encodeURIComponent(projectId)}`
     + (additional ? '&additional=true' : ''),
   )
@@ -299,9 +226,9 @@ export async function archiveInvoice(id: number): Promise<void> {
 
 // ─── bexio-Badge (docs/specs/bexio-anbindung.md §8.2) ───────────────────────
 
-export type BexioBadgeState = 'in_bexio' | 'wird_uebertragen' | 'fehler' | 'storniert' | 'storno_offen'
-/** `confirmed` nur bei `storno_offen`: der Betrieb hat bestätigt, der Lauf führt es aus. */
-export interface BexioBadge { state: BexioBadgeState; bexio_id?: number; message?: string; confirmed?: boolean }
+/** Zustand in bexio — generiert aus `BexioBadge` (Zustände als Literal im Modell). */
+export type BexioBadge = Antwort<'BexioBadge'>
+export type BexioBadgeState = BexioBadge['state']
 
 /**
  * Der Betrieb bestätigt das Storno einer archivierten Rechnung in bexio (§6.7).
@@ -315,7 +242,7 @@ export async function cancelInBexio(id: number): Promise<void> {
 /** Zustand in bexio für die sichtbaren Rechnungen — eine Anfrage für die ganze Liste. */
 export async function getBexioStatus(ids: number[]): Promise<Record<string, BexioBadge>> {
   if (ids.length === 0) return {}
-  const res = await apiFetch<{ states: Record<string, BexioBadge> }>(
+  const res = await apiFetch<Antwort<'BexioStatus'>>(
     `/pwa/admin/invoices/bexio-status?ids=${ids.slice(0, 500).join(',')}`,
   )
   return res.states ?? {}

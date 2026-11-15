@@ -77,10 +77,10 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // /customer/: übernommene Vorschläge schreiben Entwurf, Projekt- oder
   // Kundennotiz, gehören aber zum Modul. Auch `mail_eingang_config_set` (der
   // Betreiber setzt Postfach und Absenderschranke) zählt hierher.
-  { test: /^mail_eingang_/,                      module: 'mail_eingang' },
+  { test: /^mail_eingang_|^eingang_zustaendigkeiten_/, module: 'mail_eingang' },
   // Servicebegleitung (docs/specs/servicebegleitung.md): die Unterwegs-Meldung an
   // den Kunden und die Einstellung des Betreibers.
-  { test: /^einsatz_meldung|^service_begleitung_|^terminanfrage_|^kundenlink_/, module: 'service_begleitung' },
+  { test: /^einsatz_meldung|^service_begleitung_|^terminanfrage_|^kundenlink_|^termindauer_/, module: 'service_begleitung' },
   // Hagelschaden (docs/specs/hagelschaden-dashboard.md) — vor /project/.
   { test: /hagelschaden/,                        module: 'hagelschaden' },
   // Terminbestätigung (docs/specs/termin-bestaetigung-kunde.md) — vor /appointment/:
@@ -283,6 +283,8 @@ const ACTION_LABELS: Record<string, string> = {
   // ── Mail-Eingang ──
   mail_eingang_uebernommen: 'Mail-Eingang: Vorschlag übernommen',
   mail_eingang_verworfen: 'Mail-Eingang: als nicht für Werkora verworfen',
+  mail_eingang_aufgabe_geaendert: 'Mail-Eingang: Aufgabe der Mail umgestellt',
+  eingang_zustaendigkeiten_set: 'Eingang: Zuständigkeiten und Startansicht gesetzt',
   mail_eingang_antwort_gesendet: 'Mail-Eingang: Antwort an den Absender gesendet',
   mail_eingang_vorlage_gespeichert: 'Mail-Eingang: Antwort-Vorlage gespeichert',
   mail_eingang_vorlage_zurueckgesetzt: 'Mail-Eingang: Antwort-Vorlage zurückgesetzt',
@@ -294,6 +296,7 @@ const ACTION_LABELS: Record<string, string> = {
   terminanfrage_keiner_passt: 'Servicebegleitung: Kunde meldet «kein Termin passt»',
   terminanfrage_zurueckgezogen: 'Servicebegleitung: Terminanfrage zurückgezogen',
   kundenlink_gesperrt: 'Servicebegleitung: Kundenlink gesperrt',
+  termindauer_geaendert: 'Servicebegleitung: Dauer-Vorgaben geändert',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
   admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',

@@ -2,25 +2,6 @@
    Admin Shell — Desktop-optimiert, .admin-* Prefix (kein Konflikt mit Worker-UI)
    ───────────────────────────────────────────────────────────── */
 
-/* Thin custom scrollbar */
-.thin-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.15) transparent;
-}
-.thin-scroll::-webkit-scrollbar {
-  width: 4px;
-}
-.thin-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.thin-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.15);
-  border-radius: 2px;
-}
-.thin-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.3);
-}
-
 /* Layout */
 .admin-shell {
   display: grid;
@@ -1279,12 +1260,6 @@ button.admin-list-item {
   margin: 20px 0 12px;
 }
 
-.admin-divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 16px 0;
-}
-
 /* ─── Responsive: Sidebar collapse at ≤1024px ──────────────── */
 @media (max-width: 1024px) {
   .admin-shell {
@@ -1298,20 +1273,6 @@ button.admin-list-item {
   .admin-user-info,
   .admin-powered-by {
     display: none;
-  }
-
-  /* 56 px sind keine Lesespalte: der Beta-Abschnitt schrumpft auf das Badge —
-     «du testest» bleibt sichtbar (Pflicht-Sichtbarkeit, beta-tester.md §6.2),
-     das «was» steht eine Breite weiter oder im Profil. */
-  .admin-sidebar-footer .beta-section {
-    padding: 8px 4px;
-  }
-  .admin-sidebar-footer .beta-section-entries,
-  .admin-sidebar-footer .beta-section-head span {
-    display: none;
-  }
-  .admin-sidebar-footer .beta-section-head {
-    justify-content: center;
   }
 
   .admin-nav-item {
@@ -1394,51 +1355,6 @@ button.admin-list-item {
 }
 
 .kpi-admin-content { flex: 1; overflow-y: auto; }
-
-.kpi-admin-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.kpi-admin-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px 20px 16px;
-  position: relative;
-}
-
-.kpi-admin-card-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.kpi-admin-card-value {
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.1;
-  font-family: var(--mono);
-  word-break: break-word;
-}
-
-.kpi-admin-card-unit {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
-.kpi-admin-card-dot {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
 
 .kpi-admin-spinner {
   width: 24px;
@@ -4264,18 +4180,8 @@ button.admin-list-item {
   color: #ffffff;
 }
 
-/* Lead-Monteur ausserhalb der Kürzel-Chips.
-   Auf farbigem Grund (Agenda-Karte) braucht es die deckende Pille — roter Text
-   auf blauem Balken wäre unlesbar. Auf hellem Grund (Hover-Karte, Auswahl-Chips)
-   genügt die rote Schrift. */
-.schedule-lead-chip {
-  background: #dc2626;
-  color: #ffffff;
-  font-weight: 700;
-  padding: 0 5px;
-  border-radius: 4px;
-}
-
+/* Lead-Monteur ausserhalb der Kürzel-Chips: auf hellem Grund (Hover-Karte,
+   Auswahl-Chips) genügt die rote Schrift. */
 .schedule-lead-name {
   color: #dc2626;
   font-weight: 700;

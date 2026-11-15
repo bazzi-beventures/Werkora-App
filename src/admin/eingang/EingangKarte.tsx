@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import {
   getMailEingangText,
-  type EingangItem, type EingangOriginal, type EingangProjekt, type VorschlagEntscheid,
+  type EingangAufgabe, type EingangItem, type EingangOriginal, type EingangProjekt, type VorschlagEntscheid,
 } from '../../api/admin/mailEingang'
 import type { ProjectTab } from '../operative/projectDetail/ProjectTabBar'
 import type { AdminScreen } from '../useAdminNav'
 import { CustomerLink } from '../components/CustomerLink'
+import EingangAufgabeWahl from './EingangAufgabeWahl'
 import VorschlagKarte, { type EntscheidArt } from './VorschlagKarte'
 import {
-  anhaengeText, fmtWann, initialen, itemStatus, kategorieFarbe, kategorieLabel, offeneVorschlaege,
+  anhaengeText, fmtWann, initialen, itemStatus, kategorieFarbe, offeneVorschlaege,
   personText, typFarbe, typKurz,
 } from './mailEingang'
 
@@ -32,6 +33,12 @@ interface Props {
   onNav?: (screen: AdminScreen, detailId?: string, tab?: ProjectTab) => void
   /** Beta: darf dieses Konto Antworten aus Werkora senden? */
   antwortenSenden?: boolean
+  /** Katalog der Aufgaben (mail-eingang-zustaendigkeiten.md §4) — leer bei einem älteren Server. */
+  aufgaben?: readonly EingangAufgabe[]
+  /** Aufgabe der Mail umstellen; wirft bei einem Fehler. */
+  onAufgabe?: (itemId: string, aufgabe: string) => Promise<void>
+  /** «Zuständig: …» aus dem heutigen Organigramm — nur an offenen Karten (§7.2, §9). */
+  zustaendig?: string | null
 }
 
 type OriginalZustand =
@@ -104,7 +111,8 @@ const IconUmschlag = () => (
 )
 
 export default function EingangKarte({
-  item, busy, onEntschieden, onFehler, onDismiss, onNav, antwortenSenden = false,
+  item, busy, onEntschieden, onFehler, onDismiss, onNav, antwortenSenden = false, aufgaben = [], onAufgabe,
+  zustaendig = null,
 }: Props) {
   const [offen, setOffen] = useState(false)
   // Das zuletzt am Vorschlag gewählte Projekt: die übrigen Vorschläge dieser Mail
@@ -170,7 +178,10 @@ export default function EingangKarte({
           ein Abzeichen in der Farbe seiner Tätigkeit — wie auf werkora.ch. */}
       <div className="eingang-ki">
         <IconFunke />
-        <span className="eingang-kat">{kategorieLabel(item.kategorie)}</span>
+        {/* Statt der Kategorie die Aufgabe — an einer offenen Mail als Auswahl (§7.2). */}
+        <EingangAufgabeWahl item={item} katalog={aufgaben}
+                            onAendern={onAufgabe ? a => onAufgabe(item.id, a) : undefined} />
+        {zustaendig && istOffen && <span className="eingang-zustaendig">{zustaendig}</span>}
         {item.suggestions.length > 0 && (
           <ul className="eingang-chips" aria-label="Vorschläge">
             {item.suggestions.map(v => (

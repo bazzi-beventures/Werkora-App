@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch, apiUrl } from '../client'
+import type { Antwort } from '../generated'
 
 export interface AdminDashboard {
   pending_corrections: number
@@ -88,29 +89,11 @@ export async function rejectApproval(id: string, note?: string): Promise<void> {
   })
 }
 
-export interface PendingActionInvoice {
-  id: number
-  invoice_number: string
-  project_id: string | null
-  project_name: string
-  project_id_text: string | null
-  customer_name: string | null
-  total_amount: number
-  sent_at: string | null
-  due_date: string | null
-  zahlungserinnerung_sent_at: string | null
-  mahnung_sent_at: string | null
-}
+/** Überfällige Rechnung (gesendet, ≥ 30 Tage offen) — generiert aus `FaelligeRechnung`. */
+export type PendingActionInvoice = Antwort<'FaelligeRechnung'>
 
-export interface PendingReminderQuote {
-  id: number
-  quote_number: string
-  customer_name: string
-  customer_email: string
-  project_name: string
-  total_amount: number
-  sent_at: string | null
-}
+/** Offerte zum Erinnern (≥ 14 Tage offen) — generiert aus `OfferteZumErinnern`. */
+export type PendingReminderQuote = Antwort<'OfferteZumErinnern'>
 
 export async function getAdminDashboard(): Promise<AdminDashboard> {
   return apiFetch<AdminDashboard>('/pwa/admin/dashboard')

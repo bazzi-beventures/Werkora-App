@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react'
 import { listAllMaterials } from '../../api/admin/materials'
 import { getProjectReport, saveProjectReport } from '../../api/admin/reports'
+import type { Antwort } from '../../api/generated'
 import { getMe } from '../../api/auth'
 import { isFeatureEnabled } from '../../api/modules'
 import { fmtCHF, fmtDate, todayISO } from '../utils/format'
@@ -156,29 +157,8 @@ function prefillDescription(q: ProjectQuote | null): string {
 // Antwort von GET /pwa/admin/projects/{id}/reports/{reportId} — der gespeicherte
 // Stand eines Rapports, vom Backend bereits nach den drei Material-Erfassungsarten
 // aufgeteilt (db.split_report_material_rows).
-export interface ReportEditPayload {
-  report_date: string
-  description: string | null
-  massaufnahme?: boolean | null
-  beratung?: boolean | null
-  is_warranty?: boolean | null
-  art_der_arbeit?: string[] | null
-  // Einbauort des Einsatzes (reports.einbauort). null = nicht erfasst.
-  einbauort?: string | null
-  // Teilrapport (docs/specs/teilrapport.md). `merged_into_report_id` gesetzt heisst:
-  // der Rapport steckt in einem Gesamtrapport und ist gesperrt.
-  is_partial?: boolean | null
-  merged_into_report_id?: number | null
-  staff: { staff_id: string | null; name: string; hours: number; hour_type: string }[]
-  materials: { art_nr: string; amount: number; item_name?: string }[]
-  kleinmaterial: { item_name: string; count: number; amount_chf: number } | null
-  fixed_materials: {
-    item_name: string; amount: number; unit: string; unit_price: number
-    source_quote_id?: number | null
-  }[]
-  editable?: boolean
-  edit_blocked_reason?: string | null
-}
+// Inhalt für die Bearbeiten-Maske — generiert aus `RapportInhalt`.
+export type ReportEditPayload = Antwort<'RapportInhalt'>
 
 // Zahl → Feldwert. `0` und Nachkommastellen sollen so erscheinen, wie sie erfasst
 // wurden; String(0.5) = "0.5" reicht dafür, nur null/undefined wird zu ''.

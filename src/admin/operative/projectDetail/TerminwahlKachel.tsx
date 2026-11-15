@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
   type Terminanfrage, type TerminwahlAnsicht,
-  anfrageStandText, fetchKundenlink, fetchTerminwahl, sperreKundenlink, zieheTerminanfrageZurueck,
+  TERMINWAHL_GEAENDERT, anfrageStandText, fetchKundenlink, fetchTerminwahl, sperreKundenlink,
+  zieheTerminanfrageZurueck,
 } from '../../../api/serviceBegleitung'
+import type { AppointmentKind } from '../../../api/admin'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { TerminwahlDialog } from './TerminwahlDialog'
 
@@ -20,19 +22,29 @@ interface Props {
   staff: { id: string; name: string }[]
   /** Werkzeug «terminwahl» für dieses Konto an; sonst nur der Kundenlink (Statusseite). */
   terminwahl: boolean
+  /** Vorwahl der Termin-Art im Dialog (aus der Art der Arbeit, projectAppointments.ts). */
+  kindVorschlag?: AppointmentKind
 }
 
 function fehlerText(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
-export function TerminwahlKachel({ projectId, staff, terminwahl }: Props) {
+export function TerminwahlKachel({ projectId, staff, terminwahl, kindVorschlag = 'service' }: Props) {
   const [ansicht, setAnsicht] = useState<TerminwahlAnsicht | null>(null)
   const [link, setLink] = useState<string | null>(null)
   const [fehler, setFehler] = useState('')
   const [hinweis, setHinweis] = useState('')
   const [dialog, setDialog] = useState(false)
   const [frage, setFrage] = useState<'zurueck' | 'sperren' | null>(null)
+  // Aus «Termin vorschlagen» gesendet (Termin-Kachel): dann gilt der neue Stand hier auch.
+  const [stand, setStand] = useState(0)
+
+  useEffect(() => {
+    const neu = () => setStand(n => n + 1)
+    window.addEventListener(TERMINWAHL_GEAENDERT, neu)
+    return () => window.removeEventListener(TERMINWAHL_GEAENDERT, neu)
+  }, [])
 
   useEffect(() => {
     let alive = true
@@ -40,7 +52,7 @@ export function TerminwahlKachel({ projectId, staff, terminwahl }: Props) {
       : fetchKundenlink(projectId).then(r => { if (alive) setLink(r.url) })
     laden.catch(e => { if (alive) setFehler(fehlerText(e)) })
     return () => { alive = false }
-  }, [projectId, terminwahl])
+  }, [projectId, terminwahl, stand])
 
   const offen: Terminanfrage | undefined = ansicht?.anfragen.find(a => a.status === 'offen')
   const letzte = ansicht?.anfragen[0]
@@ -91,6 +103,7 @@ export function TerminwahlKachel({ projectId, staff, terminwahl }: Props) {
               {letzte.status === 'offen' && letzte.reserviert_bis_text && (
                 <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
                   Reserviert bis {letzte.reserviert_bis_text} · an {letzte.empfaenger}
+                  {letzte.dauer_text && <> · Dauer {letzte.dauer_text}</>}
                 </div>
               )}
               {letzte.hinweis_kunde && (
@@ -135,7 +148,8 @@ export function TerminwahlKachel({ projectId, staff, terminwahl }: Props) {
         <TerminwahlDialog
           projectId={projectId}
           staff={staff}
-          vorgabe={{ empfaenger: ansicht.empfaenger_vorschlag, reserviertBis: ansicht.vorgabe_reserviert_bis }}
+          vorgabe={{ empfaenger: ansicht.empfaenger_vorschlag, reserviertBis: ansicht.vorgabe_reserviert_bis,
+            kind: kindVorschlag, dauer: ansicht.dauer_vorgaben ?? {} }}
           onClose={() => setDialog(false)}
           onSent={a => { setAnsicht(a); setLink(a.kundenlink); setDialog(false); setHinweis('Die Mail ist beim Kunden.') }}
         />

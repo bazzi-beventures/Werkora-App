@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { EingangProjekt, EingangVorschlag } from '../../api/admin/mailEingang'
 import {
-  ZUSTAENDIG_AUTO, acceptPayload, anhaengeText, anhangText, belegText, entscheidText, ergebnisHinweis, ergebnisZiel, fehltZumUebernehmen,
+  ALLE_AUFGABEN, ZUSTAENDIG_AUTO, acceptPayload, aufgabeLabel, filterNachAufgabe, gueltigerAufgabenFilter, zahlJeAufgabe, anhaengeText, anhangText, belegText, entscheidText, ergebnisHinweis, ergebnisZiel, fehltZumUebernehmen,
   ergaenzungFuerKandidat, fmtFaellig, fmtGroesse, initialen, istBekannterTyp, kandidatText, kategorieFarbe, kategorieLabel,
   kundePrefill, mailtoLink, neuesteZuerst, offeneVorschlaege, personText, serverSatz, startEingabe, typFarbe, typKurz,
   typTitel, uebernehmenLabel,
@@ -414,5 +414,37 @@ describe('Antwort', () => {
     expect(mailtoLink('eva@meier.ch', 'AW: Storen', 'Danke')).toBe(
       'mailto:eva%40meier.ch?subject=AW%3A%20Storen&body=Danke')
     expect(mailtoLink('eva@meier.ch', 'AW', 'x'.repeat(2000))).toBeNull()
+  })
+})
+
+// docs/specs/mail-eingang-zustaendigkeiten.md §7.1 (Charge A).
+describe('Aufgabe je Mail', () => {
+  const katalog = [
+    { key: 'reparatur', label: 'Reparatur- und Serviceauftrag', beschreibung: '' },
+    { key: 'kunde', label: 'Kunden anlegen und ändern', beschreibung: '' },
+  ]
+  const items = [{ aufgabe: 'reparatur' }, { aufgabe: 'kunde' }, { aufgabe: null }, { aufgabe: 'reparatur' }, {}]
+
+  it('filtert nach Aufgabe, «alle» lässt alles stehen', () => {
+    expect(filterNachAufgabe(items, 'reparatur')).toHaveLength(2)
+    expect(filterNachAufgabe(items, ALLE_AUFGABEN)).toHaveLength(5)
+    expect(filterNachAufgabe(items, 'projekt_neu')).toEqual([])
+  })
+
+  it('zählt je Aufgabe, ohne die Mails ohne Aufgabe', () => {
+    expect(zahlJeAufgabe(items)).toEqual({ reparatur: 2, kunde: 1 })
+  })
+
+  it('beschriftet aus dem Katalog, unbekannt ist null', () => {
+    expect(aufgabeLabel('kunde', katalog)).toBe('Kunden anlegen und ändern')
+    expect(aufgabeLabel('storen_ost', katalog)).toBeNull()
+    expect(aufgabeLabel(null, katalog)).toBeNull()
+  })
+
+  it('ein gemerkter Filter, den der Katalog nicht kennt, wird zu «alle»', () => {
+    expect(gueltigerAufgabenFilter('kunde', katalog)).toBe('kunde')
+    expect(gueltigerAufgabenFilter('storen_ost', katalog)).toBe(ALLE_AUFGABEN)
+    expect(gueltigerAufgabenFilter(null, katalog)).toBe(ALLE_AUFGABEN)
+    expect(gueltigerAufgabenFilter('kunde', [])).toBe(ALLE_AUFGABEN)
   })
 })

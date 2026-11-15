@@ -276,13 +276,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .auth-sub { font-size: 14px; color: var(--muted); margin-bottom: 36px; }
 
 .field { margin-bottom: 14px; }
-.field-label {
-  font-size: 12px; color: var(--muted);
-  margin-bottom: 6px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  display: block;
-}
 .input {
   width: 100%;
   background: var(--surface);
@@ -296,12 +289,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
 }
 .input:focus { border-color: var(--accent); }
 .input::placeholder { color: var(--muted); }
-.input-pin {
-  letter-spacing: 0.5em;
-  text-align: center;
-  font-family: var(--mono);
-  font-size: 22px;
-}
 
 /* Schrift auf dem Akzent: --on-accent, nicht fest #fff. Vor dem Login liegt
    der Knopf auf Werkora-Amber, wo Weiss nur ~2,2:1 erreicht — dort gehört
@@ -635,7 +622,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .menu-icon-green { background: var(--accent-green-dim); }
 .menu-icon-amber { background: var(--accent-amber-dim); }
 .menu-icon-red { background: var(--accent-red-dim); }
-.menu-icon-purple { background: var(--accent-purple-dim); }
 .menu-text { flex: 1; }
 .menu-label { font-size: 14px; font-weight: 500; }
 .menu-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
@@ -690,29 +676,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .corr-btn-submit { background: var(--accent-amber); color: #000; }
 
 /* ── ARBEITSZEIT SCREEN ─────────────────────────── */
-.time-card {
-  margin: 0 24px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 18px 20px;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
-}
-.time-card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-.time-card-value { font-size: 28px; font-weight: 600; font-family: var(--mono); color: var(--accent-green); }
-.time-card-since { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.time-card-btn {
-  background: var(--accent-red-dim);
-  border: 1px solid rgba(239,68,68,0.25);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  font-size: 12px; font-weight: 500; color: var(--accent-red);
-  cursor: pointer;
-  white-space: nowrap;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .action-result {
   margin: 0 24px 12px;
   background: var(--accent-green-dim);
@@ -921,11 +884,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .kleinmaterial-stepper button:disabled { opacity: 0.4; cursor: not-allowed; }
 .kleinmaterial-stepper span { font-weight: 600; min-width: 24px; text-align: center; }
 .kleinmaterial-total { font-size: 14px; font-weight: 600; }
-.kleinmaterial-error {
-  color: #fca5a5; font-size: 12px;
-  padding: 6px 10px; border-radius: 6px;
-  background: rgba(239,68,68,0.1);
-}
 .kleinmaterial-actions { display: flex; gap: 8px; }
 
 /* Leistungsart-Ankreuzfeld (Rapport-Abschluss). Eigenes Raster statt der
@@ -1578,19 +1536,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
 .tile-amber:hover { background: var(--surface2); border-color: rgba(245,158,11,0.4); }
 .tile-icon-amber { background: var(--accent-amber-dim); }
 
-/* 3-column tile layout for admins */
-.tiles-3col {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-.tiles-3col .tile {
-  padding: 16px 12px;
-  gap: 10px;
-}
-.tiles-3col .tile-label { font-size: 13px; }
-.tiles-3col .tile-desc { font-size: 11px; }
-.tiles-3col .tile-icon { width: 34px; height: 34px; border-radius: 10px; }
-.tiles-3col .tile-icon svg { width: 16px; height: 16px; }
-
 /* ── PROJEKTE SCREEN ────────────────────────────── */
 .projekte-view-toggle {
   display: flex;
@@ -1759,11 +1704,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
-}
-.projekte-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
 }
 .projekte-grouped {
   display: flex;
@@ -1982,10 +1922,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
   font-size: 20px;
   font-weight: 600;
   color: var(--accent);
-}
-.projekte-detail-termin-notiz {
-  font-size: 13px;
-  color: var(--muted);
 }
 .projekte-kontakt-item {
   background: var(--surface2);
@@ -2314,7 +2250,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
   -webkit-tap-highlight-color: transparent;
 }
 .wplan-today-btn:active { background: var(--surface2); }
-
 
 /* ── UMZUGS-HINWEIS (nur im Build der alten Origin) ────────────────────
    Erscheint nur, wenn VITE_MIGRATION_NOTICE gesetzt ist. Bewusst in
@@ -2667,15 +2602,6 @@ input, textarea { font-family: var(--font); color: var(--text); }
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-}
-
-/* ─── Beta-Abschnitt (shared/BetaSection.tsx) ─────────────── */
-
-/* Die Eintraege sollen in der Spalte der Section liegen, nicht in einer eigenen:
-   der Wrapper existiert nur, damit die schmale Symbol-Sidebar sie in einem Zug
-   ausblenden kann (admin.css, <=1024px). */
-.beta-section-entries {
-  display: contents;
 }
 
 /* ─── Abzeichen der Hilfe-Blase (shared/HelpBubble.tsx) ─────

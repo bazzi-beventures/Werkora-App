@@ -5,7 +5,8 @@
  * §10 (Oberfläche).
  */
 import type {
-  AufgabePayload, EingangAnhang, EingangItem, EingangProjekt, EingangVorschlag, KundeAnlegenPayload, KundeKandidat,
+  AufgabePayload, EingangAnhang, EingangAufgabe, EingangItem, EingangProjekt, EingangVorschlag, KundeAnlegenPayload,
+  KundeKandidat,
   ProjektEntwurfPayload, VorschlagTyp,
 } from '../../api/admin/mailEingang'
 import type { KontaktErgaenzung } from '../operative/customerErgaenzung'
@@ -185,6 +186,41 @@ export function neuesteZuerst<T extends Pick<EingangItem, 'received_at'>>(items:
     return Number.isNaN(t) ? 0 : t
   }
   return [...items].sort((a, b) => zeit(b.received_at) - zeit(a.received_at))
+}
+
+// ─── Aufgabe je Mail (docs/specs/mail-eingang-zustaendigkeiten.md §4, §7.1) ──
+
+/** Wert des Filters «Aufgabe», der nichts ausblendet. */
+export const ALLE_AUFGABEN = ''
+
+/** Beschriftung einer Aufgabe aus dem Katalog des Servers; `null` = ohne oder unbekannt. */
+export function aufgabeLabel(
+  key: string | null | undefined, katalog: readonly EingangAufgabe[],
+): string | null {
+  return katalog.find(a => a.key === key)?.label ?? null
+}
+
+/** Die Mails einer Aufgabe — `ALLE_AUFGABEN` lässt alle stehen. Gefiltert wird im
+ *  Browser: die Route liefert ohnehin alle Karten der Ansicht (§7.1). */
+export function filterNachAufgabe<T extends Pick<EingangItem, 'aufgabe'>>(
+  items: readonly T[], aufgabe: string,
+): T[] {
+  return aufgabe === ALLE_AUFGABEN ? [...items] : items.filter(i => i.aufgabe === aufgabe)
+}
+
+/** Wie viele Mails je Aufgabe — fällt beim Filtern ohne weitere Abfrage an. */
+export function zahlJeAufgabe(items: readonly Pick<EingangItem, 'aufgabe'>[]): Record<string, number> {
+  const zahl: Record<string, number> = {}
+  for (const i of items) {
+    if (i.aufgabe) zahl[i.aufgabe] = (zahl[i.aufgabe] ?? 0) + 1
+  }
+  return zahl
+}
+
+/** Ein Filterwert, den der Katalog (noch) kennt — sonst «alle». Ein gemerkter
+ *  Wert aus einer früheren Sitzung darf die Liste nicht still leeren. */
+export function gueltigerAufgabenFilter(wert: string | null | undefined, katalog: readonly EingangAufgabe[]): string {
+  return wert && katalog.some(a => a.key === wert) ? wert : ALLE_AUFGABEN
 }
 
 export function offeneVorschlaege(item: Pick<EingangItem, 'suggestions'>): number {

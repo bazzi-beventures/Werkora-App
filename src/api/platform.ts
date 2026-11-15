@@ -24,6 +24,7 @@ import type { HelpDoc, ReindexStatus } from './help'
 import type { BulkMaterialStatusResult, MaterialCleanupScan, MaterialsMeta } from './admin/materials'
 import type { Supplier } from './admin/suppliers'
 import type { WerkoraBonusResponse } from './admin/werkoraBonus'
+import type { Antwort } from './generated'
 // Die Antwortformen sind identisch — die Rümpfe im Backend sind dieselben
 // Funktionen (agents/routers/admin_tenant_settings.py). Eigene, lose Typen
 // hier wären ein zweites Schema für dieselben Felder und würden an jeder
@@ -435,6 +436,30 @@ export function getMailEingang(tenantId: string): Promise<MailEingangView> {
 /** Validierungsfehler kommen als 400 mit Klartext in `detail` (→ `ApiError.message`). */
 export function setMailEingang(tenantId: string, einstellung: MailEingangEinstellung): Promise<MailEingangView> {
   return apiFetch<MailEingangView>(mailEingangPfad(tenantId), {
+    method: 'PUT',
+    body: JSON.stringify(einstellung),
+  })
+}
+
+// ─── Zuständigkeiten des Eingangs (docs/specs/mail-eingang-zustaendigkeiten.md §8) ──
+//
+// Organigramm (Aufgabe × Person) und Startansicht. Keine Sicherheitseinstellung:
+// es sortiert den Eingang, es sperrt nicht. Gespeichert wird immer das Ganze.
+
+export type ZustaendigkeitenBetreiber = Antwort<'ZustaendigkeitenBetreiber'>
+export type ZustaendigkeitsBlock = Antwort<'ZustaendigkeitsBlock'>
+export type EingangAnsichtVorgabe = ZustaendigkeitenBetreiber['standard_ansicht']
+
+export function getEingangZustaendigkeiten(tenantId: string): Promise<ZustaendigkeitenBetreiber> {
+  return apiFetch<ZustaendigkeitenBetreiber>(`${mailEingangPfad(tenantId)}/zustaendigkeiten`)
+}
+
+/** Validierungsfehler kommen als 400 mit Klartext in `detail` (→ `ApiError.message`). */
+export function setEingangZustaendigkeiten(
+  tenantId: string,
+  einstellung: { standard_ansicht: EingangAnsichtVorgabe; zustaendigkeiten: Record<string, ZustaendigkeitsBlock> },
+): Promise<ZustaendigkeitenBetreiber> {
+  return apiFetch<ZustaendigkeitenBetreiber>(`${mailEingangPfad(tenantId)}/zustaendigkeiten`, {
     method: 'PUT',
     body: JSON.stringify(einstellung),
   })

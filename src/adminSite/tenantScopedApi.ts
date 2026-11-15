@@ -198,6 +198,10 @@ export type {
 
 export { getMailEingang, setMailEingang } from '../api/platform'
 export type { MailEingangEinstellung, MailEingangView, MailSystem } from '../api/platform'
+export { getEingangZustaendigkeiten, setEingangZustaendigkeiten } from '../api/platform'
+export type {
+  EingangAnsichtVorgabe, ZustaendigkeitenBetreiber, ZustaendigkeitsBlock,
+} from '../api/platform'
 
 // ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ──────────────
 

@@ -1,0 +1,6419 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Werkora API-Vertrag",
+    "version": "1"
+  },
+  "paths": {
+    "/pwa/admin/appointments": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Termin"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/appointments/{appointment_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminGeaendert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/appointments/{appointment_id}/customer-notice": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Terminbestaetigung"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/eingang/{item_id}": {
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AufgabeGeaendert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/installation-templates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MontageVorlage"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/installation-templates/{template_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RechnungZeile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/anzahlungen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffeneAnzahlungen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/bexio-status": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BexioStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/billable-reports": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerrechenbareRapporte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/generate": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RechnungErstellt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/generate-free": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FreieRechnungErstellt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/list": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RechnungSeite"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/pending-action": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FaelligeRechnung"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/quote-coverage": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffertenAbdeckung"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/reconcile-camt": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CamtAbgleich"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/send": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/work-description": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Arbeitsbeschrieb"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/archive": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/bexio-cancel": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/mark-paid": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/mark-reminder-sent": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/mark-sent": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/send-mahnung": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/send-zahlungserinnerung": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/invoices/{invoice_id}/unmark-paid": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/appointments": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Termin"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminAngelegt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/kundenlink": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kundenlink"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/kundenlink/sperren": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kundenlink"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RapportZeile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports/aggregate": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports/{report_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportGeloescht"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportInhalt"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports/{report_id}/accept": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports/{report_id}/dissolve": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports/{report_id}/partial": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/reports/{report_id}/pdf": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/schedule": {
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/terminvorschlaege": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminVorschlaege"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/terminvorschlaege/protokoll": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/projects/{project_id}/terminwahl": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminwahlAnsicht"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminwahlAnsicht"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-attachment-templates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnhangVorlagen"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-attachment-templates/{template_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-description": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BeschreibungVorschlag"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-position-templates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionsVorlagen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-skonto-defaults": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkontoVorgabe"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkontoVorgabe"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-travel-cost-table": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FahrspesenTabelle"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quote-validity": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffertenGueltigkeit"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffertenGueltigkeit"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OfferteZeile"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferteGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/extract-pdf": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdfAuszug"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/list": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffertenSeite"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/pending-reminders": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/OfferteZumErinnern"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/send": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferteDetail"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferteGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/add-variant": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferteKopiert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/mark-sent": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/prospekte": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Prospekte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/regenerate": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferteKopiert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/send-attachments": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersandAnhaenge"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/send-group": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Versandgruppe"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/send-order-confirmation": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/send-rejection": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/send-reminder": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/send-thankyou": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/quotes/{quote_id}/status": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/schedule/absences": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlanAbsenz"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/schedule/distances": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Distanzen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/schedule/meldungen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EinsatzStaende"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/schedule/reservationen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reservationen"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/schedule/stand": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanStand"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/service/nachfassen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NachfassFaelle"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/service/termindauer": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminDauerVorgaben"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminDauerVorgaben"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/special-position-templates": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SonderVorlage"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/special-position-templates/{template_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/spellcheck": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rechtschreibung"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/terminanfragen/{anfrage_id}/zurueckziehen": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/projects/{project_id}/reports": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MonteurRapport"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/schedule/appointments/{appointment_id}/meldung": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeldungAnsicht"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeldungAntwort"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/schedule/week": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Wochenplan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/tenants/{tenant_id}/mail-eingang/zustaendigkeiten": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZustaendigkeitenBetreiber"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZustaendigkeitenBetreiber"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AbdeckungOfferte": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "quote_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quote_number",
+          "total",
+          "accepted"
+        ],
+        "description": "Eine Zeile der Offerten-Auswahl im Erstellen-Dialog."
+      },
+      "AbgleichSumme": {
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "matched": {
+            "type": "integer"
+          },
+          "amount_mismatch": {
+            "type": "integer"
+          },
+          "already_paid": {
+            "type": "integer"
+          },
+          "unmatched": {
+            "type": "integer"
+          },
+          "applied": {
+            "type": "integer"
+          },
+          "dry_run": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "matched",
+          "amount_mismatch",
+          "already_paid",
+          "unmatched",
+          "applied",
+          "dry_run"
+        ]
+      },
+      "AbgleichZeile": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "matched",
+              "amount_mismatch",
+              "already_paid",
+              "unmatched"
+            ]
+          },
+          "reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paid_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "debtor_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expected_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "amount_diff": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "reference",
+          "paid_amount",
+          "currency",
+          "value_date",
+          "debtor_name",
+          "invoice_id",
+          "invoice_number",
+          "project_name",
+          "expected_amount",
+          "amount_diff"
+        ],
+        "description": "Eine Gutschrift aus dem Bankauszug und ihr Abgleich."
+      },
+      "Anhang": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename"
+        ]
+      },
+      "AnhangVorlage": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "mime_type",
+          "file_size",
+          "created_at"
+        ],
+        "description": "Standard-Anhang für den Offerten-Versand (``quote_attachment_templates``)."
+      },
+      "AnhangVorlagen": {
+        "properties": {
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AnhangVorlage"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "attachments"
+        ]
+      },
+      "Arbeitsbeschrieb": {
+        "properties": {
+          "work_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "work_description"
+        ],
+        "description": "Vorschlag «Ausgeführte Arbeiten» (``/admin/invoices/work-description``)."
+      },
+      "AufgabeGeaendert": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "aufgabe": {
+            "type": "string",
+            "description": "Schlüssel aus dem Katalog (services/eingang_zustaendigkeit.AUFGABEN)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "aufgabe"
+        ],
+        "description": "``PATCH /admin/eingang/{item_id}``: die Aufgabe der Mail ist umgestellt."
+      },
+      "AufgabeImKatalog": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "beschreibung": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "beschreibung"
+        ]
+      },
+      "AuszugPosition": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "ek_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "ek_price"
+        ]
+      },
+      "AuszugProdukt": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "ek_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null = kein EK vorbelegt (manuelle Erfassung); OCR liefert immer eine Zahl."
+          },
+          "color": {
+            "type": "string",
+            "description": "Griesser: Farbe des Produktblocks, sonst leer."
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/AuszugPosition"
+            },
+            "type": "array"
+          },
+          "suggested_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suggested_margin_factor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suggested_vk_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "description",
+          "quantity",
+          "unit",
+          "ek_price",
+          "suggested_category",
+          "suggested_margin_factor",
+          "suggested_vk_price"
+        ],
+        "description": "Ein Produkt aus dem Lieferanten-PDF, mit Vorschlag für Kategorie und VK."
+      },
+      "BerechtigtePerson": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rolle": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "rolle"
+        ],
+        "description": "Ein Konto, das den Eingang öffnen kann (§5) — nur die Betreiber-Seite sieht die Rolle."
+      },
+      "BeschreibungVorschlag": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "false = es kam nichts Brauchbares zurück (leer oder identisch zur Eingabe); die Maske zeigt dann eine Meldung statt eines Vorschlags."
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Offene Punkte zum Vorschlag (fehlende Angabe, Widerspruch, Zahl, die nicht aus den Stichworten stammt). Stehen im Popup, nie im Text."
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "changed",
+          "hints"
+        ],
+        "description": "«Beschreibung formulieren»."
+      },
+      "BestaetigungStand": {
+        "properties": {
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_date",
+          "end_date",
+          "start_time",
+          "end_time",
+          "kind",
+          "label"
+        ],
+        "description": "Datum/Zeit/Art, wie sie dem Kunden gesendet wurden (Zeiten HH:MM, leer = null)."
+      },
+      "BetragZeile": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "total_price"
+        ]
+      },
+      "BexioBadge": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "in_bexio",
+              "wird_uebertragen",
+              "fehler",
+              "storniert",
+              "storno_offen"
+            ]
+          },
+          "bexio_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nur bei `storno_offen`: der Betrieb hat bestätigt, der Lauf führt es aus."
+          }
+        },
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "description": "Zustand einer Rechnung in bexio (``services.bexio_sync.badge_states``)."
+      },
+      "BexioStatus": {
+        "properties": {
+          "states": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/BexioBadge"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "required": [
+          "states"
+        ],
+        "description": "``/admin/invoices/bexio-status``: Zustand je Rechnungs-id (als String)."
+      },
+      "CamtAbgleich": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/AbgleichSumme"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/AbgleichZeile"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "summary",
+          "results"
+        ],
+        "description": "Antwort von ``POST /admin/invoices/reconcile-camt``."
+      },
+      "Dauer": {
+        "properties": {
+          "von": {
+            "type": "integer"
+          },
+          "bis": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "von",
+          "bis"
+        ],
+        "description": "Dauer in Minuten (Spanne; ohne Spanne von = bis)."
+      },
+      "Distanz": {
+        "properties": {
+          "a": {
+            "type": "string"
+          },
+          "b": {
+            "type": "string"
+          },
+          "km": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "km"
+        ],
+        "description": "Fahrdistanz zwischen zwei Objektadressen (kanonisch: a <= b)."
+      },
+      "Distanzen": {
+        "properties": {
+          "distances": {
+            "items": {
+              "$ref": "#/components/schemas/Distanz"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distances"
+        ]
+      },
+      "Einsatz": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Projekt-id — für den Sprung in die Projektmaske."
+          },
+          "appointment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Termin-id; null nur bei Alt-Zeilen ohne Termin. Mit dem Tag der stabile Schlüssel: dasselbe Projekt darf zweimal am Tag stehen."
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "is_internal": {
+            "type": "boolean"
+          },
+          "art_der_arbeit": {
+            "type": "string"
+          },
+          "time_label": {
+            "type": "string",
+            "description": "Fertig beschriftet vom Server ('07:30–12:00', 'ganztägig' …), inklusive Termin-Typ — dieselbe Zeile steht so im Wochenplan-PDF."
+          },
+          "termin_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "termin_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_name": {
+            "type": "string"
+          },
+          "object_address": {
+            "type": "string"
+          },
+          "billing_address": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "local_contact_name": {
+            "type": "string"
+          },
+          "monteur_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bemerkung": {
+            "type": "string"
+          },
+          "is_multi_day": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "appointment_id",
+          "name",
+          "kind",
+          "is_internal",
+          "art_der_arbeit",
+          "time_label",
+          "termin_kind",
+          "termin_label",
+          "customer_name",
+          "object_address",
+          "billing_address",
+          "phone",
+          "local_contact_name",
+          "monteur_names",
+          "bemerkung",
+          "is_multi_day"
+        ],
+        "description": "Ein Einsatz an einem Tag (``services.schedule_export._project_for_day``). Ein\nmehrtägiger Termin kommt an jedem seiner Tage vor."
+      },
+      "EinsatzStaende": {
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "meldungen": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EinsatzStand"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "meldungen"
+        ],
+        "description": "``/admin/schedule/meldungen``: Stand je Kundeneinsatz des Tages (Schlüssel: Termin-id)."
+      },
+      "EinsatzStand": {
+        "properties": {
+          "stand": {
+            "type": "string",
+            "enum": [
+              "geplant",
+              "unterwegs",
+              "vor_ort",
+              "erledigt"
+            ]
+          },
+          "ankunft_ca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "«HH:MM» Schweizer Zeit"
+          },
+          "unterwegs_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vor_ort_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nachrichten_uebrig": {
+            "type": "integer",
+            "description": "Wie viele Nachrichten an den Kunden heute noch gehen (höchstens drei je Termin)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "stand",
+          "ankunft_ca",
+          "unterwegs_at",
+          "vor_ort_at",
+          "nachrichten_uebrig"
+        ],
+        "description": "Stand eines Einsatzes am Tag (``einsatz_meldung_service.stand_fuer_client``)."
+      },
+      "Erledigt": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "description": "Antwort einer Aktion ohne eigenen Inhalt (bezahlt, versendet, archiviert …).\nWeitere Felder je Route gehen als Zusatzfelder durch; Vertrag sind ``status`` und\n— wo die Route eine liefert — die ``message``, die der Dialog anzeigt."
+      },
+      "FaelligeRechnung": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "project_id_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "zahlungserinnerung_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mahnung_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_number",
+          "project_id",
+          "project_name",
+          "project_id_text",
+          "customer_name",
+          "total_amount",
+          "sent_at",
+          "due_date",
+          "zahlungserinnerung_sent_at",
+          "mahnung_sent_at"
+        ],
+        "description": "Überfällige Rechnung (gesendet, ≥ 30 Tage offen) — Kachel im Dashboard\n(``/admin/invoices/pending-action``)."
+      },
+      "FahrspesenTabelle": {
+        "properties": {
+          "travel_cost_table": {
+            "items": {
+              "prefixItems": [
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ]
+                }
+              ],
+              "type": "array",
+              "maxItems": 2,
+              "minItems": 2
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "travel_cost_table"
+        ],
+        "description": "Wirksame Fahrspesen-Staffelung: ``[[km_schwelle, chf], …]``, `null` als letzte\nSchwelle heisst «und darüber»."
+      },
+      "Fixposition": {
+        "properties": {
+          "item_name": {
+            "type": "string"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "source_quote_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Herkunft aus einer Offerte — das Bearbeiten schickt sie mit zurück."
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_name",
+          "amount",
+          "unit",
+          "unit_price",
+          "source_quote_id"
+        ]
+      },
+      "Foto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "mime_type"
+        ]
+      },
+      "FreieRechnungErstellt": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "invoice_id": {
+            "type": "integer"
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "payment_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "invoice_id",
+          "invoice_number",
+          "total_amount",
+          "payment_reference"
+        ],
+        "description": "Antwort von ``POST /admin/invoices/generate-free`` (Rechnung ohne Projekt)."
+      },
+      "Gruppenmitglied": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "quote_number": {
+            "type": "string"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "quote_number",
+          "amount",
+          "status"
+        ],
+        "description": "Offerte, die beim Versand zusammen mit der gewählten in EIN Mail geht (WW-34)."
+      },
+      "Kleinmaterial": {
+        "properties": {
+          "item_name": {
+            "type": "string"
+          },
+          "count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "amount_chf": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "item_name",
+          "count",
+          "amount_chf"
+        ]
+      },
+      "Kundenlink": {
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ]
+      },
+      "LohnZeile": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "hidden": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "unit_price",
+          "total_price"
+        ]
+      },
+      "MaterialZeile": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "werkora_bonus_base_unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Preis der Zeile VOR der Endziffern-Aufrundung (Feature werkora_bonus). Beim Bearbeiten unverändert zurückschicken — sonst kann das Backend die bonusfreie Basis nicht mehr herstellen."
+          },
+          "werkora_bonus_base_total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "unit_price",
+          "total_price"
+        ]
+      },
+      "MeldungAnsicht": {
+        "properties": {
+          "stand": {
+            "type": "string",
+            "enum": [
+              "geplant",
+              "unterwegs",
+              "vor_ort",
+              "erledigt"
+            ]
+          },
+          "ankunft_ca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "«HH:MM» Schweizer Zeit"
+          },
+          "unterwegs_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vor_ort_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "nachrichten_uebrig": {
+            "type": "integer",
+            "description": "Wie viele Nachrichten an den Kunden heute noch gehen (höchstens drei je Termin)."
+          },
+          "appointment_id": {
+            "type": "string"
+          },
+          "vorschlag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vorwahl der Ankunftszeit (nach Plan, ab dem Einsatz davor bzw. dem Depot) — oder null."
+          },
+          "chips": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "kunde_erreichbar": {
+            "type": "boolean",
+            "description": "Hat der Auftrag eine Mail-Adresse (Kontakt vor Ort oder Kunde)?"
+          },
+          "telefon": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stand",
+          "ankunft_ca",
+          "unterwegs_at",
+          "vor_ort_at",
+          "nachrichten_uebrig",
+          "appointment_id",
+          "vorschlag",
+          "chips",
+          "kunde_erreichbar",
+          "telefon"
+        ],
+        "description": "Was das Blatt «Unterwegs» des Monteurs braucht."
+      },
+      "MeldungAntwort": {
+        "properties": {
+          "stand": {
+            "$ref": "#/components/schemas/EinsatzStand"
+          },
+          "kunde_informiert": {
+            "type": "boolean"
+          },
+          "hinweis": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stand",
+          "kunde_informiert",
+          "hinweis"
+        ]
+      },
+      "Mengenzeile": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "unit_price",
+          "total_price"
+        ]
+      },
+      "MontageVorlage": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "default_fee": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Nur in der Verwaltungsliste (`/admin/quote-position-templates`); das Offertformular bekommt die Vorlagen schon sortiert."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "default_fee",
+          "notes"
+        ],
+        "description": "Montage-Vorlage (``installation_templates``)."
+      },
+      "MonteurRapport": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "report_date": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Wer den Rapport ERFASST hat — beim nacherfassten Rapport das Büro."
+          },
+          "signature_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "is_partial": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_aggregate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merged_into_report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dissolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pl_accepted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_own": {
+            "type": "boolean",
+            "description": "Nur eigene Rapporte darf der Monteur löschen."
+          },
+          "invoice_locked": {
+            "type": "boolean",
+            "description": "Hängt der Rapport an einer Rechnung, die der Kunde schon hat (gesendet/bezahlt)? Nur dann ist die Unterschrift endgültig gesperrt."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "report_date",
+          "description",
+          "created_by",
+          "signature_timestamp",
+          "invoice_id",
+          "created_at",
+          "source",
+          "is_own"
+        ],
+        "description": "Ein Rapport in der Projektansicht der Monteur-App (``/projects/{id}/reports``)."
+      },
+      "NachfassFaelle": {
+        "properties": {
+          "faelle": {
+            "items": {
+              "$ref": "#/components/schemas/NachfassFall"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "faelle"
+        ]
+      },
+      "NachfassFall": {
+        "properties": {
+          "anfrage_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "offen",
+              "gewaehlt",
+              "keiner_passt",
+              "abgelaufen",
+              "zurueckgezogen"
+            ]
+          },
+          "titel": {
+            "type": "string"
+          },
+          "hinweis_kunde": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "anfrage_id",
+          "project_id",
+          "status",
+          "titel",
+          "hinweis_kunde"
+        ],
+        "description": "Anfrage ohne Termin, die das Büro anrufen muss."
+      },
+      "OffeneAnzahlung": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "anzahlung_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_number",
+          "total_amount",
+          "status",
+          "created_at",
+          "anzahlung_pct"
+        ],
+        "description": "Eine Anzahlungsrechnung, die eine neue Rechnung abziehen kann (WW-47)."
+      },
+      "OffeneAnzahlungen": {
+        "properties": {
+          "anzahlungen": {
+            "items": {
+              "$ref": "#/components/schemas/OffeneAnzahlung"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "anzahlungen"
+        ],
+        "description": "Anzahlungen zum Abziehen (``/admin/invoices/anzahlungen``)."
+      },
+      "OfferteDetail": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "quote_number": {
+            "type": "string"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Kunde der Offerte — eigenständig gegenüber dem Projektkunden. Alt-Offerten haben nur den Text-Snapshot customer_name."
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "labor_items": {
+            "items": {
+              "$ref": "#/components/schemas/LohnZeile"
+            },
+            "type": "array"
+          },
+          "material_items": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialZeile"
+            },
+            "type": "array"
+          },
+          "travel_items": {
+            "items": {
+              "$ref": "#/components/schemas/BetragZeile"
+            },
+            "type": "array"
+          },
+          "extra_product_items": {
+            "items": {
+              "$ref": "#/components/schemas/ProduktZeile"
+            },
+            "type": "array"
+          },
+          "extra_charge_items": {
+            "items": {
+              "$ref": "#/components/schemas/ZuschlagZeile"
+            },
+            "type": "array"
+          },
+          "installation_items": {
+            "items": {
+              "$ref": "#/components/schemas/Mengenzeile"
+            },
+            "type": "array"
+          },
+          "special_items": {
+            "items": {
+              "$ref": "#/components/schemas/Mengenzeile"
+            },
+            "type": "array"
+          },
+          "labor_discount_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "material_discount_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "skonto_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "skonto_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fixed_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fixpreis brutto inkl. MwSt; null = kein Fixpreis."
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "product_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Zeitpunkt des Versands (Mail oder «Per Post versendet»); null = nie versendet. Daran entscheidet die Maske, ob der Typ noch umstellbar ist."
+          },
+          "quote_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'offerte' | 'richtofferte' (Feature richtofferte)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quote_number",
+          "project_name",
+          "customer_id",
+          "customer_name",
+          "labor_items",
+          "material_items",
+          "travel_items",
+          "extra_product_items",
+          "extra_charge_items",
+          "installation_items",
+          "special_items",
+          "labor_discount_pct",
+          "material_discount_pct",
+          "skonto_pct",
+          "skonto_days",
+          "fixed_price",
+          "notes",
+          "product_description"
+        ],
+        "description": "Offerte mit allen Positionen — was die Bearbeiten-Maske füllt\n(``/admin/quotes/{quote_id}``, die ganze Zeile aus ``quotes``)."
+      },
+      "OfferteGespeichert": {
+        "properties": {
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fixed_price_missed": {
+            "type": "boolean",
+            "description": "Gespeichert, aber der Fixpreis geht nicht auf (über der Kalkulation oder unter Lohn + Fahrt) — das Total ist ein anderes als der eingegebene Betrag."
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_amount",
+          "fixed_price_missed"
+        ],
+        "description": "Antwort von Anlegen (``POST /admin/quotes``) und Bearbeiten (``PATCH``)."
+      },
+      "OfferteKopiert": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "quote_number": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quote_number"
+        ],
+        "description": "Neue Variante (``…/add-variant``) oder neue Version (``…/regenerate``)."
+      },
+      "OfferteZeile": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "quote_number": {
+            "type": "string"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null bei einer freistehenden Offerte ohne Projekt."
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "storage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "xlsx_storage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reminder_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projektleiter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Heutiger Projektleiter des Projekts — danach filtert die Liste."
+          },
+          "projektleiter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Projektleiter beim Erstellen der Offerte (Snapshot, steht so auf dem PDF). Leer bei sehr alten Offerten; dann zeigt die Liste den heutigen."
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Text-Snapshot des Rechnungsempfängers (Kunden-Spalte, Suche)."
+          },
+          "customer_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "thankyou_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rejection_mail_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "order_confirmation_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trägt die Kennzeichnung «Kein Feedback» (quoteFeedback.ts)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quote_number",
+          "project_name",
+          "total_amount",
+          "status",
+          "created_at",
+          "reminder_sent_at",
+          "projektleiter_id"
+        ],
+        "description": "Eine Offerte in der Liste (``db.quotes.get_quotes_for_admin`` und ``…_page``)."
+      },
+      "OfferteZumErinnern": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "quote_number": {
+            "type": "string"
+          },
+          "customer_name": {
+            "type": "string"
+          },
+          "customer_email": {
+            "type": "string"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "quote_number",
+          "customer_name",
+          "customer_email",
+          "project_name",
+          "total_amount",
+          "sent_at"
+        ],
+        "description": "Offerte, die seit ≥ 14 Tagen offen ist und noch keine Erinnerung hat\n(``/admin/quotes/pending-reminders``, Kachel im Dashboard)."
+      },
+      "OffertenAbdeckung": {
+        "properties": {
+          "covered": {
+            "items": {
+              "$ref": "#/components/schemas/AbdeckungOfferte"
+            },
+            "type": "array",
+            "description": "Was die automatische Auflösung abdecken würde (Standard: angehakt)."
+          },
+          "additional": {
+            "items": {
+              "$ref": "#/components/schemas/AbdeckungOfferte"
+            },
+            "type": "array",
+            "description": "Weitere angenommene, unverrechnete Offerten des Projekts (Standard: nicht angehakt)."
+          },
+          "blocker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Sperre der Automatik (z.B. 'all_billed') — covered ist dann leer, additional kann trotzdem wählbar sein."
+          }
+        },
+        "type": "object",
+        "required": [
+          "covered",
+          "additional",
+          "blocker"
+        ],
+        "description": "Offerten-Auswahl (``/admin/invoices/quote-coverage``)."
+      },
+      "OffertenGueltigkeit": {
+        "properties": {
+          "months": {
+            "type": "integer"
+          },
+          "is_default": {
+            "type": "boolean"
+          },
+          "min": {
+            "type": "integer"
+          },
+          "max": {
+            "type": "integer"
+          },
+          "default": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "months",
+          "is_default",
+          "min",
+          "max",
+          "default"
+        ],
+        "description": "Gültigkeitsdauer der Offerten in Monaten; `is_default` = System-Wert."
+      },
+      "OffertenSeite": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/OfferteZeile"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Alle Treffer, nicht nur die Seite."
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "description": "Eine Seite der Offertenliste (``/admin/quotes/list``)."
+      },
+      "PdfAuszug": {
+        "properties": {
+          "supplier": {
+            "type": "string"
+          },
+          "supplier_label": {
+            "type": "string"
+          },
+          "supplier_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_ref": {
+            "type": "string"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/AuszugProdukt"
+            },
+            "type": "array"
+          },
+          "available_pricing_rules": {
+            "items": {
+              "$ref": "#/components/schemas/Preisregel"
+            },
+            "type": "array"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Gegenprobe gegen die Belegsummen, z. B. eine beim Lesen verlorene Griesser-Zeile."
+          }
+        },
+        "type": "object",
+        "required": [
+          "supplier",
+          "supplier_label",
+          "supplier_id",
+          "project_ref",
+          "products"
+        ],
+        "description": "Antwort von ``POST /admin/quotes/extract-pdf``."
+      },
+      "PlanAbsenz": {
+        "properties": {
+          "staff_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null bei Altzeilen, die nur den Namen tragen — in der Tafel unsichtbar."
+          },
+          "staff_name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "date_start": {
+            "type": "string"
+          },
+          "date_end": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "description": "Fertig formatiert («Ferien 24.08.–28.08.2026»)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "staff_name",
+          "type",
+          "date_start",
+          "date_end",
+          "label"
+        ],
+        "description": "Genehmigte Absenz im Fenster — nur, was die Planung braucht."
+      },
+      "PlanStand": {
+        "properties": {
+          "projekte": {
+            "type": "string"
+          },
+          "termine": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "projekte",
+          "termine"
+        ],
+        "description": "Fingerabdruck der Kalenderdaten (``/admin/schedule/stand``): je ein md5 über\nProjekte und Termine. Der Live-Takt lädt eine Liste nur neu, wenn sich ihr Wert\nändert."
+      },
+      "PositionsVorlagen": {
+        "properties": {
+          "installation": {
+            "items": {
+              "$ref": "#/components/schemas/MontageVorlage"
+            },
+            "type": "array"
+          },
+          "special": {
+            "items": {
+              "$ref": "#/components/schemas/SonderVorlage"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation",
+          "special"
+        ],
+        "description": "Beide Vorlagen-Listen für die Verwaltungsmaske."
+      },
+      "Preisregel": {
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "margin_factor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "margin_factor"
+        ]
+      },
+      "ProduktPosition": {
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "ek_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "separate": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "ek_price",
+          "selected",
+          "separate"
+        ],
+        "description": "Eine Position (POS-Zeile) eines Lieferanten-Produkts aus der PDF-Extraktion."
+      },
+      "ProduktZeile": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "optional": {
+            "type": "boolean"
+          },
+          "werkora_bonus_base_unit_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Preis der Zeile VOR der Endziffern-Aufrundung (Feature werkora_bonus). Beim Bearbeiten unverändert zurückschicken — sonst kann das Backend die bonusfreie Basis nicht mehr herstellen."
+          },
+          "werkora_bonus_base_total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "ek_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "margin_factor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "supplier_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ProduktPosition"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "unit_price",
+          "total_price"
+        ],
+        "description": "Produktzeile — die Metadaten (EK, Faktor, Lieferant, Positionen) sind\npreisneutral, aber für die Nachkalkulation da; ein Bearbeiten darf sie nicht\nverlieren."
+      },
+      "Prospekte": {
+        "properties": {
+          "prospekte": {
+            "items": {
+              "$ref": "#/components/schemas/Anhang"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prospekte"
+        ],
+        "description": "Veraltet (Vorgänger von send-attachments, für gecachte PWA-Stände)."
+      },
+      "RapportGeloescht": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "report_id": {
+            "type": "integer"
+          },
+          "stock_restored": {
+            "type": "integer",
+            "description": "Wie viele Lagerbuchungen zurückgebucht wurden."
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "report_id",
+          "stock_restored"
+        ]
+      },
+      "RapportGespeichert": {
+        "properties": {
+          "report_id": {
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Hinweise, die das Speichern nicht verhindert haben."
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_id"
+        ],
+        "description": "Antwort von Erfassen (201) und Bearbeiten."
+      },
+      "RapportInhalt": {
+        "properties": {
+          "report_date": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "massaufnahme": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "beratung": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_warranty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "art_der_arbeit": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "einbauort": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_partial": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merged_into_report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Gesetzt: der Rapport steckt in einem Gesamtrapport und ist gesperrt."
+          },
+          "staff": {
+            "items": {
+              "$ref": "#/components/schemas/RapportStunden"
+            },
+            "type": "array"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/RapportMaterial"
+            },
+            "type": "array"
+          },
+          "kleinmaterial": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Kleinmaterial"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fixed_materials": {
+            "items": {
+              "$ref": "#/components/schemas/Fixposition"
+            },
+            "type": "array"
+          },
+          "editable": {
+            "type": "boolean"
+          },
+          "edit_blocked_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_date",
+          "description",
+          "staff",
+          "materials",
+          "kleinmaterial",
+          "fixed_materials",
+          "editable",
+          "edit_blocked_reason"
+        ],
+        "description": "Vollständiger Inhalt eines Rapports für die Bearbeiten-Maske\n(``db.reports.get_manual_report_content`` plus Bearbeiten-Gate)."
+      },
+      "RapportMaterial": {
+        "properties": {
+          "art_nr": {
+            "type": "string"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "item_name": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "art_nr",
+          "amount",
+          "item_name"
+        ]
+      },
+      "RapportStunden": {
+        "properties": {
+          "staff_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null bei Zeilen aus der Zeit vor der staff_id."
+          },
+          "name": {
+            "type": "string"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "hour_type": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "name",
+          "hours",
+          "hour_type"
+        ]
+      },
+      "RapportZeile": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "report_date": {
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Wer den Rapport ERFASST hat — beim nacherfassten Rapport das Büro."
+          },
+          "signature_timestamp": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "invoice_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "is_partial": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_aggregate": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merged_into_report_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dissolved_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pl_accepted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monteure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Wer vor Ort war: aus den erfassten Stunden, wie die Kopfzeile des Rapport-PDFs. Ohne Stunden (Massaufnahme/Beratung) der Erfasser."
+          },
+          "storage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "description": "'chat' (Monteur-App) oder 'admin_manual' (im Projekt-Detail nacherfasst)."
+          },
+          "is_warranty": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Als Garantiefall erfasst (eigenes Badge)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "report_date",
+          "description",
+          "created_by",
+          "signature_timestamp",
+          "invoice_id",
+          "created_at",
+          "monteure"
+        ],
+        "description": "Ein Rapport in der Liste des Projekt-Details (``/admin/projects/{id}/reports``)."
+      },
+      "RechnungErstellt": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "invoice_id": {
+            "type": "integer"
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "quote_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Sammelrechnung: bei mehreren angenommenen Offerten eines Projekts deckt EINE Rechnung alle noch unverrechneten ab — hier stehen deren Nummern."
+          },
+          "general_deduction_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Allg. Abzüge: abgezogener Betrag (netto) oder null."
+          },
+          "anzahlung_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Abgezogene Anzahlungen (brutto) oder null."
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'anzahlung' bei einer Anzahlungsrechnung."
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Hinweise, die den Erfolg nicht in Frage stellen (z.B. ein Rapport ohne Preis). Immer vorhanden, meist leer."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "invoice_id",
+          "invoice_number",
+          "total_amount",
+          "quote_numbers",
+          "general_deduction_amount",
+          "anzahlung_total",
+          "warnings"
+        ],
+        "description": "Antwort von ``POST /admin/invoices/generate`` (``services/invoice_flow.py``)."
+      },
+      "RechnungSeite": {
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RechnungZeile"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "integer",
+            "description": "Alle Treffer, nicht nur die Seite."
+          },
+          "page": {
+            "type": "integer"
+          },
+          "page_size": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rows",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "description": "Eine Seite der Rechnungsliste (``/admin/invoices/list``)."
+      },
+      "RechnungZeile": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "`invoices.id` ist bigint — eine Zahl, kein String."
+          },
+          "invoice_number": {
+            "type": "string"
+          },
+          "project_name": {
+            "type": "string"
+          },
+          "total_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "paid_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "paid_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tatsächlich eingegangen, wenn weniger als `total_amount` (Skonto u. ä.); null = voll bezahlt."
+          },
+          "storage_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "E-Mail des Kunden: auf der Betreiber-Liste aus `invoices.customer_id` (Rechnung ohne Projekt) — Vorbelegung im Senden-Dialog."
+          },
+          "projektleiter_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Projektbezug: nach dem Bezahlen fragt die Übersicht, ob das Projekt abgeschlossen werden soll — bei einem längst geschlossenen Projekt nicht."
+          },
+          "project_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "project_is_closed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fällig am — gesetzt beim Versand (`set_invoice_sent_at`). Aus ihr leitet die Betreiber-Liste «Verspätet» ab; `null` heisst: noch nicht versendet, also nie verspätet."
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remark": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Freitext auf der Rechnung («Bemerkung»)."
+          },
+          "inhalt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Bezug einer Rechnung ohne Projekt («Hagelschaden-Modul»); `null` = Projektrechnung. Die Betreiber-Liste zeigt ihn als «Beschreibung»."
+          },
+          "invoice_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "'anzahlung' = Anzahlungsrechnung, null = gewöhnliche Rechnung."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "invoice_number",
+          "project_name",
+          "total_amount",
+          "status",
+          "created_at",
+          "paid_at",
+          "projektleiter_id",
+          "project_id"
+        ],
+        "description": "Eine Zeile der Rechnungsliste (``db.invoices.list_admin_invoices`` und\n``…_page``: Kopfdaten plus flach gezogener Projekt-Embed)."
+      },
+      "Rechtschreibung": {
+        "properties": {
+          "corrected": {
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean",
+            "description": "false = das Modell hat nichts geändert."
+          }
+        },
+        "type": "object",
+        "required": [
+          "corrected",
+          "changed"
+        ]
+      },
+      "Reservation": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "datum": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          },
+          "ende": {
+            "type": "string"
+          },
+          "monteur_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reserviert",
+              "gewaehlt",
+              "frei",
+              "vergeben"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "reserviert_bis_text": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "datum",
+          "start",
+          "ende",
+          "monteur_ids",
+          "status",
+          "text",
+          "project_id",
+          "reserviert_bis_text"
+        ],
+        "description": "Reserviertes Fenster einer offenen Anfrage — gestrichelt in der Plantafel."
+      },
+      "Reservationen": {
+        "properties": {
+          "reservationen": {
+            "items": {
+              "$ref": "#/components/schemas/Reservation"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reservationen"
+        ]
+      },
+      "RuhenderEintrag": {
+        "properties": {
+          "aufgabe": {
+            "type": "string"
+          },
+          "rolle": {
+            "type": "string",
+            "enum": [
+              "zustaendig",
+              "stellvertretung"
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "grund": {
+            "type": "string"
+          },
+          "grund_text": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "aufgabe",
+          "rolle",
+          "user_id",
+          "name",
+          "grund",
+          "grund_text"
+        ],
+        "description": "Ein gespeicherter Eintrag, dessen Konto keinen Zugriff mehr hat — zählt nicht (§5)."
+      },
+      "Serienregel": {
+        "properties": {
+          "freq": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "workdays",
+              "weekly",
+              "monthly"
+            ]
+          },
+          "interval": {
+            "type": "integer"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "freq",
+          "interval",
+          "until"
+        ],
+        "description": "Gespeicherte Regel einer Serie: `until` = Startdatum des letzten Termins."
+      },
+      "SkontoVorgabe": {
+        "properties": {
+          "pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_set": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pct",
+          "days",
+          "is_set"
+        ],
+        "description": "Skonto-Vorbelegung für neue Offerten. `is_set=false` = keine Vorgabe."
+      },
+      "SonderVorlage": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "pricing_mode": {
+            "type": "string",
+            "enum": [
+              "pauschal",
+              "stunden",
+              "stueck"
+            ],
+            "description": "'pauschal' = 1 × Fixbetrag, 'stunden' = Stunden × CHF/h, 'stueck' = Stück × CHF/Stk."
+          },
+          "default_fee": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "default_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Nur in der Verwaltungsliste."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "pricing_mode",
+          "default_fee",
+          "default_hours",
+          "notes"
+        ],
+        "description": "Sonderpositions-Vorlage (``special_position_templates``)."
+      },
+      "Termin": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "aufmass",
+              "demontage",
+              "montage",
+              "wiedermontage",
+              "service",
+              "reparatur",
+              "garantie",
+              "sonstiges"
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monteur_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Team dieses Termins; null/leer = Projekt-Team gilt."
+          },
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Klammer über die Termine einer Serie; null = Einzeltermin. Jeder Termin einer Serie ist eine eigene Zeile."
+          },
+          "series_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Serienregel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Regel der Serie, auf jeder Zeile gleich; null bei Einzelterminen."
+          },
+          "customer_notice_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Terminbestätigung an den Kunden: zuletzt gesendet; null = nie."
+          },
+          "customer_notice_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_notice_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BestaetigungStand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "start_date",
+          "end_date",
+          "start_time",
+          "end_time",
+          "kind",
+          "label",
+          "monteur_ids"
+        ],
+        "description": "Ein Termin (``project_appointments``, die ganze Zeile)."
+      },
+      "TerminAngelegt": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "aufmass",
+              "demontage",
+              "montage",
+              "wiedermontage",
+              "service",
+              "reparatur",
+              "garantie",
+              "sonstiges"
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monteur_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Team dieses Termins; null/leer = Projekt-Team gilt."
+          },
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Klammer über die Termine einer Serie; null = Einzeltermin. Jeder Termin einer Serie ist eine eigene Zeile."
+          },
+          "series_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Serienregel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Regel der Serie, auf jeder Zeile gleich; null bei Einzelterminen."
+          },
+          "customer_notice_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Terminbestätigung an den Kunden: zuletzt gesendet; null = nie."
+          },
+          "customer_notice_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_notice_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BestaetigungStand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_count": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "start_date",
+          "end_date",
+          "start_time",
+          "end_time",
+          "kind",
+          "label",
+          "monteur_ids",
+          "series_count"
+        ],
+        "description": "Antwort von ``POST …/appointments``: der ERSTE Termin, bei einer Serie mit Anzahl."
+      },
+      "TerminArtAuswahl": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label"
+        ]
+      },
+      "TerminDauerVorgaben": {
+        "properties": {
+          "vorgaben": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Dauer"
+            },
+            "type": "object"
+          },
+          "arten": {
+            "items": {
+              "$ref": "#/components/schemas/TerminArtAuswahl"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vorgaben",
+          "arten"
+        ],
+        "description": "Vorgaben des Betriebs je Termin-Art und die Arten, für die es eine geben kann."
+      },
+      "TerminGeaendert": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": "string"
+          },
+          "start_date": {
+            "type": "string"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "aufmass",
+              "demontage",
+              "montage",
+              "wiedermontage",
+              "service",
+              "reparatur",
+              "garantie",
+              "sonstiges"
+            ]
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "monteur_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Team dieses Termins; null/leer = Projekt-Team gilt."
+          },
+          "series_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Klammer über die Termine einer Serie; null = Einzeltermin. Jeder Termin einer Serie ist eine eigene Zeile."
+          },
+          "series_rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Serienregel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Regel der Serie, auf jeder Zeile gleich; null bei Einzelterminen."
+          },
+          "customer_notice_sent_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Terminbestätigung an den Kunden: zuletzt gesendet; null = nie."
+          },
+          "customer_notice_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customer_notice_snapshot": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BestaetigungStand"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "series_updated": {
+            "type": "integer"
+          },
+          "series_created": {
+            "type": "integer"
+          },
+          "series_deleted": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "start_date",
+          "end_date",
+          "start_time",
+          "end_time",
+          "kind",
+          "label",
+          "monteur_ids",
+          "series_updated",
+          "series_created",
+          "series_deleted"
+        ],
+        "description": "Antwort von ``PATCH /admin/appointments/{id}``."
+      },
+      "TerminOption": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "datum": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          },
+          "ende": {
+            "type": "string"
+          },
+          "monteur_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "reserviert",
+              "gewaehlt",
+              "frei",
+              "vergeben"
+            ]
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "datum",
+          "start",
+          "ende",
+          "monteur_ids",
+          "status",
+          "text"
+        ],
+        "description": "Ein Fenster einer Terminanfrage (``terminwahl_service.option_fuer_client``)."
+      },
+      "TerminVorschlaege": {
+        "properties": {
+          "vorschlaege": {
+            "items": {
+              "$ref": "#/components/schemas/TerminVorschlag"
+            },
+            "type": "array"
+          },
+          "ausgeschlossen": {
+            "items": {
+              "$ref": "#/components/schemas/VorschlagAusgeschlossen"
+            },
+            "type": "array"
+          },
+          "hinweise": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "grund": {
+            "type": "string",
+            "description": "Warum es keinen Vorschlag gibt — leer, wenn es welche gibt."
+          },
+          "kind": {
+            "type": "string"
+          },
+          "dauer_min": {
+            "type": "integer",
+            "description": "Dauer, mit der gerechnet wurde (Eingabe oder Vorgabe der Art)."
+          },
+          "horizont": {
+            "type": "integer",
+            "description": "Arbeitstage, über die gerechnet wurde."
+          },
+          "bis": {
+            "type": "string",
+            "description": "Letzter Tag des Horizonts."
+          }
+        },
+        "type": "object",
+        "required": [
+          "vorschlaege",
+          "ausgeschlossen",
+          "hinweise",
+          "grund",
+          "kind",
+          "dauer_min",
+          "horizont",
+          "bis"
+        ],
+        "description": "``POST /admin/projects/{id}/terminvorschlaege`` (``terminvorschlag_service.vorschlaege``)."
+      },
+      "TerminVorschlag": {
+        "properties": {
+          "staff_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "datum": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string",
+            "description": "«HH:MM»"
+          },
+          "ende": {
+            "type": "string",
+            "description": "«HH:MM» — Ende des Fensters für den Kunden (mindestens die Breite des Kundenfensters)."
+          },
+          "score": {
+            "type": "integer",
+            "description": "0–100 aus Weg, Früh, kennt die Anlage, Ausgleich."
+          },
+          "gruende": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "name",
+          "datum",
+          "start",
+          "ende",
+          "score",
+          "gruende"
+        ],
+        "description": "Ein Vorschlag aus Monteur, Tag und Fenster (``terminvorschlag_regeln.fuer_client``)."
+      },
+      "Terminanfrage": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "offen",
+              "gewaehlt",
+              "keiner_passt",
+              "abgelaufen",
+              "zurueckgezogen"
+            ]
+          },
+          "grund": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "keine_antwort",
+                  "keine_fenster"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "empfaenger": {
+            "type": "string"
+          },
+          "reserviert_bis": {
+            "type": "string"
+          },
+          "reserviert_bis_text": {
+            "type": "string"
+          },
+          "gesendet_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "erinnert_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hinweis_kunde": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "optionen": {
+            "items": {
+              "$ref": "#/components/schemas/TerminOption"
+            },
+            "type": "array"
+          },
+          "dauer_text": {
+            "type": "string",
+            "description": "«etwa 1 bis 2 Stunden» — leer ohne Angabe."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "grund",
+          "empfaenger",
+          "reserviert_bis",
+          "reserviert_bis_text",
+          "gesendet_at",
+          "erinnert_at",
+          "hinweis_kunde",
+          "created_at",
+          "optionen",
+          "dauer_text"
+        ],
+        "description": "Eine Terminanfrage des Projekts (Zeile aus ``terminanfragen`` plus Fenster)."
+      },
+      "Terminbestaetigung": {
+        "properties": {
+          "to": {
+            "type": "string"
+          },
+          "sent_at": {
+            "type": "string"
+          },
+          "is_update": {
+            "type": "boolean"
+          },
+          "recorded": {
+            "type": "boolean",
+            "description": "false = Mail ist raus, aber der Versandstand liess sich nicht speichern."
+          }
+        },
+        "type": "object",
+        "required": [
+          "to",
+          "sent_at",
+          "is_update",
+          "recorded"
+        ],
+        "description": "Antwort von ``POST /admin/appointments/{id}/customer-notice``."
+      },
+      "TerminwahlAnsicht": {
+        "properties": {
+          "anfragen": {
+            "items": {
+              "$ref": "#/components/schemas/Terminanfrage"
+            },
+            "type": "array"
+          },
+          "vorgabe_reserviert_bis": {
+            "type": "string",
+            "description": "«YYYY-MM-DDTHH:MM» Schweizer Zeit — Vorbelegung von «reserviert bis»."
+          },
+          "empfaenger_vorschlag": {
+            "type": "string"
+          },
+          "kundenlink": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dauer_vorgaben": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Dauer"
+            },
+            "type": "object",
+            "description": "Vorgaben je Termin-Art aus Einstellungen → Termindauer (nur gesetzte Arten)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "anfragen",
+          "vorgabe_reserviert_bis",
+          "empfaenger_vorschlag",
+          "kundenlink",
+          "dauer_vorgaben"
+        ],
+        "description": "Kachel «Terminwahl» im Projekt (``terminwahl_service.ansicht``)."
+      },
+      "VerrechenbareRapporte": {
+        "properties": {
+          "reports": {
+            "items": {
+              "$ref": "#/components/schemas/VerrechenbarerRapport"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reports"
+        ],
+        "description": "Rapport-Auswahl (``/admin/invoices/billable-reports``)."
+      },
+      "VerrechenbarerRapport": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "report_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "description": {
+            "type": "string"
+          },
+          "hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "signed": {
+            "type": "boolean"
+          },
+          "is_warranty": {
+            "type": "boolean",
+            "description": "Garantiefall (WW-33): Abzeichen in der Auswahl, nicht vorgewählt."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "report_date",
+          "created_by",
+          "description",
+          "hours",
+          "signed",
+          "is_warranty"
+        ],
+        "description": "Ein verrechenbarer Rapport in der Auswahl des Erstellen-Dialogs."
+      },
+      "VersandAnhaenge": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "fotos_enabled": {
+            "type": "boolean"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projekt_anhaenge": {
+            "items": {
+              "$ref": "#/components/schemas/Anhang"
+            },
+            "type": "array"
+          },
+          "vorlagen": {
+            "items": {
+              "$ref": "#/components/schemas/Anhang"
+            },
+            "type": "array"
+          },
+          "projekt_fotos": {
+            "items": {
+              "$ref": "#/components/schemas/Foto"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "fotos_enabled",
+          "project_id",
+          "projekt_anhaenge",
+          "vorlagen",
+          "projekt_fotos"
+        ],
+        "description": "``/admin/quotes/{id}/send-attachments``: zwei getrennte Schalter — `enabled` für\ndie Dokumente (Feature prospekt_mit_offerte), `fotos_enabled` für die Projekt-Fotos\n(Feature fotos_mit_offerte)."
+      },
+      "Versandgruppe": {
+        "properties": {
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/Gruppenmitglied"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "members"
+        ],
+        "description": "``/admin/quotes/{id}/send-group``: leer = Einzelversand."
+      },
+      "VorschlagAusgeschlossen": {
+        "properties": {
+          "staff_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "grund": {
+            "type": "string",
+            "description": "«Skill Wärmepumpe fehlt», «Ferien 18.11.–20.11.2026», «im Horizont keine passende Lücke»."
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "name",
+          "grund"
+        ]
+      },
+      "Wochenplan": {
+        "properties": {
+          "week_start": {
+            "type": "string"
+          },
+          "week_end": {
+            "type": "string"
+          },
+          "week_number": {
+            "type": "integer"
+          },
+          "week_label": {
+            "type": "string"
+          },
+          "has_any": {
+            "type": "boolean"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/Wochentag"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_start",
+          "week_end",
+          "week_number",
+          "week_label",
+          "has_any",
+          "days"
+        ],
+        "description": "``/schedule/week``: immer sieben Tage, auch die leeren."
+      },
+      "Wochentag": {
+        "properties": {
+          "iso": {
+            "type": "string"
+          },
+          "weekday": {
+            "type": "string",
+            "description": "'Montag' … 'Sonntag'"
+          },
+          "date": {
+            "type": "string",
+            "description": "'24.08.2026'"
+          },
+          "short": {
+            "type": "string",
+            "description": "'24.08.'"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/Einsatz"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "iso",
+          "weekday",
+          "date",
+          "short",
+          "entries"
+        ]
+      },
+      "ZuschlagZeile": {
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "total_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "werkora_bonus": {
+            "type": "boolean",
+            "description": "Automatisch ergänzte Endziffern-Aufrundung (Feature werkora_bonus). Beim Bearbeiten unverändert zurückschicken."
+          }
+        },
+        "type": "object",
+        "required": [
+          "description",
+          "total_price"
+        ]
+      },
+      "ZustaendigkeitenBetreiber": {
+        "properties": {
+          "aufgaben": {
+            "items": {
+              "$ref": "#/components/schemas/AufgabeImKatalog"
+            },
+            "type": "array"
+          },
+          "standard_ansicht": {
+            "type": "string",
+            "enum": [
+              "alle",
+              "meine"
+            ]
+          },
+          "zustaendigkeiten": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ZustaendigkeitsBlock"
+            },
+            "type": "object",
+            "description": "Die gespeicherte Matrix je Aufgabe — ruhende Einträge eingeschlossen."
+          },
+          "personen": {
+            "items": {
+              "$ref": "#/components/schemas/BerechtigtePerson"
+            },
+            "type": "array",
+            "description": "Wer im Organigramm stehen kann, nach Namen."
+          },
+          "ruhend": {
+            "items": {
+              "$ref": "#/components/schemas/RuhenderEintrag"
+            },
+            "type": "array"
+          },
+          "modul_aktiv": {
+            "type": "boolean"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "aufgaben",
+          "standard_ansicht",
+          "zustaendigkeiten",
+          "personen",
+          "ruhend",
+          "modul_aktiv",
+          "updated_at",
+          "updated_by"
+        ],
+        "description": "``…/mail-eingang/zustaendigkeiten`` der Betreiber-Seite (Spec §8)."
+      },
+      "ZustaendigkeitsBlock": {
+        "properties": {
+          "zustaendig": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "stellvertretung": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "zustaendig",
+          "stellvertretung"
+        ],
+        "description": "Eine Aufgabe im Organigramm: Kennungen der Konten je Rolle."
+      }
+    }
+  }
+}

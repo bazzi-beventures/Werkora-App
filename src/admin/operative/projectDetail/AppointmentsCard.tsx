@@ -6,7 +6,7 @@
 // er beim Speichern gegen den geladenen Stand diffed), die Regeln stehen in
 // ../projectAppointments.ts.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS } from '../../../api/admin'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateTimeInput } from '../../components/DateTimeInput'
@@ -16,6 +16,8 @@ import {
   suggestAppointmentKind, todayISO,
 } from '../projectAppointments'
 import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
+import { TerminVorschlagDialog } from './TerminVorschlagDialog'
+import type { TerminVorschlag } from '../../../api/serviceBegleitung'
 
 interface Props {
   appointments: AppointmentDraft[]
@@ -61,6 +63,12 @@ interface Props {
    * nur solche).
    */
   isDateChanged?: (d: AppointmentDraft) => boolean
+  /**
+   * Werkzeug «terminvorschlag» (docs/specs/servicebegleitung.md §6.6): Knopf «Termin
+   * vorschlagen». «Übernehmen» legt einen Termin-Entwurf an und speichert ihn über
+   * denselben Weg wie «+ Termin» — kein eigener Schreibpfad. Nur mit `autosave`.
+   */
+  vorschlag?: { projectId: string; terminwahl: boolean }
 }
 
 const isUnsaved = (d: AppointmentDraft) => !d.id
@@ -74,7 +82,7 @@ function fmtSentAt(iso: string): string {
 
 export default function AppointmentsCard({
   appointments, onChange, staff, projectTeam, autosave, onOpenSchedule, notice, project,
-  isDateChanged = isUnsaved,
+  isDateChanged = isUnsaved, vorschlag,
 }: Props) {
   // Nur ein Termin ist gleichzeitig aufgeklappt — sonst wird die Kachel bei
   // vier Terminen unübersichtlich lang.
@@ -87,6 +95,21 @@ export default function AppointmentsCard({
   // Offener Dialog «Termin an Kunden senden» und die Bestätigung danach.
   const [noticeFor, setNoticeFor] = useState<AppointmentDraft | null>(null)
   const [noticeInfo, setNoticeInfo] = useState<Record<string, string>>({})
+  const [vorschlagOffen, setVorschlagOffen] = useState(false)
+  // Übernommener Vorschlag: speichern, sobald der Entwurf in der Liste angekommen ist.
+  const [zuSpeichern, setZuSpeichern] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!zuSpeichern || !autosave || !appointments.some(d => d.key === zuSpeichern)) return
+    const key = zuSpeichern
+    setZuSpeichern(null)
+    setBusyKey(key)
+    void autosave.commit(key).then(err => {
+      setBusyKey(null)
+      setErrors(e => ({ ...e, [key]: err }))
+      if (!err) setOpenKey(null)
+    })
+  }, [appointments, zuSpeichern, autosave])
 
   /** Den offenen Termin speichern, falls geändert. false = ungültig/fehlgeschlagen, er bleibt offen. */
   async function commitOpen(): Promise<boolean> {
@@ -130,6 +153,18 @@ export default function AppointmentsCard({
   function addAppointment() {
     if (!autosave) { appendDraft(); return }
     void commitOpen().then(ok => { if (ok) appendDraft() })
+  }
+
+  function uebernimmVorschlag(v: TerminVorschlag, kind: AppointmentKind) {
+    setVorschlagOffen(false)
+    void commitOpen().then(ok => {
+      if (!ok) return
+      const draft = { ...newAppointmentDraft(kind), startDate: v.datum, startTime: v.start, endTime: v.ende,
+                      ownTeam: true, monteurIds: [v.staff_id] }
+      onChange(prev => [...prev, draft])
+      setOpenKey(draft.key)
+      setZuSpeichern(draft.key)
+    })
   }
 
   function appendDraft() {
@@ -428,6 +463,22 @@ export default function AppointmentsCard({
       >
         + Termin hinzufügen
       </button>
+      {vorschlag && autosave && (
+        <button type="button" className="admin-btn admin-btn-secondary" style={{ marginTop: 12, marginLeft: 8 }}
+                onClick={() => setVorschlagOffen(true)}>
+          Termin vorschlagen
+        </button>
+      )}
+      {vorschlagOffen && vorschlag && (
+        <TerminVorschlagDialog
+          projectId={vorschlag.projectId}
+          staff={staff}
+          kindVorschlag={suggestAppointmentKind(project, appointments.map(d => d.kind))}
+          terminwahl={vorschlag.terminwahl}
+          onUebernehmen={uebernimmVorschlag}
+          onClose={() => setVorschlagOffen(false)}
+        />
+      )}
 
       {confirmRemove && (
         <ConfirmDialog

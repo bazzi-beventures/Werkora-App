@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch, ApiError } from '../client'
+import type { Antwort } from '../generated'
 
 // Spec: docs/specs/einsatzplanung-mehrere-termine.md. Die Legacy-Felder auf dem
 // Projekt spiegeln serverseitig den Ersttermin.
@@ -40,48 +41,12 @@ export const APPOINTMENT_KINDS = Object.keys(APPOINTMENT_KIND_LABELS) as Appoint
 // nicht beschriftet, damit der Regelfall den Kalender nicht zupflastert.
 export const DEFAULT_APPOINTMENT_KIND: AppointmentKind = 'montage'
 
-export interface ProjectAppointment {
-  id: string
-  project_id: string
-  start_date: string
-  end_date: string | null
-  start_time: string | null
-  end_time: string | null
-  kind: AppointmentKind
-  label: string | null
-  // Team dieses Termins; null/leer = Projekt-Team gilt.
-  monteur_ids: string[] | null
-  // Klammer über die Termine einer Serie; null = Einzeltermin. Die Termine einer
-  // Serie sind echte Zeilen (siehe Migration 20260814b) — jeder lässt sich
-  // einzeln verschieben; Löschen/Ändern fragt nach der Reichweite.
-  series_id?: string | null
-  // Regel der Serie, auf jeder Zeile gleich (Migration 20261024). null bei
-  // Einzelterminen und bei Serien, die vorher angelegt wurden.
-  series_rule?: SeriesRule | null
-  // Terminbestätigung an den Kunden (docs/specs/termin-bestaetigung-kunde.md):
-  // was dem Kunden zuletzt gesendet wurde. null = nie.
-  customer_notice_sent_at?: string | null
-  customer_notice_to?: string | null
-  customer_notice_snapshot?: AppointmentNoticeSnapshot | null
-}
-
-// Datum/Zeit/Art, wie sie dem Kunden gesendet wurden (Server-Normalform: Zeiten HH:MM,
-// leere Felder null) — Vergleich in projectAppointments.ts::noticeChanged.
-export interface AppointmentNoticeSnapshot {
-  start_date: string | null
-  end_date: string | null
-  start_time: string | null
-  end_time: string | null
-  kind: string | null
-  label: string | null
-}
-
-// Gespeicherte Regel einer Serie: `until` = Startdatum des letzten Termins.
-export interface SeriesRule {
-  freq: RecurrenceFreq
-  interval: number
-  until: string | null
-}
+// Termin, Bestätigungs-Stand und Serienregel — generiert aus
+// agents/routers/antworten/einsatzplanung.py (Feldbeschreibungen dort). `kind` ist
+// dort ein Literal derselben Schlüssel wie APPOINTMENT_KIND_LABELS oben.
+export type ProjectAppointment = Antwort<'Termin'>
+export type AppointmentNoticeSnapshot = Antwort<'BestaetigungStand'>
+export type SeriesRule = Antwort<'Serienregel'>
 
 // ─── Serientermine ──────────────────────────────────────────
 // Eine Serie MUSS ein Ende haben (count oder until) — das Backend legt beim
@@ -115,10 +80,7 @@ export async function listAppointments(dateFrom: string, dateTo: string): Promis
  * fragt nur das ab und lädt eine Liste erst neu, wenn sich ihr Wert ändert —
  * bis 20261106 holte jeder Takt beide Listen ganz (rund 4 MB alle 2 s).
  */
-export interface ScheduleStand {
-  projekte: string
-  termine: string
-}
+export type ScheduleStand = Antwort<'PlanStand'>
 
 /** `null`, wenn der Server keinen Stand liefern kann (503, Netzfehler, unbekannte
  *  Antwort) — der Aufrufer gleicht dann langsam voll ab, statt «unverändert»
@@ -149,8 +111,8 @@ export async function getProjectAppointments(projectId: string): Promise<Project
 export async function createAppointment(
   projectId: string,
   data: Partial<ProjectAppointment> & { recurrence?: AppointmentRecurrence | null } & AbsenceOverride,
-): Promise<ProjectAppointment & { series_count?: number }> {
-  return apiFetch<ProjectAppointment & { series_count?: number }>(`/pwa/admin/projects/${projectId}/appointments`, {
+): Promise<Antwort<'TerminAngelegt'>> {
+  return apiFetch<Antwort<'TerminAngelegt'>>(`/pwa/admin/projects/${projectId}/appointments`, {
     method: 'POST', body: JSON.stringify(data),
   })
 }
@@ -165,11 +127,7 @@ export interface SeriesExtras {
   recurrence?: AppointmentRecurrence
 }
 
-export type UpdatedAppointment = ProjectAppointment & {
-  series_updated?: number
-  series_created?: number
-  series_deleted?: number
-}
+export type UpdatedAppointment = Antwort<'TerminGeaendert'>
 
 export async function updateAppointment(
   id: string, data: Partial<ProjectAppointment> & AbsenceOverride, scope: AppointmentScope = 'single',
@@ -184,13 +142,7 @@ export async function updateAppointment(
 // (agents/routers/admin_scheduling.py::admin_update_appointment).
 export const SERIES_ACTIVITY_CODE = 'series_has_activity'
 
-export interface AppointmentNoticeResult {
-  to: string
-  sent_at: string
-  is_update: boolean
-  // false = Mail ist raus, aber der Versandstand liess sich nicht speichern.
-  recorded: boolean
-}
+export type AppointmentNoticeResult = Antwort<'Terminbestaetigung'>
 
 /** Terminbestätigung (bzw. Aktualisierung) per Mail an den Kunden, mit Kalendereintrag.
  *  Modul `termin_bestaetigung`; leere Adresse = Kunden-E-Mail. */
@@ -216,18 +168,8 @@ export async function deleteAppointment(id: string, scope: AppointmentScope = 's
 // Rückfrage danach. Eigener Endpunkt statt getAdminAbsences() — der liefert
 // alles seit 2020 und ohne staff_id, also ohne Bezug zu einer Monteur-Zeile.
 
-export interface ScheduleAbsence {
-  // null bei Altzeilen, die nur den Namen tragen — die lassen sich keiner Zeile
-  // zuordnen und bleiben in der Tafel unsichtbar (der Server sperrt trotzdem).
-  staff_id: string | null
-  staff_name: string
-  type: string
-  date_start: string
-  date_end: string
-  // Fertig formatiert vom Server («Ferien 24.08.–28.08.2026») — dieselbe
-  // Beschriftung wie in der Rückfrage, damit Tafel und Meldung übereinstimmen.
-  label: string
-}
+/** Genehmigte Absenz im Fenster — generiert aus `PlanAbsenz`. */
+export type ScheduleAbsence = Antwort<'PlanAbsenz'>
 
 export async function listScheduleAbsences(dateFrom: string, dateTo: string): Promise<ScheduleAbsence[]> {
   return apiFetch<ScheduleAbsence[]>(

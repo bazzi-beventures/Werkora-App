@@ -12,13 +12,14 @@ import { describe, it, expect } from 'vitest'
  * (1'137 → 2'164) wieder fast doppelt so gross — ein Feature landet dort, wo
  * der Nachbar-Code schon steht. Ohne Ratchet hält ein Schnitt nicht.
  *
- * Regel: .tsx höchstens 600 Zeilen, .ts und .css höchstens 800 (Tests und
- * src/test/ zählen nicht). Was beim Einführen darüber lag, steht in BESTAND
- * mit eigener Decke (heutige Grösse + 20, auf 50 aufgerundet). Wer anstösst,
- * zieht zuerst etwas heraus — eine Karte, einen Hook, ein eigenes Stylesheet
- * neben der Komponente —, statt die Decke anzuheben. Wer eine Datei deutlich
- * verkleinert, senkt ihre Decke (der Test verlangt es ab SPIELRAUM Zeilen
- * Abstand) oder streicht den Eintrag unter dem Limit.
+ * Regel: .tsx höchstens 600 Zeilen, .ts und .css höchstens 800 (Tests,
+ * src/test/ und das Generat src/api/generated/ zählen nicht). Was beim
+ * Einführen darüber lag, steht in BESTAND mit eigener Decke (heutige Grösse
+ * + 20, auf 50 aufgerundet). Wer anstösst, zieht zuerst etwas heraus — eine
+ * Karte, einen Hook, ein eigenes Stylesheet neben der Komponente —, statt die
+ * Decke anzuheben. Wer eine Datei deutlich verkleinert, senkt ihre Decke
+ * (der Test verlangt es ab SPIELRAUM Zeilen Abstand) oder streicht den
+ * Eintrag unter dem Limit.
  *
  * Bewusst .mjs mit node:fs statt .ts mit `import.meta.glob('…?raw')`: CSS kommt
  * unter Vitest über `?raw` als leerer String an (`css: false`), und für
@@ -31,8 +32,13 @@ const SPIELRAUM = 100
 
 // Stand 2026-11-10 (develop da92460f). Kommentar = Zeilen beim Einfrieren.
 const BESTAND = {
-  'admin/admin.css': 5350, // 5322
-  'index.css': 2750, // 2705
+  // Global und ohne Besitzer (Spec §8.2): wächst nicht mehr — die Decke ist die heutige
+  // Grösse, nicht +20. Neue Komponenten bringen ihr CSS als eigene Datei neben sich mit
+  // (Vorbild kpi-dashboard.css, hagelschaden.css); wer hier eine Regel braucht, nimmt
+  // dafür eine alte heraus. Kandidaten zeigt `npm run css:unbenutzt`.
+  'admin/admin.css': 5243, // 5322, nach Charge O1 (12 tote Klassen gelöscht) 5243
+  // Dasselbe für das globale Stylesheet der Monteur-App (Charge O5: 13 tote Klassen gelöscht).
+  'index.css': 2631, // 2705, nach Charge O5 2631
   'admin/operative/ProjectScheduleScreen.tsx': 1500, // 1428 (Charge M4c; M4b 1732, M4a 1915, vorher 2343)
   'screens/ProjekteScreen.tsx': 2200, // 2164
   'admin/operative/ProjectScheduleCalendar.tsx': 750, // 713 (Charge M4d, vorher 1550)
@@ -40,7 +46,7 @@ const BESTAND = {
   'chat/ChatScreen.tsx': 1250, // 1222
   'admin/operative/InvoicesScreen.tsx': 1200, // 1142
   'admin/operative/projectDetail/useProjectForm.ts': 1100, // 1046
-  'admin/kpis/kpi-dashboard.css': 1100, // 1068
+  'admin/kpis/kpi-dashboard.css': 900, // 1068, nach Charge O5 (altes BI-Layout entfernt) 858
   'admin/operative/MaterialsScreen.tsx': 1050, // 1010
   'admin/operative/ProjectsScreen.tsx': 1050, // 981
   'App.tsx': 1050, // 991
@@ -79,6 +85,9 @@ function zaehlen() {
     if (!eintrag.isFile() || !/\.(tsx?|css)$/.test(eintrag.name)) continue
     const rel = join(eintrag.parentPath, eintrag.name).slice(SRC.length + 1).replaceAll('\\', '/')
     if (/\.test\.tsx?$/.test(rel) || rel.startsWith('test/')) continue
+    // Generat des API-Vertrags (Charge N): wächst mit jedem Antwort-Modell, von
+    // Hand schreibt niemand darin — die Grösse hält das Backend-Budget der Modelle.
+    if (rel.startsWith('api/generated/')) continue
     ist[rel] = zeilen(readFileSync(join(SRC, rel), 'utf8'))
   }
   return ist

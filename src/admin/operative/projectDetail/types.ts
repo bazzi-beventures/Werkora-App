@@ -1,6 +1,7 @@
 // Dateien am Projekt sind in beiden Sichten dieselben Zeilen (Charge H5) — der
 // Typ steht in shared/projectDetail/types, hier nur die Wiederausfuhr, damit die
 // Reiter ihn wie bisher aus './types' beziehen.
+import type { Antwort } from '../../../api/generated'
 export type { ProjectFile, ProjectFileCategory } from '../../../shared/projectDetail/types'
 
 export interface ProjectQuote {
@@ -38,40 +39,9 @@ export interface ProjectInvoice {
   invoice_kind?: string | null
 }
 
-export interface ProjectReport {
-  id: number
-  report_date: string
-  description: string | null
-  // Wer den Rapport ERFASST hat — beim nacherfassten Rapport das Büro, nicht der
-  // Monteur. Deshalb steht in der Zeile `monteure`; created_by nur als Zusatz.
-  created_by: string | null
-  // Wer vor Ort war: aus den erfassten Stunden (labor_hours), serverseitig
-  // zusammengesetzt wie die Kopfzeile des Rapport-PDFs. Ohne erfasste Stunden
-  // (Massaufnahme/Beratung) fällt der Server auf created_by zurück; fehlt das
-  // Feld ganz, ist die Antwort älter als die Ergänzung.
-  monteure?: string | null
-  storage_path?: string | null
-  signature_timestamp: string | null
-  invoice_id: number | null
-  created_at: string
-  // Herkunft des Rapports: 'chat' (Standard, Monteur-App) oder 'admin_manual'
-  // (Projektleiter hat ihn im Projekt-Detail nacherfasst). Steuert das Badge.
-  source?: string
-  // Dieser Einsatz ist als Garantiefall erfasst (reports.is_warranty). Eigenes
-  // Badge NEBEN dem Status: es ersetzt «Abgerechnet»/«Manuell» nicht, sondern
-  // ergänzt sie — beim Verrechnen ist genau diese Kombination die interessante.
-  is_warranty?: boolean | null
-  // Teilrapport/Sammelrapport (docs/specs/teilrapport.md). Alle vier optional: ein
-  // Alt-Server ohne die Spalten liefert sie nicht, dann sieht die Liste aus wie vor
-  // dem Feature. Sie tragen das Status-Badge und die Bündeln/Auflösen-Knöpfe.
-  is_partial?: boolean | null
-  is_aggregate?: boolean | null
-  merged_into_report_id?: number | null
-  dissolved_at?: string | null
-  // Vom Projektleiter ohne Kundenunterschrift abgeschlossen (Migration 20260824d) —
-  // dieselbe Abnahme-Wirkung wie die Unterschrift, aber ausdrücklich keine.
-  pl_accepted_at?: string | null
-}
+// Ein Rapport in der Liste des Projekt-Details — generiert aus `RapportZeile`
+// (agents/routers/antworten/rapporte.py, Feldbeschreibungen dort).
+export type ProjectReport = Antwort<'RapportZeile'>
 
 // Aufgaben/Hinweise am Projekt: dieselbe Zeile, die die Monteur-PWA abhakt
 // (api/projectTasks trägt auch die Aufrufe beider Seiten) — Charge H5.

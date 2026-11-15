@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import { type FensterEingabe, type TerminwahlAnsicht, sendeTerminwahl } from '../../../api/serviceBegleitung'
+import {
+  type Dauer, type FensterEingabe, type TerminwahlAnsicht, sendeTerminwahl,
+} from '../../../api/serviceBegleitung'
+import { APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS, type AppointmentKind } from '../../../api/admin'
 import { backdropCloseProps } from '../../../shared/backdropClose'
 import { EmailRow } from '../EmailRow'
+import { DauerAuswahl } from '../../components/DauerAuswahl'
 
 // Dialog «Dem Kunden zur Wahl senden» — Servicebegleitung, Terminwahl per Link
 // (docs/specs/servicebegleitung.md §7.1). Zwei bis drei Fenster (Tag, Zeit,
-// Monteur), Empfänger, CC, freiwillige Mitteilung, «reserviert bis». Die Fenster
+// Monteur), Termin-Art und Dauer, Empfänger, CC, freiwillige Mitteilung, «reserviert
+// bis». Die Dauer kommt aus der Vorgabe der Art (Einstellungen → Termindauer) und ist je
+// Anfrage änderbar; leer = der Kunde liest keine Dauer. Die Fenster
 // sind danach beim Monteur reserviert, bis der Kunde wählt oder die Frist abläuft.
 // Ob ein Fenster frei ist, prüft der Server (Termine, Reservationen, Absenzen) —
 // eine Kollision kommt als 409 mit Klartext zurück und bleibt unter der Maske stehen.
@@ -16,24 +22,38 @@ const MAX_FENSTER = 3
 interface Props {
   projectId: string
   staff: { id: string; name: string }[]
-  vorgabe: { empfaenger: string; reserviertBis: string }
+  vorgabe: { empfaenger: string; reserviertBis: string; kind: AppointmentKind; dauer: Record<string, Dauer> }
   onClose: () => void
   onSent: (ansicht: TerminwahlAnsicht) => void
+  /** Fenster aus «Termin vorschlagen» (Phase 3) — dann geht die Wahl des Kunden ins Protokoll. */
+  initialFenster?: FensterEingabe[]
 }
 
 const LEER: FensterEingabe = { datum: '', start: '08:00', ende: '10:00', monteur_ids: [] }
 
-export function TerminwahlDialog({ projectId, staff, vorgabe, onClose, onSent }: Props) {
-  const [fenster, setFenster] = useState<FensterEingabe[]>([{ ...LEER }, { ...LEER }])
+export function TerminwahlDialog({ projectId, staff, vorgabe, onClose, onSent, initialFenster }: Props) {
+  const [fenster, setFenster] = useState<FensterEingabe[]>(
+    initialFenster?.length ? initialFenster.slice(0, MAX_FENSTER) : [{ ...LEER }, { ...LEER }])
   const [email, setEmail] = useState(vorgabe.empfaenger)
   const [ccEmails, setCcEmails] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [reserviertBis, setReserviertBis] = useState(vorgabe.reserviertBis)
+  const [kind, setKind] = useState<AppointmentKind>(vorgabe.kind)
+  const [dauerVon, setDauerVon] = useState<number | null>(vorgabe.dauer[vorgabe.kind]?.von ?? null)
+  const [dauerBis, setDauerBis] = useState<number | null>(vorgabe.dauer[vorgabe.kind]?.bis ?? null)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
 
   const vollstaendig = fenster.filter(f => f.datum && f.start && f.ende && f.monteur_ids.length > 0)
-  const bereit = vollstaendig.length > 0 && vollstaendig.length === fenster.length && !!email.trim()
+  const dauerOk = dauerVon == null || dauerBis == null || dauerVon <= dauerBis
+  const bereit = vollstaendig.length > 0 && vollstaendig.length === fenster.length && !!email.trim() && dauerOk
+
+  function waehleArt(neu: AppointmentKind) {
+    setKind(neu)
+    // Die Vorgabe der neuen Art übernehmen; ohne Vorgabe bleibt, was eingestellt ist.
+    const v = vorgabe.dauer[neu]
+    if (v) { setDauerVon(v.von); setDauerBis(v.bis) }
+  }
 
   function setzeFenster(i: number, teil: Partial<FensterEingabe>) {
     setFenster(prev => prev.map((f, j) => (j === i ? { ...f, ...teil } : f)))
@@ -48,6 +68,8 @@ export function TerminwahlDialog({ projectId, staff, vorgabe, onClose, onSent }:
       const ansicht = await sendeTerminwahl(projectId, {
         fenster, empfaenger: email.trim(), cc: ccEmails.map(c => c.trim()).filter(Boolean),
         mitteilung: message.trim(), reserviert_bis: reserviertBis,
+        kind, dauer_von: dauerVon ?? dauerBis, dauer_bis: dauerBis ?? dauerVon,
+        aus_vorschlag: !!initialFenster?.length,
       })
       onSent(ansicht)
     } catch (err) {
@@ -99,6 +121,20 @@ export function TerminwahlDialog({ projectId, staff, vorgabe, onClose, onSent }:
           </button>
         )}
 
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'end', marginBottom: 12 }}>
+          <label style={{ flex: '1 1 140px' }}>
+            <span className="admin-form-label">Termin-Art</span>
+            <select className="admin-form-input" value={kind} disabled={sending}
+                    onChange={e => waehleArt(e.target.value as AppointmentKind)}>
+              {APPOINTMENT_KINDS.map(k => <option key={k} value={k}>{APPOINTMENT_KIND_LABELS[k]}</option>)}
+            </select>
+          </label>
+          <DauerAuswahl label="Dauer von" wert={dauerVon} disabled={sending} onChange={setDauerVon} />
+          <DauerAuswahl label="bis" wert={dauerBis} disabled={sending} onChange={setDauerBis} />
+        </div>
+        {!dauerOk && <div className="admin-form-error" style={{ marginTop: -6, marginBottom: 12 }}>
+          «Dauer von» ist länger als «bis».</div>}
+
         <div style={{ marginBottom: 12 }}>
           <label className="admin-form-label" htmlFor="terminwahl-email">Empfänger E-Mail</label>
           <input id="terminwahl-email" className="admin-form-input" type="email" value={email} disabled={sending}
@@ -126,7 +162,7 @@ export function TerminwahlDialog({ projectId, staff, vorgabe, onClose, onSent }:
           </label>
           <textarea id="terminwahl-message" className="admin-form-input" rows={3} maxLength={MAX_MESSAGE}
                     value={message} disabled={sending} onChange={e => setMessage(e.target.value)}
-                    placeholder="z.B. Der Einsatz dauert etwa 1 bis 2 Stunden." style={{ resize: 'vertical' }} />
+                    placeholder="z.B. Bitte den Zugang zum Heizungsraum freihalten." style={{ resize: 'vertical' }} />
         </div>
 
         {error && <div className="admin-form-error" role="alert" style={{ marginBottom: 12 }}>{error}</div>}
