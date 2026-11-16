@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react'
 import { useKpiData } from '../useKpiData'
 import type { KpiProjektRow, ColumnDef } from '../types'
-import { averageOrNull, finite, istFakturiert, matchesSuche, percentOrNull, sumOrNull } from '../aggregate'
+import { finite, istFakturiert, matchesSuche, percentOrNull, sumOrNull } from '../aggregate'
 import KpiCards from '../components/KpiCards'
 import DataTable from '../components/DataTable'
 import BiBarChart from '../components/BiBarChart'
@@ -179,7 +179,6 @@ export default function ProjekteTab() {
     const gewinn = sumOrNull(filtered, (r) => r.gewinn_gestellt)
     const umsatz = sumOrNull(filtered, (r) => r.umsatz_gestellt)
     const marge = percentOrNull(gewinn, umsatz)
-    const avgDiff = averageOrNull(filtered, (r) => r.differenz_offerte_ist)
     return [
       { label: 'Projekte aktiv', value: String(aktiv), sub: `${filtered.length} im Filter` },
       { label: 'Total Stunden', value: num(stunden) },

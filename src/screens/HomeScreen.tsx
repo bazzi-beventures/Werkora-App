@@ -114,7 +114,7 @@ export default function HomeScreen({ displayName, logoUrl, role, enabledModules,
     fetchStatus()
     const interval = setInterval(fetchStatus, 30_000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [showArbeitszeit])
+  }, [showArbeitszeit, onLoggedOut])
 
   return (
     <div className="app-screen">

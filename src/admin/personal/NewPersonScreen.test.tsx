@@ -121,15 +121,8 @@ describe('NewPersonScreen', () => {
       .toBeLessThan(mockCreateUser.mock.invocationCallOrder[0])
   })
 
-  it.each(['admin', 'management_light'])('zeigt %s keine Lohnfelder', async (role) => {
+  it.each(['admin', 'management_light', 'management'])('zeigt %s die Lohnfelder', async (role) => {
     render(<NewPersonScreen actingRole={role} onClose={() => {}} onSaved={() => {}} />)
-    await screen.findByRole('option', { name: 'Monteur' })
-    expect(screen.queryByLabelText('Stundenlohn (CHF)')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Monatslohn (CHF)')).not.toBeInTheDocument()
-  })
-
-  it('zeigt der Geschäftsleitung die Lohnfelder', async () => {
-    render(<NewPersonScreen actingRole="management" onClose={() => {}} onSaved={() => {}} />)
     await screen.findByRole('option', { name: 'Monteur' })
     expect(screen.getByLabelText('Stundenlohn (CHF)')).toBeInTheDocument()
     expect(screen.getByLabelText('Monatslohn (CHF)')).toBeInTheDocument()

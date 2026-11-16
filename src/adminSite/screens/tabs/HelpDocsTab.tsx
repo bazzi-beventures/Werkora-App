@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { ApiError } from '../../../api/client'
 import * as scoped from '../../tenantScopedApi'
 import type { HelpDoc, ReindexStatus } from '../../../api/help'
@@ -32,7 +32,7 @@ export function HelpDocsTab({ tenantId }: { tenantId: string }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<number | null>(null)
 
-  async function loadDocs() {
+  const loadDocs = useCallback(async () => {
     setLoading(true)
     try {
       setDocs(await scoped.listHelpDocs(tenantId))
@@ -43,17 +43,20 @@ export function HelpDocsTab({ tenantId }: { tenantId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId, showToast])
 
-  async function loadStatus() {
+  const loadStatus = useCallback(async () => {
     try { setStatus(await scoped.getReindexStatus(tenantId)) } catch { /* Status ist optional */ }
-  }
+  }, [tenantId])
 
   useEffect(() => {
     loadDocs()
     loadStatus()
-    return () => { if (pollRef.current) window.clearInterval(pollRef.current) }
-  }, [])
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [loadDocs, loadStatus])
 
   // Solange ein Reindex läuft, den Status alle 2s nachladen.
   useEffect(() => {
@@ -63,7 +66,7 @@ export function HelpDocsTab({ tenantId }: { tenantId: string }) {
       window.clearInterval(pollRef.current)
       pollRef.current = null
     }
-  }, [status?.state])
+  }, [status?.state, loadStatus])
 
   async function onPick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

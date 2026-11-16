@@ -66,7 +66,7 @@ export default function OffertenScreen({ logoUrl, onNavHome, onNavArbeitszeit, o
     }
     load()
     return () => { cancelled = true }
-  }, [])
+  }, [onLoggedOut])
 
   // Nach Projekt gruppieren (Reihenfolge = neueste Offerte zuerst, vom Backend sortiert)
   const groups = groupQuotesByProject(quotes)

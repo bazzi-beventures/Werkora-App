@@ -29,6 +29,18 @@ const GATED = [
   'react-hooks/preserve-manual-memoization',// manuelle Memoisierung, die der Compiler nicht halten kann
   // Seit 2026-08-24 dazu (letzter verbliebener Error abgebaut):
   'react-hooks/rules-of-hooks',             // Hook bedingt/nach einem fruehen Return aufgerufen
+  // Seit 2026-11-16 dazu (Bestand auf 0 abgebaut). Was no-unused-vars wert ist:
+  // beim Abbau standen zwei echte Fehler darunter — ein nie gerenderter
+  // ToastHost (Wochenplan speicherte stumm) und ein ignorierter
+  // initialTenantId (Fehler-Log zeigte trotz Mandanten-Bereich alle Mandanten).
+  'prefer-const',                           // let ohne Neuzuweisung
+  '@typescript-eslint/no-unused-vars',      // unbenutzte Importe/Variablen/Props (Praefix _ erlaubt)
+  // Seit 2026-11-16 dazu (49 Stellen einzeln geprüft). Drei davon waren echte
+  // Fehler: Service-Status sprang nach 60 s auf 30 Tage zurück, und mehrere
+  // Konfigurations-Tabs zeigten und speicherten nach einem Mandantenwechsel den
+  // Stand des vorigen Mandanten. Bewusste Ausnahmen (Mount-only, Hook-Objekte
+  // je Render neu) tragen ein eslint-disable MIT Begründungszeile darüber.
+  'react-hooks/exhaustive-deps',            // fehlende/instabile Hook-Abhaengigkeiten
 ]
 
 // ACHTUNG, Job-NAME: der Check heisst in der CI weiterhin

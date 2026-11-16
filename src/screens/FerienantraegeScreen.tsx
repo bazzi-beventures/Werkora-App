@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { approveAbsence, DECIDE_BLOCK_TEXT, getAdminAbsences, rejectAbsence, type Absence } from '../api/admin/absences'
 import { ApiError } from '../api/client'
 import { countWorkdays } from '../admin/utils/calendarHelpers'
@@ -44,7 +44,7 @@ export default function FerienantraegeScreen({ logoUrl, canton = 'ZH', onBack, o
   const [acting, setActing] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -55,9 +55,9 @@ export default function FerienantraegeScreen({ logoUrl, canton = 'ZH', onBack, o
     } finally {
       setLoading(false)
     }
-  }
+  }, [onLoggedOut])
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => { void load() }, [load])
 
   async function decide(a: Absence, approve: boolean) {
     setActing(a.id)

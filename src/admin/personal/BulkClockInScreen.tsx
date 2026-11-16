@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   getAdminStaff, getClockStatus, bulkClockIn,
   StaffMember, BulkClockInStatus,
@@ -33,7 +33,7 @@ export default function BulkClockInScreen() {
   const [results, setResults] = useState<Record<string, BulkClockInStatus>>({})
   const { toast, showToast } = useToast()
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const [list, status] = await Promise.all([getAdminStaff(), getClockStatus()])
@@ -44,9 +44,9 @@ export default function BulkClockInScreen() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showToast])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   // Auswählbar = aktiv und noch nicht eingestempelt.
   const selectable = useMemo(

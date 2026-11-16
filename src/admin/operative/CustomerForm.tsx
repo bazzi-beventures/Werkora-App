@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   addCustomerComment, availableSalutations, checkCustomerName,
   deleteCustomerComment, getCustomerComments, saveCustomer, updateCustomerComment,
@@ -38,7 +38,7 @@ function CustomerComments({ customerId }: { customerId: string }) {
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       setComments(await getCustomerComments(customerId))
@@ -47,9 +47,9 @@ function CustomerComments({ customerId }: { customerId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [customerId])
 
-  useEffect(() => { load() }, [customerId])
+  useEffect(() => { load() }, [load])
 
   async function handleAdd() {
     if (!newComment.trim()) return

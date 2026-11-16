@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   getHealthStatus, getHealthHistory, getMigrationStatus, getMfaStatus,
   HealthStatusResponse, HealthHistoryResponse, HistoryDay, DayUptime,
@@ -429,7 +429,7 @@ export default function ServiceStatusScreen() {
   const [migrations, setMigrations] = useState<MigrationStatus | null>(null)
   const [mfaStand, setMfaStand] = useState<MfaStatus | null>(null)
 
-  async function load(range: HistoryRange = historyRange) {
+  const load = useCallback(async (range: HistoryRange) => {
     // Eigener Aufruf ohne Einfluss auf den Rest: ein Fehler beim Migrationsstand
     // (Tabelle nicht lesbar, älteres Backend) darf die Service-Ampeln nicht ausblenden.
     getMigrationStatus().then(setMigrations).catch(() => setMigrations(null))
@@ -444,18 +444,20 @@ export default function ServiceStatusScreen() {
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    load()
-    const id = setInterval(() => load(), 60_000)
-    return () => clearInterval(id)
   }, [])
+
+  // Der Bereich gehört in die Deps: bis 2026-11 lief das Intervall mit dem
+  // Bereich vom Mount (30 Tage) weiter — wer «180d» gewählt hatte, sah die
+  // Heatmap spätestens nach 60 s wieder auf 30 Tage springen, der Knopf blieb aktiv.
+  useEffect(() => {
+    load(historyRange)
+    const id = setInterval(() => load(historyRange), 60_000)
+    return () => clearInterval(id)
+  }, [historyRange, load])
 
   function changeRange(r: HistoryRange) {
     setHistoryRange(r)
     setLoading(true)
-    load(r)
   }
 
   const headerMeta = useMemo(() => {
@@ -474,7 +476,7 @@ export default function ServiceStatusScreen() {
         </div>
         <button
           className="admin-btn admin-btn-secondary"
-          onClick={() => load()}
+          onClick={() => load(historyRange)}
           disabled={loading}
           data-loading={loading}
         >

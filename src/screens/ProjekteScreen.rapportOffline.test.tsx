@@ -86,7 +86,6 @@ function allOffline() {
 
 const BASE = {
   onNavHome: () => {},
-  onNavRapport: () => {},
   onStartRapport: () => {},
   onNavArbeitszeit: () => {},
   onNavProfile: () => {},

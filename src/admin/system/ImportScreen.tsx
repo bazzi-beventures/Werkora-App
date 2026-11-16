@@ -3,7 +3,7 @@ import {
   commitMaterialImport, parseImportFile, previewMaterialImport,
 } from '../../api/admin/materialImport'
 import type {
-  ImportFieldDef as FieldDef, ImportParseResult as ParseResult,
+  ImportParseResult as ParseResult,
   ImportPreviewResult as PreviewResult, ImportResult, ImportRowAction as Action,
   MaterialImportRequest,
 } from '../../api/admin/materialImport'

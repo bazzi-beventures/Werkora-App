@@ -97,7 +97,7 @@ export default function MaterialCleanupScreen({ tenantId }: { tenantId: string }
     // `tenantId` gehört dazu: Ohne ihn behielte ein Wechsel des Mandanten die
     // Artikel des vorigen im Bild — dieselbe Mandantentreue-Falle wie in §10.7
     // der Spec, nur eine Ebene tiefer.
-  }, [tenantId, category, supplierId, status, szenario, debouncedSearch, page])
+  }, [tenantId, category, supplierId, status, szenario, debouncedSearch, page, showToast])
 
   useEffect(() => { load() }, [load])
   // Filter/Szenario-Wechsel → Auswahl verwerfen (auch die Filter-weite).
@@ -116,14 +116,18 @@ export default function MaterialCleanupScreen({ tenantId }: { tenantId: string }
     [suppliers],
   )
   const counts = scan?.counts ?? {}
-  const blocked = scan?.blocked ?? []
-  const rows: MaterialCleanupRow[] = scan?.rows ?? []
+  // An scan gebunden statt nacktem `?? []`, damit die Memos darunter greifen.
+  const blocked = useMemo(() => scan?.blocked ?? [], [scan])
+  const rows: MaterialCleanupRow[] = useMemo(() => scan?.rows ?? [], [scan])
 
   // Nicht auswählbar = aktiver Bestand in einem gesperrten Szenario (kann weder
   // deaktiviert werden noch reaktiviert — er ist schon aktiv). Inaktive Zeilen
   // bleiben immer wählbar (Reaktivierung).
-  const isProtected = (r: MaterialCleanupRow) => blocked.includes(r.szenario) && r.is_active
-  const selectable = useMemo(() => rows.filter(r => !isProtected(r)), [rows, blocked])
+  const isProtected = useCallback(
+    (r: MaterialCleanupRow) => blocked.includes(r.szenario) && r.is_active,
+    [blocked],
+  )
+  const selectable = useMemo(() => rows.filter(r => !isProtected(r)), [rows, isProtected])
   const allSelected = selectable.length > 0 && selectable.every(r => selected.has(r.art_nr))
 
   function toggle(artNr: string) {

@@ -213,7 +213,7 @@ export default function ProjectScheduleScreen({
       })
       .finally(() => { if (alive) setConfigPending(false) })
     return () => { alive = false }
-  }, [])
+  }, [showToast])
 
   // Erster Aufruf: loadAll (mit Spinner), danach alle 2 s refreshLive.
   useVisibilityPolling(
@@ -233,7 +233,7 @@ export default function ProjectScheduleScreen({
         customersLoaded.current = false
         showToast('Kundenstamm nicht geladen.', 'error')
       })
-  }, [panelOpen])
+  }, [panelOpen, showToast])
 
   // Click-outside für Picker-Dropdown
   useEffect(() => {

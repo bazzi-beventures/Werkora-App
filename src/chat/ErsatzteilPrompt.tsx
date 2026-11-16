@@ -82,6 +82,9 @@ export default function ErsatzteilPrompt({ onSubmit, userId = '', initial }: Pro
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
+    // Liste einmal beim Öffnen laden; initial und onSubmit kommen vom Parent bei
+    // jedem Render neu und sind nur Startwerte.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Auswahl aus dem Katalog-Popup übernehmen: neue Artikel (nicht in der kuratierten Liste)

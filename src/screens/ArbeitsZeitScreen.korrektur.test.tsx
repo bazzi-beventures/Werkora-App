@@ -22,7 +22,6 @@ function openForm() {
       displayName="Kevin De Florian"
       role="user"
       onNavHome={() => {}}
-      onNavRapport={() => {}}
       onNavProjekte={() => {}}
       onNavProfile={() => {}}
       onLoggedOut={() => {}}

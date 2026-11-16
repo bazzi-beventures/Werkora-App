@@ -77,6 +77,9 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
 
   useEffect(() => {
     if (initialStatus && onConsumed) onConsumed()
+    // Deep-Link-Filter wird beim Mount einmal übernommen und quittiert;
+    // onConsumed entsteht je Render neu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
   const [projektleiterOptions, setProjektleiterOptions] = useState<ProjektleiterOption[]>([])

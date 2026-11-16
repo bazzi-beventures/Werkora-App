@@ -180,7 +180,7 @@ export default function MyTimeScreen({ user = null, onLoggedOut }: Props) {
     fetchStatus()
     const interval = setInterval(fetchStatus, 30_000)
     return () => { cancelled = true; clearInterval(interval) }
-  }, [])
+  }, [onLoggedOut])
 
   async function refreshStatus() {
     if (!navigator.onLine) return
@@ -289,7 +289,7 @@ export default function MyTimeScreen({ user = null, onLoggedOut }: Props) {
         pollRef.current = null
       }
     }
-  }, [pendingCorrection])
+  }, [pendingCorrection, showToast])
 
   async function sendAction(action: ZeitAction, opts: { art_der_arbeit?: string } = {}) {
     setLoadingAction(action)
@@ -741,7 +741,6 @@ export default function MyTimeScreen({ user = null, onLoggedOut }: Props) {
               user={user}
               onBack={() => setBerichtModal(null)}
               onNavHome={() => setBerichtModal(null)}
-              onNavRapport={() => setBerichtModal(null)}
               onNavProfile={() => setBerichtModal(null)}
               onLoggedOut={onLoggedOut}
             />

@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getVacationOverview } from '../../api/admin/hr'
 import type { VacationRow } from '../../api/admin/hr'
 
@@ -36,7 +36,7 @@ export default function VacationOverviewScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -48,9 +48,9 @@ export default function VacationOverviewScreen() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [year])
 
-  useEffect(() => { load() }, [year])
+  useEffect(() => { load() }, [load])
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => a.staff_name.localeCompare(b.staff_name, 'de-CH')),

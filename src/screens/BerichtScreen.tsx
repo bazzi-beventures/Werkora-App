@@ -14,7 +14,6 @@ interface Props {
   user?: UserInfo | null
   onBack: () => void
   onNavHome: () => void
-  onNavRapport: () => void
   onNavProfile: () => void
   onLoggedOut: () => void
 }
@@ -27,7 +26,7 @@ function fmt_hours(h: number): string {
   return `${sign}${hh}:${mm.toString().padStart(2, '0')}`
 }
 
-export default function BerichtScreen({ berichtType, logoUrl, user = null, onBack, onNavHome, onNavRapport, onNavProfile, onLoggedOut }: Props) {
+export default function BerichtScreen({ berichtType, logoUrl, user = null, onBack, onNavHome, onNavProfile, onLoggedOut }: Props) {
   const [data, setData] = useState<ReportData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -131,7 +130,7 @@ export default function BerichtScreen({ berichtType, logoUrl, user = null, onBac
       }
     }
     load()
-  }, [berichtType])
+  }, [berichtType, onLoggedOut])
 
   useEffect(() => {
     let cancelled = false
@@ -164,15 +163,6 @@ export default function BerichtScreen({ berichtType, logoUrl, user = null, onBac
     } finally {
       setPdfLoading(false)
     }
-  }
-
-  function renderTitle(): string {
-    if (!data) {
-      if (berichtType === 'monthly') return 'Arbeitszeitbericht'
-      return berichtType === 'weekly-this' ? 'Diese Woche' : 'Letzte Woche'
-    }
-    if (data.type === 'monthly') return `${data.monat_name} ${data.jahr}`
-    return data.period_label
   }
 
   function renderSubtitle(): string {

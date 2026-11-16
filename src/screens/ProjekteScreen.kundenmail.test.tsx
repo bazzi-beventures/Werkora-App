@@ -62,7 +62,6 @@ function customer(over: Record<string, unknown> = {}) {
 const NOOP = {
   user: null,
   onNavHome: () => {},
-  onNavRapport: () => {},
   onNavArbeitszeit: () => {},
   onNavProfile: () => {},
   onLoggedOut: () => {},

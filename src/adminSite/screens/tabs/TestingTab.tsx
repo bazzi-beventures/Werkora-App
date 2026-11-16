@@ -57,9 +57,7 @@ export function TestingTab({ tenantId }: { tenantId: string }) {
     }
     void laden()
     return () => { abgebrochen = true }
-    // Einmal beim Öffnen des Tabs; showToast ist bei jedem Render neu.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [tenantId, showToast])
 
   async function toggle(u: AuthUser) {
     const next = !u.beta_tester

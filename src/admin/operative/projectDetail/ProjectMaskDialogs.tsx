@@ -116,7 +116,7 @@ export function ProjectMaskDialogs({
   const requestReportClose = useCallback(() => {
     if (reportDirty.current) setConfirmReportDiscard(true)
     else closeReport()
-  }, [closeReport])
+  }, [closeReport, reportDirty])
 
   return (
     <>

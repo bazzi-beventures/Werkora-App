@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hasKpiAccess, isAdminRole, isManagementRole } from './roles'
+import { hasKpiAccess, isAdminRole, isManagementRole, mayManageWages } from './roles'
 
 // Spiegel von agents/routers/_deps.py (ADMIN_ROLES, KPI_ROLES, require_management).
 
@@ -16,5 +16,7 @@ describe('Rollen-Prädikate', () => {
     expect(isAdminRole(role)).toBe(admin)
     expect(isManagementRole(role)).toBe(mgmt)
     expect(hasKpiAccess(role)).toBe(kpi)
+    // Löhne pflegt jede Admin-Rolle (WW-85), Monteure nie.
+    expect(mayManageWages(role)).toBe(admin)
   })
 })

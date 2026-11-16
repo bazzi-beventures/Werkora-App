@@ -18,7 +18,7 @@ import type { CreateUserResult, StaffProfileInput } from '../../api/admin/users'
 import { getStaffRoles, upsertStaff, upsertStaffRole } from '../../api/admin/staff'
 import type { StaffRole } from '../../api/admin/staff'
 import { assignableRoles } from '../system/userRoles'
-import { isManagementRole } from '../../shared/roles'
+import { isManagementRole, mayManageWages } from '../../shared/roles'
 
 // Spiegelt services/password_policy.py — verbindlich prüft das Backend.
 const MIN_PASSWORD_LENGTH = 12
@@ -29,9 +29,9 @@ const MIN_PASSWORD_LENGTH = 12
 const ROLE_LABELS: Record<string, string> = {
   user_light: 'Monteur (eingeschränkt) — nur Stempeln und eigene Rapporte',
   user: 'Monteur — Stempeln, Rapporte, Projekte lesen',
-  admin: 'Büro — Projekte, Offerten, Rechnungen, Benutzer anlegen',
+  admin: 'Büro — Projekte, Offerten, Rechnungen, Löhne, Benutzer anlegen',
   management_light: 'Manager light — wie Büro, zusätzlich Kennzahlen Projekt-Pipeline, Projekte & Reports und Nachkalkulation',
-  management: 'Geschäftsleitung — zusätzlich Löhne, KPI und Stammdaten',
+  management: 'Geschäftsleitung — zusätzlich KPI und Stammdaten',
   superadmin: 'Superadmin — mandantenübergreifend',
 }
 
@@ -52,8 +52,8 @@ const NEW_FUNCTION = '__new__'
 export default function NewPersonScreen({ actingRole, origin = 'users', onClose, onSaved }: Props) {
   const roleOptions = useMemo(() => assignableRoles(actingRole), [actingRole])
   const mayCreateFunction = isManagementRole(actingRole)
-  // Stunden- und Monatslohn: nur Geschäftsleitung (Backend lehnt sie sonst ab).
-  const showWages = isManagementRole(actingRole)
+  // Stunden- und Monatslohn: jede Admin-Rolle (WW-85; Backend lehnt sie sonst ab).
+  const showWages = mayManageWages(actingRole)
 
   // Person
   const [name, setName] = useState('')

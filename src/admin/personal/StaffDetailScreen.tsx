@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react'
 import { StaffMember, StaffRole, upsertStaff, getStaffRoles } from '../../api/admin'
-import { isManagementRole } from '../../shared/roles'
+import { mayManageWages } from '../../shared/roles'
 
 interface Props {
   // Nur zum Bearbeiten. Angelegt wird über NewPersonScreen — dort gehören Konto,
   // Personaldaten und Zugang in eine Maske.
   member: StaffMember
-  // Rolle des eingeloggten Kontos: Stunden- und Monatslohn sieht nur die
-  // Geschäftsleitung (das Backend liefert sie den anderen gar nicht erst aus).
+  // Rolle des eingeloggten Kontos: Stunden- und Monatslohn sieht jede Admin-Rolle
+  // (das Backend liefert sie anderen gar nicht erst aus).
   actingRole: string
   onClose: () => void
   onSaved: () => void
 }
 
 export default function StaffDetailScreen({ member, actingRole, onClose, onSaved }: Props) {
-  const showWages = isManagementRole(actingRole)
+  const showWages = mayManageWages(actingRole)
   const [name, setName] = useState(member.name)
   const [kuerzel, setKuerzel] = useState(member.kuerzel ?? '')
   const [funktion, setFunktion] = useState(member.funktion ?? '')

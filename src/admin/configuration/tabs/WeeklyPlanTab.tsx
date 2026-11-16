@@ -191,6 +191,7 @@ export function WeeklyPlanTab() {
           </table>
         </div>
       )}
+      <ToastHost toast={toast} />
     </>
   )
 }

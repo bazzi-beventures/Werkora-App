@@ -12,9 +12,15 @@ export function isAdminRole(role: Role): boolean {
   return role === 'admin' || role === 'management_light' || role === 'management' || role === 'superadmin'
 }
 
-/** Geschäftsleitung (und Superadmin): Löhne, Stammdaten, volle Kennzahlen. */
+/** Geschäftsleitung (und Superadmin): Stammdaten, volle Kennzahlen. */
 export function isManagementRole(role: Role): boolean {
   return role === 'management' || role === 'superadmin'
+}
+
+/** Darf Stunden- und Monatslohn sehen und setzen: jede Admin-Rolle (seit WW-85).
+ *  Spiegel von LOHN_ROLLEN in agents/routers/_guard_sitzung.py. */
+export function mayManageWages(role: Role): boolean {
+  return isAdminRole(role)
 }
 
 /** Darf das Modul Kennzahlen öffnen (Manager light nur Pipeline/Projekte/Nachkalkulation). */

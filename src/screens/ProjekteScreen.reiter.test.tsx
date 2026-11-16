@@ -54,7 +54,6 @@ const PROJEKTE = [
 const NOOP = {
   user: null,
   onNavHome: () => {},
-  onNavRapport: () => {},
   onNavArbeitszeit: () => {},
   onNavProfile: () => {},
   onStartRapport: () => {},

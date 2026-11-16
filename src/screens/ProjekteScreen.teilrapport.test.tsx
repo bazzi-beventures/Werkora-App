@@ -65,7 +65,7 @@ function routeFetch(routes: Record<string, unknown> = {}) {
 }
 
 const NOOP = {
-  onNavHome: () => {}, onNavRapport: () => {}, onNavArbeitszeit: () => {},
+  onNavHome: () => {}, onNavArbeitszeit: () => {},
   onNavProfile: () => {}, onLoggedOut: () => {}, onStartRapport: () => {},
 }
 

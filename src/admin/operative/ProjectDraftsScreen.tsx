@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import {
   ProjectDraft, getAdminProjectDrafts, getProjectDraftPhotoUrls,
@@ -39,7 +39,7 @@ export default function ProjectDraftsScreen({ user, onBadgeChange }: Props) {
   const [selected, setSelected] = useState<ProjectDraft | null>(null)
   const { toast, showToast } = useToast(3500)
 
-  async function load() {
+  const load = useCallback(async () => {
     setDrafts(null)
     try {
       const list = await getAdminProjectDrafts(filter)
@@ -47,9 +47,9 @@ export default function ProjectDraftsScreen({ user, onBadgeChange }: Props) {
     } catch {
       setDrafts([])
     }
-  }
+  }, [filter])
 
-  useEffect(() => { load() }, [filter])
+  useEffect(() => { load() }, [load])
 
   function onConverted(p: { project_name: string }) {
     showToast(`Projekt "${p.project_name}" erstellt.`, 'success')

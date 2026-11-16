@@ -113,7 +113,6 @@ interface Props {
   // ohne User keine Bedienelemente, die an einem Flag hängen.
   user: UserInfo | null
   onNavHome: () => void
-  onNavRapport: () => void
   // Projekt für «Rapport erstellen» — mit der id, nicht nur dem Namen: zwei
   // Liegenschaften desselben Kunden dürfen gleich heissen, und der Monteur hat hier
   // eine konkrete davon vor sich. Nur der Name liesse die Zuordnung wieder offen.
@@ -227,7 +226,7 @@ export function reportStatusLabel(
 // des Monteurs auf der Baustelle gerade nicht.
 type ViewMode = 'grid' | 'wochenplan'
 
-export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport, onStartRapport, onStartOfflineRapport, onEditOfflineRapport, openProjectId, onProjectOpened, onNavArbeitszeit, onNavProfile, onLoggedOut }: Props) {
+export default function ProjekteScreen({ logoUrl, user, onNavHome, onStartRapport, onStartOfflineRapport, onEditOfflineRapport, openProjectId, onProjectOpened, onNavArbeitszeit, onNavProfile, onLoggedOut }: Props) {
   // Teilrapport (docs/specs/teilrapport.md §6.2): das Flag schaltet den
   // Bündeln-Knopf. Die Badges hängen NICHT daran — sie beschreiben den Zustand der
   // Daten, und ein abgeschaltetes Flag darf einen gebündelten Rapport nicht
@@ -421,7 +420,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     }
     load()
     return () => { cancelled = true }
-  }, [reloadNonce, userId])
+  }, [reloadNonce, userId, onLoggedOut])
 
   // Netz zurück, Screen zeigt noch Snapshot oder Fehlerzustand → sofort frisch
   // laden. Ohne das bliebe der «Offline — Stand …»-Badge stehen, bis der Screen
@@ -432,10 +431,17 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     if (!online) return
     if (listSnapshotAt !== null || listError !== null) setReloadNonce(n => n + 1)
     if (detailSnapshotAt !== null) setDetailReloadNonce(n => n + 1)
+    // Nur der Wechsel auf online soll neu laden (siehe oben); Fehler und Stand
+    // sind Momentaufnahme — als Deps gäben sie bei Dauerfehlern eine Schleife.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online])
 
+  // Nur die ID zählt: setSelected(prev => withEmail(prev)) & Co. erzeugen neue
+  // Objekte desselben Projekts, die Dateien, Kommentare und Entwurf nicht
+  // verwerfen dürfen.
+  const selectedId = selected?.id
   useEffect(() => {
-    if (!selected) return
+    if (!selectedId) return
     setFiles([])
     setComments([])
     setTasks([])
@@ -450,7 +456,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
     setEmailEditing(false)
     setEmailError(null)
     setLoadingDetail(true)
-    const projectId = selected.id
+    const projectId = selectedId
     Promise.all([
       listProjectFiles(SCOPE, projectId).catch(() => [] as ProjectFile[]),
       // Kommentare und Aufgaben sind die beiden Teile, die im Lesepaket liegen —
@@ -482,7 +488,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onNavRapport,
       setTasks(t ?? pkg?.tasksByProject[projectId] ?? [])
       if (pkg?.savedAt) setDetailSnapshotAt(pkg.savedAt)
     }).finally(() => setLoadingDetail(false))
-  }, [selected?.id, userId, detailReloadNonce])
+  }, [selectedId, userId, detailReloadNonce, teilrapportEnabled])
 
   /** «Jetzt senden» — der Monteur erzwingt den Upload, statt auf einen der drei
    *  Netz-Momente zu warten (Spec §4.5.5). */

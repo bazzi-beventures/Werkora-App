@@ -88,9 +88,11 @@ export default function LlmCostsScreen({ tenantId }: { tenantId: string }) {
   const modell = useKpiData<KpiLlmKostenModellRow>('vw_kpi_llm_kosten_modell', filters, tenantId)
   const benutzer = useKpiData<KpiLlmKostenBenutzerRow>('vw_kpi_llm_kosten_benutzer', filters, tenantId)
 
-  const epRows = endpunkt.data ?? []
-  const moRows = modell.data ?? []
-  const buRows = benutzer.data ?? []
+  // useMemo statt nacktem `?? []`: solange data null ist, wäre das je Render ein
+  // neues Array und jedes Memo darunter liefe ins Leere.
+  const epRows = useMemo(() => endpunkt.data ?? [], [endpunkt.data])
+  const moRows = useMemo(() => modell.data ?? [], [modell.data])
+  const buRows = useMemo(() => benutzer.data ?? [], [benutzer.data])
 
   // endpoint ist NOT NULL → epRows decken ALLE Calls ab → Basis für Cards.
   const totals = useMemo(() => ({

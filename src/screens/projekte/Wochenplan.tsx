@@ -205,6 +205,8 @@ export function Wochenplan<P extends WochenplanProject>({ projects, userId, onSe
   useEffect(() => {
     if (!online) return
     if (monday in snapshotAt || error !== null) setReloadNonce(n => n + 1)
+    // Nur der Wechsel auf online (siehe oben); error als Dep gäbe eine Schleife.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [online])
 
   const goDay = useCallback((step: number) => {

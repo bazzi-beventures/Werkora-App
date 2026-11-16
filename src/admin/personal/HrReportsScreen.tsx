@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { acknowledgeArgViolation, getHrTimesheet, listArgViolations } from '../../api/admin/hr'
 import type {
-  ArgViolation as DbViolation, HrLaborHour as LaborHour, HrOvertimeInfo as OvertimeInfo,
-  HrSession as Session, HrTimesheet as TimesheetData, StaffRoleName as StaffRole,
+  ArgViolation as DbViolation, HrSession as Session, HrTimesheet as TimesheetData, StaffRoleName as StaffRole,
 } from '../../api/admin/hr'
 import { useVisibilityPolling } from '../../hooks/useVisibilityPolling'
 import MultiDropdown from '../kpis/components/MultiDropdown'
@@ -137,7 +136,10 @@ export default function HrReportsScreen() {
 
   const liveStaff: Set<string> = useMemo(() => new Set(data?.currently_clocked_in ?? []), [data])
 
-  const isManagement = (staffName: string) => MANAGEMENT_ROLES.has(roleByName.get(staffName) ?? null)
+  const isManagement = useCallback(
+    (staffName: string) => MANAGEMENT_ROLES.has(roleByName.get(staffName) ?? null),
+    [roleByName],
+  )
 
   // ── Mitarbeiter-Liste für Multi-Select aufbauen ──
   // Union aus Sessions, overtime_by_staff (auch ohne Sessions), Verstössen.
@@ -152,7 +154,7 @@ export default function HrReportsScreen() {
   // Visible (nach GF-Toggle) — bestimmt was im Multi-Select überhaupt zur Auswahl steht
   const visibleStaffNames: string[] = useMemo(() => {
     return showManagement ? allStaffNames : allStaffNames.filter(n => !isManagement(n))
-  }, [allStaffNames, showManagement, roleByName])
+  }, [allStaffNames, showManagement, isManagement])
 
   // Wenn der User noch nichts manuell gefiltert hat, gilt „alles ist ausgewählt".
   // Sobald er einmal toggelt, halten wir seine Auswahl, blenden aber neu sichtbare/verschwundene Namen aktiv aus.
@@ -315,7 +317,7 @@ export default function HrReportsScreen() {
       if (!showManagement && isManagement(v.staff_name)) return false
       return true
     }),
-    [unifiedViolations, selectedStaff, showManagement, roleByName]
+    [unifiedViolations, selectedStaff, showManagement, isManagement]
   )
 
   const unifiedBadgeCount = filteredViolations.filter(v => !v.acknowledged).length

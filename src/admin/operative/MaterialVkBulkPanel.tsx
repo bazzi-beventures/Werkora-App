@@ -23,6 +23,9 @@ const MODE_BADGE: Record<string, { label: string; cls: string; title: string }> 
   skip:   { label: 'kein Preis', cls: 'admin-badge-admin', title: 'Weder EK noch Fixpreis hinterlegt — nicht anhebbar.' },
 }
 
+// Stabile Referenz, damit das useMemo über rows ohne Vorschau greift.
+const NO_ROWS: VkBulkRow[] = []
+
 export default function MaterialVkBulkPanel() {
   const [categories, setCategories] = useState<string[]>([])
   const [category, setCategory] = useState('')
@@ -67,9 +70,9 @@ export default function MaterialVkBulkPanel() {
     } finally {
       setLoading(false)
     }
-  }, [pctValid, pctNum, category])
+  }, [pctValid, pctNum, category, showToast])
 
-  const rows: VkBulkRow[] = preview?.rows ?? []
+  const rows: VkBulkRow[] = preview?.rows ?? NO_ROWS
   const applicable = useMemo(() => rows.filter(r => r.mode !== 'skip'), [rows])
   const allSelected = applicable.length > 0 && applicable.every(r => selected.has(r.art_nr))
 

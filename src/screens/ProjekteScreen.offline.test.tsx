@@ -61,7 +61,6 @@ function project(over: Partial<MonteurProject> = {}): MonteurProject {
 const NOOP = {
   user: null,
   onNavHome: () => {},
-  onNavRapport: () => {},
   onStartRapport: () => {},
   onNavArbeitszeit: () => {},
   onNavProfile: () => {},

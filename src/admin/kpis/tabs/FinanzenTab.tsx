@@ -79,7 +79,7 @@ export default function FinanzenTab() {
   const bereichAktiv = Boolean(monatVon || monatBis)
 
   const filtered = useMemo(() => {
-    let rows = data ?? []
+    const rows = data ?? []
     if (bereichAktiv) {
       return rows.filter((r) => imMonatsbereich(r.jahr_monat, monatVon, monatBis))
     }

@@ -19,7 +19,6 @@ interface Props {
   role?: string
   user?: UserInfo | null
   onNavHome: () => void
-  onNavRapport: () => void
   onNavProjekte: () => void
   onNavProfile: () => void
   onLoggedOut: () => void
@@ -97,7 +96,7 @@ const ACTIONS: Action[] = [
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export default function ArbeitsZeitScreen({ logoUrl, role, user = null, onNavHome, onNavRapport, onNavProjekte, onNavProfile, onLoggedOut, onOpenBericht, onNavAbsenzen }: Props) {
+export default function ArbeitsZeitScreen({ logoUrl, role, user = null, onNavHome, onNavProjekte, onNavProfile, onLoggedOut, onOpenBericht, onNavAbsenzen }: Props) {
   // Gleiche Regel wie im HomeScreen: `user_light` ist reiner Zeiterfasser —
   // kein Chat, keine Projekte (docs/Admin_Handbuch.md §12). Der Tab stand hier
   // trotzdem, weil `role` zwar durchgereicht, aber nie benutzt wurde: der Monteur

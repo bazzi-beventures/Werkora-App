@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { sendMessageStream, sendVoice, confirmReport, cancelReport, disambiguateMaterial, chooseProject, uploadPhoto, downloadRapportPdf, deleteOwnRapport, ChatResponse, DisambiguationOption, ProjectChoiceOption, SummaryItem } from '../api/chat'
 import { ApiError, isNetworkError, isOfflineError } from '../api/client'
 import {
@@ -231,24 +231,27 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
 
   // Der Zwischenstand als ein Objekt: er wird gespeichert (unten) UND bewertet
   // (beforeunload). Zwei Fassungen davon würden auseinanderlaufen, sobald jemand ein
-  // Feld ergänzt.
-  const draftState = {
+  // Feld ergänzt. useMemo: die Identität wechselt genau dann, wenn eines der
+  // Felder wechselt — ein vergessenes Feld meldet exhaustive-deps hier.
+  const draftState = useMemo(() => ({
     messages, kleinCollected, ersatzCollected, collectedKlein, collectedErsatz,
     summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
     pendingSignReportId, downloadReportId, reportSigned,
     workTypesCollected, collectedWorkTypes, suggestedWorkTypes, collectedWarranty, pendingProject,
     pendingProjectId, partialChosen, savedAsPartial,
-  }
+  }), [
+    messages, kleinCollected, ersatzCollected, collectedKlein, collectedErsatz,
+    summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
+    pendingSignReportId, downloadReportId, reportSigned,
+    workTypesCollected, collectedWorkTypes, suggestedWorkTypes, collectedWarranty, pendingProject,
+    pendingProjectId, partialChosen, savedAsPartial
+  ])
 
   // Rapport-Zwischenstand persistieren, sobald sich relevanter State ändert.
   // Leere Zustände (nur Begrüssung) löschen den Draft automatisch (siehe saveDraft).
   useEffect(() => {
     saveDraft(user.authorized_user_id, draftState, Date.now())
-  }, [user.authorized_user_id, messages, kleinCollected, ersatzCollected, collectedKlein,
-      collectedErsatz, summaryItems, pendingConfirm, pendingDisambiguation, pendingQuoteQuestion,
-      pendingSignReportId, downloadReportId, reportSigned,
-      workTypesCollected, collectedWorkTypes, suggestedWorkTypes, collectedWarranty, pendingProject,
-      pendingProjectId, partialChosen, savedAsPartial])
+  }, [user.authorized_user_id, draftState])
 
   // Reload und Tab-schliessen: der Browser fragt selbst nach, solange ein Rapport
   // offen ist. Best effort und mit zwei Einschränkungen — der Text ist der des
@@ -615,6 +618,9 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     if (initialProjectId) setPendingProjectId(initialProjectId)
     handleResponseStream(initialMessage, initialProject, initialProjectId)
     onInitialMessageConsumed?.()
+    // Startnachricht genau einmal je Mount (initialSentRef); Projekt und Callback
+    // gelten so, wie sie beim Start mitkamen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialMessage])
 
   async function handleConfirm() {

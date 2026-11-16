@@ -28,7 +28,6 @@ async function openForm() {
       canton="ZH"
       onBack={() => {}}
       onNavHome={() => {}}
-      onNavRapport={() => {}}
       onNavProfile={() => {}}
       onLoggedOut={() => {}}
     />

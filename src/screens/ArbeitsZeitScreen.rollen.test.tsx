@@ -20,7 +20,6 @@ function renderScreen(role?: string) {
       displayName="Kevin De Florian"
       role={role}
       onNavHome={() => {}}
-      onNavRapport={() => {}}
       onNavProjekte={() => {}}
       onNavProfile={() => {}}
       onLoggedOut={() => {}}

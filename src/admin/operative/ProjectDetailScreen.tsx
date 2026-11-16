@@ -41,10 +41,7 @@ import type { GenerateInvoiceOptions } from '../utils/invoiceMode'
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog'
 import { useUnsavedChangesGuard } from '../unsavedChanges'
 import { SCREEN_BACK_DEPTH, useScreenBack } from '../../shared/backButton'
-import {
-  DocumentsTab, SupplierDocumentsTab, QuotesTab, ReportsTab, InvoicesTab, ApprovalsTab, TasksTab,
-  ProjectQuote,
-} from './projectDetail/tabs'
+import { ProjectQuote } from './projectDetail/tabs'
 import { customerLinkTarget } from './projectDetail/customerLinkTarget'
 
 // Nachgeladen: nur mit Modul `reminders` gebraucht, und der Haupt-Chunk der
@@ -321,6 +318,8 @@ export default function ProjectDetailScreen({
   // Ausgangsstand nach, sonst gaelte die Maske sofort als geaendert.
   useEffect(() => {
     form.loadAppointments()
+    // Nur beim Öffnen bzw. Projektwechsel; form ist je Render ein neues Objekt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id])
 
   useEffect(() => {
@@ -332,6 +331,8 @@ export default function ProjectDetailScreen({
     billing.reloadReports()
     approvals.reload()
     tasks.reload()
+    // Nur beim Öffnen bzw. Projektwechsel; die Hook-Objekte entstehen je Render neu.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project?.id])
 
   // Kommentare + Aufgaben bei jeder Rückkehr in die App (visibilitychange),

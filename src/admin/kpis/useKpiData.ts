@@ -40,6 +40,9 @@ export function useKpiData<T>(
       .then((rows) => { if (!cancelled) { setData(rows); setLoading(false) } })
       .catch(() => { if (!cancelled) { setError('Daten konnten nicht geladen werden.'); setLoading(false) } })
     return () => { cancelled = true }
+    // filters geht über filterKey nach INHALT in die Deps: Aufrufer bauen das
+    // Objekt je Render neu, gleicher Inhalt soll nicht neu laden.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewName, filterKey, tenantId])
 
   useEffect(() => {

@@ -269,6 +269,7 @@ export default function HelpBubble({
   // Weg, der beides trifft. Beide Zustände werden nur gesetzt, wenn sich der
   // Wert wirklich ändert — sonst käme aus `snapToEdge` bei gleicher Lage ein
   // neues Objekt und das Nachmessen liefe im Kreis.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const reserve = measureBottomReserve()
     setBottomReserve(prev => (prev === reserve ? prev : reserve))

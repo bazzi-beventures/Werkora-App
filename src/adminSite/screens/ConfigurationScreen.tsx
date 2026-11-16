@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useTabStrip } from '../../admin/hooks/useTabStrip'
 import { ModulesTab } from './tabs/ModulesTab'
 import { WorkflowsTab } from './tabs/WorkflowsTab'
@@ -112,19 +112,25 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
           </button>
       </div>
 
-      {tab === 'modules' && <ModulesTab view="modules" tenantId={tenantId} />}
-      {tab === 'notifications' && <ModulesTab view="notifications" tenantId={tenantId} />}
-      {tab === 'workflows' && <WorkflowsTab tenantId={tenantId} />}
-      {tab === 'testing' && <TestingTab tenantId={tenantId} />}
-      {tab === 'travel-cost' && <TravelCostTab tenantId={tenantId} />}
-      {tab === 'scheduling' && <SchedulingTab tenantId={tenantId} />}
-      {tab === 'help-docs' && <HelpDocsTab tenantId={tenantId} />}
-      {/* key: lokaler Zustand (OAuth-Link, «wird nachgereicht») gehört zu genau einem Mandanten */}
-      {tab === 'bexio' && <BexioTab key={tenantId} tenantId={tenantId} />}
-      {/* key: eine halb ausgefüllte Absenderschranke darf nie beim nächsten Mandanten stehen bleiben */}
-      {tab === 'mail-eingang' && <MailEingangTab key={tenantId} tenantId={tenantId} />}
-      {/* key: halb gesetzte Schalter dürfen nie beim nächsten Mandanten stehen bleiben */}
-      {tab === 'service-begleitung' && <ServiceBegleitungTab key={tenantId} tenantId={tenantId} />}
+      {/* key: Ein Wechsel im Mandanten-Wähler lässt diesen Screen (und den
+          gewählten Reiter) stehen — die Tabs darunter müssen aber neu
+          aufgebaut werden. Ohne key liefen Module, Benachrichtigungen,
+          Workflows, Tests, Reisekosten, Disposition und Hilfe-Bot bis 2026-11
+          mit dem Stand des VORIGEN Mandanten weiter (sie laden nur beim
+          Mount), und «Speichern» schrieb diesen Stand beim neuen Mandanten ein.
+          Ebenso darf kein halb ausgefülltes Formular stehen bleiben. */}
+      <Fragment key={tenantId}>
+        {tab === 'modules' && <ModulesTab view="modules" tenantId={tenantId} />}
+        {tab === 'notifications' && <ModulesTab view="notifications" tenantId={tenantId} />}
+        {tab === 'workflows' && <WorkflowsTab tenantId={tenantId} />}
+        {tab === 'testing' && <TestingTab tenantId={tenantId} />}
+        {tab === 'travel-cost' && <TravelCostTab tenantId={tenantId} />}
+        {tab === 'scheduling' && <SchedulingTab tenantId={tenantId} />}
+        {tab === 'help-docs' && <HelpDocsTab tenantId={tenantId} />}
+        {tab === 'bexio' && <BexioTab tenantId={tenantId} />}
+        {tab === 'mail-eingang' && <MailEingangTab tenantId={tenantId} />}
+        {tab === 'service-begleitung' && <ServiceBegleitungTab tenantId={tenantId} />}
+      </Fragment>
 
     </div>
   )

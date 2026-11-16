@@ -46,6 +46,18 @@ describe('ErrorLogsScreen', () => {
     downloadErrorLogsCsv.mockResolvedValue({ truncated: false })
   })
 
+  it('übernimmt den Mandanten des Betreiber-Bereichs als Filter', async () => {
+    // AdminSite übergibt scope.tenantId — der Screen ignorierte ihn und zeigte
+    // im Bereich eines Mandanten die Fehler aller Mandanten.
+    render(<ErrorLogsScreen initialTenantId="t-1" />)
+
+    await waitFor(() => expect(getErrorLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 't-1' }),
+    ))
+    expect(getErrorLogs).not.toHaveBeenCalledWith(expect.objectContaining({ tenantId: undefined }))
+    expect(await screen.findByRole('option', { name: 'Gehlhaar GmbH' })).toHaveProperty('selected', true)
+  })
+
   it('zeigt Zeilen, Trefferzahl und Level-Zähler', async () => {
     render(<ErrorLogsScreen />)
 

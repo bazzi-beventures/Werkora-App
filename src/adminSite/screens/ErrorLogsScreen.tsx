@@ -185,7 +185,7 @@ export default function ErrorLogsScreen({ initialTenantId }: { initialTenantId?:
   const [preset, setPreset] = useState<PresetId>('7t')
   const [von, setVon] = useState<string>(() => presetRange('7t').von)
   const [bis, setBis] = useState<string>(() => presetRange('7t').bis)
-  const [tenantId, setTenantId] = useState<string>('')
+  const [tenantId, setTenantId] = useState<string>(initialTenantId ?? '')
   const [levels, setLevels] = useState<ErrorLevel[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')

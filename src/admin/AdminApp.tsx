@@ -1,4 +1,4 @@
-import { Fragment, Suspense, lazy, useEffect, useState, type JSX } from 'react'
+import { Fragment, Suspense, lazy, useCallback, useEffect, useState, type JSX } from 'react'
 import { UserInfo } from '../api/auth'
 import { getAdminDashboard, AdminDashboard } from '../api/admin'
 import AdminSidebar from './AdminSidebar'
@@ -145,9 +145,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // `takeProjectDeepLink` sind absichtlich nicht in der Liste — ein zweiter Lauf
   // fände ohnehin nichts mehr vor, würde aber eine begonnene Navigation
   // überschreiben.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     springe(nav, setDeepLinkTab)
+    // nav entsteht je Render neu und würde den Sprung wiederholen (siehe oben).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Eine Push bei OFFENER App: der Service Worker meldet sie, App.tsx merkt sich
@@ -184,15 +185,16 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   const kreditorenAktiv = hasModule(user, 'kreditoren')
   const [kreditorenZaehler, setKreditorenZaehler] = useState<KreditorZaehler | null>(null)
 
-  async function loadDashboard() {
+  const loadDashboard = useCallback(async () => {
     if (kreditorenAktiv) {
       getKreditorenZaehler().then(setKreditorenZaehler).catch(() => { /* Zahl bleibt, wie sie war */ })
     }
     try { setDashboard(await getAdminDashboard()) } catch { /* ignore */ }
-  }
+  }, [kreditorenAktiv])
 
-  useEffect(() => { loadDashboard() }, [])
-  useEffect(() => { if (screen === 'dashboard') loadDashboard() }, [screen])
+  // Deckt auch den Start ab: useAdminNav beginnt immer auf 'dashboard'. Bis
+  // 2026-11 lud ein zweiter Mount-Effect das Dashboard beim Start ein zweites Mal.
+  useEffect(() => { if (screen === 'dashboard') loadDashboard() }, [screen, loadDashboard])
   // Rückkehr in die App (am Handy: aus dem Hintergrund geholt) frischt das
   // Dashboard auf, solange es offen ist. Sonst standen dort Zahlen von vor
   // Stunden, und der Dialog dahinter zählte anders (Spec
@@ -203,7 +205,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     const beiRueckkehr = () => { if (document.visibilityState === 'visible') loadDashboard() }
     document.addEventListener('visibilitychange', beiRueckkehr)
     return () => document.removeEventListener('visibilitychange', beiRueckkehr)
-  }, [screen])
+  }, [screen, loadDashboard])
 
   // Zahl am Navigationspunkt «Wünsche & Roadmap» — wie das Abzeichen
   // «Feature-Anfragen» auf admin.werkora.ch, nur aus Sicht des Einreichers:

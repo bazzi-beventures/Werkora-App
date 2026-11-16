@@ -567,6 +567,9 @@ export default function App() {
         zumLogin()
       }
     })()
+    // Kaltstart genau einmal beim Mount: die Callbacks sind stabil, und
+    // hasStoredIdentity gilt bewusst mit dem Stand beim Start.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Der Umzugsstreifen sitzt zuoberst und schiebt die anderen Banner nach
@@ -856,7 +859,6 @@ export default function App() {
         role={user.role}
         user={user}
         onNavHome={() => go('home')}
-        onNavRapport={() => go('rapport')}
         onNavProjekte={() => go('projekte')}
         onNavProfile={() => go('profile')}
         onLoggedOut={goToAuth}
@@ -872,7 +874,6 @@ export default function App() {
         canton={canton}
         onBack={() => go('arbeitszeit')}
         onNavHome={() => go('home')}
-        onNavRapport={() => go('rapport')}
         onNavProfile={() => go('profile')}
         onLoggedOut={goToAuth}
       />
@@ -884,7 +885,6 @@ export default function App() {
         logoUrl={effectiveLogo}
         user={user}
         onNavHome={() => go('home')}
-        onNavRapport={() => go('rapport')}
         openProjectId={projekteOpenId}
         onProjectOpened={() => setProjekteOpenId(null)}
         onStartRapport={(project) => void startRapport(project)}
@@ -933,7 +933,6 @@ export default function App() {
         user={user}
         onBack={() => go('arbeitszeit')}
         onNavHome={() => go('home')}
-        onNavRapport={() => go('rapport')}
         onNavProfile={() => go('profile')}
         onLoggedOut={goToAuth}
       />

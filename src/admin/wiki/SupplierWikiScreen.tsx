@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { ApiError } from '../../api/client'
 import { listSuppliers, type Supplier } from '../../api/admin/suppliers'
 import {
@@ -52,7 +52,7 @@ export default function SupplierWikiScreen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const pollRef = useRef<number | null>(null)
 
-  async function load(quiet = false) {
+  const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
     try {
       setHandbooks(await listWikiHandbooks())
@@ -61,13 +61,16 @@ export default function SupplierWikiScreen() {
     } finally {
       if (!quiet) setLoading(false)
     }
-  }
+  }, [showToast])
 
   useEffect(() => {
     load()
     listSuppliers().then(setSuppliers).catch(() => { /* Auswahl bleibt leer, Freitext geht weiter */ })
-    return () => { if (pollRef.current) window.clearInterval(pollRef.current) }
-  }, [])
+    return () => {
+      if (pollRef.current) window.clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [load])
 
   // Solange ein Index läuft, die Liste still nachladen — der Admin sieht sonst
   // «wird eingelesen» stehen, bis er selbst neu lädt.
@@ -79,7 +82,7 @@ export default function SupplierWikiScreen() {
       window.clearInterval(pollRef.current)
       pollRef.current = null
     }
-  }, [running])
+  }, [running, load])
 
   async function onPick(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]

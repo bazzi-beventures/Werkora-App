@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import * as scoped from '../../tenantScopedApi'
 import type {
   TenantFeaturesResponse, FeatureRegistryEntry, FeatureFieldSchema,
@@ -23,7 +23,7 @@ export function WorkflowsTab({ tenantId }: { tenantId: string }) {
   const [openKeys, setOpenKeys] = useState<Set<string>>(new Set())
   const [query, setQuery] = useState('')
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     try {
       const result = await scoped.getFeatures(tenantId)
@@ -34,9 +34,9 @@ export function WorkflowsTab({ tenantId }: { tenantId: string }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId, showToast])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   if (loading || !data) {
     return <><div className="admin-loading"><div className="admin-spinner" /> Workflows werden geladen…</div><ToastHost toast={toast} /></>

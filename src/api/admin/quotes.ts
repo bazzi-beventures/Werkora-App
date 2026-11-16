@@ -10,7 +10,7 @@
 import { apiBlobFetch, apiFetch, apiFormFetch } from '../client'
 import type { Antwort } from '../generated'
 import { listPageParams, type ListPage, type ListPageQuery } from './listPage'
-import type { ConfirmedPosition, PdfExtractionResponse } from '../../admin/operative/PdfExtractionReviewModal'
+import type { PdfExtractionResponse } from '../../admin/operative/PdfExtractionReviewModal'
 
 // Teilmenge der Listen-Antwort: was für die Frage «gibt es zu diesem Projekt eine
 // angenommene Offerte?» reicht.

@@ -7,13 +7,12 @@ import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 
 interface Props {
-  onNav?: (screen: string, id?: string) => void
   // Rolle des eingeloggten Benutzers — begrenzt in der Anlage-Maske die
   // vergebbaren Berechtigungen (Spiegel der Backend-Matrix, siehe userRoles.ts).
   actingRole: string
 }
 
-export default function StaffScreen({ onNav, actingRole }: Props) {
+export default function StaffScreen({ actingRole }: Props) {
   const isMobile = useIsMobile()
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { fetchMyAbsences, createAbsenceRequest, fetchVacationEntitlement, UserAbsence, AbsenceCreatePayload, VacationEntitlement } from '../api/chat'
 import { ApiError } from '../api/client'
 import { countWorkdays } from '../admin/utils/calendarHelpers'
@@ -8,7 +8,6 @@ interface Props {
   canton?: string
   onBack: () => void
   onNavHome: () => void
-  onNavRapport: () => void
   onNavProfile: () => void
   onLoggedOut: () => void
 }
@@ -42,7 +41,7 @@ function dayCount(start: string, end: string, canton: string): string {
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHome, onNavRapport, onNavProfile, onLoggedOut }: Props) {
+export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHome, onNavProfile, onLoggedOut }: Props) {
   const [absences, setAbsences] = useState<UserAbsence[]>([])
   const [entitlement, setEntitlement] = useState<VacationEntitlement | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,7 +57,7 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
   const [submitting, setSubmitting] = useState(false)
   const [msg, setMsg] = useState<{ text: string; isError: boolean } | null>(null)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -73,9 +72,9 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
     } finally {
       setLoading(false)
     }
-  }
+  }, [onLoggedOut])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   async function handleSubmit() {
     if (!form.date_start || !form.date_end) return

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getAdminAbsences, approveAbsence, rejectAbsence, Absence, DECIDE_BLOCK_TEXT } from '../../api/admin'
 import AbsenceCalendar from './AbsenceCalendar'
 import { countWorkdays } from '../utils/calendarHelpers'
@@ -111,7 +111,7 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
   const [calendarLoaded, setCalendarLoaded] = useState(false)
   const isMobile = useIsMobile()
 
-  async function load() {
+  const load = useCallback(async () => {
     if (tab === 'calendar') return
     setLoading(true)
     try {
@@ -119,23 +119,22 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
     } finally {
       setLoading(false)
     }
-  }
-
-  useEffect(() => {
-    if (tab === 'calendar') {
-      if (!calendarLoaded) {
-        setCalendarLoading(true)
-        getAdminAbsences()
-          .then(data => {
-            setCalendarAbsences(data.filter(a => a.status !== 'rejected'))
-            setCalendarLoaded(true)
-          })
-          .finally(() => setCalendarLoading(false))
-      }
-      return
-    }
-    load()
   }, [tab])
+
+  // Kalender: einmal laden, beim ersten Öffnen des Reiters.
+  useEffect(() => {
+    if (tab !== 'calendar' || calendarLoaded) return
+    setCalendarLoading(true)
+    getAdminAbsences()
+      .then(data => {
+        setCalendarAbsences(data.filter(a => a.status !== 'rejected'))
+        setCalendarLoaded(true)
+      })
+      .finally(() => setCalendarLoading(false))
+  }, [tab, calendarLoaded])
+
+  // Listen-Reiter: bei jedem Wechsel (load kehrt im Kalender sofort zurück).
+  useEffect(() => { load() }, [load])
 
   async function handleApprove(id: string) {
     setActing(id)
