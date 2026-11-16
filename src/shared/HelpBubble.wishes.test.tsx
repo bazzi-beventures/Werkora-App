@@ -102,6 +102,29 @@ describe('HelpBubble — Wünsche', () => {
     await waitFor(() => expect(markWishesRead).toHaveBeenCalled())
   })
 
+  it('Satz des Betreibers beim Zuordnen: im Hinweis und unter «Meine Wünsche»', async () => {
+    // WW-86: der Satz kam früher nie an — zugeordnete Wünsche zeigten nur die Phase.
+    const satz = 'Einen Mahnstopp je Rechnung nehmen wir auf die Roadmap.'
+    fetchMyWishes.mockResolvedValue({
+      requests: [{
+        id: 'r-86', request_no: 86, reference: 'WW-86', origin: 'anfrage', title: 'Mahnstopp',
+        importance: 'wichtig', triage: 'zugeordnet', triage_label: 'Zugeordnet', answer: satz,
+        created_at: '2026-11-13T14:00:00Z', created_on: '2026-11-13',
+        notified_at: '2026-11-16T17:00:00Z', read_at: null,
+        feature: { id: 'f-54', reference: 'WF-54', phase_label: 'In Prüfung', target_label: 'offen' },
+      }],
+      unread: 1,
+      news: [{ ...NEWS[0], source: 'anfrage', feature_id: 'f-54', reference: 'WF-54', answer: satz }],
+    })
+    render(<HelpBubble showHelp={false} showWishes />)
+    const notice = await screen.findByRole('dialog', { name: /Neues zu deinen Wünschen/ })
+    expect(notice.textContent).toContain(satz)
+    fireEvent.click(screen.getByRole('button', { name: 'Später' }))
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+    fireEvent.click(screen.getByRole('button', { name: /Wünsche \(1\)/ }))
+    expect(await screen.findByText(satz)).toBeTruthy()
+  })
+
   it('ohne Neuigkeiten kein Hinweis', async () => {
     fetchMyWishes.mockResolvedValue({ requests: [], unread: 0, news: [] })
     render(<HelpBubble showHelp={false} showWishes />)

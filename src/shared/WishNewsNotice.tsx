@@ -65,7 +65,7 @@ export default function WishNewsNotice({ news, appContext, onAcknowledge, onOpen
               </div>
               {n.title && <div className="wish-card-title">{n.title}</div>}
               <div className="wish-accent">{line(n)}</div>
-              {n.kind === 'antwort' && n.answer && <div className="wish-quote">{n.answer}</div>}
+              {n.answer && <div className="wish-quote">{n.answer}</div>}
               {isQuestion(n) && <div className="wish-muted">Bitte beantworte die Frage unter «Meine Wünsche».</div>}
             </li>
           ))}

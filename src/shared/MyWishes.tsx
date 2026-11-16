@@ -276,7 +276,7 @@ export default function MyWishes({
             {w.triage === 'rueckfrage' && !showPerson ? (
               <QuestionReply wish={w} onAnswered={() => onChanged?.()} />
             ) : (
-              w.answer && w.triage !== 'zugeordnet' && <div className="wish-quote">{w.answer}</div>
+              w.answer && <div className="wish-quote">{w.answer}</div>
             )}
             {!showPerson && (w.triage === 'neu' || w.triage === 'rueckfrage') && w.origin === 'anfrage' && (
               <div>
