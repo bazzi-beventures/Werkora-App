@@ -44,6 +44,7 @@ import { STATUS_LABELS as VORSCHLAG_STATUS } from './hagelschaden/dispo/dispoFor
 import { anforderung, fehlende, pillenJeMitarbeiter } from '../utils/skillMatch'
 import { SkillPill } from '../components/SkillPills'
 import { farbeJeKategorie, useTerminFarbenAktiv } from './terminFarben'
+import { EinsatzArtWahl } from './EinsatzArtWahl'
 import {
   repeatToRecurrence,
   appointmentEntries,
@@ -53,7 +54,6 @@ import {
   newApptForm,
   slotToApptForm,
   fmtSlotDate,
-  internalFormTitle,
   leerbar,
   emptyInternalForm,
   APPT_WINDOW_BACK_DAYS,
@@ -109,10 +109,7 @@ export default function ProjectScheduleScreen({
   // Titel-Vorschläge für provisorische Blocker (Konfiguration → Einsatzplanung).
   // Getrimmt und ohne Leereinträge — eine ältere, von Hand geschriebene Config
   // darf im Dropdown keine leere Zeile erzeugen.
-  const blockerCategories = useMemo(
-    () => (schedulingConfig?.blocker_categories ?? []).map(c => c.trim()).filter(Boolean),
-    [schedulingConfig],
-  )
+
   const [form, setForm] = useState<FormState | null>(null)
   // Terminfarben aus der hier ohnehin geladenen Config, nur mit dem Feature.
   const terminFarbenAktiv = useTerminFarbenAktiv()
@@ -121,6 +118,12 @@ export default function ProjectScheduleScreen({
     [terminFarbenAktiv, schedulingConfig],
   )
   const farben = useMemo(() => farbeJeKategorie(terminFarben), [terminFarben])
+  // Mit Terminfarben sind sie die Arten interner Einsätze (EinsatzArtWahl) — die
+  // Blocker-Kategorien treten dann zurück, statt eine dritte Liste daneben zu stellen.
+  const blockerCategories = useMemo(
+    () => terminFarben.length ? [] : (schedulingConfig?.blocker_categories ?? []).map(c => c.trim()).filter(Boolean),
+    [schedulingConfig, terminFarben],
+  )
   const [apptForm, setApptForm] = useState<ApptFormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -706,11 +709,17 @@ export default function ProjectScheduleScreen({
         }) as unknown as { project?: { id?: string } } & { id?: string }
         targetId = form.id || saved.project?.id || saved.id
       }
+      // Terminfarbe eines internen Einsatzes (EinsatzArtWahl) gilt für alle seine Termine.
+      const tf = isInternal ? form.terminFarbe : undefined
+      for (const a of tf === undefined ? [] : panelAppointments) {
+        if (a.id !== apptForm?.id && (a.color_category ?? '') !== tf) await updateAppointment(a.id, { color_category: tf })
+      }
       if (apptForm && apptForm.startDate && targetId) {
         // Payload wie im Detail-Editor: '' leert ein Feld explizit (Partial-PATCH
         // kann mit null nichts löschen), monteur_ids [] gibt das Projekt-Team
         // zurück, und die Bezeichnung geht nur bei kind 'sonstiges' mit.
-        const payload = { ...draftPayload(apptForm), ...(override ? { ignore_absence_conflicts: true } : {}) }
+        const payload = { ...draftPayload(apptForm), ...(tf !== undefined ? { color_category: tf } : {}),
+          ...(override ? { ignore_absence_conflicts: true } : {}) }
         if (apptForm.id) {
           const scope: AppointmentScope = apptForm.seriesId ? apptForm.scope : 'single'
           const rhythm = scope === 'following' ? repeatToRecurrence(apptForm.seriesRhythm, apptForm.seriesUntil) : null
@@ -1185,58 +1194,13 @@ export default function ProjectScheduleScreen({
               <>
                 <div className="project-schedule-divider" />
 
-                <label className="project-schedule-field">
-                  <span>Art des Einsatzes</span>
-                  <select
-                    className="admin-input"
-                    value={form.kind}
-                    onChange={e => setForm(f => {
-                      if (!f) return f
-                      const nextKind = e.target.value as ProjectKind
-                      // Titel automatisch mitziehen, solange er noch dem Default-
-                      // Label der bisherigen Art entspricht (Nutzer hat ihn nicht
-                      // angepasst). Ein manuell getippter Titel bleibt erhalten.
-                      const titleUntouched = !f.name.trim() || f.name === PROJECT_KIND_LABELS[f.kind]
-                      const nextName = titleUntouched && nextKind !== 'project'
-                        ? internalFormTitle(nextKind, blockerCategories)
-                        : f.name
-                      return { ...f, kind: nextKind, name: nextName }
-                    })}
-                    disabled={!!form.id && form.kind === 'project'}
-                  >
-                    {/* „Kundenprojekt" ist das normale, über den Picker gewählte
-                        Projekt — nur zur Anzeige eines bestehenden Kundenprojekts,
-                        nicht als umschaltbare Art für interne Einsätze. */}
-                    {form.kind === 'project' && <option value="project">Kundenprojekt</option>}
-                    <option value="teamsitzung">Teamsitzung</option>
-                    <option value="weiterbildung">Weiterbildung / Kurs</option>
-                    <option value="lagerarbeit">Lagerarbeit</option>
-                    <option value="werkstatt">Werkstatt / Vorbereitung</option>
-                    <option value="reservation">Mitarbeiter-Reservation</option>
-                    <option value="blocker">Blocker (provisorisch)</option>
-                    <option value="sonstiges">Sonstiges</option>
-                  </select>
-                </label>
-
-                {/* Blocker-Kategorien (Konfiguration → Einsatzplanung): setzen den
-                    Titel per Auswahl. Das Titelfeld bleibt darunter stehen — eine
-                    Kategorie kann man ergänzen («Wartet auf Material – Storen Muster»),
-                    und wer eine Bezeichnung ausserhalb der Liste braucht, tippt sie. */}
-                {form.kind === 'blocker' && blockerCategories.length > 0 && (
-                  <label className="project-schedule-field">
-                    <span>Kategorie</span>
-                    <select
-                      className="admin-input"
-                      value={blockerCategories.includes(form.name) ? form.name : ''}
-                      onChange={e => setForm(f => f && ({ ...f, name: e.target.value }))}
-                    >
-                      <option value="">— Kategorie wählen —</option>
-                      {blockerCategories.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
+                <EinsatzArtWahl
+                  form={form}
+                  setForm={setForm}
+                  blockerCategories={blockerCategories}
+                  terminFarben={terminFarben}
+                  farbeBisher={panelAppointments[0]?.color_category}
+                />
 
                 {form.kind !== 'project' && (
                   <label className="project-schedule-field">
@@ -1355,7 +1319,7 @@ export default function ProjectScheduleScreen({
                     skillChip={skillChip}
                     brauchtZeile={brauchtZeile}
                     toggleApptMonteur={toggleApptMonteur}
-                    terminFarben={terminFarben}
+                    terminFarben={form.kind === 'project' || form.kind === 'blocker' ? terminFarben : []}
                   />
                 )}
 

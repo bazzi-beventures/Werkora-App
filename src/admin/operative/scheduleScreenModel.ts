@@ -40,6 +40,9 @@ export interface FormState {
   projektleiterId: string
   monteurIds: string[]
   bemerkung: string
+  // Terminfarbe eines internen Einsatzes, gewählt als «Art» (EinsatzArtWahl);
+  // undefined = nicht angefasst, '' = keine. Gespeichert an seinen Terminen.
+  terminFarbe?: string
 }
 
 // ─── Serientermine ──────────────────────────────────────────────────────────
