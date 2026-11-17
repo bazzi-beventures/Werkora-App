@@ -1,9 +1,8 @@
-import { BetaBadge } from '../../shared/BetaBadge'
 import type { TerminFarbe } from '../../api/admin/tenant'
 import { useTerminFarben } from './terminFarben'
 
 // Auswahl der Terminfarbe im Termin-Formular (Projektmaske und Planungs-Panel),
-// docs/specs/termin-farbkategorien.md. Ohne Beta-Feature oder ohne gepflegte
+// docs/specs/termin-farbkategorien.md. Ohne Feature oder ohne gepflegte
 // Kategorien erscheint nichts. Ein Schlüssel, den der Betrieb inzwischen
 // gelöscht hat, bleibt als «(entfernt)» wählbar, bis jemand umstellt — sonst
 // zeigte das Feld still «Keine» und das Speichern nähme die Farbe weg.
@@ -27,7 +26,7 @@ export function TerminFarbeWahl({ value, onChange, disabled, kategorien }: Props
   const verwaist = !!value && !aktuell
   return (
     <div className="admin-form-group" style={{ margin: 0 }}>
-      <label className="admin-form-label">Terminfarbe <BetaBadge /></label>
+      <label className="admin-form-label">Terminfarbe</label>
       <div className="termin-farbe-wahl">
         <span
           className="termin-farbe-punkt"

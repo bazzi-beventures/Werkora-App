@@ -1,8 +1,8 @@
 // Terminfarben (docs/specs/termin-farbkategorien.md): Farbkategorien je Termin,
 // vom Betrieb selbst gepflegt (Einstellungen → Terminfarben). Der Termin trägt
 // nur den Schlüssel (`color_category`); Name und Farbe kommen aus der Liste in
-// `scheduling_config.termin_farben`. Beta-Feature `termin_farbkategorien`: ohne
-// Häkchen liefert der Hook eine leere Liste — keine Auswahl, keine Farbe.
+// `scheduling_config.termin_farben`. Feature-Flag `termin_farbkategorien`: ist es
+// aus, liefert der Hook eine leere Liste — keine Auswahl, keine Farbe.
 //
 // TanStack Query mit dem gemeinsamen Client (CLAUDE.md, Datenzugriff im
 // Frontend): Projektmaske, Einsatzplanung und Einstellungs-Reiter teilen den

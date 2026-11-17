@@ -23,7 +23,7 @@ interface Props {
   skillChip: (staffId: string, braucht: string[]) => { cls: string; title?: string; marke: string }
   brauchtZeile: (braucht: string[]) => ReactNode
   toggleApptMonteur: (id: string) => void
-  /** Terminfarben des Betriebs (leer ohne Beta-Feature) — keine Auswahl. */
+  /** Terminfarben des Betriebs (leer ohne Feature) — keine Auswahl. */
   terminFarben?: TerminFarbe[]
 }
 

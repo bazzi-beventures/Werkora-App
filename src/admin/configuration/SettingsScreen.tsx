@@ -4,7 +4,6 @@ import { WeeklyPlanTab } from './tabs/WeeklyPlanTab'
 import { YearEndTab } from './tabs/YearEndTab'
 import { TerminDauerTab } from './tabs/TerminDauerTab'
 import { TerminFarbenTab } from './tabs/TerminFarbenTab'
-import { BetaBadge } from '../../shared/BetaBadge'
 
 /**
  * Einstellungen des Mandanten — Wochenplan und Jahresabschluss.
@@ -31,7 +30,7 @@ import { BetaBadge } from '../../shared/BetaBadge'
  * Dauer-Vorgaben je Termin-Art. Ebenfalls eine Entscheidung des Betriebs — jeder hat
  * andere Einsätze —, Schreiben verlangt im Backend `require_management`.
  *
- * Vierter Reiter «Terminfarben» (Beta `termin_farbkategorien`): Farbkategorien je
+ * Vierter Reiter «Terminfarben» (Feature `termin_farbkategorien`): Farbkategorien je
  * Termin für den Einsatzplan (docs/specs/termin-farbkategorien.md) — auch eine
  * Frage des Betriebs, Schreiben verlangt `require_management`.
  *
@@ -83,7 +82,7 @@ export default function SettingsScreen({ terminDauer = false, terminFarben = fal
             className={`kpi-admin-tab${tab === 'termin-farben' ? ' active' : ''}`}
             onClick={() => setTab('termin-farben')}
           >
-            Terminfarben <BetaBadge />
+            Terminfarben
           </button>
         )}
       </div>

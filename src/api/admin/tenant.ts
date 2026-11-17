@@ -102,7 +102,7 @@ export interface SchedulingConfig {
   day_capacity_hours?: number
   // Titel-Auswahl für provisorische Blocker. Leer = freies Titelfeld wie bisher.
   blocker_categories?: string[]
-  // Farbkategorien je Termin (Beta `termin_farbkategorien`, pflegt der Betrieb
+  // Farbkategorien je Termin (Feature `termin_farbkategorien`, pflegt der Betrieb
   // selbst). Leer = keine Auswahl im Termin-Formular.
   termin_farben?: TerminFarbe[]
 }

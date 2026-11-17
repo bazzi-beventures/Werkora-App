@@ -114,7 +114,7 @@ export default function ProjectScheduleScreen({
     [schedulingConfig],
   )
   const [form, setForm] = useState<FormState | null>(null)
-  // Terminfarben aus der hier ohnehin geladenen Config, nur mit Beta-Feature.
+  // Terminfarben aus der hier ohnehin geladenen Config, nur mit dem Feature.
   const terminFarbenAktiv = useTerminFarbenAktiv()
   const terminFarben = useMemo(
     () => (terminFarbenAktiv ? schedulingConfig?.termin_farben ?? [] : []),
