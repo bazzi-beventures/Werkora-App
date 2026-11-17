@@ -1,0 +1,21 @@
+/* Ziel-Fläche beim Verschieben (dropGhost.ts): hellblau über die ganze Dauer. */
+.schedule-drop-ghost {
+  position: absolute;
+  background: rgba(59, 130, 246, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Uhrzeit in der Fläche (Tagesplan: oberhalb wäre sie von der Nachbarzeile verdeckt). */
+.schedule-drop-ghost-label {
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  transform: translateY(-50%);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+}

@@ -182,6 +182,28 @@ describe('Tagesplan (Gantt)', () => {
     expect(onReschedule).toHaveBeenCalledWith('a1', 0, '10:00', ['s2'])
   })
 
+  it('beim Ziehen markiert eine hellblaue Fläche Ziel und Dauer, der Drop räumt sie weg', () => {
+    const { container } = renderGantt()
+    const dataTransfer = fakeDataTransfer()
+    fireEvent.dragStart(container.querySelector('.project-cal-gantt-bar')!, { dataTransfer })
+
+    const track = rows(container)[1].querySelector('.project-cal-gantt-track') as HTMLElement
+    const hourWidth = GANTT_ZOOM_LEVELS[GANTT_ZOOM_DEFAULT]
+    const over = createEvent.dragOver(track, { dataTransfer })
+    Object.defineProperty(over, 'clientX', { value: 3 * hourWidth })
+    fireEvent(track, over)
+
+    // Einsatz 09:00–11:00 (2 h), gezogen auf 10:00 → Fläche 10:00–12:00, zwei Stunden breit.
+    const ghost = screen.getByTestId('drop-ghost')
+    expect(ghost).toHaveTextContent('10:00–12:00')
+    expect(ghost.style.width).toBe(`${2 * hourWidth}px`)
+
+    const drop = createEvent.drop(track, { dataTransfer })
+    Object.defineProperty(drop, 'clientX', { value: 3 * hourWidth })
+    fireEvent(track, drop)
+    expect(screen.queryByTestId('drop-ghost')).toBeNull()
+  })
+
   it('Klick auf freie Rasterfläche plant einen Einsatz mit Uhrzeit und Zeilen-Monteur', async () => {
     const user = userEvent.setup()
     const onCreateSlot = vi.fn()

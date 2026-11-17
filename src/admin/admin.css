@@ -3242,17 +3242,7 @@ button.admin-list-item {
   background: rgba(59, 130, 246, 0.08);
 }
 
-/* Vorschau-Linie beim Ziehen ins Zeitraster: zeigt, wo der Block-Anfang (Uhrzeit) landet. */
-.project-cal-week-drop-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 0;
-  border-top: 2px solid var(--primary);
-  pointer-events: none;
-  z-index: 5;
-}
-
+/* Uhrzeit an der Ziel-Fläche beim Ziehen (operative/dropGhost.css). */
 .project-cal-week-drop-time {
   position: absolute;
   top: -8px;

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, act } from '@testing-library/react'
+import { createEvent, render, screen, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ProjectScheduleCalendar, { CalendarEntry } from './ProjectScheduleCalendar'
 import {
@@ -250,5 +250,25 @@ describe('Hover-Karte', () => {
 
     fireEvent.mouseDown(block)
     expect(document.querySelector('.project-cal-hovercard')).not.toBeInTheDocument()
+  })
+
+  it('beim Ziehen zeigt eine hellblaue Fläche die ganze Dauer am Ziel', async () => {
+    const { container } = renderCal()
+    await openWeek()
+    const store: Record<string, string> = {}
+    const dataTransfer = { setData: (k: string, v: string) => { store[k] = v }, getData: (k: string) => store[k] ?? '' }
+    const block = container.querySelector('.project-cal-week-event')!
+    fireEvent.dragStart(block, { dataTransfer })
+    // jsdom misst alles mit 0 → clientY 0 ist der Rasteranfang (07:00).
+    const col = container.querySelectorAll('.project-cal-week-day-col')[1] as HTMLElement
+    // fireEvent.dragOver reicht clientY nicht durch (jsdom kennt kein DragEvent).
+    const over = createEvent.dragOver(col, { dataTransfer })
+    Object.defineProperty(over, 'clientY', { value: 0 })
+    fireEvent(col, over)
+
+    const ghost = screen.getByTestId('drop-ghost')
+    expect(ghost).toHaveTextContent('07:00–09:00')
+    fireEvent.dragEnd(block)
+    expect(screen.queryByTestId('drop-ghost')).toBeNull()
   })
 })

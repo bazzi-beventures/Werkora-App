@@ -8,6 +8,7 @@ import { getWeekDays, toDateStr, isToday, diffDays, hhmmToMin, minToHHMM } from 
 import { computeWeekHours, computeLanes, laneStyle, tileLayout, timeOffsetPx, timedBlockHeightPx, yToSnappedTime, WEEK_SNAP_MIN, type TileLayout } from '../utils/weekGrid'
 import { absenceEntryLookup, absencesOnDay, type DayAbsence, entryTitle, fmtTime, fmtTimeRange, kindSymbol, pillBg, pillClass, pillExtraLines, projectCoversDay, readDragPayload, setDragPayload, useHoverCard, visibleWeekDays, type CalendarEntry, type StaffLite } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
+import { dragDauerMin, ghostLabel, GHOST_MIN_DAUER } from './dropGhost'
 import CrewChips from './CrewChips'
 import { openBinding } from './scheduleCalendarHelpers'
 import { AbsenceChips } from './scheduleCalendarParts'
@@ -50,8 +51,12 @@ export function WeekView({
   const absentByDay: DayAbsence[][] = days.map(d => absencesOnDay(absentOn, absenceStaff, toDateStr(d)))
   const [hoverDayISO, setHoverDayISO] = useState<string | null>(null)
   const { hover, bind } = useHoverCard()
-  // Live-Vorschau beim Ziehen ins Zeitraster: an welchem Tag/Höhe der Block landet.
-  const [dropPreview, setDropPreview] = useState<{ dayISO: string; topPx: number; time: string } | null>(null)
+  // Live-Vorschau beim Ziehen ins Zeitraster: die Fläche, auf der der Block landet —
+  // eingerastet, über die ganze Dauer (dropGhost.ts).
+  const [dropPreview, setDropPreview] = useState<{ dayISO: string; topPx: number; heightPx: number; label: string } | null>(null)
+  // Dauer des gezogenen Einsatzes (Minuten, null = ganztägig) — wie der Greif-Offset
+  // während dragover nicht aus dataTransfer lesbar.
+  const dragDauerRef = useRef<number | null>(null)
   // Greif-Offset (px ab Block-Oberkante) des laufenden Drags. dataTransfer ist
   // während dragover nicht lesbar, darum hier zwischengespeichert.
   const dragGrabYRef = useRef(0)
@@ -203,8 +208,10 @@ export function WeekView({
       draggable: true,
       onDragStart: (e: React.DragEvent) => {
         dragGrabYRef.current = Math.round(e.nativeEvent.offsetY) || 0
+        dragDauerRef.current = dragDauerMin(p)
         setDragPayload(e, p.id, dayISO)
       },
+      onDragEnd: () => setDropPreview(null),
       onClick: () => onSelect(p),
       ...openBinding(p, onOpenProject),
       ...bind(p),
@@ -344,8 +351,14 @@ export function WeekView({
               onDragOver={e => {
                 e.preventDefault()
                 const rect = e.currentTarget.getBoundingClientRect()
-                const topPx = e.clientY - rect.top - dragGrabYRef.current
-                setDropPreview({ dayISO, topPx, time: yToSnappedTime(topPx, startHour, endHour, hourHeight) })
+                const time = yToSnappedTime(e.clientY - rect.top - dragGrabYRef.current, startHour, endHour, hourHeight)
+                const dauer = dragDauerRef.current
+                setDropPreview({
+                  dayISO,
+                  topPx: timeOffsetPx(time, startHour, hourHeight),
+                  heightPx: ((dauer ?? GHOST_MIN_DAUER) / 60) * hourHeight,
+                  label: ghostLabel(time, dauer),
+                })
               }}
               onDragLeave={e => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -367,10 +380,14 @@ export function WeekView({
               {timed.map(p => renderBlock(p, dayISO, false, lanes.get(p.id)))}
               {dropPreview?.dayISO === dayISO && (
                 <div
-                  className="project-cal-week-drop-line"
-                  style={{ top: Math.max(0, Math.min(gridHeight, dropPreview.topPx)) }}
+                  className="schedule-drop-ghost"
+                  data-testid="drop-ghost"
+                  style={{
+                    top: Math.min(gridHeight, dropPreview.topPx), left: 2, right: 2,
+                    height: Math.max(4, Math.min(gridHeight - dropPreview.topPx, dropPreview.heightPx)),
+                  }}
                 >
-                  <span className="project-cal-week-drop-time">{dropPreview.time}</span>
+                  <span className="project-cal-week-drop-time">{dropPreview.label}</span>
                 </div>
               )}
               {createBox?.dayISO === dayISO && (

@@ -17,6 +17,7 @@ import {
   setDragPayload, useScheduleDistances,
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
+import { dragDauerMin, ghostLabel, GHOST_MIN_DAUER } from './dropGhost'
 import CrewChips from './CrewChips'
 import StaffNameCell from './StaffNameCell'
 import { diffDays, isToday, toDateStr } from '../utils/calendarHelpers'
@@ -81,6 +82,10 @@ export default function ProjectScheduleGantt({
   const { hover, bind } = useHoverCard()
   // Zeile, über der gerade ein Balken schwebt: rowId ('' = «Ohne Monteur»).
   const [hoverRow, setHoverRow] = useState<string | null>(null)
+  // Ziel-Fläche beim Ziehen (dropGhost.ts): eingerastet, über die ganze Dauer.
+  const [ghost, setGhost] = useState<{ row: string; leftPx: number; widthPx: number; label: string } | null>(null)
+  // Greif-Offset und Dauer des laufenden Drags — dataTransfer ist in dragover nicht lesbar.
+  const dragRef = useRef<{ grabX: number; dauer: number | null; allDay: boolean }>({ grabX: 0, dauer: null, allDay: false })
   const days = ganttDays(currentDate, span, hideWeekend)
   const staffIds = new Set(staff.map(s => s.id))
 
@@ -152,6 +157,7 @@ export default function ProjectScheduleGantt({
   function handleDrop(e: React.DragEvent, rowId: string | null) {
     e.preventDefault()
     setHoverRow(null)
+    setGhost(null)
     const payload = readDragPayload(e)
     if (!payload) return
     const proj = projects.find(p => p.id === payload.projectId)
@@ -171,6 +177,22 @@ export default function ProjectScheduleGantt({
     const newTeam = reassignTeam(proj.monteur_ids, rowId, payload.sourceRowId || null)
     const timeChanged = time !== undefined && time !== (proj.start_time ?? '').slice(0, 5)
     if (delta !== 0 || newTeam || timeChanged) onReschedule(proj.id, delta, time, newTeam)
+  }
+
+  function updateGhost(e: React.DragEvent, row: string) {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = clampX(e.clientX - rect.left - dragRef.current.grabX)
+    const dayIndex = xToDayIndex(x, days.length, startHour, endHour, hourW)
+    const dayLeft = dayIndex * dayW
+    if (dragRef.current.allDay) {
+      setGhost({ row, leftPx: dayLeft, widthPx: dayW, label: '' })
+      return
+    }
+    const time = xToSnappedTime(x, startHour, endHour, hourW)
+    const left = dayLeft + timeOffsetX(time, startHour, hourW)
+    const width = ((dragRef.current.dauer ?? GHOST_MIN_DAUER) / 60) * hourW
+    setGhost({ row, leftPx: left, widthPx: Math.max(4, Math.min(width, dayLeft + dayW - left)),
+               label: ghostLabel(time, dragRef.current.dauer) })
   }
 
   function handleTrackClick(e: React.MouseEvent, rowId: string | null) {
@@ -214,7 +236,11 @@ export default function ProjectScheduleGantt({
           `${rowId !== null && isVacation(absentOn(rowId, dayISO)) ? ' on-vacation' : ''}`
         }
         draggable
-        onDragStart={e => setDragPayload(e, p.id, dayISO, rowId ?? '', 'x')}
+        onDragStart={e => {
+          dragRef.current = { grabX: Math.round(e.nativeEvent.offsetX) || 0, dauer: dragDauerMin(p), allDay }
+          setDragPayload(e, p.id, dayISO, rowId ?? '', 'x')
+        }}
+        onDragEnd={() => setGhost(null)}
         onClick={() => onSelect(p)}
         onDoubleClick={onOpenProject ? e => {
           e.preventDefault()
@@ -323,10 +349,11 @@ export default function ProjectScheduleGantt({
             `${onCreateSlot ? ' creatable' : ''}`
           }
           style={{ width: axisW }}
-          onDragOver={e => { e.preventDefault(); setHoverRow(cellKey) }}
+          onDragOver={e => { e.preventDefault(); setHoverRow(cellKey); updateGhost(e, cellKey) }}
           onDragLeave={e => {
             if (!e.currentTarget.contains(e.relatedTarget as Node)) {
               setHoverRow(prev => prev === cellKey ? null : prev)
+              setGhost(prev => prev?.row === cellKey ? null : prev)
             }
           }}
           onDrop={e => handleDrop(e, rowId)}
@@ -367,6 +394,15 @@ export default function ProjectScheduleGantt({
               </div>
             )
           })}
+          {ghost?.row === cellKey && (
+            <div
+              className="schedule-drop-ghost"
+              data-testid="drop-ghost"
+              style={{ left: ghost.leftPx, width: ghost.widthPx, top: 2, bottom: 2 }}
+            >
+              {ghost.label && <span className="schedule-drop-ghost-label">{ghost.label}</span>}
+            </div>
+          )}
           {days.map((d, i) => {
             const dayISO = toDateStr(d)
             const entries = perDay[i]
