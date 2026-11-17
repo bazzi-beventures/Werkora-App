@@ -21,6 +21,8 @@ function withDefaults(cfg: Partial<SchedulingConfig>, def: SchedulingConfig): Sc
     grey_until: cfg.grey_until ?? def.grey_until ?? '',
     day_capacity_hours: cfg.day_capacity_hours ?? def.day_capacity_hours ?? 8,
     blocker_categories: cfg.blocker_categories ?? def.blocker_categories ?? [],
+    // Pflegt der Betrieb selbst — hier nur unverändert durchreichen.
+    termin_farben: cfg.termin_farben ?? def.termin_farben ?? [],
   }
 }
 

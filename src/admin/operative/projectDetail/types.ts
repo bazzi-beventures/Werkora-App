@@ -37,6 +37,9 @@ export interface ProjectInvoice {
   created_without_report?: boolean
   /** 'anzahlung' = Anzahlungsrechnung (WW-47). */
   invoice_kind?: string | null
+  /** Offene Rechnung, obwohl schon eine bezahlte in der Höhe von Offerte/Rapport
+   *  (±10 %) auf dem Projekt liegt — services/verrechnung_check.py. */
+  evtl_bereits_verrechnet?: boolean | null
 }
 
 // Ein Rapport in der Liste des Projekt-Details — generiert aus `RapportZeile`

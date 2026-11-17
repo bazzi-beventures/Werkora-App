@@ -1,0 +1,42 @@
+/* Terminfarben (docs/specs/termin-farbkategorien.md): auf einer hellen
+   Kategorie-Farbe (Gelb, Khaki, Hellblau …) trägt die weisse Schrift der
+   Kacheln nicht — dort dunkle Schrift. Die Klasse setzt pillClass(). */
+.project-cal-pill.tf-hell,
+.project-cal-week-event.tf-hell,
+.project-cal-agenda-event.tf-hell,
+.project-cal-board-chip.tf-hell,
+.project-cal-gantt-bar.tf-hell {
+  color: #1e293b;
+}
+
+.termin-farbe-punkt {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex: none;
+}
+
+.termin-farbe-wahl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.termin-farben-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.termin-farben-zeile input[type='color'] {
+  width: 44px;
+  height: 36px;
+  padding: 2px;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+}

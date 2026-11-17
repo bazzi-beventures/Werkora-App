@@ -9,6 +9,9 @@ export interface AdminDashboard {
   pending_corrections: number
   pending_absences: number
   open_invoices: number
+  /** Rechnungen erstellt, nie versendet (ausstehend/offen) — Kachel «Rechnungsentwürfe».
+   *  Optional: ein älterer Server liefert das Feld nicht. */
+  draft_invoices?: number
   open_sessions: number
   draft_quotes: number
   quotes_pending_reminder: number

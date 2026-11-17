@@ -162,8 +162,15 @@ export async function listQuotes(): Promise<Quote[]> {
 /** Eine Seite der Offertenliste — Status, Suche und Projektleiter filtert der
  *  Server. Die Suche läuft über Nummer, Projekt, Kunde und den Projektleiter, der
  *  die Offerte erstellt hat (Snapshot). */
-export async function listQuotesPage(q: ListPageQuery): Promise<ListPage<Quote>> {
-  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}`)
+export async function listQuotesPage(
+  q: ListPageQuery & {
+    /** Nur Offerten, die in den letzten n Tagen angenommen bzw. abgelehnt wurden
+     *  (genau ein Status `akzeptiert`/`abgelehnt`) — das Fenster der Dashboard-Kacheln. */
+    entschiedenSeitTagen?: number
+  },
+): Promise<ListPage<Quote>> {
+  const fenster = q.entschiedenSeitTagen ? `&entschieden_seit_tagen=${q.entschiedenSeitTagen}` : ''
+  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}${fenster}`)
 }
 
 // ─── Anlegen und Bearbeiten ─────────────────────────────────

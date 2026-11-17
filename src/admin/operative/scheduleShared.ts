@@ -15,6 +15,7 @@ import type { Project, ScheduleProject } from '../../api/admin/projects'
 import type { Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { projectCustomerName } from '../utils/project'
 import { diffDays, hhmmToMin, minToHHMM, parseDateStr, shiftISO, toDateStr } from '../utils/calendarHelpers'
+import { istHell } from './terminFarben'
 
 export interface StaffLite {
   id: string
@@ -31,7 +32,8 @@ export interface StaffLite {
 // termin_kind: roher Termin-Typ (AppointmentKind, siehe api/admin/scheduling.ts)
 // für das Typ-Symbol — nur bei Kundenprojekten gesetzt, interne Einsätze nutzen
 // p.kind.
-export type CalendarEntry = ScheduleProject & { termin_badge?: string; termin_kind?: string }
+// termin_farbe: Farbe der Terminfarbe (terminFarben.ts), schlägt die Art-Farbe.
+export type CalendarEntry = ScheduleProject & { termin_badge?: string; termin_kind?: string; termin_farbe?: string }
 
 // ─── Formatierung ────────────────────────────────────────────────────────────
 
@@ -187,8 +189,8 @@ export const KIND_COLORS: Record<string, string> = {
   sonstiges:   'var(--kind-sonstiges, #475569)',    // Slate
 }
 
-export function pillBg(p: ScheduleProject): string {
-  return KIND_COLORS[p.kind || 'project'] ?? KIND_COLORS.project
+export function pillBg(p: ScheduleProject & { termin_farbe?: string }): string {
+  return p.termin_farbe ?? KIND_COLORS[p.kind || 'project'] ?? KIND_COLORS.project
 }
 
 // Zusatz-Klasse für die Kachel eines Einsatzes. Ein Blocker ist provisorische
@@ -196,9 +198,10 @@ export function pillBg(p: ScheduleProject): string {
 // Geplantes und Vorgemerktes im Raster nie verwechselt. Die Klasse kommt zur
 // Inline-Hintergrundfarbe dazu, statt sie zu ersetzen: die Farbe bleibt pro
 // Mandant konfigurierbar, die Schraffur ist fix.
-export function pillClass(p: ScheduleProject): string {
+export function pillClass(p: ScheduleProject & { termin_farbe?: string }): string {
   if (isVorschlag(p.id)) return ' vorschlag'
-  return p.kind === 'blocker' ? ' provisional' : ''
+  // Helle Terminfarbe → dunkle Schrift (terminFarben.css).
+  return (p.kind === 'blocker' ? ' provisional' : '') + (istHell(p.termin_farbe) ? ' tf-hell' : '')
 }
 
 // Vorschläge der Hagelschaden-Disposition (docs/specs/hagelschaden-disposition.md

@@ -44,14 +44,13 @@ const BESTAND = {
   'admin/operative/ProjectScheduleCalendar.tsx': 750, // 713 (Charge M4d, vorher 1550)
   'admin/operative/ReportCreateForm.tsx': 1300, // 1253
   'chat/ChatScreen.tsx': 1250, // 1222
-  'admin/operative/InvoicesScreen.tsx': 1200, // 1142
+  'admin/operative/InvoicesScreen.tsx': 720, // 673 — Aktionen/Dialoge nach invoices/useInvoiceActions (20261117; vorher 1142)
   'admin/operative/projectDetail/useProjectForm.ts': 1100, // 1046
   'admin/kpis/kpi-dashboard.css': 900, // 1068, nach Charge O5 (altes BI-Layout entfernt) 858
   'admin/operative/MaterialsScreen.tsx': 1050, // 1010
   'admin/operative/ProjectsScreen.tsx': 1050, // 981
   'App.tsx': 1050, // 991
   'adminSite/screens/FeatureRequestsScreen.tsx': 1000, // 971
-  'admin/dashboard/DashboardScreen.tsx': 750, // 675 — Überfällig-Dialog herausgezogen (20261113)
   'admin/operative/ProjectDetailScreen.tsx': 1000, // 942
   'adminSite/screens/SupportTicketsScreen.tsx': 900, // 863
   'admin/tasks/TaskBoardScreen.tsx': 900, // 850

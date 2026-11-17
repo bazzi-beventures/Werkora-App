@@ -87,7 +87,7 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // der Versand hängt am Termin, gehört aber zum eigenen Modul.
   { test: /appointment_notice/,                  module: 'termin_bestaetigung' },
   // /schedul/ vor /project/: `admin_update_project_schedule` ist Einsatzplanung.
-  { test: /schedul|appointment/,                 module: 'scheduling' },
+  { test: /schedul|appointment|^termin_farben_/, module: 'scheduling' },
   { test: /document_backup/,                     module: 'document_backup' },
   // Skill-Matrix (Personal, Spec mitarbeiterdisposition-faehigkeiten-routen.md §4.5) —
   // vor /reorder/: `admin_reorder_skills` gehört zum Personal, nicht zum Lager.
@@ -297,6 +297,7 @@ const ACTION_LABELS: Record<string, string> = {
   terminanfrage_zurueckgezogen: 'Servicebegleitung: Terminanfrage zurückgezogen',
   kundenlink_gesperrt: 'Servicebegleitung: Kundenlink gesperrt',
   termindauer_geaendert: 'Servicebegleitung: Dauer-Vorgaben geändert',
+  termin_farben_geaendert: 'Einsatzplanung: Terminfarben geändert',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
   admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',

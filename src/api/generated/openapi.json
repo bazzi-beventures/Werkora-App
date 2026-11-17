@@ -1443,6 +1443,22 @@
         }
       }
     },
+    "/pwa/admin/tenant/termin-farben": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminFarben"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/terminanfragen/{anfrage_id}/zurueckziehen": {
       "post": {
         "responses": {
@@ -3864,6 +3880,17 @@
           "project_name": {
             "type": "string"
           },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Zum Öffnen des Projekts aus dem Dialog; null bei einer freistehenden Offerte."
+          },
           "total_amount": {
             "anyOf": [
               {
@@ -4941,6 +4968,17 @@
               }
             ]
           },
+          "evtl_bereits_verrechnet": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Offene Rechnung auf einem Projekt, das schon eine bezahlte Rechnung in der Höhe von Offerte/Rapport (±10 %) hat — braucht es sie noch? (services/verrechnung_check.py). null = nicht geprüft (Betreiber-Liste)."
+          },
           "due_date": {
             "anyOf": [
               {
@@ -5402,6 +5440,17 @@
                 "type": "null"
               }
             ]
+          },
+          "color_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Farbkategorie (Schlüssel aus den Terminfarben des Betriebs); null = Farbe der Einsatz-Art. Spec termin-farbkategorien."
           }
         },
         "type": "object",
@@ -5549,6 +5598,17 @@
               }
             ]
           },
+          "color_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Farbkategorie (Schlüssel aus den Terminfarben des Betriebs); null = Farbe der Einsatz-Art. Spec termin-farbkategorien."
+          },
           "series_count": {
             "type": "integer"
           }
@@ -5604,6 +5664,42 @@
           "arten"
         ],
         "description": "Vorgaben des Betriebs je Termin-Art und die Arten, für die es eine geben kann."
+      },
+      "TerminFarbe": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "description": "#rrggbb"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "color"
+        ],
+        "description": "Eine Farbkategorie des Betriebs; `key` steht am Termin (`color_category`)."
+      },
+      "TerminFarben": {
+        "properties": {
+          "kategorien": {
+            "items": {
+              "$ref": "#/components/schemas/TerminFarbe"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kategorien"
+        ],
+        "description": "Die Terminfarben des Betriebs, in der gepflegten Reihenfolge."
       },
       "TerminGeaendert": {
         "properties": {
@@ -5735,6 +5831,17 @@
                 "type": "null"
               }
             ]
+          },
+          "color_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Farbkategorie (Schlüssel aus den Terminfarben des Betriebs); null = Farbe der Einsatz-Art. Spec termin-farbkategorien."
           },
           "series_updated": {
             "type": "integer"

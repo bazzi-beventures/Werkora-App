@@ -102,6 +102,24 @@ export interface SchedulingConfig {
   day_capacity_hours?: number
   // Titel-Auswahl für provisorische Blocker. Leer = freies Titelfeld wie bisher.
   blocker_categories?: string[]
+  // Farbkategorien je Termin (Beta `termin_farbkategorien`, pflegt der Betrieb
+  // selbst). Leer = keine Auswahl im Termin-Formular.
+  termin_farben?: TerminFarbe[]
+}
+
+// ─── Terminfarben (docs/specs/termin-farbkategorien.md) ─────
+export type TerminFarbe = Antwort<'TerminFarbe'>
+export const TERMIN_FARBEN_FEATURE = 'termin_farbkategorien'
+export const TERMIN_FARBEN_MAX = 20  // db/tenants.py SCHEDULING_TERMIN_FARBEN_MAX
+export const TERMIN_FARBE_LABEL_MAXLEN = 60  // db/tenants.py SCHEDULING_TERMIN_FARBE_LABEL_MAXLEN
+
+/** Ganze Liste ersetzen; neue Einträge ohne `key`, den vergibt der Server. */
+export async function saveTerminFarben(
+  kategorien: { key?: string; label: string; color: string }[],
+): Promise<Antwort<'TerminFarben'>> {
+  return apiFetch<Antwort<'TerminFarben'>>('/pwa/admin/tenant/termin-farben', {
+    method: 'PUT', body: JSON.stringify({ kategorien }),
+  })
 }
 
 export interface TenantSchedulingResponse {
@@ -128,6 +146,7 @@ function mergeSchedulingConfig(
     grey_until: cfg.grey_until ?? def.grey_until ?? '',
     day_capacity_hours: cfg.day_capacity_hours ?? def.day_capacity_hours,
     blocker_categories: cfg.blocker_categories ?? def.blocker_categories ?? [],
+    termin_farben: cfg.termin_farben ?? def.termin_farben ?? [],
   }
 }
 

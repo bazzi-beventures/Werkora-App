@@ -17,6 +17,7 @@ import {
 } from '../projectAppointments'
 import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
 import { TerminVorschlagDialog } from './TerminVorschlagDialog'
+import { TerminFarbeWahlGeladen } from '../TerminFarbeWahl'
 import type { TerminVorschlag } from '../../../api/serviceBegleitung'
 
 interface Props {
@@ -292,6 +293,8 @@ export default function AppointmentsCard({
                         />
                       </div>
                     )}
+                    <TerminFarbeWahlGeladen value={d.colorCategory}
+                                            onChange={k => patch(d.key, { colorCategory: k })} />
                   </div>
 
                   <div className="admin-form-row">

@@ -346,7 +346,11 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
         <QuotesScreen initialStatus={detailId} onConsumed={clearDetail}
           onOpenProject={id => guardedNav('projects', id)} />
       ))
-      case 'invoices':     return guard('invoicing', <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav} />)
+      // detailId = Statusfilter beim Einstieg (Kachel «Rechnungen offen» → 'gesendet').
+      case 'invoices':     return guard('invoicing', (
+        <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav}
+          initialStatus={detailId} onConsumed={clearDetail} />
+      ))
       case 'delivery-notes': return guard('lieferschein_erfassung', (
         <DeliveryNotesScreen onChanged={loadDashboard} />
       ))
@@ -421,7 +425,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={s => guardedNav(s)} />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
-      case 'settings':     return <SettingsScreen terminDauer={hasWerkzeug(user, 'terminwahl')} />
+      case 'settings':     return <SettingsScreen terminDauer={hasWerkzeug(user, 'terminwahl')}
+                                                  terminFarben={isFeatureEnabled(user, 'termin_farbkategorien')} />
       case 'profile':      return (
         <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}
                             onToggleTheme={toggleTheme} onLoggedOut={onLoggedOut} />

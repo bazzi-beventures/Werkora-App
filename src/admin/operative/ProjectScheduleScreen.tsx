@@ -43,6 +43,7 @@ import {
 import { STATUS_LABELS as VORSCHLAG_STATUS } from './hagelschaden/dispo/dispoFormat'
 import { anforderung, fehlende, pillenJeMitarbeiter } from '../utils/skillMatch'
 import { SkillPill } from '../components/SkillPills'
+import { farbeJeKategorie, useTerminFarbenAktiv } from './terminFarben'
 import {
   repeatToRecurrence,
   appointmentEntries,
@@ -113,6 +114,13 @@ export default function ProjectScheduleScreen({
     [schedulingConfig],
   )
   const [form, setForm] = useState<FormState | null>(null)
+  // Terminfarben aus der hier ohnehin geladenen Config, nur mit Beta-Feature.
+  const terminFarbenAktiv = useTerminFarbenAktiv()
+  const terminFarben = useMemo(
+    () => (terminFarbenAktiv ? schedulingConfig?.termin_farben ?? [] : []),
+    [terminFarbenAktiv, schedulingConfig],
+  )
+  const farben = useMemo(() => farbeJeKategorie(terminFarben), [terminFarben])
   const [apptForm, setApptForm] = useState<ApptFormState | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -146,7 +154,7 @@ export default function ProjectScheduleScreen({
   // Für die Doppelbelegungs-Warnung (WW-70) alle Termine, auch die, die der
   // Projektleiter-Filter gerade ausblendet: ein Monteur ist auch dann besetzt,
   // wenn sein anderer Einsatz einem anderen Projektleiter gehört.
-  const allEntries = useMemo(() => appointmentEntries(projects, appointments), [projects, appointments])
+  const allEntries = useMemo(() => appointmentEntries(projects, appointments, farben), [projects, appointments, farben])
   const [visibleWeekIso, setVisibleWeekIso] = useState<string>('')
   const [visibleStaffIds, setVisibleStaffIds] = useState<string[] | null>(null)
   const [exporting, setExporting] = useState(false)
@@ -864,7 +872,7 @@ export default function ProjectScheduleScreen({
   // damit der Normalfall (Montage) ruhig bleibt.
   const calendarEntries = useMemo<CalendarEntry[]>(() => {
     const projById = new Map(filteredByPl.map(p => [p.id, p]))
-    const entries: CalendarEntry[] = appointmentEntries(filteredByPl, appointments)
+    const entries: CalendarEntry[] = appointmentEntries(filteredByPl, appointments, farben)
     // Vorschläge (Phase 2b): eigene Einträge mit VORSCHLAG_PREFIX — gestrichelt
     // (pillClass), Klick und Verschieben fangen die Handler oben ab.
     if (vorschlaegeZeigen) {
@@ -886,7 +894,7 @@ export default function ProjectScheduleScreen({
     }
     if (twPlanung.zeigen) entries.push(...reservationEntries(projById, twPlanung.reservationen))
     return entries
-  }, [filteredByPl, appointments, vorschlaege, vorschlaegeZeigen, twPlanung.zeigen, twPlanung.reservationen])
+  }, [filteredByPl, appointments, farben, vorschlaege, vorschlaegeZeigen, twPlanung.zeigen, twPlanung.reservationen])
 
 
   const scheduledProjectIds = useMemo(
@@ -1347,6 +1355,7 @@ export default function ProjectScheduleScreen({
                     skillChip={skillChip}
                     brauchtZeile={brauchtZeile}
                     toggleApptMonteur={toggleApptMonteur}
+                    terminFarben={terminFarben}
                   />
                 )}
 

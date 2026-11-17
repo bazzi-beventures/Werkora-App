@@ -1,17 +1,12 @@
-import { Suspense, lazy, useState, useEffect } from 'react'
-import { backdropCloseProps } from '../../shared/backdropClose'
-import {
-  AdminDashboard,
-  PendingReminderQuote, getPendingReminderQuotes, sendQuoteReminder,
-  PendingActionInvoice, getPendingActionInvoices, sendZahlungserinnerung, sendMahnung,
-  MahnStufe, mahnschreibenPdfUrl, markReminderSentByPost,
-  PendingApproval, getPendingApprovals, approveApproval, rejectApproval,
-} from '../../api/admin'
+import { Suspense, lazy, useState } from 'react'
+import { AdminDashboard } from '../../api/admin'
 import { AdminScreen } from '../useAdminNav'
-import { daysSince, fmtCHF, fmtDate } from '../utils/format'
-import { apiUrl } from '../../api/client'
-import { useToast, ToastHost } from '../components/useToast'
 import { OverdueProjectsModal } from './OverdueProjectsModal'
+import { OfferReminderModal } from './OfferReminderModal'
+import { OpenQuotesPanel, type QuotePanelArt } from './OpenQuotesPanel'
+import { MahnungModal } from './MahnungModal'
+import { DraftInvoicesPanel } from './DraftInvoicesPanel'
+import { ApprovalModal } from './ApprovalModal'
 
 // Nachgeladen: nur mit Modul `reminders` gebraucht, und der Haupt-Chunk der
 // Mandanten-App steht an der 2-MiB-Grenze des Precache (siehe AdminApp).
@@ -91,387 +86,13 @@ function IconBoxLow() {
   return <svg viewBox="0 0 20 20" fill="currentColor"><path d="M4 3a1 1 0 0 0-1 1v2h14V4a1 1 0 0 0-1-1H4zm13 5H3v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zm-9 3h4a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2z"/></svg>
 }
 
-// ─── Modal: Offerten-Erinnerungen ───────────────────────────
-
-interface ReminderModalProps {
-  onClose: () => void
-  onSent: () => void
-}
-
-function ReminderModal({ onClose, onSent }: ReminderModalProps) {
-  const [quotes, setQuotes] = useState<PendingReminderQuote[] | null>(null)
-  const [sending, setSending] = useState<number | null>(null)
-  const { toast, showToast } = useToast(3000)
-
-  useEffect(() => {
-    getPendingReminderQuotes().then(setQuotes).catch(() => setQuotes([]))
-  }, [])
-
-  async function handleSend(quoteId: number) {
-    setSending(quoteId)
-    try {
-      await sendQuoteReminder(quoteId)
-      showToast('Erinnerung gesendet', 'success')
-      setQuotes(q => q ? q.filter(x => x.id !== quoteId) : q)
-      onSent()
-    } catch {
-      showToast('Fehler beim Senden', 'error')
-    } finally {
-      setSending(null)
-    }
-  }
-
-  return (
-    <div className="admin-modal-overlay" {...backdropCloseProps(onClose)}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
-        <div className="admin-modal-header">
-          <div className="admin-modal-title">Offerten-Erinnerungen</div>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="admin-modal-body">
-          <ToastHost toast={toast} />
-          {quotes === null && <div className="admin-loading"><div className="admin-spinner" />Lade…</div>}
-          {quotes !== null && quotes.length === 0 && <div className="admin-empty">Keine fälligen Erinnerungen</div>}
-          {quotes !== null && quotes.length > 0 && (
-            <div className="admin-list">
-              {quotes.map(q => (
-                <div key={q.id} className="admin-list-item" style={{ gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{q.quote_number}</div>
-                    <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                      {q.customer_name} — {q.project_name}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                      Gesendet: {fmtDate(q.sent_at)} ({daysSince(q.sent_at)} Tage) · {fmtCHF(q.total_amount)}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{q.customer_email}</div>
-                  </div>
-                  <button
-                    className="admin-btn admin-btn-primary"
-                    style={{ whiteSpace: 'nowrap' }}
-                    disabled={sending === q.id}
-                    onClick={() => handleSend(q.id)}
-                  >
-                    {sending === q.id ? 'Sende…' : 'Erinnerung senden'}
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Modal: Rechnungs-Mahnungen ──────────────────────────────
-
-interface MahnungModalProps {
-  onClose: () => void
-  onSent: () => void
-}
-
-function MahnungModal({ onClose, onSent }: MahnungModalProps) {
-  const [invoices, setInvoices] = useState<PendingActionInvoice[] | null>(null)
-  const [sending, setSending] = useState<{ id: number; type: 'erinnerung' | 'mahnung' } | null>(null)
-  // Brief geöffnet, Versand noch nicht vermerkt (WW-35). Bewusst zwei Schritte:
-  // das PDF anzusehen darf die Mahnstufe nicht weiterschalten — erst der Klick
-  // auf «vermerken» setzt den Zeitstempel, wie der Mail-Versand es tut.
-  const [brief, setBrief] = useState<{ id: number; stufe: MahnStufe } | null>(null)
-  const [vermerkt, setVermerkt] = useState(false)
-  const { toast, showToast } = useToast(3500)
-
-  useEffect(() => {
-    getPendingActionInvoices().then(setInvoices).catch(() => setInvoices([]))
-  }, [])
-
-  async function handleErinnerung(invoiceId: number) {
-    setSending({ id: invoiceId, type: 'erinnerung' })
-    try {
-      await sendZahlungserinnerung(invoiceId)
-      showToast('Zahlungserinnerung gesendet', 'success')
-      setInvoices(list => list
-        ? list.map(inv => inv.id === invoiceId ? { ...inv, zahlungserinnerung_sent_at: new Date().toISOString() } : inv)
-        : list
-      )
-      onSent()
-    } catch {
-      showToast('Fehler beim Senden', 'error')
-    } finally {
-      setSending(null)
-    }
-  }
-
-  async function handleMahnung(invoiceId: number) {
-    setSending({ id: invoiceId, type: 'mahnung' })
-    try {
-      await sendMahnung(invoiceId)
-      showToast('Mahnung gesendet', 'success')
-      setInvoices(list => list
-        ? list.map(inv => inv.id === invoiceId ? { ...inv, mahnung_sent_at: new Date().toISOString() } : inv)
-        : list
-      )
-      onSent()
-    } catch {
-      showToast('Fehler beim Senden', 'error')
-    } finally {
-      setSending(null)
-    }
-  }
-
-  async function handleBriefVermerken(invoiceId: number, stufe: MahnStufe) {
-    setVermerkt(true)
-    try {
-      await markReminderSentByPost(invoiceId, stufe)
-      const feld = stufe === 'zahlungserinnerung' ? 'zahlungserinnerung_sent_at' : 'mahnung_sent_at'
-      showToast(stufe === 'zahlungserinnerung'
-        ? 'Zahlungserinnerung per Post vermerkt' : 'Mahnung per Post vermerkt', 'success')
-      setInvoices(list => list
-        ? list.map(inv => inv.id === invoiceId ? { ...inv, [feld]: new Date().toISOString() } : inv)
-        : list
-      )
-      setBrief(null)
-      onSent()
-    } catch {
-      showToast('Fehler beim Vermerken', 'error')
-    } finally {
-      setVermerkt(false)
-    }
-  }
-
-  const isSending = (id: number, type: 'erinnerung' | 'mahnung') =>
-    sending?.id === id && sending?.type === type
-
-  return (
-    <div className="admin-modal-overlay" {...backdropCloseProps(onClose)}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
-        <div className="admin-modal-header">
-          <div className="admin-modal-title">Überfällige Rechnungen</div>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="admin-modal-body">
-          <ToastHost toast={toast} />
-          {invoices === null && <div className="admin-loading"><div className="admin-spinner" />Lade…</div>}
-          {invoices !== null && invoices.length === 0 && <div className="admin-empty">Keine überfälligen Rechnungen</div>}
-          {invoices !== null && invoices.length > 0 && (
-            <div className="admin-list">
-              {invoices.map(inv => (
-                <div key={inv.id} className="admin-list-item" style={{ flexDirection: 'column', gap: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{inv.invoice_number}</div>
-                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 500, marginTop: 2 }}>
-                        {inv.project_id_text ? `${inv.project_id_text} · ` : ''}{inv.project_name || '—'}
-                      </div>
-                      {inv.customer_name && (
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-                          Kunde: {inv.customer_name}
-                        </div>
-                      )}
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                        Gesendet: {fmtDate(inv.sent_at)} ({daysSince(inv.sent_at)} Tage offen)
-                        {inv.due_date ? ` · Fällig: ${fmtDate(inv.due_date)}` : ''}
-                        {' · '}{fmtCHF(inv.total_amount)}
-                      </div>
-                      <div style={{ fontSize: 12, marginTop: 4, display: 'flex', gap: 12 }}>
-                        {inv.zahlungserinnerung_sent_at && (
-                          <span style={{ color: '#ca8a04' }}>Erinnerung: {fmtDate(inv.zahlungserinnerung_sent_at)}</span>
-                        )}
-                        {inv.mahnung_sent_at && (
-                          <span style={{ color: 'var(--danger)' }}>Mahnung: {fmtDate(inv.mahnung_sent_at)}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button
-                      className="admin-btn admin-btn-secondary"
-                      style={{ flex: 1 }}
-                      disabled={sending !== null}
-                      onClick={() => handleErinnerung(inv.id)}
-                    >
-                      {isSending(inv.id, 'erinnerung') ? 'Sende…' : 'Zahlungserinnerung'}
-                    </button>
-                    <button
-                      className="admin-btn admin-btn-danger"
-                      style={{ flex: 1 }}
-                      disabled={sending !== null}
-                      onClick={() => handleMahnung(inv.id)}
-                    >
-                      {isSending(inv.id, 'mahnung') ? 'Sende…' : 'Mahnung senden'}
-                    </button>
-                  </div>
-                  {/* Papierfassung für Kunden ohne E-Mail oder mit Postversand (WW-35).
-                      Ein Link statt eines Knopfs: das PDF öffnet sich im neuen Tab. */}
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <a
-                      className="admin-btn admin-btn-secondary"
-                      style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
-                      href={mahnschreibenPdfUrl(inv.id, 'zahlungserinnerung')}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setBrief({ id: inv.id, stufe: 'zahlungserinnerung' })}
-                    >
-                      Erinnerung als Brief (PDF)
-                    </a>
-                    <a
-                      className="admin-btn admin-btn-secondary"
-                      style={{ flex: 1, textAlign: 'center', textDecoration: 'none' }}
-                      href={mahnschreibenPdfUrl(inv.id, 'mahnung')}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={() => setBrief({ id: inv.id, stufe: 'mahnung' })}
-                    >
-                      Mahnung als Brief (PDF)
-                    </a>
-                  </div>
-                  {brief?.id === inv.id && (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
-                      <span style={{ flex: 1, color: 'var(--text-muted)' }}>
-                        {brief.stufe === 'zahlungserinnerung' ? 'Zahlungserinnerung' : 'Mahnung'} ausgedruckt und verschickt?
-                      </span>
-                      <button
-                        className="admin-btn admin-btn-primary"
-                        disabled={vermerkt}
-                        onClick={() => handleBriefVermerken(inv.id, brief.stufe)}
-                      >
-                        {vermerkt ? 'Speichere…' : 'Als per Post versendet vermerken'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── Modal: Bestellfreigaben ─────────────────────────────────
-
-interface ApprovalModalProps {
-  onClose: () => void
-  onSent: () => void
-}
-
-function ApprovalModal({ onClose, onSent }: ApprovalModalProps) {
-  const [approvals, setApprovals] = useState<PendingApproval[] | null>(null)
-  const [busy, setBusy] = useState<{ id: string; type: 'approve' | 'reject' } | null>(null)
-  const { toast, showToast } = useToast(3000)
-
-  useEffect(() => {
-    getPendingApprovals().then(setApprovals).catch(() => setApprovals([]))
-  }, [])
-
-  async function handleApprove(id: string) {
-    setBusy({ id, type: 'approve' })
-    try {
-      await approveApproval(id)
-      showToast('Freigabe erteilt', 'success')
-      setApprovals(list => list ? list.filter(a => a.id !== id) : list)
-      onSent()
-    } catch {
-      showToast('Fehler beim Freigeben', 'error')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function handleReject(id: string) {
-    const note = window.prompt('Grund für Ablehnung (optional):') ?? undefined
-    if (note === null) return
-    setBusy({ id, type: 'reject' })
-    try {
-      await rejectApproval(id, note)
-      showToast('Freigabe abgelehnt', 'success')
-      setApprovals(list => list ? list.filter(a => a.id !== id) : list)
-      onSent()
-    } catch {
-      showToast('Fehler beim Ablehnen', 'error')
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  const isBusy = (id: string, type: 'approve' | 'reject') =>
-    busy?.id === id && busy?.type === type
-
-  return (
-    <div className="admin-modal-overlay" {...backdropCloseProps(onClose)}>
-      <div className="admin-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 620 }}>
-        <div className="admin-modal-header">
-          <div className="admin-modal-title">Bestellfreigaben für mich</div>
-          <button className="admin-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="admin-modal-body">
-          <ToastHost toast={toast} />
-          {approvals === null && <div className="admin-loading"><div className="admin-spinner" />Lade…</div>}
-          {approvals !== null && approvals.length === 0 && <div className="admin-empty">Keine offenen Freigaben für dich</div>}
-          {approvals !== null && approvals.length > 0 && (
-            <div>
-              {approvals.map(a => (
-                <div key={a.id} className="approval-card">
-                  <div className="approval-head">
-                    <div className="approval-title">{a.title}</div>
-                    <div className="approval-project">{a.project_name ?? '—'}</div>
-                    <div className="approval-meta">
-                      <span className="approval-meta-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                        {a.requested_by_name ?? '—'}
-                      </span>
-                      <span className="approval-meta-item">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                          <line x1="16" y1="2" x2="16" y2="6" />
-                          <line x1="8" y1="2" x2="8" y2="6" />
-                          <line x1="3" y1="10" x2="21" y2="10" />
-                        </svg>
-                        {fmtDate(a.created_at)}
-                      </span>
-                    </div>
-                  </div>
-                  {a.storage_path && (
-                    <a className="approval-file" href={apiUrl(`/pwa/admin/approvals/${a.id}/download`)} target="_blank" rel="noreferrer">
-                      <span className="approval-file-icon">PDF</span>
-                      <span className="approval-file-name">{a.filename}</span>
-                    </a>
-                  )}
-                  <div className="approval-actions">
-                    <button
-                      className="approval-btn approval-btn-approve"
-                      disabled={busy !== null}
-                      onClick={() => handleApprove(a.id)}
-                    >
-                      {isBusy(a.id, 'approve') ? '…' : 'Freigeben'}
-                    </button>
-                    <button
-                      className="approval-btn approval-btn-reject"
-                      disabled={busy !== null}
-                      onClick={() => handleReject(a.id)}
-                    >
-                      {isBusy(a.id, 'reject') ? '…' : 'Ablehnen'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Dashboard ───────────────────────────────────────────────
 
 export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showReminders, onOverdueCount }: Props) {
   const [showReminderModal, setShowReminderModal] = useState(false)
+  const [quotePanel, setQuotePanel] = useState<QuotePanelArt | null>(null)
   const [showMahnungModal, setShowMahnungModal] = useState(false)
+  const [showDraftInvoices, setShowDraftInvoices] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState(false)
   const [showOverdueProjectsModal, setShowOverdueProjectsModal] = useState(false)
 
@@ -527,8 +148,19 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
             label="Rechnungen offen"
             value={dashboard?.open_invoices ?? null}
             colorClass="red"
-            onClick={() => onNav('invoices')}
+            onClick={() => onNav('invoices', 'gesendet')}
             icon={<IconCash />}
+          />
+          {/* Pendenz, nicht Liste: erstellt, aber nie versendet — sollte am Ende
+              des Tages auf 0 stehen. «Rechnungen offen» daneben führt bewusst
+              weiter in die gefilterte Rechnungsliste. */}
+          <KpiCard
+            label="Rechnungsentwürfe"
+            value={dashboard ? dashboard.draft_invoices ?? 0 : null}
+            colorClass="orange"
+            onClick={() => setShowDraftInvoices(true)}
+            icon={<IconDocument />}
+            badge
           />
           <KpiCard
             label="Rechnungen überfällig"
@@ -589,14 +221,14 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
             label="Offerten in Bearbeitung"
             value={dashboard?.draft_quotes ?? null}
             colorClass="purple"
-            onClick={() => onNav('quotes')}
+            onClick={() => setQuotePanel('offen')}
             icon={<IconReceipt />}
           />
           <KpiCard
             label="Angenommene Offerten (14 Tage)"
             value={dashboard?.recently_accepted_quotes ?? null}
             colorClass="green"
-            onClick={() => onNav('quotes', 'akzeptiert')}
+            onClick={() => setQuotePanel('akzeptiert')}
             icon={<IconCheckCircle />}
             badge
           />
@@ -604,7 +236,7 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
             label="Abgelehnte Offerten (14 Tage)"
             value={dashboard?.recently_rejected_quotes ?? null}
             colorClass="red"
-            onClick={() => onNav('quotes', 'abgelehnt')}
+            onClick={() => setQuotePanel('abgelehnt')}
             icon={<IconXCircle />}
             badge
           />
@@ -643,9 +275,28 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
       )}
 
       {showReminderModal && (
-        <ReminderModal
+        <OfferReminderModal
           onClose={() => setShowReminderModal(false)}
           onSent={() => onBadgeChange?.()}
+          onOpenProject={id => { setShowReminderModal(false); onNav('projects', id) }}
+        />
+      )}
+
+      {quotePanel && (
+        <OpenQuotesPanel
+          key={quotePanel}
+          art={quotePanel}
+          onClose={() => setQuotePanel(null)}
+          onChanged={() => onBadgeChange?.()}
+          onOpenProject={id => { setQuotePanel(null); onNav('projects', id) }}
+        />
+      )}
+
+      {showDraftInvoices && (
+        <DraftInvoicesPanel
+          onClose={() => setShowDraftInvoices(false)}
+          onChanged={() => onBadgeChange?.()}
+          onOpenProject={id => { setShowDraftInvoices(false); onNav('projects', id) }}
         />
       )}
 
@@ -653,6 +304,7 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
         <MahnungModal
           onClose={() => setShowMahnungModal(false)}
           onSent={() => onBadgeChange?.()}
+          onOpenProject={id => { setShowMahnungModal(false); onNav('projects', id) }}
         />
       )}
 
@@ -660,6 +312,7 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
         <ApprovalModal
           onClose={() => setShowApprovalModal(false)}
           onSent={() => onBadgeChange?.()}
+          onOpenProject={id => { setShowApprovalModal(false); onNav('projects', id) }}
         />
       )}
 

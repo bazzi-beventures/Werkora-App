@@ -35,6 +35,9 @@ export interface AppointmentDraft {
   // true = eigenes Team nur für diesen Termin; false = Projekt-Team gilt.
   ownTeam: boolean
   monteurIds: string[]
+  // Terminfarbe (Schlüssel aus den Terminfarben, terminFarben.ts); leer/fehlend =
+  // Farbe der Einsatz-Art.
+  colorCategory?: string
   // Terminbestätigung an den Kunden: was zuletzt gesendet wurde. Nie Teil eines
   // Payloads oder des Dirty-Vergleichs (canonicalDraft kennt das Feld nicht).
   notice?: AppointmentNotice | null
@@ -66,6 +69,7 @@ export function apptToDraft(a: ProjectAppointment): AppointmentDraft {
     label: a.label ?? '',
     ownTeam: team.length > 0,
     monteurIds: team,
+    colorCategory: a.color_category ?? '',
     notice: a.customer_notice_sent_at
       ? { sentAt: a.customer_notice_sent_at, to: a.customer_notice_to ?? '', snapshot: a.customer_notice_snapshot ?? null }
       : null,
@@ -174,6 +178,8 @@ export function draftPayload(d: AppointmentDraft): Partial<ProjectAppointment> {
     kind: d.kind,
     label: d.kind === 'sonstiges' ? d.label.trim() : '',
     monteur_ids: d.ownTeam ? d.monteurIds : [],
+    // '' entfernt die Farbe; ohne Beta-Feature verwirft der Server das Feld.
+    color_category: d.colorCategory || '',
   }
 }
 
@@ -222,6 +228,7 @@ function canonicalDraft(d: AppointmentDraft) {
     kind: d.kind,
     label: d.kind === 'sonstiges' ? d.label.trim() : '',
     monteurIds: d.ownTeam ? [...d.monteurIds].sort() : [],
+    colorCategory: d.colorCategory || '',
   }
 }
 

@@ -6,6 +6,8 @@ import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import {
   APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS, type AppointmentKind, type AppointmentScope,
 } from '../../api/admin'
+import { TerminFarbeWahl } from './TerminFarbeWahl'
+import type { TerminFarbe } from '../../api/admin/tenant'
 import { DateTimeInput } from '../components/DateTimeInput'
 import { pastAppointmentHint, todayISO } from './projectAppointments'
 import { REPEAT_LABELS, fmtSlotDate, type ApptFormState, type RepeatPreset, type StaffLite } from './scheduleScreenModel'
@@ -21,11 +23,13 @@ interface Props {
   skillChip: (staffId: string, braucht: string[]) => { cls: string; title?: string; marke: string }
   brauchtZeile: (braucht: string[]) => ReactNode
   toggleApptMonteur: (id: string) => void
+  /** Terminfarben des Betriebs (leer ohne Beta-Feature) — keine Auswahl. */
+  terminFarben?: TerminFarbe[]
 }
 
 export function ScheduleApptEditor({
   apptForm, setApptForm, showApptExtras, monteurOptions, terminBraucht, skillChip, brauchtZeile,
-  toggleApptMonteur,
+  toggleApptMonteur, terminFarben = [],
 }: Props) {
   return (
     <>
@@ -56,6 +60,9 @@ export function ScheduleApptEditor({
         )}
       </div>
     )}
+    {/* Terminfarbe für jeden Termin, auch interne Einsätze (Büro, Homeoffice …). */}
+    <TerminFarbeWahl value={apptForm.colorCategory} kategorien={terminFarben}
+                     onChange={k => setApptForm(a => a && ({ ...a, colorCategory: k }))} />
 
     <div className="project-schedule-row">
       <label className="project-schedule-field">

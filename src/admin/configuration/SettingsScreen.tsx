@@ -3,6 +3,8 @@ import { useTabStrip } from '../hooks/useTabStrip'
 import { WeeklyPlanTab } from './tabs/WeeklyPlanTab'
 import { YearEndTab } from './tabs/YearEndTab'
 import { TerminDauerTab } from './tabs/TerminDauerTab'
+import { TerminFarbenTab } from './tabs/TerminFarbenTab'
+import { BetaBadge } from '../../shared/BetaBadge'
 
 /**
  * Einstellungen des Mandanten — Wochenplan und Jahresabschluss.
@@ -29,12 +31,19 @@ import { TerminDauerTab } from './tabs/TerminDauerTab'
  * Dauer-Vorgaben je Termin-Art. Ebenfalls eine Entscheidung des Betriebs — jeder hat
  * andere Einsätze —, Schreiben verlangt im Backend `require_management`.
  *
+ * Vierter Reiter «Terminfarben» (Beta `termin_farbkategorien`): Farbkategorien je
+ * Termin für den Einsatzplan (docs/specs/termin-farbkategorien.md) — auch eine
+ * Frage des Betriebs, Schreiben verlangt `require_management`.
+ *
  * Sichtbar für `management` (und damit auch `superadmin`), nicht für
  * eingeschränkte Adminkonten — geführt wird das über `isManagement` in
  * AdminSidebar/MobileNav, durchgesetzt vom Backend.
  */
-export default function SettingsScreen({ terminDauer = false }: { terminDauer?: boolean }) {
-  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'termin-dauer'>('weekly-plan')
+export default function SettingsScreen({ terminDauer = false, terminFarben = false }: {
+  terminDauer?: boolean
+  terminFarben?: boolean
+}) {
+  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'termin-dauer' | 'termin-farben'>('weekly-plan')
   const tabsRef = useTabStrip(tab)
 
   return (
@@ -43,7 +52,7 @@ export default function SettingsScreen({ terminDauer = false }: { terminDauer?: 
         <div>
           <div className="admin-page-title">Einstellungen</div>
           <div className="admin-page-subtitle">
-            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}
+            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}{terminFarben ? ', Terminfarben' : ''}
           </div>
         </div>
       </div>
@@ -69,11 +78,20 @@ export default function SettingsScreen({ terminDauer = false }: { terminDauer?: 
             Termindauer
           </button>
         )}
+        {terminFarben && (
+          <button
+            className={`kpi-admin-tab${tab === 'termin-farben' ? ' active' : ''}`}
+            onClick={() => setTab('termin-farben')}
+          >
+            Terminfarben <BetaBadge />
+          </button>
+        )}
       </div>
 
       {tab === 'weekly-plan' && <WeeklyPlanTab />}
       {tab === 'year-end' && <YearEndTab />}
       {tab === 'termin-dauer' && terminDauer && <TerminDauerTab />}
+      {tab === 'termin-farben' && terminFarben && <TerminFarbenTab />}
     </div>
   )
 }

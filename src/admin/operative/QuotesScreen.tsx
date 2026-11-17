@@ -1,19 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  getQuoteDetail, listQuotesPage, markQuoteSentByPost, sendQuoteRejection, setQuoteStatus,
-} from '../../api/admin/quotes'
+import { listQuotesPage } from '../../api/admin/quotes'
 import { getAdminStaff } from '../../api/admin/staff'
 import { QUOTE_STATUS_LABELS } from '../constants/statuses'
-import { fmtCHF, fmtDate, todayISO } from '../utils/format'
-import { ConfirmDialog } from '../components/ConfirmDialog'
+import { fmtCHF, fmtDate } from '../utils/format'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
-import { SendQuoteDialog } from './SendQuoteDialog'
-import { SendOrderConfirmationDialog, SendThankyouDialog } from './SendQuoteMailDialog'
 import { useToast, ToastHost } from '../components/useToast'
-import { getMe } from '../../api/auth'
-import { getFeature, isFeatureEnabled } from '../../api/modules'
-import { quoteWaitHours } from './quoteFeedback'
 import { AdminCardList } from '../components/AdminCardList'
 import { ListPager } from '../components/ListPager'
 import { useIsMobile } from '../useIsMobile'
@@ -21,10 +13,10 @@ import { LIST_PAGE_SIZE, usePagedList } from '../usePagedList'
 import { useListSort } from '../useListSort'
 import { SortableTh } from '../components/SortableTh'
 import { QUOTE_EDITABLE_STATUSES, QuoteRowActions, QuoteStatusCell } from './quotes/QuoteListParts'
-import type { QuoteActionHandlers, QuoteListFlags } from './quotes/QuoteListParts'
+import { useQuoteActions } from './quotes/useQuoteActions'
 import { QuoteCreateForm } from './quotes/QuoteCreateForm'
 import { QuoteEditForm } from './quotes/QuoteEditForm'
-import type { ProjektleiterOption, Quote, QuoteDetail } from './quotes/quoteTypes'
+import type { ProjektleiterOption, Quote } from './quotes/quoteTypes'
 
 const STATUS_LABELS = QUOTE_STATUS_LABELS
 const ALL_STATUSES = ['entwurf', 'gesendet', 'akzeptiert', 'abgelehnt', 'absage', 'archiviert']
@@ -87,35 +79,8 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
   // Projektleiter alter Offerten ohne Snapshot auf, auch wenn er das Häkchen
   // inzwischen nicht mehr trägt (wie ProjectsScreen).
   const [staffNameById, setStaffNameById] = useState<Record<string, string>>({})
-  const [acting, setActing] = useState<number | null>(null)
   const { toast, showToast } = useToast()
   const [showCreate, setShowCreate] = useState(false)
-  const [editQuote, setEditQuote] = useState<QuoteDetail | null>(null)
-  // Send quote
-  const [sendQuote, setSendQuote] = useState<Quote | null>(null)
-  // Danke-Mail-Dialog (Feature offerte_dank_mail): fragt analog zum Offerten-Versand
-  // zuerst die Empfänger-Adresse ab, vorbelegt mit der Kunden-E-Mail der Offerte.
-  const [thankyouQuote, setThankyouQuote] = useState<Quote | null>(null)
-  // Auftragsbestätigungs-Dialog: gleiche Empfänger-Abfrage, aber ohne Feature-Bedingung —
-  // der Knopf steht bei jeder angenommenen Offerte bereit.
-  const [orderConfirmationQuote, setOrderConfirmationQuote] = useState<Quote | null>(null)
-  // Postversand: Offerte als versendet markieren, ohne sie zu mailen (Gegenstück zum
-  // gleichnamigen Knopf bei der Rechnung). Das Datum ist vorbelegt mit heute und
-  // nachtragbar — erfasst wird der Versand oft erst Tage später.
-  const [postalQuote, setPostalQuote] = useState<Quote | null>(null)
-  const [postalDate, setPostalDate] = useState('')
-  // Danke-Mail bei Offerten-Annahme (Feature offerte_dank_mail): steuert den
-  // „Dankeschön senden"-Knopf bei angenommenen Offerten (Per-Knopfdruck-Modus bzw.
-  // Fallback, falls der Auto-Versand ausblieb).
-  const [dankEnabled, setDankEnabled] = useState(false)
-  // Absage-Mail bei Offerten-Ablehnung (Feature offerte_absage_mail): steuert den
-  // „Absage senden"-Knopf bei abgelehnten Offerten (Per-Knopfdruck-Modus bzw.
-  // Fallback, falls der Auto-Versand ausblieb).
-  const [absageEnabled, setAbsageEnabled] = useState(false)
-  // Kennzeichnung «Kein Feedback» (Feature offerte_kein_feedback_meldung): ab wann
-  // eine versendete Offerte als unbeantwortet gilt. 0 = Feature aus, keine Kennzeichnung.
-  const [feedbackWaitHours, setFeedbackWaitHours] = useState(0)
-
   // Vorgabe wie bisher: neueste zuerst.
   const [sort, toggleSort] = useListSort<QuoteSortKey>({ key: 'created_at', dir: 'desc' })
   // Seitenweise vom Server: Status, Suche und Projektleiter filtert, die
@@ -134,28 +99,10 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
   const quotes = list.data?.rows ?? NO_QUOTES
   const total = list.data?.total ?? 0
   const load = list.reload
-
-  useEffect(() => {
-    getMe().then(me => {
-      setDankEnabled(isFeatureEnabled(me, 'offerte_dank_mail'))
-      setAbsageEnabled(isFeatureEnabled(me, 'offerte_absage_mail'))
-      const fb = getFeature<{ enabled?: boolean; stunden?: number }>(me, 'offerte_kein_feedback_meldung')
-      setFeedbackWaitHours(fb?.enabled ? quoteWaitHours(fb) : 0)
-    }).catch(() => {})
-  }, [])
-
-  async function handleSendRejection(id: number) {
-    setActing(id)
-    try {
-      const res = await sendQuoteRejection(id)
-      showToast(res.message || 'Absage-Mail gesendet', 'success')
-      load()
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Absage-Mail fehlgeschlagen', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
+  // Handler und Dialoge der Aktionen — geteilt mit dem Dashboard-Panel
+  // «Offerten in Bearbeitung» (quotes/useQuoteActions.tsx).
+  const { flags, actions, acting, editQuote, closeEdit, dialogs } = useQuoteActions({ reload: load, showToast })
+  const handleEdit = actions.onEdit
 
   useEffect(() => {
     getAdminStaff()
@@ -170,58 +117,6 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
       })
       .catch(() => setProjektleiterOptions([]))
   }, [])
-
-  function openPostal(q: Quote) {
-    setPostalDate(todayISO())
-    setPostalQuote(q)
-  }
-
-  async function handleMarkSentByPost(id: number) {
-    setActing(id)
-    try {
-      await markQuoteSentByPost(id, postalDate)
-      showToast('Offerte als per Post versendet markiert', 'success')
-      setPostalQuote(null)
-      load()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Fehler', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  async function handleEdit(id: number) {
-    try {
-      setEditQuote(await getQuoteDetail(id))
-    } catch {
-      showToast('Offerte konnte nicht geladen werden', 'error')
-    }
-  }
-
-  async function handleStatus(id: number, status: string) {
-    setActing(id)
-    try {
-      await setQuoteStatus(id, status)
-      showToast(`Status auf «${STATUS_LABELS[status]}» gesetzt`, 'success')
-      load()
-    } catch {
-      showToast('Fehler beim Aktualisieren', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  // Was Tabelle und Karten gemeinsam brauchen — einmal gebaut, an beide gereicht.
-  const flags: QuoteListFlags = { dankEnabled, absageEnabled, feedbackWaitHours }
-  const actions: QuoteActionHandlers = {
-    onEdit: handleEdit,
-    onSend: setSendQuote,
-    onThankyou: setThankyouQuote,
-    onOrderConfirmation: setOrderConfirmationQuote,
-    onSendRejection: handleSendRejection,
-    onStatus: handleStatus,
-    onMarkSent: openPostal,
-  }
 
   // Der Projektleiter, der die Offerte erstellt hat: der Snapshot auf der
   // Offerte, sonst (alte Offerten) der heutige des Projekts.
@@ -246,8 +141,8 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
       <div className="admin-page">
         <QuoteEditForm
           quote={editQuote}
-          onDone={warning => { setEditQuote(null); load(); showToast(warning ?? 'Offerte gespeichert', warning ? 'error' : 'success') }}
-          onCancel={() => setEditQuote(null)}
+          onDone={warning => { closeEdit(); load(); showToast(warning ?? 'Offerte gespeichert', warning ? 'error' : 'success') }}
+          onCancel={closeEdit}
         />
       </div>
     )
@@ -379,71 +274,7 @@ export default function QuotesScreen({ initialStatus, onConsumed, onOpenProject 
         />
       </div>
 
-      {/* Dialog: Offerte senden */}
-      {sendQuote && (
-        <SendQuoteDialog
-          quoteId={sendQuote.id}
-          header={<>{sendQuote.quote_number} · {fmtCHF(sendQuote.total_amount)}<br />Projekt: {sendQuote.project_name}</>}
-          onClose={() => setSendQuote(null)}
-          onSent={email => { showToast(`Offerte an ${email} gesendet`, 'success'); setSendQuote(null); load() }}
-        />
-      )}
-
-      {/* Dialog: Danke-Mail senden (fragt zuerst die Empfänger-Adresse ab) */}
-      {thankyouQuote && (
-        <SendThankyouDialog
-          quoteId={thankyouQuote.id}
-          defaultEmail={thankyouQuote.customer_email || ''}
-          header={<>{thankyouQuote.quote_number} · {fmtCHF(thankyouQuote.total_amount)}<br />Projekt: {thankyouQuote.project_name}</>}
-          onClose={() => setThankyouQuote(null)}
-          onSent={msg => { showToast(msg, 'success'); setThankyouQuote(null); load() }}
-        />
-      )}
-
-      {/* Dialog: Auftragsbestätigung senden (kein Feature-Flag, siehe QuoteListParts) */}
-      {orderConfirmationQuote && (
-        <SendOrderConfirmationDialog
-          quoteId={orderConfirmationQuote.id}
-          defaultEmail={orderConfirmationQuote.customer_email || ''}
-          alreadySentAt={orderConfirmationQuote.order_confirmation_sent_at}
-          header={<>{orderConfirmationQuote.quote_number} · {fmtCHF(orderConfirmationQuote.total_amount)}<br />Projekt: {orderConfirmationQuote.project_name}</>}
-          onClose={() => setOrderConfirmationQuote(null)}
-          onSent={msg => { showToast(msg, 'success'); setOrderConfirmationQuote(null); load() }}
-        />
-      )}
-
-      {/* Bestätigungsdialog Postversand — Zwilling des Rechnungs-Dialogs. */}
-      {postalQuote && (
-        <ConfirmDialog
-          title="Als per Post versendet markieren?"
-          message={
-            <>
-              {postalQuote.quote_number} · {fmtCHF(postalQuote.total_amount)}<br />
-              Projekt: {postalQuote.project_name}<br />
-              Es wird keine E-Mail verschickt. Die Offerte gilt danach als gesendet —
-              Erinnerung und die Kennzeichnung «Kein Feedback» zählen ab dem Versanddatum.
-            </>
-          }
-          confirmLabel="Als versendet markieren"
-          busyLabel="…"
-          busy={acting === postalQuote.id}
-          confirmDisabled={!postalDate}
-          onCancel={() => setPostalQuote(null)}
-          onConfirm={() => void handleMarkSentByPost(postalQuote.id)}
-        >
-          <div style={{ margin: '12px 0' }}>
-            <label className="admin-form-label" htmlFor="quote-postal-sent-date">Versanddatum</label>
-            <input
-              id="quote-postal-sent-date"
-              className="admin-form-input"
-              type="date"
-              value={postalDate}
-              max={todayISO()}
-              onChange={e => setPostalDate(e.target.value)}
-            />
-          </div>
-        </ConfirmDialog>
-      )}
+      {dialogs}
 
       <ToastHost toast={toast} />
     </div>

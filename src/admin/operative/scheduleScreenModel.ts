@@ -132,7 +132,11 @@ export interface PendingSlot {
 // Fallback Projekt-Team. Termine geschlossener/archivierter/gefilterter Projekte
 // fehlen. Zweimal gebraucht: für den Kalender (mit Projektleiter-Filter) und für
 // die Doppelbelegungs-Warnung (ohne).
-export function appointmentEntries(projectList: ScheduleProject[], appointments: ProjectAppointment[]): CalendarEntry[] {
+// `farben`: Schlüssel → Farbe der Terminfarben (leer ohne Beta-Feature); ein
+// gelöschter Schlüssel fehlt dort, die Kachel nimmt dann wieder die Art-Farbe.
+export function appointmentEntries(
+  projectList: ScheduleProject[], appointments: ProjectAppointment[], farben?: Map<string, string>,
+): CalendarEntry[] {
   const projById = new Map(projectList.map(p => [p.id, p]))
   const entries: CalendarEntry[] = []
   for (const a of appointments) {
@@ -150,6 +154,7 @@ export function appointmentEntries(projectList: ScheduleProject[], appointments:
         ? (a.kind === 'sonstiges' && a.label ? a.label : APPOINTMENT_KIND_LABELS[a.kind])
         : undefined,
       termin_kind: p.kind === 'project' ? a.kind : undefined,
+      termin_farbe: (a.color_category && farben?.get(a.color_category)) || undefined,
     })
   }
   return entries

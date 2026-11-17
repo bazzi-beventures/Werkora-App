@@ -30,6 +30,7 @@ import {
 import type { BexioBadge as BexioBadgeData, BillableReport, InvoiceQuoteCoverage, OpenAnzahlung } from '../../../api/admin/invoices'
 import { cancelInBexio, getBexioStatus } from '../../../api/admin/invoices'
 import { BEXIO_CANCEL_MESSAGE, BexioBadge, BexioCancelCheckbox } from '../BexioBadge'
+import { EvtlVerrechnetBadge } from '../invoices/useInvoiceActions'
 import { groupByParent } from './types'
 import type { ProjectInvoice } from './types'
 
@@ -382,6 +383,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                     <span className="proj-doc-status">
                       <span className={`admin-badge ${INVOICE_STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>{INVOICE_STATUS_LABELS[inv.status] || inv.status}</span>
                       {bexioOn && <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => setConfirmBexioCancel(inv)} />}
+                      <EvtlVerrechnetBadge invoice={inv} />
                     </span>
                     <span className="proj-doc-date">{fmtDate(inv.created_at)}</span>
                     <div className="proj-doc-tail">

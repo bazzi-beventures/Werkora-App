@@ -469,3 +469,13 @@ describe('InvoicesTab — Fahrzeitkosten', () => {
     expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ includeTravel: false }))
   })
 })
+
+describe('InvoicesTab — Hinweis «Evtl. bereits verrechnet»', () => {
+  it('steht nur an der Rechnung, die der Server markiert', () => {
+    renderTab([
+      makeInvoice({ id: 1, invoice_number: 'RE-2026-001', status: 'bezahlt', paid_at: '2026-10-01' }),
+      makeInvoice({ id: 2, parent_id: null, invoice_number: 'RE-2026-002', evtl_bereits_verrechnet: true }),
+    ])
+    expect(screen.getAllByText('Evtl. bereits verrechnet')).toHaveLength(1)
+  })
+})

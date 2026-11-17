@@ -1,31 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { apiUrl } from '../../api/client'
 import {
-  archiveInvoice, generateInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
-  getInvoiceWorkDescription,
-  listInvoicesPage, markInvoicePaid, markInvoiceSentByPost, sendInvoice as sendInvoiceByMail,
-  unmarkInvoicePaid,
+  generateInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
+  getInvoiceWorkDescription, listInvoicesPage,
 } from '../../api/admin/invoices'
-import type { BexioBadge as BexioBadgeData, BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } from '../../api/admin/invoices'
-import { cancelInBexio, getBexioStatus } from '../../api/admin/invoices'
+import type { BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } from '../../api/admin/invoices'
 import { hasModule } from '../../api/modules'
-import { BEXIO_CANCEL_MESSAGE, BexioBadge, BexioCancelCheckbox } from './BexioBadge'
-import { getAdminProjects, listProjectInvoices, setProjectStatus } from '../../api/admin/projects'
+import { BexioBadge } from './BexioBadge'
+import { getAdminProjects, listProjectInvoices } from '../../api/admin/projects'
 import type { Project } from '../../api/admin/projects'
 import { hasAcceptedQuote as fetchHasAcceptedQuote } from '../../api/admin/quotes'
 import { getAdminStaff } from '../../api/admin/staff'
 import { INVOICE_STATUS_LABELS as STATUS_LABELS, INVOICE_STATUS_BADGE as STATUS_BADGE } from '../constants/statuses'
-import { fmtCHF, fmtDate, todayISO } from '../utils/format'
+import { fmtCHF, fmtDate } from '../utils/format'
 import { invoiceWarningHint, sammelrechnungHint } from '../utils/invoiceHints'
-import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../utils/paidAmount'
-import { PaidAmountField } from './PaidAmountField'
-import { CcEmailRows, recipientSummary } from './CcEmailRows'
+import { paidDeduction } from '../utils/paidAmount'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { AdminCardList } from '../components/AdminCardList'
 import { ListPager } from '../components/ListPager'
 import { AutoGrowTextarea } from '../components/AutoGrowTextarea'
 import { ConfirmDialog } from '../components/ConfirmDialog'
+import { EvtlVerrechnetBadge, InvoiceRowActions, useBexioBadges, useInvoiceActions } from './invoices/useInvoiceActions'
 import { QuoteCoverageSelect } from '../components/QuoteCoverageSelect'
 import { GeneralDeductionFields } from '../components/GeneralDeductionFields'
 import { WorkDescriptionField } from '../components/WorkDescriptionField'
@@ -49,7 +44,6 @@ import { useIsMobile } from '../useIsMobile'
 import { LIST_PAGE_SIZE, usePagedList } from '../usePagedList'
 import { useListSort } from '../useListSort'
 import { SortableTh } from '../components/SortableTh'
-import { isInvoiceOpen, openInvoicesHint } from '../utils/openInvoices'
 import type { AdminScreen } from '../useAdminNav'
 import { useToast, ToastHost } from '../components/useToast'
 import { getFeature, isFeatureEnabled } from '../../api/modules'
@@ -70,22 +64,26 @@ const NO_INVOICES: Invoice[] = []
 // Sortierbare Spalten = Katalog des Endpoints (db/invoices.py, `_INVOICE_SORT_MAP`).
 type InvoiceSortKey = 'invoice_number' | 'project_name' | 'total_amount' | 'status' | 'created_at' | 'paid_at'
 
-/** Weitere offene Rechnungen desselben Projekts. Die soeben bezahlte ist
- *  ausgenommen — falls ihr neuer Status noch nicht durch ist. */
-function countOtherOpen(projectInvoices: Invoice[], paidId: number): number {
-  return projectInvoices.filter(i => i.id !== paidId && isInvoiceOpen(i.status)).length
-}
-
-export default function InvoicesScreen({ onBadgeChange, onNav }: {
+export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, onConsumed }: {
   onBadgeChange?: () => void
+  /** Statusfilter beim Einstieg (Dashboard-Kachel «Rechnungen offen» → 'gesendet'). */
+  initialStatus?: string | null
+  onConsumed?: () => void
   // Sprung ins Projekt: die Rechnungsübersicht beantwortet «wie viel ist offen»,
   // die Rückfragen dazu («welche Rapporte?», «welche Offerte?») stehen im Projekt.
   onNav?: (screen: AdminScreen, detailId?: string) => void
 }) {
-  const [bexio, setBexio] = useState<Record<string, BexioBadgeData>>({})
   const [statusFilters, setStatusFilters] = useState<Set<string>>(
-    () => new Set(['ausstehend', 'offen', 'gesendet', 'bezahlt', 'inaktiv'])
+    () => initialStatus && ALL_STATUSES.includes(initialStatus)
+      ? new Set([initialStatus])
+      : new Set(['ausstehend', 'offen', 'gesendet', 'bezahlt', 'inaktiv'])
   )
+  // Einstiegsfilter einmal übernehmen, dann freigeben — sonst setzte ihn jeder
+  // spätere Besuch derselben Station wieder.
+  useEffect(() => {
+    if (initialStatus && onConsumed) onConsumed()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
   const [sort, toggleSort] = useListSort<InvoiceSortKey>({ key: 'created_at', dir: 'desc' })
   // Seitenweise vom Server: Filter und Reihenfolge macht die Datenbank, über
@@ -103,29 +101,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   const total = list.data?.total ?? 0
   const load = list.reload
   const [projektleiterOptions, setProjektleiterOptions] = useState<ProjektleiterOption[]>([])
-  const [acting, setActing] = useState<number | null>(null)
   const isMobile = useIsMobile()
-  const [confirmPaid, setConfirmPaid] = useState<Invoice | null>(null)
-  // Zahlungsdatum: vorbelegt mit heute, nachtragbar — der Eingang wird oft erst
-  // Tage später im Dashboard erfasst (Umsatzmonat + Aftersales-Frist hängen dran).
-  const [paidDate, setPaidDate] = useState('')
-  const [paidAmount, setPaidAmount] = useState('')
-  // Nach dem Bezahlen: «Projekt abschliessen?» — die Rechnung ist meist der
-  // letzte Schritt eines Auftrags, das Schliessen ging bisher nur im Projekt.
-  const [confirmCloseProject, setConfirmCloseProject] = useState<Invoice | null>(null)
-  // Warnung dazu: weitere offene Rechnungen des Projekts. Die Liste zeigt nur
-  // eine Seite, darum fragt der Dialog das Projekt selbst (null = nicht prüfbar).
-  const [closeProjectOtherOpen, setCloseProjectOtherOpen] = useState<number | null>(0)
-  const [closingProject, setClosingProject] = useState(false)
-  const [confirmUnpay, setConfirmUnpay] = useState<Invoice | null>(null)
-  const [confirmArchive, setConfirmArchive] = useState<Invoice | null>(null)
-  // bexio (§6.7): Storno beim Archivieren mitbestätigen bzw. später über die Pille.
-  const [bexioCancel, setBexioCancel] = useState(true)
-  const [confirmBexioCancel, setConfirmBexioCancel] = useState<Invoice | null>(null)
-  const [bexioTick, setBexioTick] = useState(0)
-  // Postversand: Rechnung als versendet markieren, ohne sie zu mailen.
-  const [confirmPostal, setConfirmPostal] = useState<Invoice | null>(null)
-  const [postalDate, setPostalDate] = useState('')
   const { toast, showToast } = useToast()
 
   // «Rechnung ohne Projekt» (§8.2 a) — Stufe beta, Default aus. Der Knopf
@@ -146,21 +122,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     return () => { weg = true }
   }, [])
 
-  // bexio-Badge (Modul `bexio`, docs/specs/bexio-anbindung.md §8.2): nur
-  // ausgestellte Rechnungen können in bexio stehen. Ein Fehler kostet nur das
-  // Badge, nie die Liste.
-  const bexioOn = hasModule(me, 'bexio')
-  useEffect(() => {
-    if (!bexioOn) return
-    let weg = false
-    const ids = invoices
-      .filter(r => r.status === 'gesendet' || r.status === 'bezahlt' || r.status === 'archiviert')
-      .map(r => Number(r.id))
-    getBexioStatus(ids)
-      .then(states => { if (!weg) setBexio(states) })
-      .catch(() => { if (!weg) setBexio({}) })
-    return () => { weg = true }
-  }, [invoices, bexioOn, bexioTick])
+  // bexio-Badge (Modul `bexio`, docs/specs/bexio-anbindung.md §8.2) und die
+  // Aktionen der Zeilen — geteilt mit dem Dashboard-Panel «Rechnungsentwürfe»
+  // (invoices/useInvoiceActions.tsx).
+  const { bexio, refreshBexio } = useBexioBadges(invoices, hasModule(me, 'bexio'))
 
   // Generate invoice
   const [showGenerate, setShowGenerate] = useState(false)
@@ -200,12 +165,6 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
   // angeboten wird. Eigene Abfrage, weil die Liste nur eine Seite kennt.
   const [genProjectInvoices, setGenProjectInvoices] = useState<Invoice[]>(NO_INVOICES)
   const genInvSeq = useRef(0)
-  // Send invoice
-  const [sendInvoice, setSendInvoice] = useState<Invoice | null>(null)
-  const [sendEmail, setSendEmail] = useState('')
-  // CC-Zeilen des Versand-Dialogs (WW-78): leer, bis jemand auf «+ CC» klickt.
-  const [sendCc, setSendCc] = useState<string[]>([])
-  const [sending, setSending] = useState(false)
   const [hasAcceptedQuote, setHasAcceptedQuote] = useState(false)
 
   useEffect(() => {
@@ -395,37 +354,12 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
     }
   }
 
-  function openSendInvoice(inv: Invoice) {
-    const proj = projects.length > 0
-      ? projects.find(p => p.name === inv.project_name)
-      : null
-    setSendEmail(proj?.customer?.email || '')
-    setSendCc([])
-    setSendInvoice(inv)
-  }
-
-  async function handleSendInvoice() {
-    if (!sendInvoice || !sendEmail) return
-    setSending(true)
-    try {
-      await sendInvoiceByMail(sendInvoice.id, sendEmail, sendCc)
-      showToast(`Rechnung an ${recipientSummary(sendEmail, sendCc)} gesendet`, 'success')
-      setSendInvoice(null)
-      load()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Versand fehlgeschlagen', 'error')
-    } finally {
-      setSending(false)
-    }
-  }
-
-  function openPaid(inv: Invoice) {
-    setPaidDate(todayISO())
-    setPaidAmount(paidAmountDefault(inv.total_amount))
-    setConfirmPaid(inv)
-  }
-
-  const paidCheck = confirmPaid ? checkPaidAmount(paidAmount, confirmPaid.total_amount) : null
+  // Empfänger-Vorbelegung aus der Projektliste des Erstellen-Dialogs, falls schon
+  // geladen; sonst holt useInvoiceActions die Adresse des Projektkunden nach.
+  const { acting, actions, dialogs } = useInvoiceActions({
+    reload: load, showToast, onChanged: onBadgeChange, bexio, refreshBexio,
+    emailFor: inv => projects.find(p => p.name === inv.project_name)?.customer?.email || '',
+  })
 
   // Klick auf eine Rechnung öffnet ihr Projekt. Alt-Rechnungen ohne project_id
   // (Backfill) bleiben unklickbar — es gibt kein eindeutiges Ziel.
@@ -435,144 +369,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
 
   const canOpenProject = (inv: Invoice) => !!onNav && !!inv.project_id
 
-  // Anschlussfrage «Projekt abschliessen?» mit Warnung, falls im Projekt noch
-  // weitere Rechnungen offen sind. Gezählt wird am Projekt selbst — die Liste
-  // kennt nur eine Seite und den aktuellen Filter.
-  async function askCloseProject(inv: Invoice) {
-    let others: number | null = 0
-    if (inv.project_id) {
-      try {
-        others = countOtherOpen(await listProjectInvoices<Invoice>(inv.project_id), inv.id)
-      } catch {
-        others = null
-      }
-    }
-    setCloseProjectOtherOpen(others)
-    setConfirmCloseProject(inv)
-  }
-
-  // Offen = noch nicht abgeschlossen/archiviert. Nur dann lohnt die Rückfrage.
-  function projectStillOpen(inv: Invoice): boolean {
-    if (!inv.project_id) return false
-    if (inv.project_status) return inv.project_status === 'offen'
-    return !inv.project_is_closed
-  }
-
-  async function handleMarkPaid(inv: Invoice) {
-    if (!paidCheck?.ok) return
-    setActing(inv.id)
-    try {
-      await markInvoicePaid(inv.id, paidDate, paidCheck.amount)
-      showToast('Rechnung als bezahlt markiert', 'success')
-      setConfirmPaid(null)
-      load()
-      onBadgeChange?.()
-      // Anschlussfrage statt Automatik: eine Teilrechnung schliesst das Projekt nicht.
-      if (projectStillOpen(inv)) void askCloseProject(inv)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Fehler', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  async function handleCloseProject(inv: Invoice) {
-    if (!inv.project_id) return
-    setClosingProject(true)
-    try {
-      await setProjectStatus(inv.project_id, 'abgeschlossen')
-      showToast('Projekt abgeschlossen', 'success')
-      setConfirmCloseProject(null)
-      load()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Fehler beim Abschliessen', 'error')
-    } finally {
-      setClosingProject(false)
-    }
-  }
-
-  async function handleArchive(id: number) {
-    setActing(id)
-    const alsoBexio = bexioCancel && bexio[String(id)]?.state === 'in_bexio'
-    try {
-      await archiveInvoice(id)
-      if (alsoBexio) {
-        try {
-          await cancelInBexio(id)
-          showToast('Rechnung archiviert — Storno in bexio folgt in wenigen Minuten', 'success')
-        } catch (err) {
-          showToast(`Rechnung archiviert, Storno in bexio nicht vorgemerkt: ${
-            err instanceof Error ? err.message : 'Fehler'} — über die Pille «bexio: Storno offen» nachholen`, 'error')
-        }
-      } else {
-        showToast('Rechnung archiviert — Rapporte wieder verrechenbar', 'success')
-      }
-      setConfirmArchive(null)
-      load()
-      onBadgeChange?.()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Fehler beim Archivieren', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  async function handleBexioCancel(inv: Invoice) {
-    setActing(inv.id)
-    try {
-      await cancelInBexio(inv.id)
-      showToast('Storno in bexio vorgemerkt — wird in wenigen Minuten ausgeführt', 'success')
-      setConfirmBexioCancel(null)
-      setBexioTick(t => t + 1)
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Storno nicht möglich', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  function openPostal(inv: Invoice) {
-    setPostalDate(todayISO())
-    setConfirmPostal(inv)
-  }
-
-  async function handleMarkSentByPost(id: number) {
-    setActing(id)
-    try {
-      await markInvoiceSentByPost(id, postalDate)
-      showToast('Rechnung als per Post versendet markiert', 'success')
-      setConfirmPostal(null)
-      load()
-      onBadgeChange?.()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Fehler', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
-  async function handleUnmarkPaid(id: number) {
-    setActing(id)
-    try {
-      await unmarkInvoicePaid(id)
-      showToast('Zahlung zurückgesetzt', 'success')
-      setConfirmUnpay(null)
-      load()
-      onBadgeChange?.()
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Fehler', 'error')
-    } finally {
-      setActing(null)
-    }
-  }
-
   const emptyText = list.failed ? 'Rechnungen konnten nicht geladen werden.' : 'Keine Rechnungen gefunden.'
-
-  const closeProjectWarning = !confirmCloseProject
-    ? ''
-    : closeProjectOtherOpen === null
-      ? 'Ob in diesem Projekt noch weitere Rechnungen offen sind, liess sich nicht prüfen.'
-      : openInvoicesHint(closeProjectOtherOpen)
 
   return (
     <div className="admin-page admin-page-wide">
@@ -650,7 +447,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                   <span className={`admin-badge ${STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>
                     {STATUS_LABELS[inv.status] || inv.status}
                   </span>
-                  <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => setConfirmBexioCancel(inv)} />
+                  <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => actions.onBexioCancel(inv)} />
+                  <EvtlVerrechnetBadge invoice={inv} />
                 </div>
                 <div className="admin-card-meta"><strong>{inv.project_name}</strong></div>
                 <div className="admin-card-meta">
@@ -659,41 +457,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                 </div>
                 {/* Aktionen dürfen nicht ins Projekt springen — Klick hier stoppen. */}
                 <div className="admin-card-actions" onClick={e => e.stopPropagation()}>
-                  {inv.storage_path && (
-                    <a
-                      href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="admin-btn admin-btn-secondary admin-btn-sm"
-                    >
-                      PDF
-                    </a>
-                  )}
-                  {(inv.status === 'ausstehend' || inv.status === 'offen') && (
-                    <>
-                      <button className="admin-btn admin-btn-primary admin-btn-sm" onClick={() => openSendInvoice(inv)} disabled={acting === inv.id}>
-                        Senden
-                      </button>
-                      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => openPostal(inv)} disabled={acting === inv.id}>
-                        Per Post versendet
-                      </button>
-                    </>
-                  )}
-                  {(inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
-                    <>
-                      <button className="admin-btn admin-btn-success admin-btn-sm" onClick={() => openPaid(inv)} disabled={acting === inv.id}>
-                        Als bezahlt markieren
-                      </button>
-                      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => { setBexioCancel(true); setConfirmArchive(inv) }} disabled={acting === inv.id}>
-                        Archivieren
-                      </button>
-                    </>
-                  )}
-                  {inv.status === 'bezahlt' && (
-                    <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => setConfirmUnpay(inv)} disabled={acting === inv.id}>
-                      Zahlung zurücksetzen
-                    </button>
-                  )}
+                  <InvoiceRowActions invoice={inv} acting={acting} on={actions} />
                 </div>
               </>
             )}
@@ -741,7 +505,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                     <span className={`admin-badge ${STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>
                       {STATUS_LABELS[inv.status] || inv.status}
                     </span>
-                    <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => setConfirmBexioCancel(inv)} />
+                    <BexioBadge badge={bexio[String(inv.id)]} onCancelRequest={() => actions.onBexioCancel(inv)} />
+                  <EvtlVerrechnetBadge invoice={inv} />
                   </td>
                   <td style={{ color: 'var(--muted)' }}>{fmtDate(inv.created_at)}</td>
                   <td style={{ color: 'var(--muted)' }}>{fmtDate(inv.paid_at)}</td>
@@ -753,61 +518,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
                       Aktionen sollen das nicht auslösen. */}
                   <td style={{ whiteSpace: 'nowrap', width: '1%' }} onClick={e => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
-                      {inv.storage_path && (
-                        <a
-                          href={apiUrl(`/pwa/admin/invoices/${inv.id}/pdf`)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="admin-btn admin-btn-secondary admin-btn-sm"
-                        >
-                          PDF
-                        </a>
-                      )}
-                      {(inv.status === 'ausstehend' || inv.status === 'offen') && (
-                        <>
-                          <button
-                            className="admin-btn admin-btn-primary admin-btn-sm"
-                            onClick={() => openSendInvoice(inv)}
-                            disabled={acting === inv.id}
-                          >
-                            Senden
-                          </button>
-                          <button
-                            className="admin-btn admin-btn-secondary admin-btn-sm"
-                            onClick={() => openPostal(inv)}
-                            disabled={acting === inv.id}
-                          >
-                            Per Post versendet
-                          </button>
-                        </>
-                      )}
-                      {(inv.status === 'ausstehend' || inv.status === 'offen' || inv.status === 'gesendet') && (
-                        <>
-                          <button
-                            className="admin-btn admin-btn-success admin-btn-sm"
-                            onClick={() => openPaid(inv)}
-                            disabled={acting === inv.id}
-                          >
-                            Als bezahlt markieren
-                          </button>
-                          <button
-                            className="admin-btn admin-btn-secondary admin-btn-sm"
-                            onClick={() => { setBexioCancel(true); setConfirmArchive(inv) }}
-                            disabled={acting === inv.id}
-                          >
-                            Archivieren
-                          </button>
-                        </>
-                      )}
-                      {inv.status === 'bezahlt' && (
-                        <button
-                          className="admin-btn admin-btn-secondary admin-btn-sm"
-                          onClick={() => setConfirmUnpay(inv)}
-                          disabled={acting === inv.id}
-                        >
-                          Zahlung zurücksetzen
-                        </button>
-                      )}
+                      <InvoiceRowActions invoice={inv} acting={acting} on={actions} />
                     </div>
                   </td>
                 </tr>
@@ -824,157 +535,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
         />
       </div>
 
-      {/* Bestätigungsdialog bezahlt markieren */}
-      {confirmPaid && (
-        <ConfirmDialog
-          title="Rechnung als bezahlt markieren?"
-          message={
-            <>
-              {confirmPaid.invoice_number} · {fmtCHF(confirmPaid.total_amount)}<br />
-              Projekt: {confirmPaid.project_name}
-            </>
-          }
-          confirmLabel="Ja, bezahlt"
-          busyLabel="…"
-          busy={acting === confirmPaid.id}
-          confirmDisabled={!paidDate || !paidCheck?.ok}
-          variant="success"
-          onCancel={() => setConfirmPaid(null)}
-          onConfirm={() => void handleMarkPaid(confirmPaid)}
-        >
-          <div style={{ margin: '12px 0' }}>
-            <label className="admin-form-label" htmlFor="invoice-paid-date">Zahlungsdatum</label>
-            <input
-              id="invoice-paid-date"
-              className="admin-form-input"
-              type="date"
-              value={paidDate}
-              max={todayISO()}
-              onChange={e => setPaidDate(e.target.value)}
-            />
-            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>
-              Tag des Zahlungseingangs — nachtragbar, vorbelegt mit heute.
-            </div>
-          </div>
-          <PaidAmountField id="invoice-paid-amount" value={paidAmount}
-                           total={confirmPaid.total_amount} onChange={setPaidAmount} />
-        </ConfirmDialog>
-      )}
-
-      {/* Anschlussfrage nach dem Bezahlen: Projekt abschliessen? */}
-      {confirmCloseProject && (
-        <ConfirmDialog
-          title="Projekt abschliessen?"
-          message={
-            <>
-              Rechnung {confirmCloseProject.invoice_number} ist bezahlt.<br />
-              «{confirmCloseProject.project_name}» wird beim Abschliessen für Mitarbeiter
-              ausgeblendet. Rapporte und Dokumente bleiben erhalten.
-            </>
-          }
-          warning={closeProjectWarning}
-          confirmLabel="Ja, abschliessen"
-          cancelLabel="Offen lassen"
-          busyLabel="Schliessen…"
-          busy={closingProject}
-          onCancel={() => setConfirmCloseProject(null)}
-          onConfirm={() => void handleCloseProject(confirmCloseProject)}
-        />
-      )}
-
-      {/* Bestätigungsdialog Postversand */}
-      {confirmPostal && (
-        <ConfirmDialog
-          title="Als per Post versendet markieren?"
-          message={
-            <>
-              {confirmPostal.invoice_number} · {fmtCHF(confirmPostal.total_amount)}<br />
-              Projekt: {confirmPostal.project_name}<br />
-              Es wird keine E-Mail verschickt. Die Rechnung gilt danach als gesendet und
-              läuft normal ins Mahnwesen — die Zahlungsfrist zählt ab dem Aufgabedatum.
-            </>
-          }
-          confirmLabel="Als versendet markieren"
-          busyLabel="…"
-          busy={acting === confirmPostal.id}
-          confirmDisabled={!postalDate}
-          onCancel={() => setConfirmPostal(null)}
-          onConfirm={() => void handleMarkSentByPost(confirmPostal.id)}
-        >
-          <div style={{ margin: '12px 0' }}>
-            <label className="admin-form-label" htmlFor="postal-sent-date">Aufgabedatum</label>
-            <input
-              id="postal-sent-date"
-              className="admin-form-input"
-              type="date"
-              value={postalDate}
-              max={todayISO()}
-              onChange={e => setPostalDate(e.target.value)}
-            />
-          </div>
-        </ConfirmDialog>
-      )}
-
-      {/* Bestätigungsdialog Zahlung zurücksetzen */}
-      {confirmUnpay && (
-        <ConfirmDialog
-          title="Zahlung zurücksetzen?"
-          message={
-            <>
-              {confirmUnpay.invoice_number} · {fmtCHF(confirmUnpay.total_amount)}<br />
-              Projekt: {confirmUnpay.project_name}<br />
-              Die Rechnung gilt danach wieder als offen (gesendet bzw. ausstehend)
-              und kann anschliessend archiviert werden.
-            </>
-          }
-          confirmLabel="Zahlung zurücksetzen"
-          busyLabel="…"
-          busy={acting === confirmUnpay.id}
-          variant="danger"
-          onCancel={() => setConfirmUnpay(null)}
-          onConfirm={() => void handleUnmarkPaid(confirmUnpay.id)}
-        />
-      )}
-
-      {/* Bestätigungsdialog Rechnung archivieren */}
-      {confirmArchive && (
-        <ConfirmDialog
-          title="Rechnung archivieren?"
-          message={
-            <>
-              {confirmArchive.invoice_number} · {fmtCHF(confirmArchive.total_amount)}<br />
-              Projekt: {confirmArchive.project_name}<br />
-              Die Rechnung gilt danach als annulliert. Ihre Rapporte werden von der
-              Rechnung gelöst — sie sind wieder verrechenbar und können bei Bedarf
-              gelöscht oder korrigiert werden, bevor eine neue Rechnung erstellt wird.
-            </>
-          }
-          confirmLabel="Archivieren"
-          busyLabel="…"
-          busy={acting === confirmArchive.id}
-          variant="danger"
-          onCancel={() => setConfirmArchive(null)}
-          onConfirm={() => void handleArchive(confirmArchive.id)}
-        >
-          {bexio[String(confirmArchive.id)]?.state === 'in_bexio' && (
-            <BexioCancelCheckbox checked={bexioCancel} onChange={setBexioCancel} />
-          )}
-        </ConfirmDialog>
-      )}
-
-      {/* Rückfrage zur Pille «bexio: Storno offen» (§6.7) */}
-      {confirmBexioCancel && (
-        <ConfirmDialog
-          title="In bexio stornieren?"
-          message={<>{confirmBexioCancel.invoice_number} · {fmtCHF(confirmBexioCancel.total_amount)}<br />{BEXIO_CANCEL_MESSAGE}</>}
-          confirmLabel="In bexio stornieren"
-          busyLabel="…"
-          busy={acting === confirmBexioCancel.id}
-          variant="danger"
-          onCancel={() => setConfirmBexioCancel(null)}
-          onConfirm={() => void handleBexioCancel(confirmBexioCancel)}
-        />
-      )}
+      {dialogs}
 
       {/* Dialog: Rechnung erstellen */}
       {showGenerate && (
@@ -1104,37 +665,6 @@ export default function InvoicesScreen({ onBadgeChange, onNav }: {
       )}
 
       {/* Dialog: Rechnung senden */}
-      {sendInvoice && (
-        <ConfirmDialog
-          title="Rechnung senden"
-          message={
-            <>
-              {sendInvoice.invoice_number} · {fmtCHF(sendInvoice.total_amount)}<br />
-              Projekt: {sendInvoice.project_name}
-            </>
-          }
-          confirmLabel="Rechnung senden"
-          busyLabel="Wird gesendet…"
-          busy={sending}
-          confirmDisabled={!sendEmail}
-          maxWidth={440}
-          onCancel={() => { if (!sending) setSendInvoice(null) }}
-          onConfirm={() => void handleSendInvoice()}
-        >
-          <div style={{ marginBottom: 12 }}>
-            <label className="admin-form-label">Empfänger E-Mail</label>
-            <input
-              className="admin-form-input"
-              type="email"
-              value={sendEmail}
-              onChange={e => setSendEmail(e.target.value)}
-              placeholder="kunde@example.com"
-            />
-            <CcEmailRows value={sendCc} onChange={setSendCc} disabled={sending} />
-          </div>
-        </ConfirmDialog>
-      )}
-
       {freierDialog && (
         <FreeInvoiceDialog
           customers={freieKunden}

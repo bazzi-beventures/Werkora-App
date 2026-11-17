@@ -2897,6 +2897,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/admin/tenant/termin-farben": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["TerminFarben"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/terminanfragen/{anfrage_id}/zurueckziehen": {
         parameters: {
             query?: never;
@@ -3557,6 +3592,8 @@ export interface components {
             customer_name: string;
             customer_email: string;
             project_name: string;
+            /** @description Zum Öffnen des Projekts aus dem Dialog; null bei einer freistehenden Offerte. */
+            project_id?: string | null;
             total_amount: number;
             sent_at: string | null;
         };
@@ -3775,6 +3812,8 @@ export interface components {
             project_id: string | null;
             project_status?: string | null;
             project_is_closed?: boolean | null;
+            /** @description Offene Rechnung auf einem Projekt, das schon eine bezahlte Rechnung in der Höhe von Offerte/Rapport (±10 %) hat — braucht es sie noch? (services/verrechnung_check.py). null = nicht geprüft (Betreiber-Liste). */
+            evtl_bereits_verrechnet?: boolean | null;
             /** @description Fällig am — gesetzt beim Versand (`set_invoice_sent_at`). Aus ihr leitet die Betreiber-Liste «Verspätet» ab; `null` heisst: noch nicht versendet, also nie verspätet. */
             due_date?: string | null;
             sent_at?: string | null;
@@ -3865,6 +3904,8 @@ export interface components {
             customer_notice_sent_at?: string | null;
             customer_notice_to?: string | null;
             customer_notice_snapshot?: components["schemas"]["BestaetigungStand"] | null;
+            /** @description Farbkategorie (Schlüssel aus den Terminfarben des Betriebs); null = Farbe der Einsatz-Art. Spec termin-farbkategorien. */
+            color_category?: string | null;
         };
         /** @description Antwort von ``POST …/appointments``: der ERSTE Termin, bei einer Serie mit Anzahl. */
         TerminAngelegt: {
@@ -3887,6 +3928,8 @@ export interface components {
             customer_notice_sent_at?: string | null;
             customer_notice_to?: string | null;
             customer_notice_snapshot?: components["schemas"]["BestaetigungStand"] | null;
+            /** @description Farbkategorie (Schlüssel aus den Terminfarben des Betriebs); null = Farbe der Einsatz-Art. Spec termin-farbkategorien. */
+            color_category?: string | null;
             series_count: number;
         };
         TerminArtAuswahl: {
@@ -3899,6 +3942,17 @@ export interface components {
                 [key: string]: components["schemas"]["Dauer"];
             };
             arten: components["schemas"]["TerminArtAuswahl"][];
+        };
+        /** @description Eine Farbkategorie des Betriebs; `key` steht am Termin (`color_category`). */
+        TerminFarbe: {
+            key: string;
+            label: string;
+            /** @description #rrggbb */
+            color: string;
+        };
+        /** @description Die Terminfarben des Betriebs, in der gepflegten Reihenfolge. */
+        TerminFarben: {
+            kategorien: components["schemas"]["TerminFarbe"][];
         };
         /** @description Antwort von ``PATCH /admin/appointments/{id}``. */
         TerminGeaendert: {
@@ -3921,6 +3975,8 @@ export interface components {
             customer_notice_sent_at?: string | null;
             customer_notice_to?: string | null;
             customer_notice_snapshot?: components["schemas"]["BestaetigungStand"] | null;
+            /** @description Farbkategorie (Schlüssel aus den Terminfarben des Betriebs); null = Farbe der Einsatz-Art. Spec termin-farbkategorien. */
+            color_category?: string | null;
             series_updated: number;
             series_created: number;
             series_deleted: number;
