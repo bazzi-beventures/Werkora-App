@@ -36,6 +36,10 @@ export interface UserInfo {
   /** Darf dieses Konto Ferienanträge entscheiden? Vom Server fertig gerechnet
    *  (Rolle, Recht, Modus, Beta) — die App rechnet es nicht nach. */
   absence_approver?: boolean
+  /** Darf Zeitkorrekturen entscheiden / sieht «Einstellungen» (Wochenplan,
+   *  Jahresabschluss) — vom Server gerechnet (docs/specs/zeit-verwalten-recht.md). */
+  correction_approver?: boolean
+  zeit_einstellungen?: boolean
   /** Dringendes App-Update: eine wartende Version greift bei der nächsten
    *  Rückkehr in die App ohne die 30 Minuten (docs/specs/pwa-neuladen.md §3.1). */
   client_update_urgent?: boolean

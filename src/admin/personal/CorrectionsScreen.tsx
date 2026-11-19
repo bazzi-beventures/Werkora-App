@@ -41,6 +41,17 @@ function CorrectionActions({ c, acting, onApprove, onReject }: {
   onApprove: (id: string) => void
   onReject: (id: string) => void
 }) {
+  // Der Server sagt je Zeile, ob DIESES Konto entscheiden darf (Recht
+  // «Arbeitszeiten verwalten», docs/specs/zeit-verwalten-recht.md).
+  if (c.decide_block) {
+    return (
+      <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>
+        {c.decide_block === 'own'
+          ? 'Eigene Korrektur – gibt jemand anderes frei'
+          : 'Freigabe durch «Arbeitszeiten verwalten»'}
+      </span>
+    )
+  }
   return (
     <>
       <button

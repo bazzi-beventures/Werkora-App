@@ -12,7 +12,7 @@ interface Props {
   disabled?: boolean
 }
 
-/** Lädt die Terminfarben selbst (Projektmaske). */
+/** Lädt die Terminfarben selbst (Projektmaske) — erst, wenn ein Termin offen ist. */
 export function TerminFarbeWahlGeladen(props: Props) {
   return <TerminFarbeWahl {...props} kategorien={useTerminFarben()} />
 }
@@ -24,6 +24,8 @@ export function TerminFarbeWahl({ value, onChange, disabled, kategorien }: Props
   if (kategorien.length === 0) return null
   const aktuell = kategorien.find(k => k.key === value)
   const verwaist = !!value && !aktuell
+  // Kundeneinsätze ohne eigene Farbe zeichnet der Plan in der Standardfarbe (Spec §8).
+  const standard = kategorien.find(k => k.standard)
   return (
     <div className="admin-form-group" style={{ margin: 0 }}>
       <label className="admin-form-label">Terminfarbe</label>
@@ -40,7 +42,7 @@ export function TerminFarbeWahl({ value, onChange, disabled, kategorien }: Props
           disabled={disabled}
           onChange={e => onChange(e.target.value)}
         >
-          <option value="">Keine (Farbe der Einsatz-Art)</option>
+          <option value="">{standard ? `Keine (Kundeneinsatz: «${standard.label}»)` : 'Keine (Farbe der Einsatz-Art)'}</option>
           {kategorien.map(k => <option key={k.key} value={k.key}>{k.label}</option>)}
           {verwaist && <option value={value}>(entfernt)</option>}
         </select>

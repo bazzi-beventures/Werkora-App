@@ -71,7 +71,9 @@ export function EinsatzArtWahl({ form, setForm, blockerCategories, terminFarben,
           {form.kind === 'project' && <option value="project">Kundenprojekt</option>}
           {mitFarben
             ? <>
-                {terminFarben.map(k => <option key={k.key} value={TF + k.key}>{k.label}</option>)}
+                {/* Die Standardfarbe der Kundeneinsätze ist keine Art eines internen Einsatzes. */}
+                {terminFarben.filter(k => !k.standard || k.key === kategorie?.key)
+                  .map(k => <option key={k.key} value={TF + k.key}>{k.label}</option>)}
                 <option value="blocker">{label('blocker')}</option>
                 {!kategorie && form.kind !== 'blocker' && <option value={form.kind}>{label(form.kind)}</option>}
               </>

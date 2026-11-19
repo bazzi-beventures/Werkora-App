@@ -150,7 +150,7 @@ export default function ProjectScheduleScreen({
   // Vor den Handlern deklariert, die sie lesen (Doppelbelegungs-Prüfung): der
   // React Compiler bewahrt die Memoisierung sonst nicht (preserve-manual-memoization).
   const staffLite = useMemo(
-    () => staff.map(s => ({ id: s.id, name: s.name, kuerzel: s.kuerzel })),
+    () => staff.map(s => ({ id: s.id, name: s.name, kuerzel: s.kuerzel, role: s.role, projektleiter: s.projektleiter })),
     [staff],
   )
 
@@ -1078,6 +1078,7 @@ export default function ProjectScheduleScreen({
             onOpenProject={onNav ? handleCalendarOpen : undefined}
             onReschedule={handleReschedule}
             onCreateSlot={handleCreateSlot}
+            pendingSlot={pendingSlot && { dayISO: pendingSlot.startDate, startTime: pendingSlot.startTime, endTime: pendingSlot.endTime }}
             onVisibleWeekChange={setVisibleWeekIso}
             onVisibleStaffChange={setVisibleStaffIds}
             schedulingConfig={schedulingConfig}

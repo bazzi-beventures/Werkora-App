@@ -161,4 +161,21 @@ describe('BexioTab', () => {
     await waitFor(() => expect(setBexioDefaults).toHaveBeenCalled())
     expect(setBexioDefaults.mock.calls[0][1].account_by_work_type).toEqual({ Neumontage: 300 })
   })
+
+  it('ohne MWST-Pflicht gibt es keinen Normalsatz zu wählen', async () => {
+    getBexio.mockResolvedValue({
+      ...verbunden, mwst_pflichtig: false,
+      connection: { ...verbunden.connection, default_tax_id: null },
+    })
+    render(<BexioTab tenantId="t-1" />)
+    expect(await screen.findByText(/nicht MWST-pflichtig/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Steuersatz (8.1 %)')).toBeNull()
+    expect(screen.getByLabelText('Steuersatz 0 % (freiwillig)')).toBeInTheDocument()
+  })
+
+  it('mit MWST-Pflicht bleibt der Normalsatz in der Maske', async () => {
+    getBexio.mockResolvedValue(verbunden)
+    render(<BexioTab tenantId="t-1" />)
+    expect(await screen.findByLabelText('Steuersatz (8.1 %)')).toBeInTheDocument()
+  })
 })

@@ -13,19 +13,23 @@ import { useToast, ToastHost } from '../../components/useToast'
 // leer ist; der Einsatzplan zeichnet den Termin dann in dieser Farbe. Der
 // Schlüssel entsteht beim ersten Speichern aus dem Namen und bleibt danach fest —
 // umbenennen behält die Farbe an allen Terminen, löschen lässt sie auf die Farbe
-// der Einsatz-Art zurückfallen.
+// der Einsatz-Art zurückfallen. Ein Eintrag kann Standard für Kundeneinsätze sein
+// (`standard`, Spec §8): Termine von Kundenprojekten ohne eigene Farbe zeichnet
+// der Plan dann in seiner Farbe, z. B. «Geplante Einsätze» in Gelb.
 
-interface Zeile { key?: string; label: string; color: string }
+interface Zeile { key?: string; label: string; color: string; standard?: boolean }
+
+const alsZeile = (k: Omit<Zeile, 'standard'> & { standard?: boolean | null }): Zeile => ({ key: k.key, label: k.label, color: k.color, standard: !!k.standard })
 
 async function laden(): Promise<Zeile[]> {
   const cfg = await loadSchedulingConfig()
-  return (cfg.termin_farben ?? []).map(k => ({ key: k.key, label: k.label, color: k.color }))
+  return (cfg.termin_farben ?? []).map(alsZeile)
 }
 
 async function speichern(zeilen: Zeile[]): Promise<Zeile[]> {
   const res = await saveTerminFarben(zeilen.map(z => ({ ...z, label: z.label.trim() })))
   await terminFarbenNeuLaden()
-  return res.kategorien
+  return res.kategorien.map(alsZeile)
 }
 
 export function fehlerDerListe(zeilen: Zeile[]): string {
@@ -40,6 +44,11 @@ export function fehlerDerListe(zeilen: Zeile[]): string {
     gesehen.add(n.toLowerCase())
   }
   return ''
+}
+
+/** Genau eine Zeile (oder keine, -1) als Standard für Kundeneinsätze. */
+export function standardSetzen(zeilen: Zeile[], index: number): Zeile[] {
+  return zeilen.map((z, i) => ({ ...z, standard: i === index }))
 }
 
 export function TerminFarbenTab() {
@@ -63,13 +72,15 @@ export function TerminFarbenTab() {
     setValue(neu)
   }
   const fehler = fehlerDerListe(value)
+  const standardIndex = value.findIndex(z => z.standard)
 
   return (
     <div className="admin-table-wrap" style={{ padding: 24, maxWidth: 720 }}>
       <div style={{ marginBottom: 20, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
         Eigene Farben für Termine, z.&nbsp;B. «Schulung», «Büro» oder «Ferien». Beim Erfassen eines
         Termins lässt sich eine davon wählen; der Einsatzplan zeigt den Termin dann in dieser Farbe.
-        Ohne Auswahl bleibt die Farbe der Einsatz-Art. Umbenennen behält die Farbe an allen Terminen.
+        Ohne Auswahl bleibt die Farbe der Einsatz-Art bzw. bei Kundeneinsätzen die Standardfarbe
+        unten. Umbenennen behält die Farbe an allen Terminen.
       </div>
 
       <div style={{ display: 'grid', gap: 8 }}>
@@ -99,6 +110,21 @@ export function TerminFarbenTab() {
               onClick={() => setValue([...value, { label: '', color: NEUE_TERMINFARBE }])}>
         + Farbe hinzufügen
       </button>
+
+      {value.length > 0 && (
+        <label className="admin-form-group" style={{ display: 'block', marginTop: 20 }}>
+          <span className="admin-form-label">Standardfarbe für Kundeneinsätze</span>
+          <select className="admin-form-select" aria-label="Standardfarbe für Kundeneinsätze"
+                  value={standardIndex} disabled={saving}
+                  onChange={e => setValue(standardSetzen(value, Number(e.target.value)))}>
+            <option value={-1}>Keine (Farbe der Einsatz-Art)</option>
+            {value.map((z, i) => <option key={z.key ?? `neu-${i}`} value={i}>{z.label || `Zeile ${i + 1}`}</option>)}
+          </select>
+          <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: 'var(--muted)' }}>
+            Gilt für Termine von Kundenprojekten, die keine eigene Terminfarbe tragen.
+          </span>
+        </label>
+      )}
 
       {fehler && <div className="admin-form-error" role="alert" style={{ marginTop: 12 }}>{fehler}</div>}
 

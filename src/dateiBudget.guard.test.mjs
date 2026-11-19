@@ -41,7 +41,7 @@ const BESTAND = {
   'index.css': 2631, // 2705, nach Charge O5 2631
   'admin/operative/ProjectScheduleScreen.tsx': 1500, // 1428 (Charge M4c; M4b 1732, M4a 1915, vorher 2343)
   'screens/ProjekteScreen.tsx': 2200, // 2164
-  'admin/operative/ProjectScheduleCalendar.tsx': 750, // 713 (Charge M4d, vorher 1550)
+  'admin/operative/ProjectScheduleCalendar.tsx': 700, // 672 (Mitarbeiter-Filter → StaffFilterPills; vorher 713, Charge M4d)
   'admin/operative/ReportCreateForm.tsx': 1300, // 1253
   'chat/ChatScreen.tsx': 1250, // 1222
   'admin/operative/InvoicesScreen.tsx': 720, // 673 — Aktionen/Dialoge nach invoices/useInvoiceActions (20261117; vorher 1142)

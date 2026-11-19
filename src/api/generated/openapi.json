@@ -5676,6 +5676,17 @@
           "color": {
             "type": "string",
             "description": "#rrggbb"
+          },
+          "standard": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Farbe für Termine von Kundenprojekten ohne eigene Terminfarbe; höchstens ein Eintrag, fehlt sonst"
           }
         },
         "type": "object",

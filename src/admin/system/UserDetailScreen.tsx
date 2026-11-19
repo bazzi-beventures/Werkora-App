@@ -61,6 +61,13 @@ const PERMISSION_OPTIONS: { key: string; label: string; hint: string; beta?: boo
       + 'noch nicht bekannt ist — nach telefonischer Bestätigung beim Lieferanten, mit der Nummer aus '
       + 'dem Lieferantenstamm. Eine Rechnung, die jemand selbst erfasst hat, visiert jemand anderes.',
   },
+  {
+    key: 'zeit_verwalten',
+    label: 'Arbeitszeiten verwalten',
+    hint: 'Darf Zeitkorrekturen genehmigen oder ablehnen und unter «Einstellungen» Wochenplan und '
+      + 'Jahresabschluss pflegen. Wirkt nur mit einer Admin-Rolle. Ist «nur Berechtigte» eingestellt, '
+      + 'dürfen das andere Admins nicht mehr. Die eigene Korrektur gibt jemand anderes frei.',
+  },
 ]
 
 // Spiegelt services/password_policy.py — die verbindliche Prüfung passiert im Backend.

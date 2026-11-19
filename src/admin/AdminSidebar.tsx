@@ -19,6 +19,8 @@ interface Props {
   tenantName: string
   enabledModules: string[]
   showTaskBoard?: boolean
+  /** «Einstellungen»: Geschäftsleitung oder Recht «Arbeitszeiten verwalten». */
+  showSettings?: boolean
   badges?: {
     corrections?: number
     absences?: number
@@ -63,7 +65,7 @@ function NavItem({ label, target, current, onNav, badge, icon, beta }: NavItemPr
   )
 }
 
-export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, badges }: Props) {
+export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, showSettings, badges }: Props) {
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isManagement = isManagementRole(role)
   const mayViewKpis = hasKpiAccess(role)
@@ -118,7 +120,7 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
             Nebeneffekt des Containers: Wochen-Soll und Überstunden-Reset sind
             Einstellungen des Mandanten, und das Backend stand ohnehin auf
             `require_admin` (Spec §6.5, E7). */}
-        {isManagement && (
+        {showSettings && (
           <NavItem label="Einstellungen" target="settings" current={screen} onNav={onNav} icon={<IconSettings />} />
         )}
 

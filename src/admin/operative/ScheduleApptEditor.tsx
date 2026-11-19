@@ -7,6 +7,7 @@ import {
   APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS, type AppointmentKind, type AppointmentScope,
 } from '../../api/admin'
 import { TerminFarbeWahl } from './TerminFarbeWahl'
+import { SonstigesWahl, typWechsel } from './SonstigesWahl'
 import type { TerminFarbe } from '../../api/admin/tenant'
 import { DateTimeInput } from '../components/DateTimeInput'
 import { pastAppointmentHint, todayISO } from './projectAppointments'
@@ -40,14 +41,18 @@ export function ScheduleApptEditor({
           <select
             className="admin-input"
             value={apptForm.kind}
-            onChange={e => setApptForm(a => a && ({ ...a, kind: e.target.value as AppointmentKind }))}
+            onChange={e => setApptForm(a => {
+              if (!a) return a
+              const kind = e.target.value as AppointmentKind
+              return { ...a, kind, colorCategory: typWechsel(kind, a.colorCategory) }
+            })}
           >
             {APPOINTMENT_KINDS.map(k => (
               <option key={k} value={k}>{APPOINTMENT_KIND_LABELS[k]}</option>
             ))}
           </select>
         </label>
-        {apptForm.kind === 'sonstiges' && (
+        {apptForm.kind === 'sonstiges' && !apptForm.colorCategory && (
           <label className="project-schedule-field">
             <span>Bezeichnung</span>
             <input
@@ -60,9 +65,18 @@ export function ScheduleApptEditor({
         )}
       </div>
     )}
-    {/* Terminfarbe für jeden Termin, auch interne Einsätze (Büro, Homeoffice …). */}
-    <TerminFarbeWahl value={apptForm.colorCategory} kategorien={terminFarben}
-                     onChange={k => setApptForm(a => a && ({ ...a, colorCategory: k }))} />
+    {/* Kundenprojekt: nur «Sonstiges» trägt eine Terminfarbe («Was genau?»); die
+        übrigen Typen sind geplante Einsätze in der Standardfarbe (Spec §8). Eine
+        ältere Farbe an einem anderen Typ bleibt sichtbar, bis jemand sie entfernt.
+        Interne Einsätze (Büro, Homeoffice …): Terminfarbe wie bisher. */}
+    {showApptExtras && apptForm.kind === 'sonstiges' && (
+      <SonstigesWahl value={apptForm.colorCategory} kategorien={terminFarben}
+                     onChange={(k, label) => setApptForm(a => a && ({ ...a, colorCategory: k, label }))} />
+    )}
+    {(!showApptExtras || (apptForm.kind !== 'sonstiges' && !!apptForm.colorCategory)) && (
+      <TerminFarbeWahl value={apptForm.colorCategory} kategorien={terminFarben}
+                       onChange={k => setApptForm(a => a && ({ ...a, colorCategory: k }))} />
+    )}
 
     <div className="project-schedule-row">
       <label className="project-schedule-field">

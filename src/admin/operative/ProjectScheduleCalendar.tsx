@@ -7,9 +7,10 @@ import { getSwissHolidays, getWeekDays, toDateStr, diffDays, addDays, kwLabel, p
 import { WEEK_ZOOM_LEVELS, WEEK_ZOOM_LABELS, WEEK_ZOOM_DEFAULT } from '../utils/weekGrid'
 import { GANTT_DAY_CAPACITY_FALLBACK_H as DAY_CAPACITY_FALLBACK_H, GANTT_SPANS, GANTT_SPAN_DEFAULT, GANTT_SPAN_LABELS, GANTT_ZOOM_DEFAULT, GANTT_ZOOM_LABELS, GANTT_ZOOM_LEVELS, ganttDays, ganttStepStart } from '../utils/ganttGrid'
 import ProjectScheduleGantt from './ProjectScheduleGantt'
-import { staffShortLabel, scheduledDayIsoSet, weekendOnlyEntries, type CalendarEntry, type StaffLite } from './scheduleShared'
+import { scheduledDayIsoSet, weekendOnlyEntries, type CalendarEntry, type StaffLite } from './scheduleShared'
 import { parseViewDate, readScheduleView, writeScheduleView } from './scheduleViewState'
 import MiniMonthPicker from './MiniMonthPicker'
+import StaffFilterPills from './StaffFilterPills'
 import type { EinsatzStaende } from './useEinsatzStaende'
 import { CalendarLegend } from './scheduleCalendarParts'
 import { MonthView } from './ScheduleMonthView'
@@ -44,6 +45,8 @@ interface Props {
   // Neuer Termin per Aufziehen im Wochen-Zeitraster. monteurId ist in der
   // Mitarbeiteransicht der fokussierte Mitarbeiter (vorausgewählt), sonst null.
   onCreateSlot?: (dateISO: string, startTime: string, endTime: string, monteurId: string | null) => void
+  // Der aufgezogene Termin, den das Panel gerade anlegt — die Wochenansicht lässt ihn stehen.
+  pendingSlot?: { dayISO: string; startTime: string; endTime: string } | null
   // Meldet die aktuell sichtbare Kalenderwoche (Mo, ISO-Datum) hoch — für PDF-Export.
   onVisibleWeekChange?: (mondayIso: string) => void
   // Meldet die aktuell im Filter aktiven Staff-IDs hoch (alle ohne Hide-Flag).
@@ -130,7 +133,7 @@ function readGanttSpan(): number {
 export default function ProjectScheduleCalendar({
   projects, staff, loading, canton = 'ZH', onSelect, onOpenProject, onReschedule, onCreateSlot,
   onVisibleWeekChange, onVisibleStaffChange, schedulingConfig, configPending = false, absences,
-  focus, einsatzStaende = null,
+  focus, einsatzStaende = null, pendingSlot = null,
 }: Props) {
   // Gemerkter Ansichtszustand der Sitzung (scheduleViewState.ts): ein Ausflug in
   // die Projektmaske soll nicht wieder bei «Monat / heute» enden.
@@ -295,14 +298,6 @@ export default function ProjectScheduleCalendar({
     if (hiddenStaff.size === 0) onVisibleStaffChange(null)
     else onVisibleStaffChange(staff.filter(s => !hiddenStaff.has(s.id)).map(s => s.id))
   }, [hiddenStaff, staff, onVisibleStaffChange, view, focusedStaff])
-
-  function toggleStaff(id: string) {
-    setHiddenStaff(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
 
   // Filter: Projekt sichtbar, wenn kein Filter aktiv oder mind. ein zugewiesener
   // Monteur nicht ausgeblendet ist. Projekte ohne Monteure verschwinden, sobald
@@ -497,41 +492,7 @@ export default function ProjectScheduleCalendar({
       )}
 
       {!busy && view !== 'staff' && staff.length > 0 && (
-        <div className="project-cal-filter">
-          <div className="project-cal-filter-head">
-            <span>
-              <span className="project-cal-filter-label">Monteure</span>
-              <span className="project-cal-filter-count">
-                {staff.length - hiddenStaff.size} von {staff.length} sichtbar
-              </span>
-            </span>
-            <button
-              type="button"
-              className="project-schedule-mini-btn"
-              onClick={() => {
-                const allHidden = hiddenStaff.size === staff.length
-                setHiddenStaff(allHidden ? new Set() : new Set(staff.map(s => s.id)))
-              }}
-            >
-              {hiddenStaff.size === staff.length ? 'Alle anzeigen' : 'Alle ausblenden'}
-            </button>
-          </div>
-          <div className="absence-cal-staff-filter">
-            {staff.map(s => (
-              <button
-                key={s.id}
-                className={`absence-cal-staff-chip${hiddenStaff.has(s.id) ? ' hidden' : ''}`}
-                onClick={() => toggleStaff(s.id)}
-                // Kürzel wie auf den Kacheln (§4); der volle Name bleibt
-                // Tooltip und zugänglicher Name des Knopfs.
-                title={s.name}
-                aria-label={s.name}
-              >
-                {staffShortLabel(s)}
-              </button>
-            ))}
-          </div>
-        </div>
+        <StaffFilterPills staff={staff} hiddenStaff={hiddenStaff} onHiddenChange={setHiddenStaff} />
       )}
 
       {!busy && !isMobile && weekendToggleVisible && (
@@ -697,6 +658,7 @@ export default function ProjectScheduleCalendar({
           absenceStaff={absenceStaff}
           staffMode={view === 'staff'}
           hideWeekend={hideWeekend}
+          pendingSlot={pendingSlot}
         />
       )}
 

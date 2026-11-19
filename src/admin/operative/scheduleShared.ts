@@ -23,6 +23,10 @@ export interface StaffLite {
   // Personal-Kürzel aus dem Mitarbeiterstamm (z.B. "MW"). Optional — fehlt es,
   // greift staffShortLabel() auf die Initialen des Namens zurück.
   kuerzel?: string | null
+  // Login-Rolle (authorized_users.role) und Projektleiter-Flag — nur für die
+  // Gruppierung des Filters (Monteure / Admin). Fehlen sie, gilt «Monteur».
+  role?: string | null
+  projektleiter?: boolean
 }
 
 // Kalender-Eintrag = EIN Termin (project_appointments). Der Screen spreadet das

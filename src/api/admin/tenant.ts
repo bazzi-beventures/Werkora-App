@@ -115,7 +115,7 @@ export const TERMIN_FARBE_LABEL_MAXLEN = 60  // db/tenants.py SCHEDULING_TERMIN_
 
 /** Ganze Liste ersetzen; neue Einträge ohne `key`, den vergibt der Server. */
 export async function saveTerminFarben(
-  kategorien: { key?: string; label: string; color: string }[],
+  kategorien: { key?: string; label: string; color: string; standard?: boolean }[],
 ): Promise<Antwort<'TerminFarben'>> {
   return apiFetch<Antwort<'TerminFarben'>>('/pwa/admin/tenant/termin-farben', {
     method: 'PUT', body: JSON.stringify({ kategorien }),

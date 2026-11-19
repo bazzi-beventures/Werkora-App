@@ -18,6 +18,7 @@ import {
 import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
 import { TerminVorschlagDialog } from './TerminVorschlagDialog'
 import { TerminFarbeWahlGeladen } from '../TerminFarbeWahl'
+import { SonstigesWahlGeladen, typWechsel } from '../SonstigesWahl'
 import type { TerminVorschlag } from '../../../api/serviceBegleitung'
 
 interface Props {
@@ -274,14 +275,22 @@ export default function AppointmentsCard({
                         className="admin-form-select"
                         aria-label="Termin-Typ"
                         value={d.kind}
-                        onChange={e => patch(d.key, { kind: e.target.value as AppointmentKind })}
+                        onChange={e => {
+                          const kind = e.target.value as AppointmentKind
+                          patch(d.key, { kind, colorCategory: typWechsel(kind, d.colorCategory) })
+                        }}
                       >
                         {APPOINTMENT_KINDS.map(k => (
                           <option key={k} value={k}>{APPOINTMENT_KIND_LABELS[k]}</option>
                         ))}
                       </select>
                     </div>
+                    {/* Nur «Sonstiges» trägt eine Terminfarbe (Spec §8, SonstigesWahl). */}
                     {d.kind === 'sonstiges' && (
+                      <SonstigesWahlGeladen value={d.colorCategory}
+                                            onChange={(k, label) => patch(d.key, { colorCategory: k, label })} />
+                    )}
+                    {d.kind === 'sonstiges' && !d.colorCategory && (
                       <div className="admin-form-group" style={{ margin: 0 }}>
                         <label className="admin-form-label">Bezeichnung</label>
                         <input
@@ -293,8 +302,10 @@ export default function AppointmentsCard({
                         />
                       </div>
                     )}
-                    <TerminFarbeWahlGeladen value={d.colorCategory}
-                                            onChange={k => patch(d.key, { colorCategory: k })} />
+                    {d.kind !== 'sonstiges' && !!d.colorCategory && (
+                      <TerminFarbeWahlGeladen value={d.colorCategory}
+                                              onChange={k => patch(d.key, { colorCategory: k })} />
+                    )}
                   </div>
 
                   <div className="admin-form-row">

@@ -348,9 +348,14 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
               ))}
             </tbody>
           </table>
-          {numSelect('Steuersatz (8.1 %)', defaults.default_tax_id, taxOptions,
-            v => setDefaults({ ...defaults, default_tax_id: v }))}
-          {numSelect('Steuersatz der Rundungszeile (0 %)', defaults.default_tax_id_zero, taxOptions,
+          {/* Ohne MWST-Pflicht rechnet bexio die Rechnung ohne MWST — kein Normalsatz
+              (bexio_mapping.MWST_TYPE_UNTAXED), der 0-%-Satz ist freiwillig. */}
+          {view.mwst_pflichtig === false
+            ? <p style={MUTED}>Der Mandant ist nicht MWST-pflichtig: Rechnungen gehen ohne MWST nach bexio.</p>
+            : numSelect('Steuersatz (8.1 %)', defaults.default_tax_id, taxOptions,
+              v => setDefaults({ ...defaults, default_tax_id: v }))}
+          {numSelect(view.mwst_pflichtig === false ? 'Steuersatz 0 % (freiwillig)' : 'Steuersatz der Rundungszeile (0 %)',
+            defaults.default_tax_id_zero, taxOptions,
             v => setDefaults({ ...defaults, default_tax_id_zero: v }))}
           {numSelect('Bankkonto (mit der IBAN der Werkora-Rechnungen)', defaults.default_bank_account_id, bankOptions,
             v => setDefaults({ ...defaults, default_bank_account_id: v }))}

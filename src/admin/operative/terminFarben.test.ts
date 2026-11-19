@@ -7,7 +7,7 @@ import { appointmentEntries } from './scheduleScreenModel'
 import { pillBg, pillClass, KIND_COLORS } from './scheduleShared'
 import { farbeJeKategorie, istHell } from './terminFarben'
 import { apptToDraft, draftPayload, emptyDraft, sameDraft } from './projectAppointments'
-import { fehlerDerListe } from '../configuration/tabs/TerminFarbenTab'
+import { fehlerDerListe, standardSetzen } from '../configuration/tabs/TerminFarbenTab'
 
 function appt(over: Partial<ProjectAppointment> = {}): ProjectAppointment {
   return {
@@ -49,6 +49,40 @@ describe('Kachelfarbe im Plan', () => {
     const blocker = { ...PROJEKT, kind: 'blocker' } as unknown as ScheduleProject
     const [e] = appointmentEntries([blocker], [appt({ color_category: 'buero' })], FARBEN)
     expect(pillClass(e)).toBe(' provisional tf-hell')
+  })
+})
+
+describe('Standardfarbe der Kundeneinsätze (Spec §8)', () => {
+  const MIT_STANDARD = farbeJeKategorie([
+    { key: 'buero', label: 'Büro', color: '#fdba74' },
+    { key: 'geplant', label: 'Geplante Einsätze', color: '#facc15', standard: true },
+  ])
+  const KUNDE = { ...PROJEKT, kind: 'project' } as unknown as ScheduleProject
+
+  it('ein Kundeneinsatz ohne eigene Farbe wird gelb, mit dunkler Schrift', () => {
+    const [e] = appointmentEntries([KUNDE], [appt()], MIT_STANDARD)
+    expect(pillBg(e)).toBe('#facc15')
+    expect(pillClass(e)).toBe(' tf-hell')
+  })
+  it('auch ohne gesetzte Art (Altdaten) gilt das Projekt als Kundeneinsatz', () => {
+    const ohneArt = { ...PROJEKT, kind: null } as unknown as ScheduleProject
+    expect(appointmentEntries([ohneArt], [appt()], MIT_STANDARD)[0].termin_farbe).toBe('#facc15')
+  })
+  it('eine eigene Terminfarbe schlägt den Standard', () => {
+    const [e] = appointmentEntries([KUNDE], [appt({ color_category: 'buero' })], MIT_STANDARD)
+    expect(e.termin_farbe).toBe('#fdba74')
+  })
+  it('interne Einsätze und Kunden ohne Standard bleiben bei der Farbe der Art', () => {
+    expect(appointmentEntries([PROJEKT], [appt()], MIT_STANDARD)[0].termin_farbe).toBeUndefined()
+    expect(appointmentEntries([KUNDE], [appt()], FARBEN)[0].termin_farbe).toBeUndefined()
+  })
+  it('im Reiter ist höchstens eine Zeile Standard', () => {
+    const zeilen = [
+      { label: 'A', color: '#000000', standard: true },
+      { label: 'B', color: '#000000' },
+    ]
+    expect(standardSetzen(zeilen, 1).map(z => z.standard)).toEqual([false, true])
+    expect(standardSetzen(zeilen, -1).map(z => z.standard)).toEqual([false, false])
   })
 })
 

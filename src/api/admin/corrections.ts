@@ -20,6 +20,9 @@ export interface Correction {
   current_auto_break_minutes?: number | null
   reason: string | null
   status: string
+  /** Warum DIESES Konto hier nicht entscheiden kann — `own` (eigene Korrektur),
+   *  `no_right` (Recht «Arbeitszeiten verwalten» fehlt) oder null. Vom Server. */
+  decide_block?: 'own' | 'no_right' | null
 }
 
 export async function getAdminCorrections(status?: string): Promise<Correction[]> {

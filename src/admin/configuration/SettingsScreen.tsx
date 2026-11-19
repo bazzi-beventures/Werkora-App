@@ -34,9 +34,10 @@ import { TerminFarbenTab } from './tabs/TerminFarbenTab'
  * Termin für den Einsatzplan (docs/specs/termin-farbkategorien.md) — auch eine
  * Frage des Betriebs, Schreiben verlangt `require_management`.
  *
- * Sichtbar für `management` (und damit auch `superadmin`), nicht für
- * eingeschränkte Adminkonten — geführt wird das über `isManagement` in
- * AdminSidebar/MobileNav, durchgesetzt vom Backend.
+ * Sichtbar für `management` (und damit auch `superadmin`) und für Adminkonten mit
+ * dem Recht «Arbeitszeiten verwalten» (docs/specs/zeit-verwalten-recht.md) —
+ * geführt über `showSettings` in AdminSidebar/MobileNav (`/pwa/me.zeit_einstellungen`),
+ * durchgesetzt vom Backend. Die Termin-Reiter bekommt nur die Geschäftsleitung.
  */
 export default function SettingsScreen({ terminDauer = false, terminFarben = false }: {
   terminDauer?: boolean

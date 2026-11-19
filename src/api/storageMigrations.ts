@@ -49,6 +49,10 @@ function isKnownKey(k: string): boolean {
   if (k === 'schedule-gantt-zoom') return true  // Zoom-Stufe des Tagesplans (Gantt)
   if (k === 'schedule-gantt-span') return true  // Sichtbarer Zeitraum des Tagesplans (1/3/5/6 Tage)
   if (k === 'schedule-map-period') return true  // Zeitraum der Auftragskarte (Wochen ab heute)
+  // Wochenende ausblenden (WW-56) und Namen statt Kürzel im Mitarbeiter-Filter
+  // der Einsatzplanung. Additive Keys, keine APP_DATA_VERSION-Erhöhung nötig.
+  if (k === 'schedule-hide-weekend') return true
+  if (k === 'schedule-staff-pill-names') return true
   // Eingeblendete Zusatzspalten der Projektliste, z.B. { termine: true }
   // (docs/specs/projektliste-termine-team.md §2.2).
   if (k === 'projektliste-spalten') return true

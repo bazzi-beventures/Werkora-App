@@ -1,0 +1,59 @@
+/* Mitarbeiter-Filter der Einsatzplanung (admin/operative/StaffFilterPills.tsx):
+   Gruppen «Monteure» und «Admin», die Admin-Pillen in eigener Farbe. */
+
+.staff-filter-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.staff-filter-names {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.staff-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 6px;
+}
+
+.staff-filter-group + .staff-filter-group {
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.staff-filter-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.staff-filter-group-head .project-schedule-mini-btn {
+  margin-left: auto;
+}
+
+.staff-filter-group-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+}
+
+/* Admin an: violett statt Brand-Blau. */
+.absence-cal-staff-chip.staff-chip-admin {
+  background: var(--accent-purple);
+  border-color: var(--accent-purple);
+  color: #fff;
+}
+
+/* Admin aus: zarte violette Fläche, gestrichelter Rand — bleibt als Admin erkennbar. */
+.absence-cal-staff-chip.staff-chip-admin.hidden {
+  background: var(--accent-purple-dim);
+  border: 1px dashed var(--accent-purple);
+  color: var(--text-muted);
+}

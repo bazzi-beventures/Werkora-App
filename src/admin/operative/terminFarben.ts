@@ -56,9 +56,18 @@ export function terminFarbenNeuLaden(): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: TERMIN_FARBEN_KEY })
 }
 
-/** Schlüssel → Farbe, für die Kachel im Plan. */
+/** Eintrag der Map aus `farbeJeKategorie` für die Standardfarbe der
+ *  Kundeneinsätze (Spec §8). Kein gültiger Schlüssel (`TERMIN_FARBE_KEY_RE`),
+ *  kann also mit keiner Kategorie zusammenfallen. */
+export const EINSATZ_STANDARD = '*standard'
+
+/** Schlüssel → Farbe, für die Kachel im Plan; dazu unter `EINSATZ_STANDARD` die
+ *  Farbe des Standard-Eintrags, falls der Betrieb einen gesetzt hat. */
 export function farbeJeKategorie(kategorien: TerminFarbe[]): Map<string, string> {
-  return new Map(kategorien.map(k => [k.key, k.color]))
+  const map = new Map(kategorien.map(k => [k.key, k.color]))
+  const standard = kategorien.find(k => k.standard)
+  if (standard) map.set(EINSATZ_STANDARD, standard.color)
+  return map
 }
 
 /** Helle Fläche (Gelb, Khaki, Hellblau …) → dunkle Schrift statt Weiss.

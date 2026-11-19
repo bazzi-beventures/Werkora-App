@@ -4,10 +4,11 @@
 import { useRef, useState } from 'react'
 import type { ScheduleProject } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
-import { getWeekDays, toDateStr, isToday, diffDays, hhmmToMin, minToHHMM } from '../utils/calendarHelpers'
-import { computeWeekHours, computeLanes, laneStyle, tileLayout, timeOffsetPx, timedBlockHeightPx, yToSnappedTime, WEEK_SNAP_MIN, type TileLayout } from '../utils/weekGrid'
+import { getWeekDays, toDateStr, isToday, diffDays, hhmmToMin } from '../utils/calendarHelpers'
+import { computeWeekHours, computeLanes, laneStyle, tileLayout, timeOffsetPx, timedBlockHeightPx, yToSnappedTime, type TileLayout } from '../utils/weekGrid'
 import { absenceEntryLookup, absencesOnDay, type DayAbsence, entryTitle, fmtTime, fmtTimeRange, kindSymbol, pillBg, pillClass, pillExtraLines, projectCoversDay, readDragPayload, setDragPayload, useHoverCard, visibleWeekDays, type CalendarEntry, type StaffLite } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
+import { selectionBox, selectionLabel, useDragCreate, type DragCreateBox } from './useDragCreate'
 import { dragDauerMin, ghostLabel, GHOST_MIN_DAUER } from './dropGhost'
 import CrewChips from './CrewChips'
 import { openBinding } from './scheduleCalendarHelpers'
@@ -20,6 +21,7 @@ import { AbsenceChips } from './scheduleCalendarParts'
 export function WeekView({
   projects, staff, fields, currentDate, onSelect, onOpenProject, onReschedule, onCreateSlot, holidays,
   greyAfter, greyUntil, hourHeight, absences, absenceStaff, staffMode = false, hideWeekend = false,
+  pendingSlot = null,
 }: {
   projects: CalendarEntry[]
   staff: StaffLite[]
@@ -45,6 +47,8 @@ export function WeekView({
   staffMode?: boolean
   // Sa/So ausblenden (WW-56).
   hideWeekend?: boolean
+  // Der aufgezogene Termin, den das Panel gerade anlegt — bleibt als Box sichtbar.
+  pendingSlot?: { dayISO: string; startTime: string; endTime: string } | null
 }) {
   const days = visibleWeekDays(getWeekDays(currentDate), hideWeekend)
   const absentOn = absenceEntryLookup(absences ?? [])
@@ -60,10 +64,6 @@ export function WeekView({
   // Greif-Offset (px ab Block-Oberkante) des laufenden Drags. dataTransfer ist
   // während dragover nicht lesbar, darum hier zwischengespeichert.
   const dragGrabYRef = useRef(0)
-  // Neuen Termin aufziehen: laufender Zug (Ref, für die Fenster-Listener) +
-  // sichtbare Vorschaubox (State). colTop = Rasteroberkante der gegriffenen Spalte.
-  const createRef = useRef<{ dayISO: string; colTop: number; startPx: number; endPx: number } | null>(null)
-  const [createBox, setCreateBox] = useState<{ dayISO: string; topPx: number; heightPx: number; startTime: string; endTime: string } | null>(null)
   const projById = new Map(projects.map(p => [p.id, p]))
 
   const projectsByDay: CalendarEntry[][] = days.map(d => projects.filter(p => projectCoversDay(p, d)))
@@ -85,56 +85,17 @@ export function WeekView({
     ? Math.max(0, Math.min(gridHeight, timeOffsetPx(greyUntil, startHour, hourHeight)))
     : gridHeight
 
-  // Vorschaubox aus dem laufenden Zug berechnen (auf das Raster begrenzt).
-  function createBoxFrom(c: { dayISO: string; startPx: number; endPx: number }) {
-    const a = Math.max(0, Math.min(gridHeight, Math.min(c.startPx, c.endPx)))
-    const b = Math.max(0, Math.min(gridHeight, Math.max(c.startPx, c.endPx)))
-    return {
-      dayISO: c.dayISO,
-      topPx: a,
-      heightPx: b - a,
-      startTime: yToSnappedTime(a, startHour, endHour, hourHeight),
-      endTime: yToSnappedTime(b, startHour, endHour, hourHeight),
-    }
-  }
-
-  // Aufziehen starten — nur auf leerer Rasterfläche, nicht auf einem Block
-  // (dort greift der native Drag zum Verschieben). Fenster-Listener, damit das
-  // Ziehen auch ausserhalb der Spalte weiterläuft.
-  function beginCreate(e: React.MouseEvent, dayISO: string) {
-    if (!onCreateSlot || e.button !== 0) return
-    if ((e.target as HTMLElement).closest('.project-cal-week-event')) return
-    const rect = e.currentTarget.getBoundingClientRect()
-    const y = e.clientY - rect.top
-    createRef.current = { dayISO, colTop: rect.top, startPx: y, endPx: y }
-    setCreateBox(createBoxFrom(createRef.current))
-    window.addEventListener('mousemove', onCreateMove)
-    window.addEventListener('mouseup', onCreateUp)
-    e.preventDefault()
-  }
-  function onCreateMove(e: MouseEvent) {
-    const c = createRef.current
-    if (!c) return
-    c.endPx = e.clientY - c.colTop
-    setCreateBox(createBoxFrom(c))
-  }
-  function onCreateUp() {
-    window.removeEventListener('mousemove', onCreateMove)
-    window.removeEventListener('mouseup', onCreateUp)
-    const c = createRef.current
-    createRef.current = null
-    setCreateBox(null)
-    if (!c || !onCreateSlot) return
-    const a = Math.max(0, Math.min(gridHeight, Math.min(c.startPx, c.endPx)))
-    const b = Math.max(0, Math.min(gridHeight, Math.max(c.startPx, c.endPx)))
-    const startTime = yToSnappedTime(a, startHour, endHour, hourHeight)
-    let endTime = yToSnappedTime(b, startHour, endHour, hourHeight)
-    // Klick oder winziger Zug → 1-Stunden-Default ab Startzeit.
-    if (hhmmToMin(endTime) - hhmmToMin(startTime) < WEEK_SNAP_MIN) {
-      endTime = minToHHMM(Math.min(endHour * 60, hhmmToMin(startTime) + 60))
-    }
-    onCreateSlot(c.dayISO, startTime, endTime)
-  }
+  // Neuen Termin aufziehen (wie Google Kalender) — Logik in useDragCreate.ts.
+  const grid = { startHour, endHour, hourHeight }
+  const { box: createBox, onPointerDown: beginCreate, onMouseDown: blockSelection } = useDragCreate(grid, onCreateSlot)
+  // Nach dem Loslassen bleibt die Auswahl stehen, solange das Panel den Termin
+  // anlegt (pendingSlot) — wie Google Kalender, der die Box beim Dialog stehen lässt.
+  const shownBox: DragCreateBox | null = createBox ?? (pendingSlot && /^\d{2}:\d{2}$/.test(pendingSlot.startTime)
+    ? (() => {
+        const sel = { startMin: hhmmToMin(pendingSlot.startTime), endMin: hhmmToMin(pendingSlot.endTime) }
+        return { dayISO: pendingSlot.dayISO, ...selectionBox(sel, grid), label: selectionLabel(sel) }
+      })()
+    : null)
 
   // Drop auf den Ganztägig-Strip: Tag verschieben, Uhrzeit löschen (→ ganztägig).
   function handleAllDayDrop(e: React.DragEvent, dropDay: Date) {
@@ -347,7 +308,8 @@ export function WeekView({
                 // Mitarbeiter-Ansicht: ein Ferientag wird grün, seine Einsätze blass (WW-59).
                 `${staffMode && absentByDay[i].some(a => a.vacation) ? ' vacation' : ''}`
               }
-              onMouseDown={e => beginCreate(e, dayISO)}
+              onPointerDown={e => beginCreate(e, dayISO)}
+              onMouseDown={blockSelection}
               onDragOver={e => {
                 e.preventDefault()
                 const rect = e.currentTarget.getBoundingClientRect()
@@ -390,14 +352,13 @@ export function WeekView({
                   <span className="project-cal-week-drop-time">{dropPreview.label}</span>
                 </div>
               )}
-              {createBox?.dayISO === dayISO && (
+              {shownBox?.dayISO === dayISO && (
                 <div
                   className="project-cal-week-create-box"
-                  style={{ top: createBox.topPx, height: Math.max(2, createBox.heightPx) }}
+                  data-testid="create-box"
+                  style={{ top: shownBox.topPx, height: Math.max(2, shownBox.heightPx) }}
                 >
-                  <span className="project-cal-week-create-time">
-                    {createBox.startTime}–{createBox.endTime}
-                  </span>
+                  <span className="project-cal-week-create-time">{shownBox.label}</span>
                 </div>
               )}
             </div>

@@ -20,6 +20,8 @@ interface Props {
   role: string
   enabledModules: string[]
   showTaskBoard?: boolean
+  /** «Einstellungen»: Geschäftsleitung oder Recht «Arbeitszeiten verwalten». */
+  showSettings?: boolean
   badges?: {
     corrections?: number
     absences?: number
@@ -67,7 +69,7 @@ function IconSwitchUser() {
   )
 }
 
-export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, badges, inventur }: Props) {
+export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, showSettings, badges, inventur }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -325,7 +327,7 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 {/* Wochenplan und Jahresabschluss — sassen bis zum Rückbau (P4)
                     in «Admin-Tools» und waren damit superadmin-only, als
                     Nebeneffekt des Containers (Spec §6.5, E7). */}
-                {isManagement && (
+                {showSettings && (
                   <button className={`admin-mobile-drawer-item${screen === 'settings' ? ' active' : ''}`} onClick={() => navigate('settings')}>
                     <IconSettings /><span>Einstellungen</span>
                   </button>

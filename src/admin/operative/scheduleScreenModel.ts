@@ -12,6 +12,7 @@ import {
 import type { ProjectKind, ScheduleProject } from '../../api/admin/projects'
 import { PROJECT_KIND_LABELS } from '../utils/project'
 import type { CalendarEntry } from './ProjectScheduleCalendar'
+import { EINSATZ_STANDARD } from './terminFarben'
 import {
   apptToDraft, emptyDraft, newAppointmentDraft, type AppointmentDraft,
 } from './projectAppointments'
@@ -22,6 +23,8 @@ export interface StaffLite {
   projektleiter: boolean
   // Personal-Kürzel (z.B. "MW") — steht im Tagesplan vorne auf dem Balken.
   kuerzel?: string | null
+  // Login-Rolle — gruppiert den Filter der Einsatzplanung (Monteure / Admin).
+  role?: string | null
 }
 
 export interface CustomerLite {
@@ -135,8 +138,10 @@ export interface PendingSlot {
 // Fallback Projekt-Team. Termine geschlossener/archivierter/gefilterter Projekte
 // fehlen. Zweimal gebraucht: für den Kalender (mit Projektleiter-Filter) und für
 // die Doppelbelegungs-Warnung (ohne).
-// `farben`: Schlüssel → Farbe der Terminfarben (leer ohne Beta-Feature); ein
+// `farben`: Schlüssel → Farbe der Terminfarben (leer ohne Feature); ein
 // gelöschter Schlüssel fehlt dort, die Kachel nimmt dann wieder die Art-Farbe.
+// Ein Termin eines Kundenprojekts ohne eigene Farbe nimmt die Standardfarbe der
+// Kundeneinsätze, falls der Betrieb eine gesetzt hat (Spec §8).
 export function appointmentEntries(
   projectList: ScheduleProject[], appointments: ProjectAppointment[], farben?: Map<string, string>,
 ): CalendarEntry[] {
@@ -157,7 +162,9 @@ export function appointmentEntries(
         ? (a.kind === 'sonstiges' && a.label ? a.label : APPOINTMENT_KIND_LABELS[a.kind])
         : undefined,
       termin_kind: p.kind === 'project' ? a.kind : undefined,
-      termin_farbe: (a.color_category && farben?.get(a.color_category)) || undefined,
+      termin_farbe: (a.color_category && farben?.get(a.color_category))
+        || ((p.kind || 'project') === 'project' ? farben?.get(EINSATZ_STANDARD) : undefined)
+        || undefined,
     })
   }
   return entries

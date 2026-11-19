@@ -226,6 +226,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   }
 
   const isManagement = isManagementRole(user.role)
+  // «Einstellungen»: Geschäftsleitung — und wer «Arbeitszeiten verwalten» trägt
+  // (docs/specs/zeit-verwalten-recht.md). Der Server rechnet es (/pwa/me).
+  const showSettings = isManagement || !!user.zeit_einstellungen
   const mayViewKpis = hasKpiAccess(user.role)
 
   const enabledModules = user.enabled_modules ?? []
@@ -253,7 +256,10 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     // 'users' fehlt hier bewusst: die Benutzerverwaltung steht auch dem Admin offen
     // (Mitarbeiter anlegen, Passwort/PIN setzen). Was er dort darf, regelt die
     // Rollen-Matrix im Backend (agents/routers/admin_users.py) und UsersScreen.
-    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'bulk-clockin' || screen === 'document-backup' || screen === 'settings') && !isManagement) {
+    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'bulk-clockin' || screen === 'document-backup') && !isManagement) {
+      return <ComingSoon title="Kein Zugriff" />
+    }
+    if (screen === 'settings' && !showSettings) {
       return <ComingSoon title="Kein Zugriff" />
     }
     if (screen === 'kpis' && !mayViewKpis) {
@@ -418,6 +424,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
                   ...(hasModule(user, 'lieferschein_erfassung') ? ['wareneingang'] : []),
                   // Neue Zahlungsverbindung einer Lieferantenrechnung freigeben (E5).
                   ...(hasModule(user, 'kreditoren') ? ['kreditoren_iban'] : []),
+                  // Zeitkorrekturen + Wochenplan/Jahresabschluss (zeit-verwalten-recht.md).
+                  ...(isFeatureEnabled(user, 'zeit_verwalten_recht') ? ['zeit_verwalten'] : []),
                 ]
               : []
           }
@@ -425,8 +433,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={s => guardedNav(s)} />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
-      case 'settings':     return <SettingsScreen terminDauer={hasWerkzeug(user, 'terminwahl')}
-                                                  terminFarben={isFeatureEnabled(user, 'termin_farbkategorien')} />
+      // Termindauer/Terminfarben schreibt nur die Geschäftsleitung (require_management).
+      case 'settings':     return <SettingsScreen terminDauer={isManagement && hasWerkzeug(user, 'terminwahl')}
+                                                  terminFarben={isManagement && isFeatureEnabled(user, 'termin_farbkategorien')} />
       case 'profile':      return (
         <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}
                             onToggleTheme={toggleTheme} onLoggedOut={onLoggedOut} />
@@ -473,6 +482,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           tenantName={tenantName}
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
+          showSettings={showSettings}
           badges={badges}
         />
       )}
@@ -507,6 +517,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           role={user.role}
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
+          showSettings={showSettings}
           badges={badges}
           inventur={user.inventur_offen ?? null}
         />

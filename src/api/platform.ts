@@ -303,6 +303,9 @@ export interface BexioView {
   missing_scopes?: { scope: string; purpose: string }[]
   /** Rechnungen, deren Werkora-PDF bexio abgelehnt hat (Spec §6.3a). */
   pdf_errors?: number
+  /** MWST-Pflicht des Mandanten. `false`: Rechnungen gehen ohne MWST nach bexio,
+   *  ein Satz 8.1 % wird nicht gewählt. Fehlt das Feld: wie bisher pflichtig. */
+  mwst_pflichtig?: boolean
   /** Antwort von «PDFs nachreichen»: so viele Rechnungen eingereiht. */
   enqueued?: number
 }

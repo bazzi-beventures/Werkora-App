@@ -3949,6 +3949,8 @@ export interface components {
             label: string;
             /** @description #rrggbb */
             color: string;
+            /** @description Farbe für Termine von Kundenprojekten ohne eigene Terminfarbe; höchstens ein Eintrag, fehlt sonst */
+            standard?: boolean | null;
         };
         /** @description Die Terminfarben des Betriebs, in der gepflegten Reihenfolge. */
         TerminFarben: {
