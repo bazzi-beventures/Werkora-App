@@ -6,7 +6,7 @@
 // er beim Speichern gegen den geladenen Stand diffed), die Regeln stehen in
 // ../projectAppointments.ts.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { AppointmentKind, APPOINTMENT_KIND_LABELS, APPOINTMENT_KINDS } from '../../../api/admin'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { DateTimeInput } from '../../components/DateTimeInput'
@@ -80,6 +80,12 @@ function fmtSentAt(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+// Knopf, der wie ein Link aussieht (Sprung in die Einsatzplanung).
+const LINK_BUTTON: CSSProperties = {
+  background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer',
+  color: 'var(--primary)', textDecoration: 'underline', textUnderlineOffset: 2,
 }
 
 export default function AppointmentsCard({
@@ -209,14 +215,20 @@ export default function AppointmentsCard({
                 return <> · {team.fromProject ? 'Projekt-Team' : 'Team'}: {team.names}</>
               })()}
               {onOpenSchedule && next.startDate && (
-                <> · <button type="button"
-                    onClick={() => onOpenSchedule(next.startDate, effectiveTeamIds(next, projectTeam))}
-                    style={{ background: 'none', border: 0, padding: 0, font: 'inherit', cursor: 'pointer',
-                      color: 'var(--primary)', textDecoration: 'underline', textUnderlineOffset: 2 }}>
+                <> · <button type="button" style={LINK_BUTTON}
+                    onClick={() => onOpenSchedule(next.startDate, effectiveTeamIds(next, projectTeam))}>
                     In Einsatzplanung zeigen</button></>
               )}
             </>
-          : <span style={{ color: 'var(--muted)' }}>Kein künftiger Termin geplant.</span>}
+          : <><span style={{ color: 'var(--muted)' }}>Kein künftiger Termin geplant.</span>
+              {/* Auch ohne Termin in die Planung springen — ab heute, auf das
+                  Projekt-Team (WW-95). */}
+              {onOpenSchedule && (
+                <> · <button type="button" style={LINK_BUTTON}
+                    onClick={() => onOpenSchedule(todayISO(), projectTeam)}>
+                    In Einsatzplanung öffnen</button></>
+              )}
+            </>}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>

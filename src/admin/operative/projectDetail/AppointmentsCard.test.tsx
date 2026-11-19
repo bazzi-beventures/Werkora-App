@@ -235,4 +235,15 @@ describe('AppointmentsCard — Sprung in die Einsatzplanung', () => {
     setup([draft({ startDate: '2026-08-18' })])
     expect(screen.queryByRole('button', { name: 'In Einsatzplanung zeigen' })).toBeNull()
   })
+
+  it('springt auch ohne Termin in die Planung, ab heute auf das Projekt-Team (WW-95)', () => {
+    const onOpenSchedule = vi.fn()
+    render(
+      <AppointmentsCard appointments={[]} onChange={vi.fn()}
+        staff={STAFF} projectTeam={['s-1']} onOpenSchedule={onOpenSchedule} />,
+    )
+    expect(screen.getByText('Kein künftiger Termin geplant.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'In Einsatzplanung öffnen' }))
+    expect(onOpenSchedule).toHaveBeenCalledWith('2026-08-14', ['s-1'])
+  })
 })

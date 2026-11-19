@@ -450,6 +450,8 @@ export interface UserAbsence {
   date_end: string
   status: string
   comment: string | null
+  /** Halber Tag (WW-93): 'am' Vormittag, 'pm' Nachmittag, null/fehlt = ganzer Tag. */
+  half_day?: 'am' | 'pm' | null
 }
 
 export interface AbsenceCreatePayload {
@@ -457,6 +459,8 @@ export interface AbsenceCreatePayload {
   date_start: string
   date_end: string
   comment?: string
+  /** Nur bei eintägiger Absenz (sonst 400 `half_day_multi_day`). */
+  half_day?: 'am' | 'pm'
 }
 
 export async function fetchMyAbsences(): Promise<UserAbsence[]> {

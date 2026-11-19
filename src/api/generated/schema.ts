@@ -3641,6 +3641,8 @@ export interface components {
             type: string;
             date_start: string;
             date_end: string;
+            /** @description Halber Tag: am = Vormittag, pm = Nachmittag, null = ganzer Tag. */
+            half_day?: ("am" | "pm") | null;
             /** @description Fertig formatiert («Ferien 24.08.–28.08.2026»). */
             label: string;
         };

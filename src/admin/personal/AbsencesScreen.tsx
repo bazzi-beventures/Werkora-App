@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getAdminAbsences, approveAbsence, rejectAbsence, Absence, DECIDE_BLOCK_TEXT } from '../../api/admin'
 import AbsenceCalendar from './AbsenceCalendar'
 import { countWorkdays } from '../utils/calendarHelpers'
+import { absenzDauer } from '../../shared/halberTag'
 import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 import { useToast, ToastHost } from '../components/useToast'
@@ -17,9 +18,8 @@ function fmt(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function dayCount(start: string, end: string, canton: string) {
-  const d = countWorkdays(start, end, canton)
-  return d === 1 ? '1 Tag' : `${d} Tage`
+function dayCount(start: string, end: string, canton: string, halfDay?: string | null) {
+  return absenzDauer(countWorkdays(start, end, canton), halfDay)
 }
 
 // Statusanzeige und Aktionen teilen sich Tabelle und Karten-Ansicht — sonst
@@ -215,7 +215,7 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
                   </div>
                   <div className="admin-card-meta">{TYPE_LABELS[a.absence_type] ?? a.absence_type}</div>
                   <div className="admin-card-meta">
-                    <DateLink iso={a.start_date} onOpen={onOpenSchedule} /> – <DateLink iso={a.end_date} onOpen={onOpenSchedule} /> · {dayCount(a.start_date, a.end_date, canton)}
+                    <DateLink iso={a.start_date} onOpen={onOpenSchedule} /> – <DateLink iso={a.end_date} onOpen={onOpenSchedule} /> · {dayCount(a.start_date, a.end_date, canton, a.half_day)}
                   </div>
                   {tab === 'requested' && (
                     <div className="admin-card-actions">
@@ -247,7 +247,7 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
                     <td>{TYPE_LABELS[a.absence_type] ?? a.absence_type}</td>
                     <td><DateLink iso={a.start_date} onOpen={onOpenSchedule} /></td>
                     <td><DateLink iso={a.end_date} onOpen={onOpenSchedule} /></td>
-                    <td style={{ color: 'var(--muted)' }}>{dayCount(a.start_date, a.end_date, canton)}</td>
+                    <td style={{ color: 'var(--muted)' }}>{dayCount(a.start_date, a.end_date, canton, a.half_day)}</td>
                     <td><StatusBadge status={a.status} /></td>
                     {tab === 'requested' && (
                       <td>

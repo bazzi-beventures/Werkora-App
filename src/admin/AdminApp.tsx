@@ -352,7 +352,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
         <QuotesScreen initialStatus={detailId} onConsumed={clearDetail}
           onOpenProject={id => guardedNav('projects', id)} />
       ))
-      // detailId = Statusfilter beim Einstieg (Kachel «Rechnungen offen» → 'gesendet').
+      // detailId = Statusfilter beim Einstieg (Kachel «Rechnungen offen» → 'gesendet',
+      // Wochenanalyse → 'ueberfaellig').
       case 'invoices':     return guard('invoicing', (
         <InvoicesScreen onBadgeChange={loadDashboard} onNav={guardedNav}
           initialStatus={detailId} onConsumed={clearDetail} />
@@ -431,7 +432,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           }
         />
       )
-      case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={s => guardedNav(s)} />)
+      case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={(s, id) => guardedNav(s, id)} />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
       // Termindauer/Terminfarben schreibt nur die Geschäftsleitung (require_management).
       case 'settings':     return <SettingsScreen terminDauer={isManagement && hasWerkzeug(user, 'terminwahl')}

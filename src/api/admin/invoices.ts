@@ -2,7 +2,7 @@
 // Teil des api/admin/-Barrels (Charge H1): eine Datei je Domäne, gebündelt in
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
-import { apiFetch } from '../client'
+import { apiBlobFetch, apiFetch } from '../client'
 import type { Antwort } from '../generated'
 import { listPageParams, type ListPage, type ListPageQuery } from './listPage'
 import { requestEasterEggCheck } from './eastereggs'
@@ -68,8 +68,11 @@ export type InvoicesPage = ListPage<Invoice>
 
 /** Eine Seite der Rechnungsliste — Status, Suche (Nummer, Projekt) und
  *  Projektleiter filtert der Server. */
-export async function listInvoicesPage(q: ListPageQuery): Promise<InvoicesPage> {
-  return apiFetch<InvoicesPage>(`/pwa/admin/invoices/list?${listPageParams(q)}`)
+/** `ueberfaellig`: nur gesendete Rechnungen mit überschrittenem Zahlungsziel —
+ *  dieselbe Regel wie die Kachel, der Statusfilter zählt dann nicht (WF-53). */
+export async function listInvoicesPage(q: ListPageQuery & { ueberfaellig?: boolean }): Promise<InvoicesPage> {
+  const extra = q.ueberfaellig ? '&ueberfaellig=true' : ''
+  return apiFetch<InvoicesPage>(`/pwa/admin/invoices/list?${listPageParams(q)}${extra}`)
 }
 
 export async function generateInvoice(input: GenerateInvoiceInput): Promise<GenerateInvoiceResult> {
@@ -81,6 +84,26 @@ export async function generateInvoice(input: GenerateInvoiceInput): Promise<Gene
   // lassen, statt bis zum nächsten Neuladen zu warten (api/admin/eastereggs.ts).
   requestEasterEggCheck()
   return result
+}
+
+/**
+ * Rechnung als PDF ansehen, bevor sie entsteht (WF-51): derselbe Body wie
+ * `generateInvoice`, das Backend speichert nichts und vergibt keine Nummer.
+ * Öffnet das PDF (Wasserzeichen «VORSCHAU») in einem neuen Tab.
+ */
+export async function previewInvoice(input: GenerateInvoiceInput): Promise<void> {
+  // Tab vor dem await öffnen: sonst blockiert der Popup-Blocker (Safari).
+  const tab = window.open('', '_blank')
+  try {
+    const { blob } = await apiBlobFetch('/pwa/admin/invoices/preview', input)
+    const url = URL.createObjectURL(blob)
+    if (tab) tab.location.href = url
+    else window.open(url, '_blank')
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (err) {
+    tab?.close()
+    throw err
+  }
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   generateInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
-  getInvoiceWorkDescription, listInvoicesPage,
+  getInvoiceWorkDescription, listInvoicesPage, previewInvoice,
 } from '../../api/admin/invoices'
 import type { BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } from '../../api/admin/invoices'
 import { hasModule } from '../../api/modules'
@@ -61,12 +61,15 @@ const ALL_STATUSES = ['ausstehend', 'offen', 'gesendet', 'bezahlt', 'archiviert'
 // Stabile Referenz für «noch nichts geladen»: die bexio-Abfrage hängt an der
 // Zeilenliste, ein frisches [] je Render löste sie endlos neu aus.
 const NO_INVOICES: Invoice[] = []
+/** Einstieg «nur überfällige» (Wochenanalyse → «Rechnungen →»). */
+export const UEBERFAELLIG = 'ueberfaellig'
 // Sortierbare Spalten = Katalog des Endpoints (db/invoices.py, `_INVOICE_SORT_MAP`).
 type InvoiceSortKey = 'invoice_number' | 'project_name' | 'total_amount' | 'status' | 'created_at' | 'paid_at'
 
 export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, onConsumed }: {
   onBadgeChange?: () => void
-  /** Statusfilter beim Einstieg (Dashboard-Kachel «Rechnungen offen» → 'gesendet'). */
+  /** Statusfilter beim Einstieg (Dashboard-Kachel «Rechnungen offen» → 'gesendet';
+   *  'ueberfaellig' aus der Wochenanalyse schaltet «Nur überfällige» ein, WF-53). */
   initialStatus?: string | null
   onConsumed?: () => void
   // Sprung ins Projekt: die Rechnungsübersicht beantwortet «wie viel ist offen»,
@@ -84,6 +87,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
     if (initialStatus && onConsumed) onConsumed()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+  const [nurUeberfaellig, setNurUeberfaellig] = useState(initialStatus === UEBERFAELLIG)
   const [projektleiterFilter, setProjektleiterFilter] = useState<string | null>(null)
   const [sort, toggleSort] = useListSort<InvoiceSortKey>({ key: 'created_at', dir: 'desc' })
   // Seitenweise vom Server: Filter und Reihenfolge macht die Datenbank, über
@@ -91,9 +95,9 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
   const fetchPage = useCallback(
     (page: number, search: string) => listInvoicesPage({
       page, pageSize: LIST_PAGE_SIZE, statuses: statusFilters, search,
-      projektleiterId: projektleiterFilter, sort: sort.key, dir: sort.dir,
+      projektleiterId: projektleiterFilter, sort: sort.key, dir: sort.dir, ueberfaellig: nurUeberfaellig,
     }),
-    [statusFilters, projektleiterFilter, sort],
+    [statusFilters, projektleiterFilter, sort, nurUeberfaellig],
   )
   const list = usePagedList(fetchPage)
   const onSort = (key: InvoiceSortKey) => { toggleSort(key); list.setPage(1) }
@@ -312,32 +316,45 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
   const genAnzahlungWert = parseAnzahlung(genAnzahlung)
   const genReportsVisible = !genIsAnzahlung && (genReports?.length ?? 0) > 1
 
+  // Derselbe Body für Erstellen und Vorschau (WF-51).
+  function genInput() {
+    return {
+      project_name: genProjectName,
+      project_id: genProject,
+      use_quote: genUseQuote,
+      remark: genRemark,
+      // Art, Offerten-/Rapport-Auswahl, Anzahlung — dieselbe Regel wie im
+      // Projekt-Dialog (utils/invoiceMode.ts).
+      ...generateOptionsPayload({
+        mode: genMode,
+        // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
+        // sonst läuft die bewährte automatische Auflösung (selectionPayload).
+        quoteIds: genCoverage && showQuoteSelection(genCoverage)
+          ? selectionPayload(genCoverage, genCheckedQuotes)
+          : undefined,
+        deduction: abzugCfg ? generalDeductionPayload(genAbzug) : undefined,
+        workDescription: workDescriptionPayload(genWorkDesc),
+        reportIds: reportSelectionPayload(genReports?.map(r => r.id) ?? null, genCheckedReports),
+        anzahlungIds: anzahlungPayload(genAnzahlungen, genCheckedAnzahlungen),
+        ...(genAnzahlungWert ?? {}),
+        includeTravel: genTravel,
+      }),
+    }
+  }
+
+  async function handlePreview() {
+    try {
+      await previewInvoice(genInput())
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Vorschau fehlgeschlagen', 'error')
+    }
+  }
+
   async function handleGenerate() {
     if (!genProject) return
     setGenerating(true)
     try {
-      const res = await generateInvoice({
-        project_name: genProjectName,
-        project_id: genProject,
-        use_quote: genUseQuote,
-        remark: genRemark,
-        // Art, Offerten-/Rapport-Auswahl, Anzahlung — dieselbe Regel wie im
-        // Projekt-Dialog (utils/invoiceMode.ts).
-        ...generateOptionsPayload({
-          mode: genMode,
-          // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
-          // sonst läuft die bewährte automatische Auflösung (selectionPayload).
-          quoteIds: genCoverage && showQuoteSelection(genCoverage)
-            ? selectionPayload(genCoverage, genCheckedQuotes)
-            : undefined,
-          deduction: abzugCfg ? generalDeductionPayload(genAbzug) : undefined,
-          workDescription: workDescriptionPayload(genWorkDesc),
-          reportIds: reportSelectionPayload(genReports?.map(r => r.id) ?? null, genCheckedReports),
-          anzahlungIds: anzahlungPayload(genAnzahlungen, genCheckedAnzahlungen),
-          ...(genAnzahlungWert ?? {}),
-          includeTravel: genTravel,
-        }),
-      })
+      const res = await generateInvoice(genInput())
       showToast(
         `${res.kind === 'anzahlung' ? 'Anzahlungsrechnung' : 'Rechnung'} ${res.invoice_number} erstellt (${fmtCHF(res.total_amount)})`
         + sammelrechnungHint(res.quote_numbers)
@@ -419,12 +436,23 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
             value={projektleiterFilter}
             onChange={v => { setProjektleiterFilter(v); list.setPage(1) }}
           />
-          <StatusFilterPopover
-            allStatuses={ALL_STATUSES}
-            statusLabels={STATUS_LABELS}
-            selected={statusFilters}
-            onChange={v => { setStatusFilters(v); list.setPage(1) }}
-          />
+          {!nurUeberfaellig && (
+            <StatusFilterPopover
+              allStatuses={ALL_STATUSES}
+              statusLabels={STATUS_LABELS}
+              selected={statusFilters}
+              onChange={v => { setStatusFilters(v); list.setPage(1) }}
+            />
+          )}
+          <button
+            type="button"
+            className={`admin-btn admin-btn-sm ${nurUeberfaellig ? 'admin-btn-primary' : 'admin-btn-secondary'}`}
+            aria-pressed={nurUeberfaellig}
+            title="Nur gesendete Rechnungen, deren Zahlungsziel überschritten ist"
+            onClick={() => { setNurUeberfaellig(v => !v); list.setPage(1) }}
+          >
+            Nur überfällige
+          </button>
         </div>
 
         {/* Spinner nur beim ersten Laden; danach bleibt die alte Seite stehen,
@@ -556,6 +584,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
           scrollable
           onCancel={() => { if (!generating) setShowGenerate(false) }}
           onConfirm={() => void handleGenerate()}
+          extraAction={genProject && !genIsAnzahlung
+            ? { label: 'Vorschau', onClick: () => void handlePreview() } : undefined}
         >
           <div style={{ marginBottom: 12 }}>
               <label className="admin-form-label">Projekt</label>

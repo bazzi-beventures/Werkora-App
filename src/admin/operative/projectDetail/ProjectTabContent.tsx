@@ -191,6 +191,7 @@ export function ProjectTabContent({
           generalDeduction={allgAbzuege ?? null}
           onUseAcceptedQuoteChange={onUseAcceptedQuoteChange}
           onGenerateInvoice={onGenerateInvoice}
+          onPreviewInvoice={(remark, opts) => billing.preview(remark, useAcceptedQuote, opts)}
           loadQuoteCoverage={billing.loadQuoteCoverage}
           loadWorkDescription={billing.loadWorkDescription}
           loadBillableReports={billing.loadBillableReports}

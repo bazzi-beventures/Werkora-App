@@ -51,6 +51,8 @@ interface InvoicesTabProps {
   // Anzahlung (utils/invoiceMode.ts). Liefert true bei Erfolg — der Dialog
   // schliesst nur dann.
   onGenerateInvoice: (remark: string, opts: GenerateInvoiceOptions) => Promise<boolean>
+  /** Rechnung als PDF ansehen, bevor sie entsteht (WF-51). */
+  onPreviewInvoice?: (remark: string, opts: GenerateInvoiceOptions) => Promise<void>
   // Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52). Wirft bei Fehler.
   // `additional`: ohne die Rapporte, die schon auf einer offenen Rechnung stehen;
   // `reportIds`: nur aus diesen.
@@ -75,7 +77,7 @@ interface InvoicesTabProps {
   bexioOn?: boolean
 }
 
-export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost, bexioOn = false }: InvoicesTabProps) {
+export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, onPreviewInvoice, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost, bexioOn = false }: InvoicesTabProps) {
   // bexio-Pille (docs/specs/bexio-anbindung.md §8.2) — dieselbe Abfrage wie die
   // Rechnungsliste, nur für die ausgestellten Rechnungen dieses Projekts. Ein
   // Fehler kostet nur die Pille, nie den Reiter.
@@ -300,22 +302,26 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Auswahl nur, wenn es etwas zu wählen gibt.
   const genReportsVisible = !genIsAnzahlung && (genReports?.length ?? 0) > 1
 
-  async function handleGenerateConfirm() {
-    // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
-    // sonst laeuft die bewaehrte automatische Aufloesung (selectionPayload).
-    const quoteIds = genCoverage && genSelectionVisible
-      ? selectionPayload(genCoverage, genCheckedQuotes)
-      : undefined
-    const ok = await onGenerateInvoice(genRemark, {
+  // Dieselben Optionen für Erstellen und Vorschau (WF-51).
+  function genOptions(): GenerateInvoiceOptions {
+    return {
       mode: genMode,
-      quoteIds,
+      // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
+      // sonst laeuft die bewaehrte automatische Aufloesung (selectionPayload).
+      quoteIds: genCoverage && genSelectionVisible
+        ? selectionPayload(genCoverage, genCheckedQuotes)
+        : undefined,
       deduction: generalDeduction ? generalDeductionPayload(genAbzug) : undefined,
       workDescription: workDescriptionPayload(genWorkDesc),
       reportIds: reportSelectionPayload(genReports?.map(r => r.id) ?? null, genCheckedReports),
       anzahlungIds: anzahlungPayload(genAnzahlungen, genCheckedAnzahlungen),
       ...(genAnzahlungWert ?? {}),
       includeTravel: genTravel,
-    })
+    }
+  }
+
+  async function handleGenerateConfirm() {
+    const ok = await onGenerateInvoice(genRemark, genOptions())
     if (ok) setShowGenerate(false)
   }
 
@@ -525,6 +531,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           scrollable
           onCancel={() => { if (!generatingInvoice) setShowGenerate(false) }}
           onConfirm={() => void handleGenerateConfirm()}
+          extraAction={onPreviewInvoice && !genIsAnzahlung
+            ? { label: 'Vorschau', onClick: () => void onPreviewInvoice(genRemark, genOptions()) } : undefined}
         >
           <InvoiceModeField
             idPrefix="proj-gen"

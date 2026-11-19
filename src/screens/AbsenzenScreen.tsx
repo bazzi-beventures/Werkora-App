@@ -2,6 +2,8 @@ import { useCallback, useState, useEffect } from 'react'
 import { fetchMyAbsences, createAbsenceRequest, fetchVacationEntitlement, UserAbsence, AbsenceCreatePayload, VacationEntitlement } from '../api/chat'
 import { ApiError } from '../api/client'
 import { countWorkdays } from '../admin/utils/calendarHelpers'
+import { absenzDauer, halberTagFuer } from '../shared/halberTag'
+import { HalberTagWahl } from '../shared/HalberTagWahl'
 
 interface Props {
   logoUrl?: string
@@ -34,9 +36,8 @@ function fmtDate(iso: string): string {
   }
 }
 
-function dayCount(start: string, end: string, canton: string): string {
-  const d = countWorkdays(start, end, canton)
-  return d === 1 ? '1 Tag' : `${d} Tage`
+function dayCount(start: string, end: string, canton: string, halfDay?: string | null): string {
+  return absenzDauer(countWorkdays(start, end, canton), halfDay)
 }
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -85,7 +86,9 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
     setSubmitting(true)
     setMsg(null)
     try {
-      await createAbsenceRequest(form)
+      // Halber Tag nur bei eintägiger Absenz — wer danach «Bis» verschoben hat,
+      // schickt einen ganzen Zeitraum (WW-93).
+      await createAbsenceRequest({ ...form, half_day: halberTagFuer(form.date_start, form.date_end, form.half_day) })
       setMsg({ text: `${TYPE_LABELS[form.absence_type]} wurde eingereicht.`, isError: false })
       setShowForm(false)
       setForm({ absence_type: 'vacation', date_start: today(), date_end: today(), comment: '' })
@@ -223,6 +226,13 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
                 onChange={e => setForm(f => ({ ...f, date_end: e.target.value }))}
               />
             </div>
+            {form.date_start && form.date_start === form.date_end && (
+              <div className="corr-row">
+                <label className="corr-label" htmlFor="absenz-halber-tag">Dauer</label>
+                <HalberTagWahl id="absenz-halber-tag" className="corr-input" value={form.half_day}
+                               onChange={half_day => setForm(f => ({ ...f, half_day }))} />
+              </div>
+            )}
             {/*
               Bei einer Krankmeldung gibt es kein Freitextfeld. Warum jemand krank ist,
               ist ein besonders schützenswertes Gesundheitsdatum (DSG Art. 5 lit. c) —
@@ -298,7 +308,7 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
                     <td>{TYPE_LABELS[a.type] ?? a.type}</td>
                     <td className="bericht-mono">{fmtDate(a.date_start)}</td>
                     <td className="bericht-mono">{fmtDate(a.date_end)}</td>
-                    <td className="bericht-muted">{dayCount(a.date_start, a.date_end, canton)}</td>
+                    <td className="bericht-muted">{dayCount(a.date_start, a.date_end, canton, a.half_day)}</td>
                     <td>
                       <span className={
                         a.status === 'approved' ? 'bericht-positive' :

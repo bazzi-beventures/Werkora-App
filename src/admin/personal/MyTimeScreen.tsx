@@ -15,6 +15,8 @@ import { UserInfo } from '../../api/auth'
 import { breakInputValue, correctionError, correctionIncomplete, parseBreakMinutes } from '../../api/correction'
 import BerichtScreen, { BerichtType } from '../../screens/BerichtScreen'
 import { useToast, ToastHost } from '../components/useToast'
+import { halberTagFuer } from '../../shared/halberTag'
+import { HalberTagWahl } from '../../shared/HalberTagWahl'
 
 interface SessionStatus {
   status: 'active' | 'inactive' | 'on_break'
@@ -240,7 +242,7 @@ export default function MyTimeScreen({ user = null, onLoggedOut }: Props) {
     }
     setAbsLoading(true)
     try {
-      await createAbsenceRequest(absForm)
+      await createAbsenceRequest({ ...absForm, half_day: halberTagFuer(absForm.date_start, absForm.date_end, absForm.half_day) })
       showToast(`${ABSENCE_TYPE_LABELS[absForm.absence_type]} wurde eingereicht.`, 'success')
       setShowAbsence(false)
       setAbsForm({ absence_type: 'vacation', date_start: today(), date_end: today(), comment: '' })
@@ -685,6 +687,13 @@ export default function MyTimeScreen({ user = null, onLoggedOut }: Props) {
                 />
               </div>
             </div>
+            {absForm.date_start && absForm.date_start === absForm.date_end && (
+              <div className="admin-form-group">
+                <label className="admin-form-label" htmlFor="meine-zeit-halber-tag">Dauer</label>
+                <HalberTagWahl id="meine-zeit-halber-tag" className="admin-form-input" value={absForm.half_day}
+                               onChange={half_day => setAbsForm(f => ({ ...f, half_day }))} />
+              </div>
+            )}
             <div className="admin-form-group">
               <label className="admin-form-label">Bemerkung</label>
               <input

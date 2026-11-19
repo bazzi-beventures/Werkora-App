@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { backdropCloseProps } from '../../shared/backdropClose'
 import { Absence } from '../../api/admin'
+import { absenzDauer } from '../../shared/halberTag'
 import { getSwissHolidays, getWeekDays, getMonthDays, toDateStr, isToday } from '../utils/calendarHelpers'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -30,9 +31,9 @@ function fmt(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function dayCount(start: string, end: string) {
+function dayCount(start: string, end: string, halfDay?: string | null) {
   const d = (new Date(end).getTime() - new Date(start).getTime()) / 86400000 + 1
-  return d > 1 ? `${d} Tage` : '1 Tag'
+  return absenzDauer(d, halfDay)
 }
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ function AbsenceDetailModal({ absence, onClose }: { absence: Absence; onClose: (
           </div>
           <div className="absence-modal-row">
             <span className="absence-modal-label">Dauer</span>
-            <span>{dayCount(absence.start_date, absence.end_date)}</span>
+            <span>{dayCount(absence.start_date, absence.end_date, absence.half_day)}</span>
           </div>
           <div className="absence-modal-row">
             <span className="absence-modal-label">Status</span>

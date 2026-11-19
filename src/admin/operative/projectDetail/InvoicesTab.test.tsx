@@ -479,3 +479,31 @@ describe('InvoicesTab — Hinweis «Evtl. bereits verrechnet»', () => {
     expect(screen.getAllByText('Evtl. bereits verrechnet')).toHaveLength(1)
   })
 })
+
+describe('InvoicesTab — Vorschau vor dem Erstellen (WF-51)', () => {
+  it('schickt dieselben Angaben wie «Rechnung generieren», ohne zu erstellen', async () => {
+    const onGenerate = vi.fn().mockResolvedValue(true)
+    const onPreview = vi.fn().mockResolvedValue(undefined)
+    render(
+      <InvoicesTab
+        invoices={[]} useAcceptedQuote={false} generatingInvoice={false}
+        defaultEmail="kunde@example.com" hasSignedReport={true}
+        onUseAcceptedQuoteChange={vi.fn()} onGenerateInvoice={onGenerate} onPreviewInvoice={onPreview}
+        loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
+        loadWorkDescription={vi.fn().mockResolvedValue('Montage Plissee')}
+        loadBillableReports={vi.fn().mockResolvedValue(null)}
+        loadAnzahlungen={vi.fn().mockResolvedValue(null)}
+        onMarkPaid={vi.fn().mockResolvedValue(true)} onUnmarkPaid={vi.fn().mockResolvedValue(undefined)}
+        onArchive={vi.fn().mockResolvedValue(undefined)} onSendInvoice={vi.fn().mockResolvedValue(true)}
+        onMarkSentByPost={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await screen.findByDisplayValue('Montage Plissee')
+    await userEvent.click(screen.getByRole('button', { name: 'Vorschau' }))
+    expect(onPreview).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'replace', workDescription: 'Montage Plissee' }))
+    expect(onGenerate).not.toHaveBeenCalled()
+    // Der Dialog bleibt offen — nach dem Ansehen wird erstellt oder korrigiert.
+    expect(screen.getByRole('button', { name: 'Rechnung generieren' })).toBeInTheDocument()
+  })
+})

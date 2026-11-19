@@ -278,6 +278,19 @@ describe('InvoicesScreen — seitenweise', () => {
     expect(lastListCall().get('page')).toBe('1')
   })
 
+  it('öffnet aus der Wochenanalyse gleich die überfälligen und lässt sich umschalten (WF-53)', async () => {
+    routeFetch([invoice()])
+    render(<InvoicesScreen initialStatus="ueberfaellig" />)
+    await screen.findByText('RE-2026-083')
+    expect(lastListCall().get('ueberfaellig')).toBe('true')
+    const knopf = screen.getByRole('button', { name: 'Nur überfällige' })
+    expect(knopf).toHaveAttribute('aria-pressed', 'true')
+
+    await userEvent.click(knopf)
+    await waitFor(() => expect(lastListCall().get('ueberfaellig')).toBeNull())
+    expect(knopf).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('sagt es, wenn die Liste nicht geladen werden konnte', async () => {
     mockFetch.mockImplementation(async (path: string) => {
       if (String(path).startsWith('/pwa/admin/invoices/list')) throw new Error('503')

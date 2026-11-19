@@ -55,7 +55,7 @@ interface Props {
   /** `detailId` des Admin-Screens (Montags-Push), siehe `parseAssistentLink`. */
   detailId?: string | null
   /** Für Reiter-Knöpfe, die aus den Kennzahlen hinausführen (Rechnungen). */
-  onNavigate?: (screen: AdminScreen) => void
+  onNavigate?: (screen: AdminScreen, detailId?: string) => void
 }
 
 export default function KpiScreen({ detailId, onNavigate }: Props = {}) {
@@ -97,10 +97,11 @@ export default function KpiScreen({ detailId, onNavigate }: Props = {}) {
   )
 
   // Reiter-Knopf aus dem Assistenten: ein Kennzahlen-Reiter wechselt hier, die
-  // offenen Rechnungen führen in den Rechnungen-Screen.
+  // offenen Rechnungen führen in den Rechnungen-Screen, gleich auf die
+  // überfälligen gefiltert (WF-53).
   function oeffneReiter(reiter: KpiReiter) {
     if (reiter.id === 'rechnungen') {
-      onNavigate?.('invoices')
+      onNavigate?.('invoices', 'ueberfaellig')
       return
     }
     const ziel = visible.find(t => t.id === reiter.id)

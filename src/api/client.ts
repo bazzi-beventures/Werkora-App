@@ -229,10 +229,17 @@ export function parseDispositionFilename(disposition: string): string | null {
 // stehen (agents/app.py).
 export async function apiBlobFetch(
   path: string,
+  /** Optional ein JSON-Body: dann POST (Rechnungsvorschau, WF-51). */
+  jsonBody?: unknown,
 ): Promise<{ blob: Blob; filename: string; headers: Headers }> {
   try {
     const res = await fetch(`${BASE_URL}${path}`, {
       credentials: 'include',
+      ...(jsonBody === undefined ? {} : {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jsonBody),
+      }),
     })
 
     if (!res.ok) {

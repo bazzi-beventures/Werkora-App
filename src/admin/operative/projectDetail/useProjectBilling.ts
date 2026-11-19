@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  archiveInvoice, generateInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
+  archiveInvoice, generateInvoice, previewInvoice, getAnzahlungen, getBillableReports, getInvoiceQuoteCoverage,
   getInvoiceWorkDescription, markInvoicePaid, markInvoiceSentByPost, sendInvoice, unmarkInvoicePaid,
   type BillableReport, type InvoiceQuoteCoverage, type OpenAnzahlung,
 } from '../../../api/admin/invoices'
@@ -58,6 +58,8 @@ export interface UseProjectBilling {
   /** Offerte ohne E-Mail als versendet erfassen (Postversand). false = Backend hat abgelehnt. */
   markQuoteSentByPost: (quoteId: number, sentDate: string) => Promise<boolean>
   generate: (remark: string, useAcceptedQuote: boolean, opts: GenerateInvoiceOptions) => Promise<boolean>
+  /** Rechnung als PDF ansehen, bevor sie entsteht (WF-51). */
+  preview: (remark: string, useAcceptedQuote: boolean, opts: GenerateInvoiceOptions) => Promise<void>
   /** Vorschlag «Ausgeführte Arbeiten» aus den Rapporten (WW-52); wirft bei Fehler. */
   loadWorkDescription: (additional?: boolean, reportIds?: number[]) => Promise<string>
   /** Offerten-Auswahl für den Erstellen-Dialog; null, wenn das Laden scheitert (Dialog ohne Auswahl). */
@@ -268,25 +270,39 @@ export function useProjectBilling(
     }
   }
 
+  // Derselbe Body für Erstellen und Vorschau (WF-51).
+  function invoiceInput(project: { id: string; name: string }, remark: string,
+    useAcceptedQuote: boolean, opts: GenerateInvoiceOptions) {
+    return {
+      project_name: project.name,
+      project_id: project.id,
+      // Fehlt ein verrechenbarer Rapport (unterschrieben ODER manuell erfasst,
+      // siehe hasBillableReport), wird zwingend aus der Offerte gerechnet — das
+      // Backend setzt dann automatisch created_without_report.
+      use_quote: useAcceptedQuote || !hasBillableReport(reports),
+      remark,
+      // Offerten-Auswahl, Arbeitsbeschrieb, Rapport-Auswahl, Anzahlung, Art der
+      // Rechnung — eine Regel für beide Dialoge (utils/invoiceMode.ts).
+      ...generateOptionsPayload(opts),
+    }
+  }
+
+  async function preview(remark: string, useAcceptedQuote: boolean, opts: GenerateInvoiceOptions) {
+    if (!project) return
+    try {
+      await previewInvoice(invoiceInput(project, remark, useAcceptedQuote, opts))
+    } catch (err) {
+      cb.onToast(err instanceof Error ? err.message : 'Vorschau fehlgeschlagen')
+    }
+  }
+
   async function generate(
     remark: string, useAcceptedQuote: boolean, opts: GenerateInvoiceOptions,
   ): Promise<boolean> {
     if (!project) return false
-    // Fehlt ein verrechenbarer Rapport (unterschrieben ODER manuell erfasst,
-    // siehe hasBillableReport), wird zwingend aus der Offerte gerechnet — das
-    // Backend setzt dann automatisch created_without_report.
-    const useQuote = useAcceptedQuote || !hasBillableReport(reports)
     setGeneratingInvoice(true)
     try {
-      const res = await generateInvoice({
-        project_name: project.name,
-        project_id: project.id,
-        use_quote: useQuote,
-        remark,
-        // Offerten-Auswahl, Arbeitsbeschrieb, Rapport-Auswahl, Anzahlung, Art der
-        // Rechnung — eine Regel für beide Dialoge (utils/invoiceMode.ts).
-        ...generateOptionsPayload(opts),
-      })
+      const res = await generateInvoice(invoiceInput(project, remark, useAcceptedQuote, opts))
       cb.onToast(
         (res?.kind === 'anzahlung' ? 'Anzahlungsrechnung erstellt' : 'Rechnung erstellt')
         + sammelrechnungHint(res?.quote_numbers)
@@ -422,7 +438,7 @@ export function useProjectBilling(
     reloadQuotes, reloadInvoices, reloadReports, loadQuoteDetail, deleteReport,
     regenerateReportPdf: regenerateReportPdfFor,
     aggregateReports, dissolveAggregate, acceptAggregate, markPartial,
-    regenerate, addVariant, updateQuoteStatus, sendRejection, generate, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen,
+    regenerate, addVariant, updateQuoteStatus, sendRejection, generate, preview, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen,
     markPaid, unmarkPaid, archive, send, markSentByPost,
     markQuoteSentByPost: markQuoteSentByPostFor,
   }

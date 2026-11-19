@@ -10,6 +10,8 @@ export interface Absence {
   absence_type: string
   start_date: string
   end_date: string
+  /** Halber Tag (WW-93): 'am' Vormittag, 'pm' Nachmittag, null/fehlt = ganzer Tag. */
+  half_day?: 'am' | 'pm' | null
   status: string
   note: string | null
   /** Kann ICH über diesen Antrag entscheiden? `null` = ja; sonst warum nicht:
