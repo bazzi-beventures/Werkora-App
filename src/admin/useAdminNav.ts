@@ -36,6 +36,16 @@ export type AdminScreen =
   | 'settings'
   | 'profile'
 
+/**
+ * Screens, die in die Projektmaske springen und dorthin zurückführen sollen: «Zurück»
+ * aus dem Projekt landet wieder hier statt in der Projektsuche. Doppelklick in der
+ * Einsatzplanung (einsatzplanung-rueckmeldungen-2026-10.md §2), Projekt-Link der
+ * Offerten-Liste (WW-41), «Projekt öffnen» im Hagelschaden (WS-48).
+ */
+export const RUECKSPRUNG_ZIELE: ReadonlySet<AdminScreen> = new Set<AdminScreen>([
+  'project-schedule', 'quotes', 'hagelschaden',
+])
+
 // Eine besuchte Station im Admin-Bereich. `detailId` gehört dazu: derselbe
 // Screen mit anderer Detail-ID ist für den Zurück-Knopf eine eigene Station.
 export interface AdminLocation {

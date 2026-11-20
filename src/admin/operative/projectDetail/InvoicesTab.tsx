@@ -14,7 +14,7 @@ import { ReportSelectField } from '../../components/ReportSelectField'
 import { AnzahlungAbzugField, AnzahlungField } from '../../components/AnzahlungFields'
 import { TravelCostField } from '../../components/TravelCostField'
 import {
-  anzahlungPayload, defaultCheckedReports, hasActiveInvoice, isAdditional, parseAnzahlung, ANZAHLUNG_VORGABE, reportSelectionPayload,
+  anzahlungPayload, defaultCheckedReports, hasActiveInvoice, initialInvoiceMode, isAdditional, parseAnzahlung, ANZAHLUNG_VORGABE, reportSelectionPayload,
   type GenerateInvoiceOptions, type InvoiceMode,
 } from '../../utils/invoiceMode'
 import {
@@ -118,7 +118,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Laden scheiterte) — dann verhaelt sich der Dialog exakt wie bisher.
   const [genCoverage, setGenCoverage] = useState<InvoiceQuoteCoverage | null>(null)
   const [genCheckedQuotes, setGenCheckedQuotes] = useState<number[]>([])
-  const [genMode, setGenMode] = useState<InvoiceMode>('replace')
+  const [genMode, setGenMode] = useState<InvoiceMode | null>('replace')
   // Rapport-Auswahl und Anzahlungs-Abzug: null = nicht geladen (Automatik).
   const [genReports, setGenReports] = useState<BillableReport[] | null>(null)
   const [genCheckedReports, setGenCheckedReports] = useState<number[]>([])
@@ -222,22 +222,25 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
     setGenRemark('')
     setGenAbzug(initialGeneralDeduction(generalDeduction))
     setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
-    setGenMode('replace')
+    // Mit gültiger Rechnung nichts vorgewählt (WS-47, initialInvoiceMode).
+    const mode = initialInvoiceMode(hasActiveInvoice(invoices))
+    setGenMode(mode)
     setGenAnzahlung(ANZAHLUNG_VORGABE)
     setGenTravel(true)
     setShowGenerate(true)
-    loadGenSuggestions('replace')
+    loadGenSuggestions(mode)
   }
 
   // Vorschläge hängen an der Art der Rechnung: eine weitere Rechnung lässt aus, was
   // schon auf einer offenen steht; eine Anzahlung braucht nur die Offerten-Auswahl.
-  function loadGenSuggestions(mode: InvoiceMode) {
+  function loadGenSuggestions(mode: InvoiceMode | null) {
     const seq = ++genLoadSeq.current
     const additional = isAdditional(mode)
     const current = () => seq === genLoadSeq.current
     setGenCoverage(null)
     setGenReports(null)
     setGenAnzahlungen(null)
+    if (mode === null) return
     // Auswahl nachladen, nicht blockierend: der Dialog steht sofort, die
     // Checkboxen erscheinen, sobald die Vorschau da ist. Scheitert das Laden
     // (null), bleibt der Dialog ohne Auswahl — Automatik wie bisher.
@@ -305,7 +308,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
   // Dieselben Optionen für Erstellen und Vorschau (WF-51).
   function genOptions(): GenerateInvoiceOptions {
     return {
-      mode: genMode,
+      // null kommt nicht an: Erstellen und Vorschau sind ohne Wahl gesperrt.
+      mode: genMode ?? 'replace',
       // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
       // sonst laeuft die bewaehrte automatische Aufloesung (selectionPayload).
       quoteIds: genCoverage && genSelectionVisible
@@ -521,7 +525,8 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
             : hasSignedReport ? 'Rechnung generieren' : 'Ohne Rapport erstellen'}
           busyLabel="Wird erstellt…"
           busy={generatingInvoice}
-          confirmDisabled={(genSelectionVisible && genCheckedQuotes.length === 0)
+          confirmDisabled={genMode === null
+            || (genSelectionVisible && genCheckedQuotes.length === 0)
             || (genIsAnzahlung && genAnzahlungWert === null)
             || (genReportsVisible && genCheckedReports.length === 0)
             || (!genIsAnzahlung && generalDeduction !== null && generalDeductionError(genAbzug) !== null)}
@@ -531,7 +536,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           scrollable
           onCancel={() => { if (!generatingInvoice) setShowGenerate(false) }}
           onConfirm={() => void handleGenerateConfirm()}
-          extraAction={onPreviewInvoice && !genIsAnzahlung
+          extraAction={onPreviewInvoice && genMode !== null && !genIsAnzahlung
             ? { label: 'Vorschau', onClick: () => void onPreviewInvoice(genRemark, genOptions()) } : undefined}
         >
           <InvoiceModeField
@@ -541,77 +546,80 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
             hasActive={genHasActive}
             disabled={generatingInvoice}
           />
-          {genIsAnzahlung && (
-            <AnzahlungField
-              idPrefix="proj-gen"
-              value={genAnzahlung}
-              onChange={setGenAnzahlung}
-              invalid={genAnzahlungWert === null}
-              disabled={generatingInvoice}
-            />
-          )}
-          {genSelectionVisible && genCoverage && (
-            <QuoteCoverageSelect
-              coverage={genCoverage}
-              checked={genCheckedQuotes}
-              onChange={setGenCheckedQuotes}
-              disabled={generatingInvoice}
-            />
-          )}
-          {genReportsVisible && genReports && (
-            <ReportSelectField
-              reports={genReports}
-              checked={genCheckedReports}
-              onChange={handleReportSelection}
-              disabled={generatingInvoice}
-            />
-          )}
-          {!genIsAnzahlung && (genAnzahlungen?.length ?? 0) > 0 && genAnzahlungen && (
-            <AnzahlungAbzugField
-              anzahlungen={genAnzahlungen}
-              checked={genCheckedAnzahlungen}
-              onChange={setGenCheckedAnzahlungen}
-              disabled={generatingInvoice}
-            />
-          )}
-          {!genIsAnzahlung && (
-            <TravelCostField checked={genTravel} onChange={setGenTravel} disabled={generatingInvoice} />
-          )}
-          {!genIsAnzahlung && (
-            <WorkDescriptionField
-              idPrefix="proj-gen"
-              value={genWorkDesc}
-              onChange={setGenWorkDesc}
-              disabled={generatingInvoice}
-            />
-          )}
-          <div style={{ marginBottom: 12 }}>
-            <label className="admin-form-label" htmlFor="proj-gen-remark">
-              Bemerkung
-            </label>
-            <AutoGrowTextarea
-              id="proj-gen-remark"
-              className="admin-form-input"
-              minRows={2}
-              maxLength={1000}
-              value={genRemark}
-              placeholder="z.B. Referenz oder Projekt-Nr. des Kunden. Leer lassen, um den Block wegzulassen."
-              onChange={e => setGenRemark(e.target.value)}
-              disabled={generatingInvoice}
-            />
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
-              Erscheint als eigener Block «Bemerkung» auf der Rechnung, über den Positionen.
+          {/* Der Rest erst nach der Wahl der Art (WS-47). */}
+          {genMode !== null && (<>
+            {genIsAnzahlung && (
+              <AnzahlungField
+                idPrefix="proj-gen"
+                value={genAnzahlung}
+                onChange={setGenAnzahlung}
+                invalid={genAnzahlungWert === null}
+                disabled={generatingInvoice}
+              />
+            )}
+            {genSelectionVisible && genCoverage && (
+              <QuoteCoverageSelect
+                coverage={genCoverage}
+                checked={genCheckedQuotes}
+                onChange={setGenCheckedQuotes}
+                disabled={generatingInvoice}
+              />
+            )}
+            {genReportsVisible && genReports && (
+              <ReportSelectField
+                reports={genReports}
+                checked={genCheckedReports}
+                onChange={handleReportSelection}
+                disabled={generatingInvoice}
+              />
+            )}
+            {!genIsAnzahlung && (genAnzahlungen?.length ?? 0) > 0 && genAnzahlungen && (
+              <AnzahlungAbzugField
+                anzahlungen={genAnzahlungen}
+                checked={genCheckedAnzahlungen}
+                onChange={setGenCheckedAnzahlungen}
+                disabled={generatingInvoice}
+              />
+            )}
+            {!genIsAnzahlung && (
+              <TravelCostField checked={genTravel} onChange={setGenTravel} disabled={generatingInvoice} />
+            )}
+            {!genIsAnzahlung && (
+              <WorkDescriptionField
+                idPrefix="proj-gen"
+                value={genWorkDesc}
+                onChange={setGenWorkDesc}
+                disabled={generatingInvoice}
+              />
+            )}
+            <div style={{ marginBottom: 12 }}>
+              <label className="admin-form-label" htmlFor="proj-gen-remark">
+                Bemerkung
+              </label>
+              <AutoGrowTextarea
+                id="proj-gen-remark"
+                className="admin-form-input"
+                minRows={2}
+                maxLength={1000}
+                value={genRemark}
+                placeholder="z.B. Referenz oder Projekt-Nr. des Kunden. Leer lassen, um den Block wegzulassen."
+                onChange={e => setGenRemark(e.target.value)}
+                disabled={generatingInvoice}
+              />
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                Erscheint als eigener Block «Bemerkung» auf der Rechnung, über den Positionen.
+              </div>
             </div>
-          </div>
-          {generalDeduction && !genIsAnzahlung && (
-            <GeneralDeductionFields
-              idPrefix="proj-gen"
-              label={generalDeduction.bezeichnung || 'Allg. Abzüge'}
-              value={genAbzug}
-              onChange={setGenAbzug}
-              disabled={generatingInvoice}
-            />
-          )}
+            {generalDeduction && !genIsAnzahlung && (
+              <GeneralDeductionFields
+                idPrefix="proj-gen"
+                label={generalDeduction.bezeichnung || 'Allg. Abzüge'}
+                value={genAbzug}
+                onChange={setGenAbzug}
+                disabled={generatingInvoice}
+              />
+            )}
+          </>)}
         </ConfirmDialog>
       )}
 

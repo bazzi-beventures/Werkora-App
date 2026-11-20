@@ -4,7 +4,7 @@ import { getAdminDashboard, AdminDashboard } from '../api/admin'
 import AdminSidebar from './AdminSidebar'
 import MobileNav from './MobileNav'
 import RequireModule from './RequireModule'
-import { useAdminNav, AdminScreen } from './useAdminNav'
+import { useAdminNav, AdminScreen, RUECKSPRUNG_ZIELE } from './useAdminNav'
 import { useScreenBack } from '../shared/backButton'
 import { useIsMobile } from './useIsMobile'
 import { useGuardedNav } from './useGuardedNav'
@@ -318,10 +318,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           openProjectTab={deepLinkTab ?? undefined}
           onConsumedProjectId={() => { clearDetail(); setDeepLinkTab(null) }}
           onOpenCustomer={id => guardedNav('customers', id)}
-          // Doppelklick in der Einsatzplanung → Maske → Zurück landet wieder
-          // in der Planung (einsatzplanung-rueckmeldungen-2026-10.md §2).
-          // Dasselbe für den Projekt-Link in der Offerten-Liste (WW-41).
-          onReturnFromJump={previous?.screen === 'project-schedule' || previous?.screen === 'quotes'
+          // Sprung aus Planung, Offerten oder Hagelschaden → Maske → Zurück
+          // landet wieder dort (Liste der Ziele: RUECKSPRUNG_ZIELE).
+          onReturnFromJump={previous && RUECKSPRUNG_ZIELE.has(previous.screen)
             ? () => guardedNav(previous.screen) : undefined}
           // Gegenrichtung: Kachel «Termine» → Einsatzplanung auf der Woche des
           // Termins und auf dessen Team (WW-62). Datum und Team gehen über die

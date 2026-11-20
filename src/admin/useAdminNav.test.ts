@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
-import { useAdminNav } from './useAdminNav'
+import { RUECKSPRUNG_ZIELE, useAdminNav } from './useAdminNav'
 
 // Der Admin-Bereich führt einen eigenen Verlauf (Screen + Detail-ID). AdminApp
 // hängt den Hardware-Zurück an `previous` — hier wird geprüft, dass der Wert
@@ -76,5 +76,26 @@ describe('useAdminNav', () => {
     expect(result.current.detailId).toBeNull()
     // Zurück führt weiterhin aufs Dashboard — nicht auf «projects mit ?new».
     expect(result.current.previous).toEqual({ screen: 'dashboard', detailId: null })
+  })
+})
+
+// «Zurück» aus der Projektmaske führt auf den Screen, aus dem gesprungen wurde,
+// statt in die Projektsuche — nur für die Screens in RUECKSPRUNG_ZIELE.
+describe('RUECKSPRUNG_ZIELE', () => {
+  it('Hagelschaden → Projekt öffnen → Zurück landet im Hagelschaden (WS-48)', () => {
+    const { result } = renderHook(() => useAdminNav())
+    act(() => result.current.nav('hagelschaden'))
+    act(() => result.current.nav('projects', 'p-1'))
+    const prev = result.current.previous
+    expect(prev?.screen).toBe('hagelschaden')
+    expect(prev && RUECKSPRUNG_ZIELE.has(prev.screen)).toBe(true)
+  })
+
+  it.each(['project-schedule', 'quotes', 'hagelschaden'] as const)('%s ist ein Rücksprung-Ziel', s => {
+    expect(RUECKSPRUNG_ZIELE.has(s)).toBe(true)
+  })
+
+  it('die Projektliste selbst ist keines — dort schliesst Zurück nur die Maske', () => {
+    expect(RUECKSPRUNG_ZIELE.has('projects')).toBe(false)
   })
 })

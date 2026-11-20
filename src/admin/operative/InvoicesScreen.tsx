@@ -26,7 +26,7 @@ import { GeneralDeductionFields } from '../components/GeneralDeductionFields'
 import { WorkDescriptionField } from '../components/WorkDescriptionField'
 import { InvoiceModeField } from '../components/InvoiceModeField'
 import {
-  anzahlungPayload, generateOptionsPayload, hasActiveInvoice, isAdditional, parseAnzahlung, ANZAHLUNG_VORGABE,
+  anzahlungPayload, generateOptionsPayload, hasActiveInvoice, initialInvoiceMode, isAdditional, parseAnzahlung, ANZAHLUNG_VORGABE,
   defaultCheckedReports, reportSelectionPayload, type InvoiceMode,
 } from '../utils/invoiceMode'
 import { ReportSelectField } from '../components/ReportSelectField'
@@ -153,8 +153,8 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
   const [genCoverage, setGenCoverage] = useState<InvoiceQuoteCoverage | null>(null)
   const [genCheckedQuotes, setGenCheckedQuotes] = useState<number[]>([])
   // Neue Version oder weitere Rechnung (WW-39/WW-47); gefragt wird nur, wenn das
-  // gewählte Projekt schon eine gültige Rechnung hat.
-  const [genMode, setGenMode] = useState<InvoiceMode>('replace')
+  // gewählte Projekt schon eine gültige Rechnung hat — dann ohne Vorwahl (null, WS-47).
+  const [genMode, setGenMode] = useState<InvoiceMode | null>('replace')
   // Zähler gegen überholte Antworten (Projekt- oder Art-Wechsel während des Ladens).
   const genLoadSeq = useRef(0)
   const descSeq = useRef(0)
@@ -211,11 +211,11 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
     setGenProject(projectId)
     setGenProjectName(projectName)
     // Ein anderes Projekt hat andere Rechnungen — die Frage beginnt von vorn.
-    setGenMode('replace')
+    setGenMode(null)
     const invSeq = ++genInvSeq.current
     setGenProjectInvoices(NO_INVOICES)
+    genLoadSeq.current++
     if (!projectId) {
-      genLoadSeq.current++
       setGenCoverage(null)
       setGenReports(null)
       setGenAnzahlungen(null)
@@ -223,12 +223,16 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
       setGenWorkDesc(INITIAL_WORK_DESCRIPTION)
       return
     }
-    // Scheitert die Abfrage, bleibt es bei «keine gültige Rechnung» — der Dialog
-    // bietet dann nur Rechnung und Anzahlung an, wie bei einem neuen Projekt.
-    listProjectInvoices<Invoice>(projectId)
-      .then(list => { if (invSeq === genInvSeq.current) setGenProjectInvoices(list) })
-      .catch(() => { /* bleibt leer */ })
-    loadGenSuggestions(projectId, projectName, 'replace')
+    // Die Vorwahl der Art hängt an den Rechnungen (initialInvoiceMode). Scheitert die
+    // Abfrage, gilt «keine gültige Rechnung» — Rechnung und Anzahlung wie neu.
+    const vorbelegen = (list: Invoice[]) => {
+      if (invSeq !== genInvSeq.current) return
+      setGenProjectInvoices(list)
+      const mode = initialInvoiceMode(hasActiveInvoice(list))
+      setGenMode(mode)
+      if (mode) loadGenSuggestions(projectId, projectName, mode)
+    }
+    listProjectInvoices<Invoice>(projectId).then(vorbelegen, () => vorbelegen([]))
     try {
       setHasAcceptedQuote(await fetchHasAcceptedQuote(projectId, projectName))
     } catch {
@@ -312,6 +316,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
   }
 
   const genHasActive = !!genProject && hasActiveInvoice(genProjectInvoices)
+  const genReady = !!genProject && genMode !== null
   const genIsAnzahlung = genMode === 'anzahlung'
   const genAnzahlungWert = parseAnzahlung(genAnzahlung)
   const genReportsVisible = !genIsAnzahlung && (genReports?.length ?? 0) > 1
@@ -326,7 +331,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
       // Art, Offerten-/Rapport-Auswahl, Anzahlung — dieselbe Regel wie im
       // Projekt-Dialog (utils/invoiceMode.ts).
       ...generateOptionsPayload({
-        mode: genMode,
+        mode: genMode ?? 'replace', // ohne Wahl sind Erstellen und Vorschau gesperrt
         // Nur eine echte Abweichung vom Standard geht als quote_ids mit —
         // sonst läuft die bewährte automatische Auflösung (selectionPayload).
         quoteIds: genCoverage && showQuoteSelection(genCoverage)
@@ -573,7 +578,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
           confirmLabel="Rechnung erstellen"
           busyLabel="Wird erstellt…"
           busy={generating}
-          confirmDisabled={!genProject
+          confirmDisabled={!genReady
             || (showQuoteSelection(genCoverage) && genCheckedQuotes.length === 0)
             || (genIsAnzahlung && genAnzahlungWert === null)
             || (genReportsVisible && genCheckedReports.length === 0)
@@ -584,7 +589,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
           scrollable
           onCancel={() => { if (!generating) setShowGenerate(false) }}
           onConfirm={() => void handleGenerate()}
-          extraAction={genProject && !genIsAnzahlung
+          extraAction={genReady && !genIsAnzahlung
             ? { label: 'Vorschau', onClick: () => void handlePreview() } : undefined}
         >
           <div style={{ marginBottom: 12 }}>
@@ -604,10 +609,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 value={genMode}
                 onChange={handleGenModeChange}
                 hasActive={genHasActive}
-                disabled={generating}
+                disabled={generating || genProjectInvoices === NO_INVOICES}
               />
             )}
-            {genProject && genIsAnzahlung && (
+            {genReady && genIsAnzahlung && (
               <AnzahlungField
                 idPrefix="gen"
                 value={genAnzahlung}
@@ -616,7 +621,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 disabled={generating}
               />
             )}
-            {hasAcceptedQuote && !genIsAnzahlung && (
+            {genReady && hasAcceptedQuote && !genIsAnzahlung && (
               <div style={{ marginBottom: 12 }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
                   <input type="checkbox" checked={genUseQuote} onChange={e => setGenUseQuote(e.target.checked)} />
@@ -627,7 +632,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 </div>
               </div>
             )}
-            {genProject && genCoverage && showQuoteSelection(genCoverage) && (
+            {genReady && genCoverage && showQuoteSelection(genCoverage) && (
               <QuoteCoverageSelect
                 coverage={genCoverage}
                 checked={genCheckedQuotes}
@@ -635,7 +640,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 disabled={generating}
               />
             )}
-            {genProject && genReportsVisible && genReports && (
+            {genReady && genReportsVisible && genReports && (
               <ReportSelectField
                 reports={genReports}
                 checked={genCheckedReports}
@@ -643,7 +648,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 disabled={generating}
               />
             )}
-            {genProject && !genIsAnzahlung && genAnzahlungen && genAnzahlungen.length > 0 && (
+            {genReady && !genIsAnzahlung && genAnzahlungen && genAnzahlungen.length > 0 && (
               <AnzahlungAbzugField
                 anzahlungen={genAnzahlungen}
                 checked={genCheckedAnzahlungen}
@@ -651,10 +656,10 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 disabled={generating}
               />
             )}
-            {genProject && !genIsAnzahlung && (
+            {genReady && !genIsAnzahlung && (
               <TravelCostField checked={genTravel} onChange={setGenTravel} disabled={generating} />
             )}
-            {genProject && !genIsAnzahlung && (
+            {genReady && !genIsAnzahlung && (
               <WorkDescriptionField
                 idPrefix="gen"
                 value={genWorkDesc}
@@ -662,7 +667,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 disabled={generating}
               />
             )}
-            {genProject && (
+            {genReady && (
               <div style={{ marginBottom: 12 }}>
                 <label className="admin-form-label" htmlFor="gen-remark">
                   Bemerkung
@@ -682,7 +687,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 </div>
               </div>
             )}
-            {genProject && abzugCfg && !genIsAnzahlung && (
+            {genReady && abzugCfg && !genIsAnzahlung && (
               <GeneralDeductionFields
                 idPrefix="gen"
                 label={abzugCfg.bezeichnung || 'Allg. Abzüge'}

@@ -329,13 +329,37 @@ describe('InvoicesTab — weitere Rechnung (WW-39/WW-47)', () => {
   it('weitere Rechnung lädt die Vorschläge neu und schickt additional mit', async () => {
     const { onGenerateInvoice, loadWorkDescription, loadQuoteCoverage } = renderWith([makeInvoice()])
     await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
-    expect(screen.getByRole('radio', { name: /Neue Version/ })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: /Weitere Rechnung/ }))
     expect(loadWorkDescription).toHaveBeenLastCalledWith(true, undefined)
     expect(loadQuoteCoverage).toHaveBeenLastCalledWith(true)
     await screen.findByPlaceholderText(/Eigenen Text schreiben/)
     await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
     expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'additional', workDescription: '' }))
+  })
+
+  // WS-47: «Neue Version» archiviert die offene Rechnung — als Vorgabe wurde sie
+  // gewählt, wo eine weitere Rechnung gemeint war. Mit gültiger Rechnung ist
+  // deshalb nichts vorgewählt, und vor der Wahl lädt und erstellt der Dialog nichts.
+  it('mit gültiger Rechnung ist nichts vorgewählt und Erstellen gesperrt (WS-47)', async () => {
+    const { onGenerateInvoice, loadQuoteCoverage } = renderWith([makeInvoice()])
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    for (const radio of screen.getAllByRole('radio')) expect(radio).not.toBeChecked()
+    expect(screen.getByText(/Bitte wählen: ersetzen oder weitere Rechnung/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Bemerkung')).not.toBeInTheDocument()
+    expect(loadQuoteCoverage).not.toHaveBeenCalled()
+    const erstellen = screen.getByRole('button', { name: 'Rechnung generieren' })
+    expect(erstellen).toBeDisabled()
+    await userEvent.click(erstellen)
+    expect(onGenerateInvoice).not.toHaveBeenCalled()
+  })
+
+  it('«Neue Version» bewusst gewählt: lädt wie bisher und schickt kein additional', async () => {
+    const { onGenerateInvoice, loadQuoteCoverage } = renderWith([makeInvoice()])
+    await userEvent.click(screen.getByRole('button', { name: '+ Rechnung generieren' }))
+    await userEvent.click(screen.getByRole('radio', { name: /Neue Version/ }))
+    expect(loadQuoteCoverage).toHaveBeenLastCalledWith(false)
+    await userEvent.click(screen.getByRole('button', { name: 'Rechnung generieren' }))
+    expect(onGenerateInvoice).toHaveBeenCalledWith('', expect.objectContaining({ mode: 'replace' }))
   })
 })
 

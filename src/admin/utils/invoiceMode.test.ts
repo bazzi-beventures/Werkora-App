@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   anzahlungPayload, generateOptionsPayload, hasActiveInvoice, invoiceModeOptions,
   defaultCheckedReports, invoiceModePayload, parseAnzahlungPct, reportSelectionPayload,
-  ANZAHLUNG_VORGABE, parseAnzahlung, parseAnzahlungBetrag,
+  ANZAHLUNG_VORGABE, parseAnzahlung, parseAnzahlungBetrag, initialInvoiceMode,
 } from './invoiceMode'
 
 describe('hasActiveInvoice', () => {
@@ -29,6 +29,15 @@ describe('invoiceModeOptions', () => {
   })
   it('mit Rechnung zusätzlich «weitere Rechnung»', () => {
     expect(invoiceModeOptions(true)).toEqual(['replace', 'additional', 'anzahlung'])
+  })
+})
+
+describe('initialInvoiceMode (WS-47)', () => {
+  it('ohne gültige Rechnung ist die gewöhnliche Rechnung vorgewählt', () => {
+    expect(initialInvoiceMode(false)).toBe('replace')
+  })
+  it('mit Rechnung ist nichts vorgewählt — «Neue Version» archiviert, das wählt man bewusst', () => {
+    expect(initialInvoiceMode(true)).toBeNull()
   })
 })
 

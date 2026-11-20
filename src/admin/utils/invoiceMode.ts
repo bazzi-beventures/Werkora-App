@@ -26,6 +26,14 @@ export function invoiceModeOptions(hasActive: boolean): InvoiceMode[] {
   return hasActive ? ['replace', 'additional', 'anzahlung'] : ['replace', 'anzahlung']
 }
 
+/** Vorbelegung der Art beim Öffnen des Dialogs. Hat das Projekt schon eine gültige
+ *  Rechnung, ist **nichts** vorgewählt: «Neue Version» archiviert die offene Fassung,
+ *  und als Vorgabe wurde sie mehrfach gewählt, wo eine weitere Rechnung gemeint war
+ *  (WW-47, WS-47). Erst die bewusste Wahl gibt den Rest des Dialogs frei. */
+export function initialInvoiceMode(hasActive: boolean): InvoiceMode | null {
+  return hasActive ? null : 'replace'
+}
+
 /** Felder `additional`/`kind` für den Generate-Request; die Neufassung lässt sie weg. */
 export function invoiceModePayload(mode: InvoiceMode): { additional?: true; kind?: 'anzahlung' } {
   if (mode === 'additional') return { additional: true }
@@ -34,7 +42,7 @@ export function invoiceModePayload(mode: InvoiceMode): { additional?: true; kind
 }
 
 /** Eine weitere Rechnung lässt beim Vorschlagen aus, was auf offenen Rechnungen steht. */
-export function isAdditional(mode: InvoiceMode): boolean {
+export function isAdditional(mode: InvoiceMode | null): boolean {
   return mode === 'additional'
 }
 

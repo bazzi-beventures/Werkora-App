@@ -5,7 +5,8 @@
 import { invoiceModeOptions, type InvoiceMode } from '../utils/invoiceMode'
 
 interface Props {
-  value: InvoiceMode
+  // null = noch nicht gewählt (Projekt mit gültiger Rechnung, WS-47).
+  value: InvoiceMode | null
   onChange: (next: InvoiceMode) => void
   // Hat das Projekt schon eine gültige Rechnung? Sonst gibt es nichts zu ersetzen.
   hasActive: boolean
@@ -35,6 +36,11 @@ export function InvoiceModeField({ value, onChange, hasActive, disabled, idPrefi
   return (
     <fieldset style={{ border: 'none', padding: 0, margin: '0 0 12px' }}>
       <legend className="admin-form-label">Art der Rechnung</legend>
+      {value === null && (
+        <div role="status" style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>
+          Das Projekt hat schon eine Rechnung. Bitte wählen: ersetzen oder weitere Rechnung?
+        </div>
+      )}
       {invoiceModeOptions(hasActive).map(mode => {
         const t = texts(mode, hasActive)
         return (

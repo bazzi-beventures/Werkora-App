@@ -324,6 +324,12 @@ describe('InvoicesScreen — was die Liste allein nicht mehr weiss', () => {
 
     expect(await screen.findByText('Weitere Rechnung')).toBeInTheDocument()
     expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/projects/p-9/invoices')
+    // WS-47: nichts vorgewählt, Erstellen gesperrt, bis die Art gewählt ist.
+    await waitFor(() => expect(screen.getByRole('radio', { name: /Weitere Rechnung/ })).toBeEnabled())
+    for (const radio of screen.getAllByRole('radio')) expect(radio).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Rechnung erstellen' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('radio', { name: /Weitere Rechnung/ }))
+    expect(screen.getByRole('radio', { name: /Weitere Rechnung/ })).toBeChecked()
   })
 
   it('bietet sie nicht an, wenn das Projekt noch keine Rechnung hat', async () => {
@@ -341,6 +347,8 @@ describe('InvoicesScreen — was die Liste allein nicht mehr weiss', () => {
     expect(await screen.findByText('Art der Rechnung')).toBeInTheDocument()
     await waitFor(() => expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/projects/p-9/invoices'))
     expect(screen.queryByText('Weitere Rechnung')).not.toBeInTheDocument()
+    // Ohne gültige Rechnung gibt es nichts zu ersetzen — «Rechnung» ist vorgewählt.
+    await waitFor(() => expect(screen.getByRole('radio', { name: /^Rechnung/ })).toBeChecked())
   })
 
   it('sagt beim Abschliessen ehrlich, wenn offene Rechnungen nicht prüfbar waren', async () => {
