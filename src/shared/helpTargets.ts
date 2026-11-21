@@ -26,6 +26,8 @@ export interface HelpTarget {
   kpiOnly?: boolean
   /** Für Rolle user_light gesperrt (Monteur-App). */
   noLight?: boolean
+  /** `false`: nie ein Knopf (Beta-Maske ohne Handbuch-Kapitel). */
+  verlinkbar?: false
 }
 
 // Format je Zeile bewusst gleich (der Python-Ratchet liest sie per Regex):
@@ -41,6 +43,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'admin', screen: 'hr-reports', module: 'hr' },
   { app: 'admin', screen: 'vacation', module: 'hr' },
   { app: 'admin', screen: 'settings', managementOnly: true },
+  { app: 'admin', screen: 'microsoft', verlinkbar: false },
   { app: 'admin', screen: 'projects' },
   { app: 'admin', screen: 'project-drafts' },
   { app: 'admin', screen: 'project-schedule', module: 'scheduling' },
@@ -86,6 +89,7 @@ export function targetAllowed(t: HelpTarget, user: UserInfo | null): boolean {
   if (t.managementOnly && !isManagementRole(role)) return false
   if (t.kpiOnly && !hasKpiAccess(role)) return false
   if (t.noLight && role === 'user_light') return false
+  if (t.verlinkbar === false) return false
   return true
 }
 

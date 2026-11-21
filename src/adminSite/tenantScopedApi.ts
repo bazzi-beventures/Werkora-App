@@ -203,6 +203,10 @@ export type {
   EingangAnsichtVorgabe, ZustaendigkeitenBetreiber, ZustaendigkeitsBlock,
 } from '../api/platform'
 
+// ─── Microsoft 365 (docs/specs/microsoft-365-verbindung.md §9.3) ───────────
+
+export { getPlatformMicrosoft, createMicrosoftLink, deletePlatformMicrosoft } from '../api/platform'
+
 // ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ──────────────
 
 export { getServiceBegleitung, setServiceBegleitung } from '../api/platform'

@@ -21,6 +21,8 @@ interface Props {
   showTaskBoard?: boolean
   /** «Einstellungen»: Geschäftsleitung oder Recht «Arbeitszeiten verwalten». */
   showSettings?: boolean
+  /** «Microsoft 365» (Beta-Feature `microsoft_verbindung`, microsoft-365-verbindung.md §9.2). */
+  showMicrosoft?: boolean
   badges?: {
     corrections?: number
     absences?: number
@@ -65,7 +67,7 @@ function NavItem({ label, target, current, onNav, badge, icon, beta }: NavItemPr
   )
 }
 
-export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, showSettings, badges }: Props) {
+export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, tenantName, enabledModules, showTaskBoard, showSettings, showMicrosoft, badges }: Props) {
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const isManagement = isManagementRole(role)
   const mayViewKpis = hasKpiAccess(role)
@@ -122,6 +124,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
             `require_admin` (Spec §6.5, E7). */}
         {showSettings && (
           <NavItem label="Einstellungen" target="settings" current={screen} onNav={onNav} icon={<IconSettings />} />
+        )}
+        {showMicrosoft && (
+          <NavItem label="Microsoft 365" target="microsoft" current={screen} onNav={onNav} icon={<IconSettings />} />
         )}
 
         <div className="admin-nav-group-label">Operativ</div>

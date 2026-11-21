@@ -1,0 +1,53 @@
+/* «Microsoft 365» des Betriebs (MicrosoftScreen.tsx, Spec microsoft-365-verbindung §9.2). */
+
+.ms-karten {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  max-width: 720px;
+}
+
+.ms-karte {
+  padding: var(--s-5);
+  border-left: 4px solid var(--border);
+}
+
+.ms-karte--verbunden {
+  border-left-color: var(--success);
+}
+
+.ms-karte--getrennt {
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.ms-karte--rechte_fehlen {
+  border-left-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.ms-zustand {
+  margin: var(--s-2) 0;
+  font-weight: 600;
+}
+
+.ms-hinweis,
+.ms-fussnote {
+  margin: 0 0 var(--s-3);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.ms-feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  font-size: var(--font-sm);
+}
+
+.ms-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}

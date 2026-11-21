@@ -8,11 +8,12 @@ import { SchedulingTab } from './tabs/SchedulingTab'
 import { HelpDocsTab } from './tabs/HelpDocsTab'
 import { BexioTab } from './tabs/BexioTab'
 import { MailEingangTab } from './tabs/MailEingangTab'
+import { MicrosoftTab } from './tabs/MicrosoftTab'
 import { ServiceBegleitungTab } from './tabs/ServiceBegleitungTab'
 
 type Tab =
   | 'modules' | 'notifications' | 'workflows'
-  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'mail-eingang' | 'service-begleitung'
+  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'microsoft' | 'mail-eingang' | 'service-begleitung'
 
 /**
  * Kalibrierung eines Mandanten durch den Betreiber.
@@ -99,6 +100,12 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
             bexio
           </button>
                   <button
+            className={`kpi-admin-tab${tab === 'microsoft' ? ' active' : ''}`}
+            onClick={() => setTab('microsoft')}
+          >
+            Microsoft 365
+          </button>
+                  <button
             className={`kpi-admin-tab${tab === 'mail-eingang' ? ' active' : ''}`}
             onClick={() => setTab('mail-eingang')}
           >
@@ -128,6 +135,7 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
         {tab === 'scheduling' && <SchedulingTab tenantId={tenantId} />}
         {tab === 'help-docs' && <HelpDocsTab tenantId={tenantId} />}
         {tab === 'bexio' && <BexioTab tenantId={tenantId} />}
+        {tab === 'microsoft' && <MicrosoftTab tenantId={tenantId} />}
         {tab === 'mail-eingang' && <MailEingangTab tenantId={tenantId} />}
         {tab === 'service-begleitung' && <ServiceBegleitungTab tenantId={tenantId} />}
       </Fragment>

@@ -5,7 +5,7 @@ import { useState } from 'react'
 import type { ScheduleProject } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import { getMonthDays, toDateStr, isToday, diffDays } from '../utils/calendarHelpers'
-import { absenceEntryLookup, absencesOnDay, kindSymbol, pillBg, pillClass, pillExtraLines, projectCoversDay, readDragPayload, setDragPayload, useHoverCard, type CalendarEntry, type StaffLite } from './scheduleShared'
+import { absenceEntryLookup, absencesOnDay, kindSymbol, pillBg, pillClass, pillExtraLines, entriesOnDay, readDragPayload, setDragPayload, useHoverCard, type CalendarEntry, type StaffLite } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
 import { pillLabel, openBinding } from './scheduleCalendarHelpers'
 
@@ -62,7 +62,7 @@ export function MonthView({
           const dayISO = toDateStr(day)
           const today = isToday(day)
           const holidayName = holidays.get(dayISO)
-          const dayProjects = projects.filter(p => projectCoversDay(p, day))
+          const dayProjects = entriesOnDay(projects, day)
           // Monatskacheln sind zu klein für Bänder — ein Marker je Tag, die
           // Namen im title.
           const absent = absencesOnDay(absentOn, absenceStaff, dayISO)

@@ -475,6 +475,86 @@
         }
       }
     },
+    "/pwa/admin/microsoft": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MsZustand"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/microsoft/adminconsent/start": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MsLink"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/microsoft/oauth/start": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MsLink"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/microsoft/versand/testmail": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/microsoft/{zweck}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/projects/{project_id}/appointments": {
       "get": {
         "responses": {
@@ -1563,6 +1643,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ZustaendigkeitenBetreiber"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MsZustand"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/link": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MsLink"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/{zweck}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
                 }
               }
             }
@@ -3335,6 +3463,179 @@
           "is_own"
         ],
         "description": "Ein Rapport in der Projektansicht der Monteur-App (``/projects/{id}/reports``)."
+      },
+      "MsLink": {
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "gueltig_minuten": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "gueltig_minuten"
+        ],
+        "description": "Adresse, zu der der Browser soll (Anmeldung oder Admin-Freigabe)."
+      },
+      "MsVerbindung": {
+        "properties": {
+          "zweck": {
+            "type": "string",
+            "enum": [
+              "versand",
+              "eingang"
+            ]
+          },
+          "verbunden": {
+            "type": "boolean"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "ok",
+                  "getrennt"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mailbox": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "connected_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "connected_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_ok_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "granted_scopes": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fehlende_rechte": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Rechte aus §4, die Microsoft nicht erteilt hat."
+          }
+        },
+        "type": "object",
+        "required": [
+          "zweck",
+          "verbunden",
+          "status"
+        ],
+        "description": "Zustand einer Verbindung. Nicht verbunden: nur ``zweck``, ``verbunden``, ``status``."
+      },
+      "MsZustand": {
+        "properties": {
+          "eingerichtet": {
+            "type": "boolean",
+            "description": "Werkora-App und MS_TOKEN_KEY sind in dieser Umgebung gesetzt."
+          },
+          "verbindungen": {
+            "items": {
+              "$ref": "#/components/schemas/MsVerbindung"
+            },
+            "type": "array"
+          },
+          "vorschlag": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vorbelegung der Adressfelder je Zweck (tenants.email, Eingangspostfach)."
+          },
+          "mail_eingang": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hat der Mandant das Modul mail_eingang?"
+          }
+        },
+        "type": "object",
+        "required": [
+          "eingerichtet",
+          "verbindungen"
+        ],
+        "description": "``GET /admin/microsoft`` bzw. ``…/superadmin/tenants/{id}/microsoft``."
       },
       "NachfassFaelle": {
         "properties": {

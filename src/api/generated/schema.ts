@@ -970,6 +970,181 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/admin/microsoft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MsZustand"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/microsoft/adminconsent/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MsLink"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/microsoft/oauth/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MsLink"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/microsoft/versand/testmail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/microsoft/{zweck}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/projects/{project_id}/appointments": {
         parameters: {
             query?: never;
@@ -3145,6 +3320,111 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MsZustand"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MsLink"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/{zweck}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3487,6 +3767,38 @@ export interface components {
             is_own: boolean;
             /** @description Hängt der Rapport an einer Rechnung, die der Kunde schon hat (gesendet/bezahlt)? Nur dann ist die Unterschrift endgültig gesperrt. */
             invoice_locked?: boolean;
+        };
+        /** @description Adresse, zu der der Browser soll (Anmeldung oder Admin-Freigabe). */
+        MsLink: {
+            url: string;
+            gueltig_minuten: number;
+        };
+        /** @description Zustand einer Verbindung. Nicht verbunden: nur ``zweck``, ``verbunden``, ``status``. */
+        MsVerbindung: {
+            /** @enum {string} */
+            zweck: "versand" | "eingang";
+            verbunden: boolean;
+            status: ("ok" | "getrennt") | null;
+            mailbox?: string | null;
+            connected_at?: string | null;
+            connected_by?: string | null;
+            last_ok_at?: string | null;
+            last_error?: string | null;
+            granted_scopes?: string[] | null;
+            /** @description Rechte aus §4, die Microsoft nicht erteilt hat. */
+            fehlende_rechte?: string[] | null;
+        };
+        /** @description ``GET /admin/microsoft`` bzw. ``…/superadmin/tenants/{id}/microsoft``. */
+        MsZustand: {
+            /** @description Werkora-App und MS_TOKEN_KEY sind in dieser Umgebung gesetzt. */
+            eingerichtet: boolean;
+            verbindungen: components["schemas"]["MsVerbindung"][];
+            /** @description Vorbelegung der Adressfelder je Zweck (tenants.email, Eingangspostfach). */
+            vorschlag?: {
+                [key: string]: string;
+            } | null;
+            /** @description Hat der Mandant das Modul mail_eingang? */
+            mail_eingang?: boolean | null;
         };
         NachfassFaelle: {
             faelle: components["schemas"]["NachfassFall"][];

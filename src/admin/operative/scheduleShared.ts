@@ -16,6 +16,7 @@ import type { Vormerkung } from '../../api/admin/hagelschadenDispo'
 import { projectCustomerName } from '../utils/project'
 import { diffDays, hhmmToMin, minToHHMM, parseDateStr, shiftISO, toDateStr } from '../utils/calendarHelpers'
 import { istHell } from './terminFarben'
+import { aufTag, istMehrtaegig, tagTeilLabel, ueberschneidenSich, type TagesProjektion } from './tagesfenster'
 
 export interface StaffLite {
   id: string
@@ -37,7 +38,14 @@ export interface StaffLite {
 // für das Typ-Symbol — nur bei Kundenprojekten gesetzt, interne Einsätze nutzen
 // p.kind.
 // termin_farbe: Farbe der Terminfarbe (terminFarben.ts), schlägt die Art-Farbe.
-export type CalendarEntry = ScheduleProject & { termin_badge?: string; termin_kind?: string; termin_farbe?: string }
+// tag_teil & Co.: nur an einem auf einen Tag projizierten mehrtägigen Termin
+// (tagesfenster.ts, WW-92).
+export type CalendarEntry = ScheduleProject & TagesProjektion & { termin_badge?: string; termin_kind?: string; termin_farbe?: string }
+
+/** Einträge eines Tages, mehrtägige Termine mit den Uhrzeiten DIESES Tages (WW-92). */
+export function entriesOnDay(projects: CalendarEntry[], day: Date): CalendarEntry[] {
+  return projects.filter(p => projectCoversDay(p, day)).map(p => aufTag(p, day))
+}
 
 // ─── Formatierung ────────────────────────────────────────────────────────────
 
@@ -87,8 +95,12 @@ export function entryTitle(p: ScheduleProject): string {
   return `${nr} ${name}`
 }
 
-export function fmtTimeRange(p: ScheduleProject): string {
+export function fmtTimeRange(p: ScheduleProject & TagesProjektion): string {
+  const teil = tagTeilLabel(p)
+  if (teil) return teil
   const s = fmtTime(p.start_time), e = fmtTime(p.end_time)
+  // Mehrtägig: Startzeit am ersten, Endzeit am letzten Tag (WW-92).
+  if (istMehrtaegig(p) && s && e) return `ab ${s} · bis ${e}`
   if (s && e) return `${s}–${e}`
   if (s) return `ab ${s}`
   if (e) return `bis ${e}`
@@ -167,10 +179,16 @@ export function crewShortLabels(p: Pick<Project, 'monteur_ids'>, staff: StaffLit
   return shown
 }
 
-export function fmtRange(p: ScheduleProject): string {
+export function fmtRange(p: ScheduleProject & TagesProjektion): string {
   if (!p.start_date || !p.end_date) return ''
   const s = parseDateStr(p.start_date).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })
   const e = parseDateStr(p.end_date).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' })
+  if (s !== e) {
+    // Mehrtägig: «02.02. 07:00 – 03.02. 12:00» — die gespeicherten Zeiten, nicht die des Tages.
+    const st = fmtTime(p.tag_teil ? p.termin_start_time : p.start_time)
+    const et = fmtTime(p.tag_teil ? p.termin_end_time : p.end_time)
+    return `${st ? `${s} ${st}` : s} – ${et ? `${e} ${et}` : e}`
+  }
   const datePart = s === e ? s : `${s} – ${e}`
   const timePart = fmtTimeRange(p)
   return timePart ? `${datePart} · ${timePart}` : datePart
@@ -376,8 +394,8 @@ export function useHoverCard() {
 export function rowEntries(
   projects: CalendarEntry[], staffIds: Set<string>, rowId: string | null, day: Date,
 ): CalendarEntry[] {
-  return projects
-    .filter(p => projectCoversDay(p, day) && (
+  return entriesOnDay(projects, day)
+    .filter(p => (
       rowId === null
         ? !(p.monteur_ids || []).some(id => staffIds.has(id))
         : (p.monteur_ids || []).includes(rowId)
@@ -461,7 +479,8 @@ export interface StaffOverlap {
  * Ganztägige Einträge bleiben aussen vor — sonst meldete jeder kleine Einsatz an
  * einem Tag mit ganztägiger Montage eine Doppelbelegung, und eine Rückfrage, die
  * man immer wegklickt, liest bald niemand mehr. Mehrtägige getaktete Einsätze
- * gelten an jedem ihrer Tage im selben Zeitfenster.
+ * gelten am ersten Tag ab Startzeit, am letzten bis Endzeit und dazwischen den
+ * ganzen Arbeitstag (tagesfenster.ts, WW-92).
  *
  * `excludeIds`: der Termin selbst (beim Verschieben/Bearbeiten) und, bei einer
  * Serien-Änderung, seine Geschwister. Vorschläge der Disposition sind keine Termine.
@@ -469,23 +488,14 @@ export interface StaffOverlap {
 export function findStaffOverlaps(
   entries: CalendarEntry[], slot: PlannedSlot, staff: StaffLite[], excludeIds: Iterable<string> = [],
 ): StaffOverlap[] {
-  if (!slot.start_date || !slot.start_time || slot.staffIds.length === 0) return []
+  if (!slot.start_date || (!slot.start_time && !slot.end_time) || slot.staffIds.length === 0) return []
   const exclude = new Set(excludeIds)
   const names = new Map(staff.map(s => [s.id, s.name]))
-  const from = slot.start_date.slice(0, 10)
-  const to = (slot.end_date || slot.start_date).slice(0, 10)
-  const sS = hhmmToMin(slot.start_time)
-  const sE = slot.end_time ? hhmmToMin(slot.end_time) : sS + 60
 
   const out: StaffOverlap[] = []
   for (const e of entries) {
-    if (exclude.has(String(e.id)) || isVorschlag(e.id) || !e.start_time || !e.start_date) continue
-    const eFrom = e.start_date.slice(0, 10)
-    const eTo = (e.end_date || e.start_date).slice(0, 10)
-    if (eFrom > to || from > eTo) continue
-    const eS = hhmmToMin(e.start_time)
-    const eE = e.end_time ? hhmmToMin(e.end_time) : eS + 60
-    if (!(sS < eE && eS < sE)) continue
+    if (exclude.has(String(e.id)) || isVorschlag(e.id) || (!e.start_time && !e.end_time) || !e.start_date) continue
+    if (!ueberschneidenSich(slot, e)) continue
     for (const id of slot.staffIds) {
       const name = names.get(id)
       if (name && (e.monteur_ids ?? []).includes(id)) out.push({ staffId: id, staffName: name, entry: e })

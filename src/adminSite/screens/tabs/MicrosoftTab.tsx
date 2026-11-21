@@ -1,0 +1,125 @@
+import { useEffect, useState } from 'react'
+import * as scoped from '../../tenantScopedApi'
+import type { Antwort } from '../../../api/generated'
+import { useToast, ToastHost } from '../../../admin/components/useToast'
+import { copyToClipboard } from '../../clipboard'
+import { ZWECK_TEXT, type MsZweck, gueltigeAdresse, kartenZustand, zustandText } from '../../../shared/microsoftKarte'
+
+// ─── Reiter «Microsoft 365» (docs/specs/microsoft-365-verbindung.md §9.3) ─────
+//
+// Zustand beider Verbindungen des Mandanten und «Link für den Betrieb erzeugen»:
+// 7 Tage gültig, einmal einlösbar. Verbinden muss sich der Betrieb selbst — mit
+// dem Postfach, dessen Adresse hier steht; meldet sich ein anderes Konto an,
+// lehnt Werkora ab (§6.2). Rückfälle im Pilot und Schatten-Abweichungen stehen
+// unter «Error-Logs» (Quellen `ms_rueckfall`, `ms_schatten_abweichung`).
+
+type Zustand = Antwort<'MsZustand'>
+
+export function MicrosoftTab({ tenantId }: { tenantId: string }) {
+  const { toast, showToast } = useToast(5000)
+  const [zustand, setZustand] = useState<Zustand | null>(null)
+  const [fehler, setFehler] = useState<string | null>(null)
+
+  const laden = () => {
+    scoped.getPlatformMicrosoft(tenantId)
+      .then(z => { setZustand(z); setFehler(null) })
+      .catch((e: Error) => setFehler(e.message))
+  }
+  useEffect(laden, [tenantId])
+
+  if (fehler) return <div className="admin-form-error">Zustand nicht lesbar: {fehler}</div>
+  if (!zustand) return <div className="admin-loading"><div className="admin-spinner" /> Wird geladen…</div>
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 760 }}>
+      {!zustand.eingerichtet && (
+        <div className="admin-form-error">
+          In dieser Umgebung fehlt die Werkora-App (MS_APP_CLIENT_ID, MS_APP_CLIENT_SECRET,
+          MS_OAUTH_REDIRECT_URI, MS_TOKEN_KEY).
+        </div>
+      )}
+      {(['versand', 'eingang'] as MsZweck[])
+        .filter(z => z === 'versand' || zustand.mail_eingang)
+        .map(zweck => (
+          <Karte key={zweck} tenantId={tenantId} zweck={zweck} eingerichtet={zustand.eingerichtet}
+            verbindung={zustand.verbindungen.find(v => v.zweck === zweck)}
+            vorschlag={zustand.vorschlag?.[zweck] ?? ''} neuLaden={laden} showToast={showToast} />
+        ))}
+      <ToastHost toast={toast} />
+    </div>
+  )
+}
+
+function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden, showToast }: {
+  tenantId: string
+  zweck: MsZweck
+  eingerichtet: boolean
+  verbindung: Antwort<'MsVerbindung'> | undefined
+  vorschlag: string
+  neuLaden: () => void
+  showToast: ReturnType<typeof useToast>['showToast']
+}) {
+  const zustand = kartenZustand(eingerichtet, verbindung)
+  const [adresse, setAdresse] = useState(verbindung?.mailbox || vorschlag)
+  const [link, setLink] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  async function erzeugen() {
+    setBusy(true)
+    try {
+      const { url } = await scoped.createMicrosoftLink(tenantId, zweck, adresse.trim())
+      setLink(url)
+      showToast(await copyToClipboard(url) ? 'Link kopiert (7 Tage gültig)' : 'Link erzeugt')
+    } catch (e) {
+      showToast((e as Error).message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function trennen() {
+    if (!window.confirm(`${ZWECK_TEXT[zweck].titel} dieses Betriebs trennen?`)) return
+    setBusy(true)
+    try {
+      await scoped.deletePlatformMicrosoft(tenantId, zweck)
+      showToast('Verbindung getrennt')
+      neuLaden()
+    } catch (e) {
+      showToast((e as Error).message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="admin-table-wrap" style={{ padding: 20 }}>
+      <div className="admin-section-title">{ZWECK_TEXT[zweck].titel}</div>
+      <p style={{ margin: '8px 0', fontWeight: 600 }}>{zustandText(zustand, verbindung)}</p>
+      {verbindung?.verbunden && (
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-muted)' }}>
+          Letzter Erfolg: {verbindung.last_ok_at ?? '–'} · Rechte: {(verbindung.granted_scopes ?? []).join(', ') || '–'}
+          {verbindung.last_error ? ` · Letzter Fehler: ${verbindung.last_error}` : ''}
+        </p>
+      )}
+      {eingerichtet && (
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input className="admin-form-input" style={{ maxWidth: 280 }} type="email" value={adresse}
+            onChange={e => setAdresse(e.target.value)} placeholder={ZWECK_TEXT[zweck].adresse} />
+          <button className="admin-btn admin-btn-primary" disabled={busy || !gueltigeAdresse(adresse)}
+            onClick={() => void erzeugen()}>
+            Link für den Betrieb erzeugen
+          </button>
+          {verbindung?.verbunden && (
+            <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={() => void trennen()}>
+              Trennen
+            </button>
+          )}
+        </div>
+      )}
+      {link && (
+        <textarea className="admin-form-input" readOnly rows={3} value={link}
+          style={{ marginTop: 12, width: '100%', fontFamily: 'var(--mono)', fontSize: 12 }} />
+      )}
+    </div>
+  )
+}

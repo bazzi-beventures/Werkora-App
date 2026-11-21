@@ -39,5 +39,6 @@ export const SCREEN_TITLES: Record<AdminScreen, string> = {
   'kpis': 'Kennzahlen',
   'document-backup': 'Datensicherung',
   'settings': 'Einstellungen',
+  'microsoft': 'Microsoft 365',
   'profile': 'Mein Profil',
 }

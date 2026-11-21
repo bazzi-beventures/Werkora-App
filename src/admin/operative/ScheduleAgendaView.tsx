@@ -4,7 +4,7 @@
 import type { ScheduleProject } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import { getWeekDays, toDateStr, isToday } from '../utils/calendarHelpers'
-import { absenceEntryLookup, absencesOnDay, entryTitle, fmtTimeRange, kindSymbol, pillBg, pillClass, pillExtraLines, projectCoversDay, type CalendarEntry, type StaffLite } from './scheduleShared'
+import { absenceEntryLookup, absencesOnDay, entryTitle, fmtTimeRange, kindSymbol, pillBg, pillClass, pillExtraLines, entriesOnDay, type CalendarEntry, type StaffLite } from './scheduleShared'
 import CrewChips from './CrewChips'
 import { openBinding } from './scheduleCalendarHelpers'
 import { AbsenceChips } from './scheduleCalendarParts'
@@ -31,7 +31,7 @@ export function AgendaView({
   staffMode?: boolean
 }) {
   const days = getWeekDays(currentDate)
-  const projectsByDay: CalendarEntry[][] = days.map(d => projects.filter(p => projectCoversDay(p, d)))
+  const projectsByDay: CalendarEntry[][] = days.map(d => entriesOnDay(projects, d))
   const absentOn = absenceEntryLookup(absences ?? [])
   return (
     <div className="project-cal-agenda">

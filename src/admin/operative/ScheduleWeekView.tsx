@@ -6,7 +6,7 @@ import type { ScheduleProject } from '../../api/admin/projects'
 import type { ScheduleAbsence } from '../../api/admin/scheduling'
 import { getWeekDays, toDateStr, isToday, diffDays, hhmmToMin } from '../utils/calendarHelpers'
 import { computeWeekHours, computeLanes, laneStyle, tileLayout, timeOffsetPx, timedBlockHeightPx, yToSnappedTime, type TileLayout } from '../utils/weekGrid'
-import { absenceEntryLookup, absencesOnDay, type DayAbsence, entryTitle, fmtTime, fmtTimeRange, kindSymbol, pillBg, pillClass, pillExtraLines, projectCoversDay, readDragPayload, setDragPayload, useHoverCard, visibleWeekDays, type CalendarEntry, type StaffLite } from './scheduleShared'
+import { absenceEntryLookup, absencesOnDay, type DayAbsence, entryTitle, fmtTime, fmtTimeRange, kindSymbol, pillBg, pillClass, pillExtraLines, entriesOnDay, readDragPayload, setDragPayload, useHoverCard, visibleWeekDays, type CalendarEntry, type StaffLite } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
 import { selectionBox, selectionLabel, useDragCreate, type DragCreateBox } from './useDragCreate'
 import { dragDauerMin, ghostLabel, GHOST_MIN_DAUER } from './dropGhost'
@@ -66,7 +66,7 @@ export function WeekView({
   const dragGrabYRef = useRef(0)
   const projById = new Map(projects.map(p => [p.id, p]))
 
-  const projectsByDay: CalendarEntry[][] = days.map(d => projects.filter(p => projectCoversDay(p, d)))
+  const projectsByDay: CalendarEntry[][] = days.map(d => entriesOnDay(projects, d))
 
   // Rastergrenzen aus der sichtbaren Woche — leere Randstunden fallen weg.
   const { startHour, endHour } = computeWeekHours(projectsByDay.flat())

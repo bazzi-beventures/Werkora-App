@@ -22,6 +22,8 @@ interface Props {
   showTaskBoard?: boolean
   /** «Einstellungen»: Geschäftsleitung oder Recht «Arbeitszeiten verwalten». */
   showSettings?: boolean
+  /** «Microsoft 365» (Beta-Feature `microsoft_verbindung`, microsoft-365-verbindung.md §9.2). */
+  showMicrosoft?: boolean
   badges?: {
     corrections?: number
     absences?: number
@@ -69,7 +71,7 @@ function IconSwitchUser() {
   )
 }
 
-export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, showSettings, badges, inventur }: Props) {
+export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, displayName, role, enabledModules, showTaskBoard, showSettings, showMicrosoft, badges, inventur }: Props) {
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const initials = displayName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -330,6 +332,11 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 {showSettings && (
                   <button className={`admin-mobile-drawer-item${screen === 'settings' ? ' active' : ''}`} onClick={() => navigate('settings')}>
                     <IconSettings /><span>Einstellungen</span>
+                  </button>
+                )}
+                {showMicrosoft && (
+                  <button className={`admin-mobile-drawer-item${screen === 'microsoft' ? ' active' : ''}`} onClick={() => navigate('microsoft')}>
+                    <IconSettings /><span>Microsoft 365</span>
                   </button>
                 )}
               </div>

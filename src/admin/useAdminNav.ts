@@ -34,6 +34,7 @@ export type AdminScreen =
   | 'kpis'
   | 'document-backup'
   | 'settings'
+  | 'microsoft'
   | 'profile'
 
 /**

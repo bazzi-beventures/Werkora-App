@@ -230,6 +230,12 @@ export function fmtSlotDate(iso: string): string {
 export function fmtApptRow(a: ProjectAppointment): string {
   const from = fmtSlotDate(a.start_date)
   const to = a.end_date && a.end_date !== a.start_date ? ` – ${fmtSlotDate(a.end_date)}` : ''
+  // Mehrtägig: Startzeit am ersten, Endzeit am letzten Tag (WW-92) — «Mo 02.02. 07:00 – Di 03.02. 12:00».
+  if (to && (a.start_time || a.end_time)) {
+    const st = a.start_time ? ` ${a.start_time.slice(0, 5)}` : ''
+    const et = a.end_time ? ` ${a.end_time.slice(0, 5)}` : ''
+    return `${from}${st}${to}${et}`
+  }
   const t = a.start_time
     ? `${a.start_time.slice(0, 5)}${a.end_time ? `–${a.end_time.slice(0, 5)}` : ''}`
     : 'ganztägig'

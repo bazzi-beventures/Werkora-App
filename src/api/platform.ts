@@ -444,6 +444,30 @@ export function setMailEingang(tenantId: string, einstellung: MailEingangEinstel
   })
 }
 
+// ─── Microsoft 365 (docs/specs/microsoft-365-verbindung.md §9.3) ─────────────
+//
+// Zustand beider Verbindungen und ein Link für den Betrieb (7 Tage, einmal
+// einlösbar). Verbinden muss sich der Betrieb selbst — mit seinem Postfach.
+
+const microsoftPfad = (tenantId: string) =>
+  `/pwa/superadmin/tenants/${encodeURIComponent(tenantId)}/microsoft`
+
+export function getPlatformMicrosoft(tenantId: string): Promise<Antwort<'MsZustand'>> {
+  return apiFetch<Antwort<'MsZustand'>>(microsoftPfad(tenantId))
+}
+
+export function createMicrosoftLink(tenantId: string, zweck: 'versand' | 'eingang', adresse: string):
+  Promise<Antwort<'MsLink'>> {
+  return apiFetch<Antwort<'MsLink'>>(`${microsoftPfad(tenantId)}/link`, {
+    method: 'POST',
+    body: JSON.stringify({ zweck, adresse }),
+  })
+}
+
+export function deletePlatformMicrosoft(tenantId: string, zweck: 'versand' | 'eingang'): Promise<{ status: string }> {
+  return apiFetch(`${microsoftPfad(tenantId)}/${zweck}`, { method: 'DELETE' })
+}
+
 // ─── Zuständigkeiten des Eingangs (docs/specs/mail-eingang-zustaendigkeiten.md §8) ──
 //
 // Organigramm (Aufgabe × Person) und Startansicht. Keine Sicherheitseinstellung:

@@ -65,9 +65,8 @@ export function personentage(
   const days = workdays || diffDays(startISO, endISO) + 1
 
   // Zeitfenster nur dann als Bruchteil rechnen, wenn der Termin an einem Tag
-  // liegt. Bei einem mehrtägigen Einsatz sind start_time/end_time die täglichen
-  // Arbeitszeiten, nicht die Gesamtdauer — sie durch die Tageskapazität zu
-  // teilen ergäbe dort einen Bruchteil statt mehrerer Tage.
+  // liegt. Bei einem mehrtägigen Einsatz sind start_time/end_time Beginn am
+  // ersten und Ende am letzten Tag (tagesfenster.ts) — dort zählen die Tage.
   if (entry.start_time && entry.end_time && days <= 1) {
     const minutes = hhmmToMin(entry.end_time.slice(0, 5)) - hhmmToMin(entry.start_time.slice(0, 5))
     if (minutes > 0) {

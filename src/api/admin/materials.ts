@@ -12,6 +12,8 @@ export interface Material {
   art_nr: string
   name: string
   supplier_id: string | null
+  /** Artikelnummer beim Lieferanten (WW-94); auch der Preislisten-Import gleicht darüber ab. */
+  manufacturer_art_nr?: string | null
   category: string | null
   unit: string | null
   unit_price: number | null   // fixer VK-Override (nur noch Fallback ohne EK)
@@ -75,6 +77,8 @@ export interface MaterialInput {
   cost_price: number | null
   markup_pct: number | null
   supplier_id: string | null
+  /** Artikelnummer beim Lieferanten; leer löscht sie. */
+  manufacturer_art_nr?: string | null
   // Schwellenwerte des Lagers. Sie gehören zur Lagerzeile, kommen aber über
   // dieselbe Maske herein; der Server spaltet sie ab.
   // `reorder_quantity: null` heisst "Menge aus dem Verbrauch vorschlagen".

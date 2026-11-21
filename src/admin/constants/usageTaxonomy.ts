@@ -49,6 +49,8 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // hier durch und landet unten bei den Projekten.
   // bexio-Anbindung: vor der Rechnungs-Regel, sonst landete bexio_invoice_* unter «Rechnungen».
   { test: /^bexio_/,                             module: 'bexio' },
+  // «Mit Microsoft verbinden» (docs/specs/microsoft-365-verbindung.md) ist Einrichtung.
+  { test: /^ms_/,                                module: 'konfiguration' },
   { test: /tenant_|superadmin_push|support_ticket|feature_request|newsletter|rueckmeldung_/, module: 'konfiguration' },
   { test: /aftersales/,                          module: 'aftersales' },
   // Offerten-Umfeld: 'variant' (Offerten-Variante), 'special_position' und
@@ -228,6 +230,11 @@ const ACTION_LABELS: Record<string, string> = {
   bexio_pdfs_resend: 'bexio: PDFs nachgereicht',
   bexio_oauth_started: 'bexio: Verbindung gestartet (OAuth)',
   bexio_oauth_connected: 'bexio: verbunden (OAuth)',
+  ms_oauth_started: 'Microsoft 365: Verbindung gestartet',
+  ms_oauth_link_created: 'Microsoft 365: Link für den Betrieb erzeugt',
+  ms_connected: 'Microsoft 365: verbunden',
+  ms_adminconsent: 'Microsoft 365: als Administrator freigegeben',
+  ms_disconnected: 'Microsoft 365: Verbindung getrennt',
   bexio_payment_pulled: 'bexio: Zahlung übernommen',
 
   // ── Einsatzplanung ──

@@ -147,10 +147,10 @@ function formatTime(t: string | null): string {
   return t.slice(0, 5)
 }
 
-function formatTimeRange(p: { start_time: string | null; end_time: string | null }): string {
+function formatTimeRange(p: { start_date?: string | null; end_date?: string | null; start_time: string | null; end_time: string | null }): string {
   const s = formatTime(p.start_time)
-  const e = formatTime(p.end_time)
-  if (s && e) return `${s}–${e}`
+  const e = formatTime(p.end_time)  // mehrtägig: Start am ersten, Ende am letzten Tag (WW-92)
+  if (s && e) return p.start_date && p.end_date && p.end_date > p.start_date ? `ab ${s} · bis ${e}` : `${s}–${e}`
   return s || e
 }
 

@@ -344,7 +344,7 @@ export default function AppointmentsCard({
                     </div>
                     <div className="admin-form-group" style={{ margin: 0 }}>
                       <label className="admin-form-label">
-                        Startzeit <span style={{ fontWeight: 400, color: 'var(--muted)' }}>leer = ganztägig</span>
+                        Startzeit <span style={{ fontWeight: 400, color: 'var(--muted)' }}>{d.endDate > d.startDate ? 'am ersten Tag' : 'leer = ganztägig'}</span>
                       </label>
                       <DateTimeInput
                         className="admin-form-input" type="time"
@@ -354,7 +354,9 @@ export default function AppointmentsCard({
                       />
                     </div>
                     <div className="admin-form-group" style={{ margin: 0 }}>
-                      <label className="admin-form-label">Endzeit</label>
+                      <label className="admin-form-label">
+                        Endzeit {d.endDate > d.startDate && <span style={{ fontWeight: 400, color: 'var(--muted)' }}>am letzten Tag</span>}
+                      </label>
                       <DateTimeInput
                         className="admin-form-input" type="time"
                         aria-label="Endzeit"

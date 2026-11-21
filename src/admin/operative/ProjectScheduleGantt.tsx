@@ -13,7 +13,7 @@ import {
   CalendarEntry, StaffLite,
   absenceEntryLookup, isVacation, addressLocality, useHoverCard, entryTitle, fmtTimeRange,
   hasUnassignedEntries, kindSymbol, neededDistancePairs, overlapConflictIds,
-  pillBg, pillClass, projectCoversDay, readDragPayload, reassignTeam, rowEntries,
+  pillBg, pillClass, entriesOnDay, readDragPayload, reassignTeam, rowEntries,
   setDragPayload, useScheduleDistances,
 } from './scheduleShared'
 import EventHoverCard from './EventHoverCard'
@@ -121,7 +121,7 @@ export default function ProjectScheduleGantt({
 
   // Rastergrenzen über ALLE sichtbaren Tage — sonst würde jeder Tag eine andere
   // Breite bekommen und die Achse wäre nicht mehr durchgehend lesbar.
-  const visibleTimed = days.flatMap(d => projects.filter(p => projectCoversDay(p, d)))
+  const visibleTimed = days.flatMap(d => entriesOnDay(projects, d))
   const { startHour, endHour } = computeWeekHours(visibleTimed)
   const hours: number[] = []
   for (let h = startHour; h < endHour; h++) hours.push(h)

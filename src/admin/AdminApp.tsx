@@ -63,6 +63,7 @@ const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
 const HagelschadenScreen = lazy(() => import('./operative/hagelschaden/HagelschadenScreen'))
 const DeliveryNotesScreen = lazy(() => import('./operative/DeliveryNotesScreen'))
 const MailEingangScreen = lazy(() => import('./eingang/MailEingangScreen'))
+const MicrosoftScreen = lazy(() => import('./configuration/MicrosoftScreen'))
 const KreditorenScreen = lazy(() => import('./einkauf/KreditorenScreen'))
 
 function ComingSoon({ title }: { title: string }) {
@@ -229,6 +230,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // «Einstellungen»: Geschäftsleitung — und wer «Arbeitszeiten verwalten» trägt
   // (docs/specs/zeit-verwalten-recht.md). Der Server rechnet es (/pwa/me).
   const showSettings = isManagement || !!user.zeit_einstellungen
+  // «Microsoft 365»: Beta-Feature je Konto; das Backend prüft dasselbe (require_feature).
+  const showMicrosoft = isFeatureEnabled(user, 'microsoft_verbindung')
   const mayViewKpis = hasKpiAccess(user.role)
 
   const enabledModules = user.enabled_modules ?? []
@@ -259,7 +262,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'bulk-clockin' || screen === 'document-backup') && !isManagement) {
       return <ComingSoon title="Kein Zugriff" />
     }
-    if (screen === 'settings' && !showSettings) {
+    if ((screen === 'settings' && !showSettings) || (screen === 'microsoft' && !showMicrosoft)) {
       return <ComingSoon title="Kein Zugriff" />
     }
     if (screen === 'kpis' && !mayViewKpis) {
@@ -436,6 +439,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       // Termindauer/Terminfarben schreibt nur die Geschäftsleitung (require_management).
       case 'settings':     return <SettingsScreen terminDauer={isManagement && hasWerkzeug(user, 'terminwahl')}
                                                   terminFarben={isManagement && isFeatureEnabled(user, 'termin_farbkategorien')} />
+      case 'microsoft':    return <MicrosoftScreen />
       case 'profile':      return (
         <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}
                             onToggleTheme={toggleTheme} onLoggedOut={onLoggedOut} />
@@ -483,6 +487,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           showSettings={showSettings}
+          showMicrosoft={showMicrosoft}
           badges={badges}
         />
       )}
@@ -518,6 +523,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           enabledModules={user.enabled_modules ?? []}
           showTaskBoard={showTaskBoard}
           showSettings={showSettings}
+          showMicrosoft={showMicrosoft}
           badges={badges}
           inventur={user.inventur_offen ?? null}
         />

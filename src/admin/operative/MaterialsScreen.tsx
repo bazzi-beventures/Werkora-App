@@ -189,6 +189,12 @@ export function StockModal({ material, onClose, onSaved }: StockModalProps) {
   )
 }
 
+// Lieferant mit seiner Artikelnummer (WW-94) — so steht in der Liste gleich,
+// unter welcher Nummer der Artikel nachbestellt wird.
+function lieferantMitNr(lieferant: string | null, nr: string | null | undefined): string {
+  return [lieferant, nr ? `Nr. ${nr}` : null].filter(Boolean).join(' · ')
+}
+
 function MaterialModal({ material, onClose, onSaved, existingCategories, existingUnits, suppliers, suggestedArtNr, lagerAktiv }: { material: Material | null; onClose: () => void; onSaved: () => void; existingCategories: string[]; existingUnits: string[]; suppliers: Supplier[]; suggestedArtNr: string; lagerAktiv: boolean }) {
   const isNew = !material
   const [artNr, setArtNr] = useState(material?.art_nr ?? suggestedArtNr)
@@ -217,6 +223,7 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
       : (material?.unit_price != null && material.unit_price > 0 ? String(material.unit_price) : '')
   )
   const [supplierId, setSupplierId] = useState(material?.supplier_id ?? '')
+  const [lieferantenArtNr, setLieferantenArtNr] = useState(material?.manufacturer_art_nr ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   // Bild: bestehendes (signierte URL aus der Liste) als Startvorschau; neue Auswahl
@@ -315,6 +322,7 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
         cost_price: costPrice ? parseFloat(costPrice) : null,
         markup_pct,
         supplier_id: supplierId || null,
+        manufacturer_art_nr: lieferantenArtNr.trim() || null,
         // Nur mitschicken, wenn das Lager-Modul läuft — sonst stünden an einem
         // Mandanten ohne Lager Schwellenwerte, die niemand je sieht.
         // min_quantity ist in der Datenbank NOT NULL: leeres Feld = 0, also
@@ -426,6 +434,10 @@ function MaterialModal({ material, onClose, onSaved, existingCategories, existin
               <option value="">— Kein —</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
+          </div>
+          <div className="admin-form-group">
+            <label className="admin-form-label">Art.-Nr. Lieferant</label>
+            <input className="admin-form-input" value={lieferantenArtNr} onChange={e => setLieferantenArtNr(e.target.value)} placeholder="Nummer im Katalog des Lieferanten" />
           </div>
           {lagerAktiv && (
             <div className="admin-form-row">
@@ -691,7 +703,7 @@ function MaterialInventoryPanel({ user }: { user: UserInfo }) {
                     <span className="admin-card-meta" style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{m.art_nr}</span>
                   </div>
                   <div className="admin-card-meta">
-                    {[m.category, m.unit, supplierName].filter(Boolean).join(' · ') || '—'}
+                    {[m.category, m.unit, lieferantMitNr(supplierName, m.manufacturer_art_nr)].filter(Boolean).join(' · ') || '—'}
                   </div>
                   <div className="admin-card-meta">
                     EK: {m.cost_price != null ? `CHF ${m.cost_price.toFixed(2)}` : '—'} · VK: {m.calc_vk != null && m.calc_vk > 0 ? `CHF ${m.calc_vk.toFixed(2)}` : '—'}
@@ -758,7 +770,7 @@ function MaterialInventoryPanel({ user }: { user: UserInfo }) {
                         {m.image_url ? <ImageThumb url={m.image_url} label={m.name} size={28} hoverPreview /> : null}
                         <span>
                           <strong>{m.name}</strong>
-                          {supplierName ? <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: 12 }}>{supplierName}</span> : null}
+                          {lieferantMitNr(supplierName, m.manufacturer_art_nr) ? <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: 12 }}>{lieferantMitNr(supplierName, m.manufacturer_art_nr)}</span> : null}
                           {!m.is_active && <ArchivBadge />}
                         </span>
                       </div>

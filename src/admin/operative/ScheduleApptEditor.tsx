@@ -32,6 +32,8 @@ export function ScheduleApptEditor({
   apptForm, setApptForm, showApptExtras, monteurOptions, terminBraucht, skillChip, brauchtZeile,
   toggleApptMonteur, terminFarben = [],
 }: Props) {
+  // Mehrtägig: Startzeit gilt am ersten, Endzeit am letzten Tag (WW-92).
+  const mehrtaegig = !!apptForm.endDate && apptForm.endDate > apptForm.startDate
   return (
     <>
     {showApptExtras && (
@@ -118,7 +120,7 @@ export function ScheduleApptEditor({
 
     <div className="project-schedule-row">
       <label className="project-schedule-field">
-        <span>Startzeit</span>
+        <span>Startzeit{mehrtaegig && ' (erster Tag)'}</span>
         <DateTimeInput
           type="time"
           className="admin-input"
@@ -127,7 +129,7 @@ export function ScheduleApptEditor({
         />
       </label>
       <label className="project-schedule-field">
-        <span>Endzeit</span>
+        <span>Endzeit{mehrtaegig && ' (letzter Tag)'}</span>
         <DateTimeInput
           type="time"
           className="admin-input"
