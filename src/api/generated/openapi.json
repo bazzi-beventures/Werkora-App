@@ -539,22 +539,6 @@
         }
       }
     },
-    "/pwa/admin/microsoft/{zweck}": {
-      "delete": {
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Erledigt"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/pwa/admin/projects/{project_id}/appointments": {
       "get": {
         "responses": {
@@ -848,6 +832,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TerminwahlAnsicht"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/querverweise": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
                 }
               }
             }
@@ -1555,6 +1555,22 @@
         }
       }
     },
+    "/pwa/chat/staff-choice": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatAntwort"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/projects/{project_id}/reports": {
       "get": {
         "responses": {
@@ -1636,6 +1652,22 @@
         }
       }
     },
+    "/pwa/superadmin/feed/health/rapport-bot": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportBotLage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/health/anmeldungen": {
       "get": {
         "responses": {
@@ -1645,6 +1677,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AnmeldeLage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/health/rapport-bot": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportBotLage"
                 }
               }
             }
@@ -1714,6 +1762,22 @@
         }
       }
     },
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/versand/testmail": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/tenants/{tenant_id}/microsoft/{zweck}": {
       "delete": {
         "responses": {
@@ -1723,6 +1787,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/tenants/{tenant_id}/rapport-bot-prompt": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportBotFachgebiet"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapportBotFachgebiet"
                 }
               }
             }
@@ -2630,6 +2724,42 @@
           "results"
         ],
         "description": "Antwort von ``POST /admin/invoices/reconcile-camt``."
+      },
+      "ChatAntwort": {
+        "properties": {
+          "reply": {
+            "type": "string"
+          },
+          "action_taken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "staff_choice": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PersonenWahl"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "reply",
+          "action_taken"
+        ],
+        "description": "Antwort eines Chat-Schritts. Die übrigen Felder (Zusammenfassung,\nProjekt-Auswahl, Material-Rückfrage) kommen je nach Schritt dazu."
       },
       "Dauer": {
         "properties": {
@@ -4619,6 +4749,22 @@
         ],
         "description": "Antwort von ``POST /admin/quotes/extract-pdf``."
       },
+      "PersonenWahl": {
+        "properties": {
+          "staff_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "name"
+        ],
+        "description": "Ein Kandidat der Personen-Auswahl — die Antwort ist die id, kein Text."
+      },
       "PlanAbsenz": {
         "properties": {
           "staff_id": {
@@ -4899,6 +5045,169 @@
           "prospekte"
         ],
         "description": "Veraltet (Vorgänger von send-attachments, für gecachte PWA-Stände)."
+      },
+      "RapportBotAmpel": {
+        "properties": {
+          "stufe": {
+            "type": "string",
+            "enum": [
+              "gruen",
+              "gelb",
+              "rot"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "description": "Kurzfassung für die Anzeige (erster Grund oder die Quote)."
+          },
+          "gruende": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "quote": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "verworfen / (bestaetigt + verworfen), 7 Tage; null ohne Zusammenfassung."
+          },
+          "quote_basis": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Dieselbe Quote in den 21 Tagen davor."
+          },
+          "zusammenfassungen": {
+            "type": "integer",
+            "description": "bestaetigt + verworfen, 7 Tage."
+          },
+          "zusammenfassungen_basis": {
+            "type": "integer"
+          },
+          "falsche_erfolgsmeldung": {
+            "type": "integer",
+            "description": "Erfolg gemeldet ohne gespeicherten Rapport, 7 Tage."
+          }
+        },
+        "type": "object",
+        "required": [
+          "stufe",
+          "text",
+          "gruende",
+          "quote",
+          "quote_basis",
+          "zusammenfassungen",
+          "zusammenfassungen_basis",
+          "falsche_erfolgsmeldung"
+        ],
+        "description": "Ampel eines Mandanten; Fenster 7 Tage, Basis die 21 Tage davor."
+      },
+      "RapportBotFachgebiet": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Leer = kein Fachteil, der Bot arbeitet nur mit dem Grundprompt."
+          },
+          "max_zeichen": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "max_zeichen"
+        ],
+        "description": "Mandanten-Teil des Rapport-Bot-Prompts: Branche, Produkte, Fachwörter, Mundart."
+      },
+      "RapportBotLage": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "nicht_lesbar"
+            ]
+          },
+          "days": {
+            "type": "integer"
+          },
+          "ampel": {
+            "type": "string",
+            "enum": [
+              "gruen",
+              "gelb",
+              "rot"
+            ]
+          },
+          "gruende": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "«<slug>: <Grund>», rot vor gelb."
+          },
+          "summen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "description": "Summe je Schlüssel über alle Mandanten im Zeitraum."
+          },
+          "mandanten": {
+            "items": {
+              "$ref": "#/components/schemas/RapportBotMandant"
+            },
+            "type": "array",
+            "description": "Nur Mandanten mit Zählung in den letzten 28 Tagen bzw. im Zeitraum; rot zuerst."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "days"
+        ],
+        "description": "Ampel über alle Mandanten (die schlechteste) und je Mandant. Nicht lesbar:\nnur ``status`` und ``days``."
+      },
+      "RapportBotMandant": {
+        "properties": {
+          "mandant": {
+            "type": "string",
+            "description": "Slug des Mandanten."
+          },
+          "ampel": {
+            "$ref": "#/components/schemas/RapportBotAmpel"
+          },
+          "summen": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "description": "Summe je Schlüssel über den Zeitraum `days`."
+          }
+        },
+        "type": "object",
+        "required": [
+          "mandant",
+          "ampel",
+          "summen"
+        ]
       },
       "RapportGeloescht": {
         "properties": {

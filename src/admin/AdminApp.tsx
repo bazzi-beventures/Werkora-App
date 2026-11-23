@@ -41,6 +41,7 @@ import { SCREEN_TITLES } from './screenTitles'
 import Roadmap from '../shared/Roadmap'
 import EasterEggs from './eastereggs/EasterEggs'
 import { trackNav } from '../shared/breadcrumbs'
+import { zaehleSprung, type SprungWeg } from './querverweisZaehler'
 import { DEEP_LINK_EVENT, takeCustomerDeepLink, takeKpiDeepLink, takeProjectDeepLink } from '../shared/deepLink'
 import type { ProjectTab } from './operative/projectDetail/ProjectTabBar'
 import { hasModule, isFeatureEnabled } from '../api/modules'
@@ -127,8 +128,18 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   const [theme, setTheme] = useState<Theme>(() => loadTheme())
   // Jede Navigation läuft über `guardedNav`: hat die offene Detailmaske
   // ungespeicherte Änderungen, wird erst gefragt (Speichern / Verwerfen / Abbrechen).
-  const { pending: pendingNav, guardedNav, save: savePendingNav, discard: commitPendingNav, cancel: cancelPendingNav } =
+  const { pending: pendingNav, guardedNav: navMitAbfrage, save: savePendingNav, discard: commitPendingNav, cancel: cancelPendingNav } =
     useGuardedNav(nav)
+  // Querverweis-Zähler (docs/specs/querverweis-zaehler.md): jeder Sprung, den ein
+  // Mensch auslöst, wird mit Weg gezählt — `guardedNav` (an die Screens) als Verweis,
+  // Sidebar/MobileNav als Menü, der Hilfe-Chat als Hilfe. Zurück-Taste und Sprünge
+  // aus Mail/Push gehen über `navMitAbfrage` am Zähler vorbei: sie sind kein Klick auf einen Verweis.
+  const sprung = (weg: SprungWeg) => (next: AdminScreen, id?: string) => {
+    zaehleSprung(screen, next, weg)
+    navMitAbfrage(next, id)
+  }
+  const guardedNav = sprung('link')
+  const menuNav = sprung('menu')
   // Reiter aus einem Deep-Link (Button in einer Info-Mail). Nur gesetzt, solange
   // der Sprung noch nicht verbraucht ist — er gilt für genau eine Projektmaske.
   const [deepLinkTab, setDeepLinkTab] = useState<ProjectTab | null>(null)
@@ -153,14 +164,14 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   }, [])
 
   // Eine Push bei OFFENER App: der Service Worker meldet sie, App.tsx merkt sich
-  // den Sprung und löst DEEP_LINK_EVENT aus. Jetzt mit `guardedNav` — es kann
+  // den Sprung und löst DEEP_LINK_EVENT aus. Jetzt mit `navMitAbfrage` — es kann
   // eine Maske mit ungespeicherten Änderungen offen sein. Neu angemeldet bei
-  // jedem neuen `guardedNav`, damit nie eine veraltete Navigation springt.
+  // jedem neuen `navMitAbfrage`, damit nie eine veraltete Navigation springt.
   useEffect(() => {
-    const beiSprung = () => springe(guardedNav, setDeepLinkTab)
+    const beiSprung = () => springe(navMitAbfrage, setDeepLinkTab)
     window.addEventListener(DEEP_LINK_EVENT, beiSprung)
     return () => window.removeEventListener(DEEP_LINK_EVENT, beiSprung)
-  }, [guardedNav])
+  }, [navMitAbfrage])
 
   const toggleTheme = () => setTheme(flipTheme)
 
@@ -168,7 +179,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // `useAdminNav` und hat damit einen eigenen Verlauf — App.tsx kann ihn nicht
   // abtragen, also meldet sich AdminApp hier selbst an.
   //
-  // Der Weg führt bewusst über `guardedNav` und nicht über `nav`: sonst wäre der
+  // Der Weg führt bewusst über `navMitAbfrage` und nicht über `nav`: sonst wäre der
   // Zurück-Knopf der eine Ausgang, der die «ungespeicherte Änderungen»-Abfrage
   // umgeht — ausgerechnet der, den man am leichtesten versehentlich trifft.
   //
@@ -176,7 +187,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
   // führt zurück in die Mitarbeiter-App bzw. verschluckt den Druck.
   useScreenBack(true, () => {
     if (!previous) return false
-    guardedNav(previous.screen, previous.detailId ?? undefined)
+    navMitAbfrage(previous.screen, previous.detailId ?? undefined)
     return true
   })
 
@@ -324,7 +335,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           // Sprung aus Planung, Offerten oder Hagelschaden → Maske → Zurück
           // landet wieder dort (Liste der Ziele: RUECKSPRUNG_ZIELE).
           onReturnFromJump={previous && RUECKSPRUNG_ZIELE.has(previous.screen)
-            ? () => guardedNav(previous.screen) : undefined}
+            ? () => navMitAbfrage(previous.screen) : undefined}
           // Gegenrichtung: Kachel «Termine» → Einsatzplanung auf der Woche des
           // Termins und auf dessen Team (WW-62). Datum und Team gehen über die
           // gemerkte Ansicht der Planung (scheduleViewState.ts), nicht über
@@ -478,7 +489,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       {!isMobile && (
         <AdminSidebar
           screen={screen}
-          onNav={guardedNav}
+          onNav={menuNav}
           onLoggedOut={onLoggedOut}
           onSwitchToUser={onSwitchToUser}
           displayName={user.display_name}
@@ -515,7 +526,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       {isMobile && (
         <MobileNav
           screen={screen}
-          onNav={guardedNav}
+          onNav={menuNav}
           onLoggedOut={onLoggedOut}
           onSwitchToUser={onSwitchToUser}
           displayName={user.display_name}
@@ -536,14 +547,14 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           showHelp={showHelp}
           showSupport={showSupport}
           showWishes={showWishes}
-          onOpenRoadmap={() => guardedNav('roadmap')}
+          onOpenRoadmap={() => sprung('hilfe')('roadmap')}
           route={screen}
           appContext="admin"
           user={user}
           // Über guardedNav: auch ein Sprung aus dem Hilfe-Chat fragt nach
           // ungespeicherten Änderungen. Die Schlüssel hält shared/helpTargets.ts;
           // der Ratchet tests/unit/test_help_targets.py prüft sie gegen screenTitles.ts.
-          onNavigate={target => guardedNav(target.screen as AdminScreen)}
+          onNavigate={target => sprung('hilfe')(target.screen as AdminScreen)}
         />
       )}
       {pendingNav && (

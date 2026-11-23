@@ -41,7 +41,7 @@ import { consumeBack, consumeScreenBack } from './shared/backButton'
 import { captureDeepLink, rememberDeepLink, takeCountDeepLink } from './shared/deepLink'
 import { advance, retreat } from './shared/navHistory'
 import { trackNav } from './shared/breadcrumbs'
-import { hasModule, isFeatureEnabled } from './api/modules'
+import { hasModule, isFeatureEnabled, rapportBotAn, rapportFormularOffen } from './api/modules'
 import { prefetchOfflinePackage } from './api/offlineStore'
 import { syncOfflineRapporte } from './api/rapportSync'
 import { sendeWartendeLieferscheine } from './api/lieferscheinQueue'
@@ -213,7 +213,7 @@ export default function App() {
       const u = userRef.current
       if (u) {
         void syncOfflineRapporte(u.authorized_user_id, {
-          enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
+          enabled: rapportFormularOffen(u),
         })
         // Lieferscheine aus dem Funkloch landen im Eingang (lieferschein-erfassung.md §3.4).
         if (hasModule(u, 'lieferschein_erfassung')) void sendeWartendeLieferscheine(u.authorized_user_id)
@@ -474,6 +474,12 @@ export default function App() {
     go('rapport')
   }
 
+  function openRapportFormular(project: { id: string; name: string; workTypes?: string[] }) {
+    setOfflineRapportResume(null)
+    setOfflineRapportProject(project)
+    go('rapportOffline')
+  }
+
   const applyBranding = useCallback((info: TenantInfo) => {
     applyTenantBranding(info)
     // logo_url ist ein relativer Proxy-Pfad (/pwa/tenant-logo?...). Das Backend
@@ -528,7 +534,7 @@ export default function App() {
         // Erster der drei Netz-Momente: wartende Rapporte hochladen und den
         // Materialkatalog spiegeln (§4.5.5).
         void syncOfflineRapporte(u.authorized_user_id, {
-          enabled: isFeatureEnabled(u, 'rapport_offline_formular'),
+          enabled: rapportFormularOffen(u),
         })
       }
       // Ausserhalb der Weiche oben: auch `user_light` darf Lieferscheine fotografieren.
@@ -805,7 +811,7 @@ export default function App() {
         // Ausweg aus dem Chat, wenn nichts durchkommt (Spec §4.5.2). Ohne
         // Feature kein Handler — dann erscheint der Hinweis gar nicht.
         onSwitchToOfflineRapport={
-          isFeatureEnabled(user, 'rapport_offline_formular')
+          rapportFormularOffen(user)
             ? (project) => {
                 setOfflineRapportResume(null)
                 setOfflineRapportProject({ ...project, workTypes: rapportProjectWorkTypes })
@@ -829,7 +835,7 @@ export default function App() {
     // mit 403 abweist.
     if (user.role === 'user_light') { resetTo('home'); return null }
     if (!user.enabled_modules?.includes('ai')) { resetTo('home'); return null }
-    if (!isFeatureEnabled(user, 'rapport_offline_formular')) { resetTo('home'); return null }
+    if (!rapportFormularOffen(user)) { resetTo('home'); return null }
     inner = (
       <OfflineRapportScreen
         user={user}
@@ -887,12 +893,9 @@ export default function App() {
         onNavHome={() => go('home')}
         openProjectId={projekteOpenId}
         onProjectOpened={() => setProjekteOpenId(null)}
-        onStartRapport={(project) => void startRapport(project)}
-        onStartOfflineRapport={(project) => {
-          setOfflineRapportResume(null)
-          setOfflineRapportProject(project)
-          go('rapportOffline')
-        }}
+        // Rapport-Bot ausgeschaltet (Not-Aus, rapport-bot-guardrails §4.7): direkt ins Formular.
+        onStartRapport={(project) => rapportBotAn(user) ? void startRapport(project) : openRapportFormular(project)}
+        onStartOfflineRapport={openRapportFormular}
         onEditOfflineRapport={(project, entry) => {
           setOfflineRapportResume(entry)
           setOfflineRapportProject(project)

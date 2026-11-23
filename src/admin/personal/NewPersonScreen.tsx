@@ -49,6 +49,12 @@ interface Props {
 
 const NEW_FUNCTION = '__new__'
 
+// Betragsfelder: Komma wird zum Punkt («95,50» → 95.50). Vorher fiel das Komma
+// still weg, und aus 95,50 wurden 9550 Franken.
+function decimalInput(raw: string): string {
+  return raw.replace(/,/g, '.').replace(/[^0-9.]/g, '')
+}
+
 export default function NewPersonScreen({ actingRole, origin = 'users', onClose, onSaved }: Props) {
   const roleOptions = useMemo(() => assignableRoles(actingRole), [actingRole])
   const mayCreateFunction = isManagementRole(actingRole)
@@ -91,9 +97,17 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
   }, [])
 
   const creatingFunction = funktion === NEW_FUNCTION
-  const funktionValid = !creatingFunction || (newFunctionName.trim() !== '' && newFunctionRate.trim() !== '')
-  const passwordValid = password === '' || password.length >= MIN_PASSWORD_LENGTH
-  const canSave = name.trim() !== '' && funktionValid && passwordValid && !saving
+  // Der Knopf bleibt klickbar und sagt beim Klick, was fehlt. Vorher war er still
+  // ausgegraut — wer «Neue Funktion» gewählt und den Satz noch nicht eingetragen
+  // hatte, sah nur einen grauen Knopf und keinen Grund.
+  const missing: string[] = []
+  if (name.trim() === '') missing.push('Name der Person')
+  if (creatingFunction && newFunctionName.trim() === '') missing.push('Name der neuen Funktion')
+  if (creatingFunction && !(parseFloat(newFunctionRate) > 0)) missing.push('Verrechnungssatz der neuen Funktion')
+  if (withLogin && password !== '' && password.length < MIN_PASSWORD_LENGTH) {
+    missing.push(`Passwort mit mindestens ${MIN_PASSWORD_LENGTH} Zeichen (oder leer lassen)`)
+  }
+  const [showMissing, setShowMissing] = useState(false)
 
   function staffProfile(resolvedFunktion: string): StaffProfileInput {
     return {
@@ -111,7 +125,12 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!canSave) return
+    if (saving) return
+    if (missing.length > 0) {
+      setShowMissing(true)
+      return
+    }
+    setShowMissing(false)
     setError('')
     setSaving(true)
     try {
@@ -313,7 +332,7 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                     className="admin-form-input"
                     inputMode="decimal"
                     value={newFunctionRate}
-                    onChange={e => setNewFunctionRate(e.target.value.replace(/[^0-9.]/g, ''))}
+                    onChange={e => setNewFunctionRate(decimalInput(e.target.value))}
                     placeholder="95.00"
                   />
                   <div className="admin-form-hint">Wird als neue Funktion gespeichert und steht danach allen zur Verfügung.</div>
@@ -358,7 +377,7 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                   className="admin-form-input"
                   inputMode="decimal"
                   value={hourlyRate}
-                  onChange={e => setHourlyRate(e.target.value.replace(/[^0-9.]/g, ''))}
+                  onChange={e => setHourlyRate(decimalInput(e.target.value))}
                   placeholder="35.00"
                 />
                 <div className="admin-form-hint">Interner Lohn für die Kostenrechnung — nicht der Satz auf der Rechnung.</div>
@@ -370,7 +389,7 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
                   className="admin-form-input"
                   inputMode="decimal"
                   value={monthlySalary}
-                  onChange={e => setMonthlySalary(e.target.value.replace(/[^0-9.]/g, ''))}
+                  onChange={e => setMonthlySalary(decimalInput(e.target.value))}
                   placeholder="5500.00"
                 />
               </div>
@@ -480,9 +499,18 @@ export default function NewPersonScreen({ actingRole, origin = 'users', onClose,
           </div>
         </div>
 
+        {showMissing && missing.length > 0 && (
+          <div className="admin-form-error" role="alert">
+            <strong>Noch nicht vollständig:</strong>
+            <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              {missing.map(m => <li key={m}>{m}</li>)}
+            </ul>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button type="button" className="admin-btn admin-btn-secondary" onClick={onClose}>Abbrechen</button>
-          <button type="submit" className="admin-btn admin-btn-primary" disabled={!canSave}>
+          <button type="submit" className="admin-btn admin-btn-primary" disabled={saving}>
             {saving ? 'Anlegen…' : 'Anlegen'}
           </button>
         </div>

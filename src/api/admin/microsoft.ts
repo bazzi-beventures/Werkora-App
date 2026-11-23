@@ -37,7 +37,3 @@ export function startAdminFreigabe(zweck: MsZweck): Promise<MsLink> {
 export function sendeTestmail(): Promise<{ status: string; message?: string | null }> {
   return apiFetch('/pwa/admin/microsoft/versand/testmail', { method: 'POST' })
 }
-
-export function trenneMicrosoft(zweck: MsZweck): Promise<{ status: string }> {
-  return apiFetch(`/pwa/admin/microsoft/${zweck}`, { method: 'DELETE' })
-}

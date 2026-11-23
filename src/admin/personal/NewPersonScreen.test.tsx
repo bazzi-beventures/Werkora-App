@@ -161,7 +161,57 @@ describe('NewPersonScreen', () => {
     await user.type(screen.getByLabelText('Name *'), 'Max Muster')
     await user.type(screen.getByLabelText('Passwort (optional)'), 'kurz')
 
-    expect(screen.getByRole('button', { name: 'Anlegen' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Anlegen' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Passwort mit mindestens 12 Zeichen/)
     expect(mockCreateUser).not.toHaveBeenCalled()
+  })
+
+  it('sagt beim Klick, was der neuen Funktion fehlt, statt still auszugrauen', async () => {
+    const user = userEvent.setup()
+    render(<NewPersonScreen actingRole="management" onClose={() => {}} onSaved={() => {}} />)
+
+    await screen.findByRole('option', { name: 'Monteur' })
+    await user.type(screen.getByLabelText('Name *'), 'Max Muster')
+    await user.selectOptions(screen.getByLabelText('Funktion'), '__new__')
+    await user.type(await screen.findByLabelText('Name der Funktion *'), 'Sanitärmonteur')
+
+    const button = screen.getByRole('button', { name: 'Anlegen' })
+    expect(button).toBeEnabled()
+    await user.click(button)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Verrechnungssatz der neuen Funktion')
+    expect(mockUpsertRole).not.toHaveBeenCalled()
+    expect(mockCreateUser).not.toHaveBeenCalled()
+  })
+
+  it('liest ein Komma im Verrechnungssatz als Dezimaltrennzeichen', async () => {
+    mockCreateUser.mockResolvedValue(CREATED)
+    mockUpsertRole.mockResolvedValue({ status: 'success', message: 'ok' })
+    const user = userEvent.setup()
+    render(<NewPersonScreen actingRole="management" onClose={() => {}} onSaved={() => {}} />)
+
+    await screen.findByRole('option', { name: 'Monteur' })
+    await user.type(screen.getByLabelText('Name *'), 'Max Muster')
+    await user.selectOptions(screen.getByLabelText('Funktion'), '__new__')
+    await user.type(await screen.findByLabelText('Name der Funktion *'), 'Sanitärmonteur')
+    await user.type(screen.getByLabelText('Verrechnungssatz (CHF/h) *'), '95,50')
+    await user.click(screen.getByRole('button', { name: 'Anlegen' }))
+
+    await waitFor(() => expect(mockUpsertRole).toHaveBeenCalledWith('Sanitärmonteur', 95.5))
+  })
+
+  it('lässt ein kurzes Passwort ohne Login nicht im Verborgenen blockieren', async () => {
+    mockUpsertStaff.mockResolvedValue({ id: 'st-9' } as unknown as Awaited<ReturnType<typeof upsertStaff>>)
+    const user = userEvent.setup()
+    render(<NewPersonScreen actingRole="management" onClose={() => {}} onSaved={() => {}} />)
+
+    await screen.findByRole('option', { name: 'Monteur' })
+    await user.type(screen.getByLabelText('Name *'), 'Max Muster')
+    await user.type(screen.getByLabelText('Passwort (optional)'), 'kurz')
+    await user.click(screen.getByLabelText('Login anlegen'))
+    await user.click(screen.getByRole('button', { name: 'Anlegen' }))
+
+    await waitFor(() => expect(mockUpsertStaff).toHaveBeenCalledTimes(1))
   })
 })

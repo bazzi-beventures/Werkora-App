@@ -8,7 +8,8 @@ import { ZWECK_TEXT, type MsZweck, gueltigeAdresse, kartenZustand, zustandText }
 // ─── Reiter «Microsoft 365» (docs/specs/microsoft-365-verbindung.md §9.3) ─────
 //
 // Zustand beider Verbindungen des Mandanten und «Link für den Betrieb erzeugen»:
-// 7 Tage gültig, einmal einlösbar. Verbinden muss sich der Betrieb selbst — mit
+// 7 Tage gültig, einmal einlösbar. «Testmail an mich» und «Trennen» gibt es nur hier,
+// nicht im Admin des Betriebs (Spec §15/9). Verbinden muss sich der Betrieb selbst — mit
 // dem Postfach, dessen Adresse hier steht; meldet sich ein anderes Konto an,
 // lehnt Werkora ab (§6.2). Rückfälle im Pilot und Schatten-Abweichungen stehen
 // unter «Error-Logs» (Quellen `ms_rueckfall`, `ms_schatten_abweichung`).
@@ -77,6 +78,18 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden,
     }
   }
 
+  async function testmail() {
+    setBusy(true)
+    try {
+      const antwort = await scoped.sendPlatformMicrosoftTestmail(tenantId)
+      showToast(antwort.message || 'Testmail gesendet')
+    } catch (e) {
+      showToast((e as Error).message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function trennen() {
     if (!window.confirm(`${ZWECK_TEXT[zweck].titel} dieses Betriebs trennen?`)) return
     setBusy(true)
@@ -109,6 +122,11 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden,
             onClick={() => void erzeugen()}>
             Link für den Betrieb erzeugen
           </button>
+          {zweck === 'versand' && zustand === 'verbunden' && (
+            <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={() => void testmail()}>
+              Testmail an mich
+            </button>
+          )}
           {verbindung?.verbunden && (
             <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={() => void trennen()}>
               Trennen

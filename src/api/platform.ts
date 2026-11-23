@@ -128,6 +128,22 @@ export function setScheduling(
   })
 }
 
+// ─── Rapport-Bot: Fachgebiet des Betriebs ────────────────────────────────────
+// docs/specs/rapport-bot-guardrails.md §4.8 — Branche, Produkte, Fachwörter und
+// Mundart des Betriebs für den System-Prompt des Rapport-Chats. Pflegt nur der
+// Betreiber; die Regeln des Bots stehen im Backend und sind nicht einstellbar.
+
+export function getRapportBotPrompt(tenantId: string): Promise<Antwort<'RapportBotFachgebiet'>> {
+  return apiFetch<Antwort<'RapportBotFachgebiet'>>(`${tenantBase(tenantId)}/rapport-bot-prompt`)
+}
+
+export function setRapportBotPrompt(tenantId: string, text: string): Promise<Antwort<'RapportBotFachgebiet'>> {
+  return apiFetch<Antwort<'RapportBotFachgebiet'>>(`${tenantBase(tenantId)}/rapport-bot-prompt`, {
+    method: 'PUT',
+    body: JSON.stringify({ text }),
+  })
+}
+
 // ─── Testing: wer in diesem Mandanten Beta-Tester ist ──────────────────────
 
 export function listUsers(tenantId: string): Promise<AuthUser[]> {
@@ -462,6 +478,11 @@ export function createMicrosoftLink(tenantId: string, zweck: 'versand' | 'eingan
     method: 'POST',
     body: JSON.stringify({ zweck, adresse }),
   })
+}
+
+/** «Testmail an mich»: über die Versand-Verbindung des Betriebs an den Betreiber, der klickt. */
+export function sendPlatformMicrosoftTestmail(tenantId: string): Promise<{ status: string; message?: string | null }> {
+  return apiFetch(`${microsoftPfad(tenantId)}/versand/testmail`, { method: 'POST' })
 }
 
 export function deletePlatformMicrosoft(tenantId: string, zweck: 'versand' | 'eingang'): Promise<{ status: string }> {

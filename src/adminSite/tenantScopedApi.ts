@@ -60,6 +60,16 @@ export function setTravelCost(tenantId: string, table: adminTenant.TravelCostRow
   return platform.setTravelCost(tenantId, table)
 }
 
+// ─── Rapport-Bot: Fachgebiet des Betriebs ──────────────────────────────────
+
+export function getRapportBotPrompt(tenantId: string) {
+  return platform.getRapportBotPrompt(tenantId)
+}
+
+export function setRapportBotPrompt(tenantId: string, text: string) {
+  return platform.setRapportBotPrompt(tenantId, text)
+}
+
 // ─── Einsatzplanung ────────────────────────────────────────────────────────
 
 export function getScheduling(tenantId: string) {
@@ -205,7 +215,7 @@ export type {
 
 // ─── Microsoft 365 (docs/specs/microsoft-365-verbindung.md §9.3) ───────────
 
-export { getPlatformMicrosoft, createMicrosoftLink, deletePlatformMicrosoft } from '../api/platform'
+export { getPlatformMicrosoft, createMicrosoftLink, deletePlatformMicrosoft, sendPlatformMicrosoftTestmail } from '../api/platform'
 
 // ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ──────────────
 

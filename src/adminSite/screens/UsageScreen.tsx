@@ -11,6 +11,7 @@ import {
   UNMAPPED, actionLabel, coverageNote, isPseudoModule, moduleCoverage, moduleLabel, moduleOfAction,
 } from '../../admin/constants/usageTaxonomy'
 import type { Coverage } from '../../admin/constants/usageTaxonomy'
+import QuerverweisTabelle from './QuerverweisTabelle'
 import '../../admin/kpis/kpi-dashboard.css'
 import './usage.css'
 
@@ -397,6 +398,8 @@ export default function UsageScreen({ enabledModules, tenantId }: Props) {
             columns={AKTION_COLUMNS}
             defaultSort={{ key: 'aktionen', dir: 'desc' }}
           />
+
+          <QuerverweisTabelle tenantId={tenantId} filters={filters} rangeLabel={range.label} />
         </div>
       )}
     </div>

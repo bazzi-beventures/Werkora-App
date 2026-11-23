@@ -262,4 +262,3 @@ export interface TenantFeaturesResponse {
    *  Beta-Eintrag die Frage «warum passiert nichts?» (Spec §6.5). */
   beta_tester_count?: number
 }
-

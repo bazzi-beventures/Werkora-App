@@ -10,10 +10,11 @@ import { BexioTab } from './tabs/BexioTab'
 import { MailEingangTab } from './tabs/MailEingangTab'
 import { MicrosoftTab } from './tabs/MicrosoftTab'
 import { ServiceBegleitungTab } from './tabs/ServiceBegleitungTab'
+import { RapportBotTab } from './tabs/RapportBotTab'
 
 type Tab =
   | 'modules' | 'notifications' | 'workflows'
-  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'microsoft' | 'mail-eingang' | 'service-begleitung'
+  | 'testing' | 'travel-cost' | 'scheduling' | 'help-docs' | 'bexio' | 'microsoft' | 'mail-eingang' | 'service-begleitung' | 'rapport-bot'
 
 /**
  * Kalibrierung eines Mandanten durch den Betreiber.
@@ -117,6 +118,12 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
           >
             Servicebegleitung
           </button>
+          <button
+            className={`kpi-admin-tab${tab === 'rapport-bot' ? ' active' : ''}`}
+            onClick={() => setTab('rapport-bot')}
+          >
+            Rapport-Bot
+          </button>
       </div>
 
       {/* key: Ein Wechsel im Mandanten-Wähler lässt diesen Screen (und den
@@ -138,6 +145,7 @@ export default function ConfigurationScreen({ tenantId }: { tenantId: string }) 
         {tab === 'microsoft' && <MicrosoftTab tenantId={tenantId} />}
         {tab === 'mail-eingang' && <MailEingangTab tenantId={tenantId} />}
         {tab === 'service-begleitung' && <ServiceBegleitungTab tenantId={tenantId} />}
+        {tab === 'rapport-bot' && <RapportBotTab tenantId={tenantId} />}
       </Fragment>
 
     </div>

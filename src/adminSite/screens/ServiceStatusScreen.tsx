@@ -8,6 +8,7 @@ import {
 import RouteMetricsPanel from './RouteMetricsPanel'
 import JobsPanel from './JobsPanel'
 import AnmeldungenPanel from './AnmeldungenPanel'
+import RapportBotPanel from './RapportBotPanel'
 
 const SERVICE_LABELS: Record<ServiceName, string> = {
   railway: 'Railway',
@@ -513,6 +514,8 @@ export default function ServiceStatusScreen() {
       )}
 
       <AnmeldungenPanel />
+
+      <RapportBotPanel />
 
       {history && (
         <div style={{ marginTop: 28 }}>

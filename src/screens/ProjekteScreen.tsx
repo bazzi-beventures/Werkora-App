@@ -41,7 +41,7 @@ import { LIEFERSCHEIN_FILE_ACCEPT, PROJECT_FILE_ACCEPT, projectFileTooLarge } fr
 import { FileThumb } from '../shared/FileThumb'
 import { selectBaseName } from '../shared/selectBaseName'
 import { mapsUrl } from '../shared/mapsLink'
-import { hasModule, isFeatureEnabled } from '../api/modules'
+import { hasModule, isFeatureEnabled, rapportFormularOffen } from '../api/modules'
 import { looksLikeEmail, setCustomerEmail } from '../api/customerEmail'
 import {
   RAPPORT_CLOCK_IN_HINT, RAPPORT_CLOCK_IN_TITLE, useRapportClockInBlocked,
@@ -273,7 +273,7 @@ export default function ProjekteScreen({ logoUrl, user, onNavHome, onStartRappor
   // Weg. Ohne Feature (oder ohne Handler) bleibt es beim bisherigen Verhalten —
   // der Chat braucht Netz, also ist der Knopf offline gesperrt.
   const offlineRapportMoeglich =
-    !!onStartOfflineRapport && isFeatureEnabled(user, 'rapport_offline_formular')
+    !!onStartOfflineRapport && rapportFormularOffen(user)
   // Führt der Knopf gerade ins Formular statt in den Chat? Das ist die eine
   // Frage, an der Beschriftung, Sperre und Ziel hängen — deshalb einmal
   // beantwortet und dreimal benutzt.

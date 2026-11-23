@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  type MsVerbindung, type MsZweck, getMicrosoft, sendeTestmail, startAdminFreigabe, startMicrosoft, trenneMicrosoft,
+  type MsVerbindung, type MsZweck, getMicrosoft, sendeTestmail, startAdminFreigabe, startMicrosoft,
 } from '../../api/admin/microsoft'
 import { queryClient } from '../../shared/queryClient'
 import { ZWECK_TEXT, gueltigeAdresse, kartenZustand, zustandText } from '../../shared/microsoftKarte'
-import { ConfirmDialog } from '../components/ConfirmDialog'
 import { ToastHost, type ToastFn, useToast } from '../components/useToast'
 import { BetaBadge } from '../../shared/BetaBadge'
 import './MicrosoftScreen.css'
@@ -17,6 +16,9 @@ import './MicrosoftScreen.css'
 // Modul Mail-Eingang, «Mail-Eingang» (eigenes Postfach). «Mit Microsoft verbinden»
 // öffnet die Anmeldung bei Microsoft in einem neuen Fenster; danach zeigt die Karte
 // den neuen Stand, sobald man hierher zurückkommt (Abfrage beim Fokus).
+// «Trennen» gibt es hier bewusst nicht (Spec §15/9): ein versehentlicher Klick schickte
+// die Kundenmails still über den alten Weg. Getrennt wird auf der Betreiber-Seite;
+// «Neu verbinden» ersetzt eine Verbindung, bei Microsoft bleibt «Meine Apps».
 
 const MS_KEY = ['admin', 'microsoft'] as const
 
@@ -31,7 +33,7 @@ function oeffne(url: string, fenster: Window | null) {
 
 export default function MicrosoftScreen() {
   const { toast, showToast } = useToast(5000)
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: MS_KEY, queryFn: getMicrosoft, refetchOnWindowFocus: true,
   }, queryClient)
 
@@ -52,12 +54,16 @@ export default function MicrosoftScreen() {
             .map(zweck => (
               <VerbindungsKarte key={zweck} zweck={zweck} eingerichtet={data.eingerichtet}
                 verbindung={data.verbindungen.find(v => v.zweck === zweck)}
-                vorschlag={data.vorschlag?.[zweck] ?? ''} neuLaden={() => { void refetch() }} showToast={showToast} />
+                vorschlag={data.vorschlag?.[zweck] ?? ''} showToast={showToast} />
             ))}
           <p className="ms-fussnote">
             Zeigt Microsoft «Genehmigung erforderlich», muss der Administrator eures Microsoft-Kontos Werkora
             einmal freigeben («Als Administrator freigeben» bei der Karte). Auch danach kommt Werkora nur an
             die Postfächer, die sich hier selbst anmelden.
+          </p>
+          <p className="ms-fussnote">
+            Eine Verbindung aufheben: über den Werkora-Support. Ihr könnt Werkora ausserdem jederzeit bei
+            Microsoft entfernen («Meine Apps» bzw. im Microsoft-Admin unter «Unternehmensanwendungen»).
           </p>
         </div>
       )}
@@ -66,18 +72,16 @@ export default function MicrosoftScreen() {
   )
 }
 
-function VerbindungsKarte({ zweck, eingerichtet, verbindung, vorschlag, neuLaden, showToast }: {
+function VerbindungsKarte({ zweck, eingerichtet, verbindung, vorschlag, showToast }: {
   zweck: MsZweck
   eingerichtet: boolean
   verbindung: MsVerbindung | undefined
   vorschlag: string
-  neuLaden: () => void
   showToast: ToastFn
 }) {
   const zustand = kartenZustand(eingerichtet, verbindung)
   const [adresse, setAdresse] = useState(verbindung?.mailbox || vorschlag)
   const [busy, setBusy] = useState(false)
-  const [trennen, setTrennen] = useState(false)
   useEffect(() => { setAdresse(verbindung?.mailbox || vorschlag) }, [verbindung?.mailbox, vorschlag])
 
   async function ablauf(schritt: () => Promise<void>) {
@@ -110,12 +114,6 @@ function VerbindungsKarte({ zweck, eingerichtet, verbindung, vorschlag, neuLaden
   const testmail = () => void ablauf(async () => {
     showToast((await sendeTestmail()).message || 'Testmail gesendet')
   })
-  const trenne = () => void ablauf(async () => {
-    await trenneMicrosoft(zweck)
-    setTrennen(false)
-    showToast('Verbindung getrennt')
-    neuLaden()
-  })
 
   const verbunden = zustand === 'verbunden' || zustand === 'rechte_fehlen' || zustand === 'getrennt'
   return (
@@ -138,22 +136,11 @@ function VerbindungsKarte({ zweck, eingerichtet, verbindung, vorschlag, neuLaden
             {zweck === 'versand' && zustand === 'verbunden' && (
               <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={testmail}>Testmail an mich</button>
             )}
-            {verbunden && (
-              <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={() => setTrennen(true)}>Trennen</button>
-            )}
             <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={freigeben}>
               Als Administrator freigeben
             </button>
           </div>
         </>
-      )}
-      {trennen && (
-        <ConfirmDialog title={`${ZWECK_TEXT[zweck].titel} trennen?`} variant="danger" confirmLabel="Trennen"
-          message={zweck === 'versand'
-            ? 'Danach gehen Kundenmails wieder über den bisherigen Weg raus, und Termine kommen als Mail mit Kalenderanhang.'
-            : 'Danach holt der Mail-Eingang keine Mails mehr aus diesem Postfach.'}
-          warning="Bei Microsoft bleibt die Freigabe bestehen. Entfernen kann man sie unter «Meine Apps» bzw. im Microsoft-Admin unter «Unternehmensanwendungen»."
-          busy={busy} onConfirm={trenne} onCancel={() => setTrennen(false)} />
       )}
     </div>
   )

@@ -8,7 +8,7 @@ import {
   objectionExpired, OBJECTION_EXPIRED_HINT,
 } from '../api/autoBreak'
 import { UserInfo } from '../api/auth'
-import { hasModule, isFeatureEnabled } from '../api/modules'
+import { hasModule, rapportFormularOffen } from '../api/modules'
 import { prefetchOfflinePackage } from '../api/offlineStore'
 import { syncOfflineRapporte } from '../api/rapportSync'
 import { BerichtType } from './BerichtScreen'
@@ -306,7 +306,7 @@ export default function ArbeitsZeitScreen({ logoUrl, role, user = null, onNavHom
         // erfasst wurde, geht jetzt raus, und der Materialkatalog wird für den
         // heutigen Einsatz gespiegelt (docs/specs/offline-modus.md §4.5.5).
         void syncOfflineRapporte(user.authorized_user_id, {
-          enabled: isFeatureEnabled(user, 'rapport_offline_formular'),
+          enabled: rapportFormularOffen(user),
         })
       }
     } catch (err) {

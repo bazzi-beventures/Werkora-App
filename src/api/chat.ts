@@ -53,6 +53,7 @@ export interface ChatResponse {
   correction_id?: string
   disambiguation?: DisambiguationOption[]
   project_choice?: ProjectChoiceOption[]
+  staff_choice?: StaffChoiceOption[]
   pending_summary?: {
     project: string
     // Die id des Projekts, auf dem der Rapport steht. Hält `pendingProjectId` im
@@ -485,4 +486,20 @@ export interface VacationEntitlement {
 
 export async function fetchVacationEntitlement(): Promise<VacationEntitlement> {
   return apiFetch<VacationEntitlement>('/pwa/vacation-entitlement', { method: 'GET' })
+}
+
+/**
+ * Ein Kandidat der Personen-Auswahl: der Name passte auf mehrere Mitarbeiter
+ * («Peter»), der Monteur tippt den gemeinten an. Die Antwort ist die `staff_id`,
+ * kein Satz — wie bei der Projekt-Auswahl läuft sie an keinem Sprachmodell vorbei
+ * (docs/specs/rapport-bot-guardrails.md §4.2).
+ */
+export type StaffChoiceOption = Antwort<'PersonenWahl'>
+
+/** Beantwortet die Personen-Auswahl — über die id. */
+export async function chooseStaff(staff_id: string): Promise<ChatResponse> {
+  return apiFetch<ChatResponse>('/pwa/chat/staff-choice', {
+    method: 'POST',
+    body: JSON.stringify({ staff_id }),
+  })
 }

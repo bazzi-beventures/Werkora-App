@@ -1110,41 +1110,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/pwa/admin/microsoft/{zweck}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Successful Response */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["Erledigt"];
-                    };
-                };
-            };
-        };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/pwa/admin/projects/{project_id}/appointments": {
         parameters: {
             query?: never;
@@ -1720,6 +1685,41 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["TerminwahlAnsicht"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/querverweise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
                     };
                 };
             };
@@ -3142,6 +3142,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/chat/staff-choice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ChatAntwort"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/projects/{project_id}/reports": {
         parameters: {
             query?: never;
@@ -3301,6 +3336,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/feed/health/rapport-bot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RapportBotLage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/health/anmeldungen": {
         parameters: {
             query?: never;
@@ -3324,6 +3394,41 @@ export interface paths {
                     };
                     content: {
                         "application/json": components["schemas"]["AnmeldeLage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/superadmin/health/rapport-bot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RapportBotLage"];
                     };
                 };
             };
@@ -3460,6 +3565,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/versand/testmail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/tenants/{tenant_id}/microsoft/{zweck}": {
         parameters: {
             query?: never;
@@ -3490,6 +3630,60 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/superadmin/tenants/{tenant_id}/rapport-bot-prompt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RapportBotFachgebiet"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RapportBotFachgebiet"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3688,6 +3882,15 @@ export interface components {
             status: string;
             summary: components["schemas"]["AbgleichSumme"];
             results: components["schemas"]["AbgleichZeile"][];
+        };
+        /**
+         * @description Antwort eines Chat-Schritts. Die übrigen Felder (Zusammenfassung,
+         *     Projekt-Auswahl, Material-Rückfrage) kommen je nach Schritt dazu.
+         */
+        ChatAntwort: {
+            reply: string;
+            action_taken: string | null;
+            staff_choice?: components["schemas"]["PersonenWahl"][] | null;
         };
         /** @description Dauer in Minuten (Spanne; ohne Spanne von = bis). */
         Dauer: {
@@ -4077,6 +4280,11 @@ export interface components {
             /** @description Gegenprobe gegen die Belegsummen, z. B. eine beim Lesen verlorene Griesser-Zeile. */
             warnings?: string[];
         };
+        /** @description Ein Kandidat der Personen-Auswahl — die Antwort ist die id, kein Text. */
+        PersonenWahl: {
+            staff_id: string;
+            name: string;
+        };
         /** @description Genehmigte Absenz im Fenster — nur, was die Planung braucht. */
         PlanAbsenz: {
             /** @description null bei Altzeilen, die nur den Namen tragen — in der Tafel unsichtbar. */
@@ -4139,6 +4347,57 @@ export interface components {
         /** @description Veraltet (Vorgänger von send-attachments, für gecachte PWA-Stände). */
         Prospekte: {
             prospekte: components["schemas"]["Anhang"][];
+        };
+        /** @description Ampel eines Mandanten; Fenster 7 Tage, Basis die 21 Tage davor. */
+        RapportBotAmpel: {
+            /** @enum {string} */
+            stufe: "gruen" | "gelb" | "rot";
+            /** @description Kurzfassung für die Anzeige (erster Grund oder die Quote). */
+            text: string;
+            gruende: string[];
+            /** @description verworfen / (bestaetigt + verworfen), 7 Tage; null ohne Zusammenfassung. */
+            quote: number | null;
+            /** @description Dieselbe Quote in den 21 Tagen davor. */
+            quote_basis: number | null;
+            /** @description bestaetigt + verworfen, 7 Tage. */
+            zusammenfassungen: number;
+            zusammenfassungen_basis: number;
+            /** @description Erfolg gemeldet ohne gespeicherten Rapport, 7 Tage. */
+            falsche_erfolgsmeldung: number;
+        };
+        /** @description Mandanten-Teil des Rapport-Bot-Prompts: Branche, Produkte, Fachwörter, Mundart. */
+        RapportBotFachgebiet: {
+            /** @description Leer = kein Fachteil, der Bot arbeitet nur mit dem Grundprompt. */
+            text: string;
+            max_zeichen: number;
+        };
+        /**
+         * @description Ampel über alle Mandanten (die schlechteste) und je Mandant. Nicht lesbar:
+         *     nur ``status`` und ``days``.
+         */
+        RapportBotLage: {
+            /** @enum {string} */
+            status: "ok" | "nicht_lesbar";
+            days: number;
+            /** @enum {string} */
+            ampel?: "gruen" | "gelb" | "rot";
+            /** @description «<slug>: <Grund>», rot vor gelb. */
+            gruende?: string[];
+            /** @description Summe je Schlüssel über alle Mandanten im Zeitraum. */
+            summen?: {
+                [key: string]: number;
+            };
+            /** @description Nur Mandanten mit Zählung in den letzten 28 Tagen bzw. im Zeitraum; rot zuerst. */
+            mandanten?: components["schemas"]["RapportBotMandant"][];
+        };
+        RapportBotMandant: {
+            /** @description Slug des Mandanten. */
+            mandant: string;
+            ampel: components["schemas"]["RapportBotAmpel"];
+            /** @description Summe je Schlüssel über den Zeitraum `days`. */
+            summen: {
+                [key: string]: number;
+            };
         };
         RapportGeloescht: {
             status: string;

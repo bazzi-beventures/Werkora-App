@@ -235,6 +235,7 @@ const ACTION_LABELS: Record<string, string> = {
   ms_connected: 'Microsoft 365: verbunden',
   ms_adminconsent: 'Microsoft 365: als Administrator freigegeben',
   ms_disconnected: 'Microsoft 365: Verbindung getrennt',
+  ms_testmail: 'Microsoft 365: Testmail gesendet',
   bexio_payment_pulled: 'bexio: Zahlung übernommen',
 
   // ── Einsatzplanung ──
@@ -305,6 +306,7 @@ const ACTION_LABELS: Record<string, string> = {
   kundenlink_gesperrt: 'Servicebegleitung: Kundenlink gesperrt',
   termindauer_geaendert: 'Servicebegleitung: Dauer-Vorgaben geändert',
   termin_farben_geaendert: 'Einsatzplanung: Terminfarben geändert',
+  rapport_bot_prompt_geaendert: 'Betreiber: Fachgebiet des Rapport-Bots geändert',
   admin_update_hagelschaden_dispo_parameter: 'Hagelschaden: Dauer-Parameter geändert',
   admin_hagelschaden_dispo_plan: 'Hagelschaden: Tourenplan berechnet',
   admin_hagelschaden_dispo_vormerken: 'Hagelschaden: Plan vorgemerkt',

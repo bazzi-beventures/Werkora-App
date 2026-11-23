@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { sendMessageStream, sendVoice, confirmReport, cancelReport, disambiguateMaterial, chooseProject, uploadPhoto, downloadRapportPdf, deleteOwnRapport, ChatResponse, DisambiguationOption, ProjectChoiceOption, SummaryItem } from '../api/chat'
+import { sendMessageStream, sendVoice, confirmReport, cancelReport, disambiguateMaterial, chooseProject, chooseStaff, uploadPhoto, downloadRapportPdf, deleteOwnRapport, ChatResponse, DisambiguationOption, ProjectChoiceOption, StaffChoiceOption, SummaryItem } from '../api/chat'
 import { ApiError, isNetworkError, isOfflineError } from '../api/client'
+import { chatFehlertext } from './chatFehlertext'
+import { PersonenAuswahl, offenePersonenAuswahl } from './PersonenAuswahl'
 import {
   countPending, drainPhotoQueue, enqueuePhoto, recordedAtLabel, serverGrund,
   EnqueueResult, MAX_PENDING_PHOTOS,
@@ -53,6 +55,7 @@ interface Message {
   // Gleichnamige Projekte zur Auswahl (siehe ProjectChoiceOption): der Monteur
   // tippt das gemeinte Projekt an, statt es dem Bot zu beschreiben.
   project_choice?: ProjectChoiceOption[]
+  staff_choice?: StaffChoiceOption[]  // Personen-Auswahl (PersonenAuswahl.tsx)
 }
 
 interface Props {
@@ -520,6 +523,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         action_taken: res.action_taken,
         disambiguation: res.disambiguation,
         project_choice: res.project_choice,
+        staff_choice: res.staff_choice,
       })
       handleActionState(res)
     } catch (err) {
@@ -527,7 +531,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         onLoggedOut()
         return
       }
-      addMessage({ role: 'bot', text: isOfflineError(err) ? 'Keine Internetverbindung' : 'Fehler beim Senden. Bitte erneut versuchen.', timestamp: now() })
+      addMessage({ role: 'bot', text: chatFehlertext(err, 'Fehler beim Senden. Bitte erneut versuchen.'), timestamp: now() })
     } finally {
       setLoading(false)
     }
@@ -582,6 +586,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
               action_taken: finalRes!.action_taken,
               disambiguation: finalRes!.disambiguation,
               project_choice: finalRes!.project_choice,
+              staff_choice: finalRes!.staff_choice,
             }
           : m)
       )
@@ -591,7 +596,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         onLoggedOut()
         return
       }
-      const errText = isOfflineError(err) ? 'Keine Internetverbindung' : 'Fehler beim Senden. Bitte erneut versuchen.'
+      const errText = chatFehlertext(err, 'Fehler beim Senden. Bitte erneut versuchen.')
       setMessages(prev =>
         prev.map(m => m.id === botId
           ? { ...m, text: sawDelta ? m.text : errText }
@@ -724,6 +729,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         action_taken: res.action_taken,
         disambiguation: res.disambiguation,
         project_choice: res.project_choice,
+        staff_choice: res.staff_choice,
       })
       // Ab hier gehört der Rapport diesem Projekt — auch für «Rapport erstellen»,
       // das sonst gleich wieder vor einem angeblich fremden Rapport warnen würde.
@@ -753,13 +759,15 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
     return { project: pendingProject, projectId: pendingProjectId }
   }
 
+  const personenAuswahl = offenePersonenAuswahl(messages)
+
   function onSendText(text: string) {
-    if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice) return
+    if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice || personenAuswahl) return
     handleResponseStream(text)
   }
 
   function onSendVoice(blob: Blob) {
-    if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice) return
+    if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice || personenAuswahl) return
     handleResponse('🎤 Sprachnachricht', sendVoice(blob, resumeBinding()))
   }
 
@@ -775,7 +783,7 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
   }
 
   async function onSendPhoto(file: File) {
-    if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice) return
+    if (pendingConfirm || pendingDisambiguation || pendingQuoteQuestion || pendingProjectChoice || personenAuswahl) return
     addMessage({ role: 'user', text: '📸 Foto', timestamp: now() })
     if (!online) { await queuePhoto(file); return }
 
@@ -897,6 +905,9 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
             ))}
           </div>
         )}
+
+        {!loading && <PersonenAuswahl optionen={personenAuswahl}
+                                      onWahl={o => void handleResponse(o.name, chooseStaff(o.staff_id))} />}
 
         {/* Offerten Ja/Nein buttons */}
         {pendingQuoteQuestion && !loading && (
@@ -1182,8 +1193,8 @@ export default function ChatScreen({ displayName, user, logoUrl, activeNav, init
         onSendText={onSendText}
         onSendVoice={onSendVoice}
         onSendPhoto={onSendPhoto}
-        disabled={loading || stempelBlocked || !online || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null}
-        photoDisabled={loading || stempelBlocked || pendingConfirm || pendingDisambiguation || pendingProjectChoice || pendingQuoteQuestion || pendingSignReportId !== null}
+        disabled={loading || stempelBlocked || !online || pendingConfirm || pendingDisambiguation || pendingProjectChoice || !!personenAuswahl || pendingQuoteQuestion || pendingSignReportId !== null}
+        photoDisabled={loading || stempelBlocked || pendingConfirm || pendingDisambiguation || pendingProjectChoice || !!personenAuswahl || pendingQuoteQuestion || pendingSignReportId !== null}
       />
 
       {/* Nav bar */}

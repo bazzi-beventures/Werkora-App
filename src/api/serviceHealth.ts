@@ -179,3 +179,13 @@ export type AnmeldeKonto = Antwort<'AnmeldeKonto'>
 export async function getAnmeldeLage(days = 7): Promise<AnmeldeLage> {
   return apiFetch<AnmeldeLage>(`/pwa/superadmin/health/anmeldungen?days=${days}`)
 }
+
+// Rapport-Bot-Lage (docs/specs/rapport-bot-guardrails.md §6): Ampel je Betrieb
+// (Verwerf-Quote, falsche Erfolgsmeldungen) und Summen je Zähler-Schlüssel —
+// ohne Person, Text oder Projekt. `nicht_lesbar` statt leerer Listen.
+export type RapportBotLage = Antwort<'RapportBotLage'>
+export type RapportBotMandant = Antwort<'RapportBotMandant'>
+
+export async function getRapportBotLage(days = 30): Promise<RapportBotLage> {
+  return apiFetch<RapportBotLage>(`/pwa/superadmin/health/rapport-bot?days=${days}`)
+}
