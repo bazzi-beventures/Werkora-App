@@ -1,6 +1,7 @@
 import type { AppointmentKind } from '../../api/admin'
 import type { TerminFarbe } from '../../api/admin/tenant'
 import { useTerminFarben } from './terminFarben'
+import { markierungDer } from './MarkierungWahl'
 
 // «Sonstiges» genauer: welche Terminfarbe des Betriebs (Einstellungen →
 // Terminfarben) der Termin ist — Schulung, Büro, Reservation … Spec
@@ -16,9 +17,13 @@ export function sonstigesKategorien(kategorien: TerminFarbe[]): TerminFarbe[] {
 }
 
 /** Termin-Typ wechseln: wer «Sonstiges» verlässt, plant einen Einsatz — die
- *  Farbe fällt weg ('' = entfernen), der Plan nimmt die Standardfarbe. */
-export function typWechsel(kind: AppointmentKind, colorCategory: string | undefined): string | undefined {
-  return kind === 'sonstiges' ? colorCategory : (colorCategory ? '' : colorCategory)
+ *  Farbe fällt weg ('' = entfernen), der Plan nimmt die Standardfarbe. Nur die
+ *  Markierung (§9, etwa «Reservation») gilt an jedem Typ und bleibt. */
+export function typWechsel(
+  kind: AppointmentKind, colorCategory: string | undefined, kategorien: TerminFarbe[] = [],
+): string | undefined {
+  if (kind === 'sonstiges' || !colorCategory) return colorCategory
+  return colorCategory === markierungDer(kategorien)?.key ? colorCategory : ''
 }
 
 interface Props {

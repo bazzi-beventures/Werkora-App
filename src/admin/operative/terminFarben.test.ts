@@ -7,7 +7,7 @@ import { appointmentEntries } from './scheduleScreenModel'
 import { pillBg, pillClass, KIND_COLORS } from './scheduleShared'
 import { farbeJeKategorie, istHell } from './terminFarben'
 import { apptToDraft, draftPayload, emptyDraft, sameDraft } from './projectAppointments'
-import { fehlerDerListe, standardSetzen } from '../configuration/tabs/TerminFarbenTab'
+import { fehlerDerListe, markierungSetzen, standardSetzen } from '../configuration/tabs/TerminFarbenTab'
 
 function appt(over: Partial<ProjectAppointment> = {}): ProjectAppointment {
   return {
@@ -127,6 +127,16 @@ describe('Reiter «Terminfarben»: Prüfung vor dem Speichern', () => {
       { label: 'Büro', color: '#000000' }, { label: 'büro ', color: '#ffffff' },
     ])).toMatch(/doppelt/)
     expect(fehlerDerListe([{ label: 'x'.repeat(61), color: '#000000' }])).toMatch(/60 Zeichen/)
+  })
+  it('Standard und Markierung auf derselben Zeile sperren das Speichern (§9)', () => {
+    expect(fehlerDerListe([
+      { label: 'Geplante Einsätze', color: '#facc15', standard: true, markierung: true },
+    ])).toMatch(/nicht zugleich/)
+  })
+  it('markierungSetzen hält höchstens eine Zeile als Markierung', () => {
+    const zeilen = [{ label: 'A', color: '#000000', markierung: true }, { label: 'B', color: '#ffffff' }]
+    expect(markierungSetzen(zeilen, 1).map(z => z.markierung)).toEqual([false, true])
+    expect(markierungSetzen(zeilen, -1).map(z => z.markierung)).toEqual([false, false])
   })
   it('Gehlhaars Liste ist gültig', () => {
     expect(fehlerDerListe([

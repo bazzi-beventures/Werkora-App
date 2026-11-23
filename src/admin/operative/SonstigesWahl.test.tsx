@@ -44,4 +44,10 @@ describe('typWechsel', () => {
     expect(typWechsel('montage', undefined)).toBeUndefined()
     expect(typWechsel('sonstiges', 'buero')).toBe('buero')
   })
+  it('die Markierung (§9, Reservation) bleibt bei jedem Typwechsel', () => {
+    const mitMarkierung = [...FARBEN, { key: 'reservation', label: 'Reservation', color: '#ea580c', markierung: true }]
+    expect(typWechsel('montage', 'reservation', mitMarkierung)).toBe('reservation')
+    expect(typWechsel('aufmass', 'buero', mitMarkierung)).toBe('')
+    expect(typWechsel('sonstiges', 'reservation', mitMarkierung)).toBe('reservation')
+  })
 })

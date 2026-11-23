@@ -17,8 +17,9 @@ import {
 } from '../projectAppointments'
 import { AppointmentNoticeDialog } from './AppointmentNoticeDialog'
 import { TerminVorschlagDialog } from './TerminVorschlagDialog'
-import { TerminFarbeWahlGeladen } from '../TerminFarbeWahl'
 import { SonstigesWahlGeladen, typWechsel } from '../SonstigesWahl'
+import { MarkierungWahlGeladen } from '../MarkierungWahl'
+import { geladeneTerminFarben } from '../terminFarben'
 import type { TerminVorschlag } from '../../../api/serviceBegleitung'
 
 interface Props {
@@ -289,7 +290,7 @@ export default function AppointmentsCard({
                         value={d.kind}
                         onChange={e => {
                           const kind = e.target.value as AppointmentKind
-                          patch(d.key, { kind, colorCategory: typWechsel(kind, d.colorCategory) })
+                          patch(d.key, { kind, colorCategory: typWechsel(kind, d.colorCategory, geladeneTerminFarben()) })
                         }}
                       >
                         {APPOINTMENT_KINDS.map(k => (
@@ -297,7 +298,8 @@ export default function AppointmentsCard({
                         ))}
                       </select>
                     </div>
-                    {/* Nur «Sonstiges» trägt eine Terminfarbe (Spec §8, SonstigesWahl). */}
+                    {/* «Sonstiges» wählt seine Terminfarbe (Spec §8, SonstigesWahl), die
+                        übrigen Typen höchstens die Markierung, etwa «Reservation» (§9). */}
                     {d.kind === 'sonstiges' && (
                       <SonstigesWahlGeladen value={d.colorCategory}
                                             onChange={(k, label) => patch(d.key, { colorCategory: k, label })} />
@@ -314,9 +316,9 @@ export default function AppointmentsCard({
                         />
                       </div>
                     )}
-                    {d.kind !== 'sonstiges' && !!d.colorCategory && (
-                      <TerminFarbeWahlGeladen value={d.colorCategory}
-                                              onChange={k => patch(d.key, { colorCategory: k })} />
+                    {d.kind !== 'sonstiges' && (
+                      <MarkierungWahlGeladen value={d.colorCategory}
+                                             onChange={k => patch(d.key, { colorCategory: k })} />
                     )}
                   </div>
 

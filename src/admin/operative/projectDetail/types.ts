@@ -33,6 +33,8 @@ export interface ProjectInvoice {
   created_at: string
   paid_at: string | null
   paid_amount?: number | null
+  /** Mehrbetrag bei Überzahlung (WS-49): Guthaben des Kunden, kein Umsatz. */
+  ueberzahlung?: number | null
   storage_path?: string | null
   created_without_report?: boolean
   /** 'anzahlung' = Anzahlungsrechnung (WW-47). */

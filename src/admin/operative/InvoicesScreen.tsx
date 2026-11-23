@@ -13,7 +13,7 @@ import { getAdminStaff } from '../../api/admin/staff'
 import { INVOICE_STATUS_LABELS as STATUS_LABELS, INVOICE_STATUS_BADGE as STATUS_BADGE } from '../constants/statuses'
 import { fmtCHF, fmtDate } from '../utils/format'
 import { invoiceWarningHint, sammelrechnungHint } from '../utils/invoiceHints'
-import { paidDeduction } from '../utils/paidAmount'
+import { PaidNote } from './PaidAmountField'
 import { StatusFilterPopover } from '../components/StatusFilterPopover'
 import { ProjektleiterFilter } from '../components/ProjektleiterFilter'
 import { AdminCardList } from '../components/AdminCardList'
@@ -486,7 +486,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                 <div className="admin-card-meta"><strong>{inv.project_name}</strong></div>
                 <div className="admin-card-meta">
                   {fmtCHF(inv.total_amount)} · erstellt {fmtDate(inv.created_at)}{inv.paid_at ? ` · bezahlt ${fmtDate(inv.paid_at)}` : ''}
-                  {paidDeduction(inv) != null && ` · erhalten ${fmtCHF(inv.paid_amount!)}`}
+                  <PaidNote invoice={inv} prefix=" · " />
                 </div>
                 {/* Aktionen dürfen nicht ins Projekt springen — Klick hier stoppen. */}
                 <div className="admin-card-actions" onClick={e => e.stopPropagation()}>
@@ -527,12 +527,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
                   <td><strong>{inv.project_name}</strong></td>
                   <td style={{ fontWeight: 700 }}>
                     {fmtCHF(inv.total_amount)}
-                    {paidDeduction(inv) != null && (
-                      <div style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }}
-                           title="Weniger eingegangen als verrechnet (z. B. Skonto)">
-                        erhalten {fmtCHF(inv.paid_amount!)}
-                      </div>
-                    )}
+                    <PaidNote invoice={inv} block />
                   </td>
                   <td>
                     <span className={`admin-badge ${STATUS_BADGE[inv.status] || 'admin-badge-draft'}`}>

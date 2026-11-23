@@ -189,7 +189,7 @@ describe('InvoicesTab — bezahlt markieren', () => {
     expect(onMarkPaid).toHaveBeenCalledWith(7, '2026-08-11', null)
   })
 
-  it('Skontoabzug: eingegangener Betrag geht mit, Überzahlung sperrt (WW-19)', async () => {
+  it('Skontoabzug: eingegangener Betrag geht mit, Null sperrt (WW-19)', async () => {
     const onMarkPaid = vi.fn().mockResolvedValue(true)
     renderTab([makeInvoice({ id: 7 })], undefined, onMarkPaid)
     await userEvent.click(screen.getByRole('button', { name: 'Bezahlt' }))
@@ -197,13 +197,30 @@ describe('InvoicesTab — bezahlt markieren', () => {
     expect((amount as HTMLInputElement).value).toBe('4159.50')
 
     await userEvent.clear(amount)
-    await userEvent.type(amount, '5000')
+    await userEvent.type(amount, '0')
     expect(screen.getByRole('button', { name: 'Ja, bezahlt' })).toBeDisabled()
 
     await userEvent.clear(amount)
     await userEvent.type(amount, '4076.30')
     await userEvent.click(screen.getByRole('button', { name: 'Ja, bezahlt' }))
     expect(onMarkPaid).toHaveBeenCalledWith(7, todayISO(), 4076.3)
+  })
+
+  it('Überzahlung geht mit und wird im Dialog genannt (WS-49)', async () => {
+    const onMarkPaid = vi.fn().mockResolvedValue(true)
+    renderTab([makeInvoice({ id: 7 })], undefined, onMarkPaid)
+    await userEvent.click(screen.getByRole('button', { name: 'Bezahlt' }))
+    const amount = screen.getByLabelText('Eingegangener Betrag (CHF)')
+    await userEvent.clear(amount)
+    await userEvent.type(amount, '4200')
+    expect(screen.getByText(/^Überzahlung CHF/)).toBeTruthy()
+    await userEvent.click(screen.getByRole('button', { name: 'Ja, bezahlt' }))
+    expect(onMarkPaid).toHaveBeenCalledWith(7, todayISO(), 4200)
+  })
+
+  it('zeigt eine vermerkte Überzahlung in der Liste (WS-49)', () => {
+    renderTab([makeInvoice({ status: 'bezahlt', paid_at: '2026-08-20', paid_amount: null, ueberzahlung: 40.5 })])
+    expect(screen.getByText(/Überzahlung CHF 40[.,]50/)).toBeTruthy()
   })
 
   it('zeigt bei bezahlter Rechnung, was tatsächlich einging', () => {

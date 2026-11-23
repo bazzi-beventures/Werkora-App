@@ -4509,6 +4509,8 @@ export interface components {
             paid_at: string | null;
             /** @description Tatsächlich eingegangen, wenn weniger als `total_amount` (Skonto u. ä.); null = voll bezahlt. */
             paid_amount?: number | null;
+            /** @description Mehrbetrag über `total_amount`, wenn der Kunde zu viel bezahlt hat (WS-49) — kein Umsatz, sondern Guthaben (zurückerstatten oder verrechnen). */
+            ueberzahlung?: number | null;
             storage_path?: string | null;
             /** @description E-Mail des Kunden: auf der Betreiber-Liste aus `invoices.customer_id` (Rechnung ohne Projekt) — Vorbelegung im Senden-Dialog. */
             customer_email?: string | null;
@@ -4656,6 +4658,8 @@ export interface components {
             color: string;
             /** @description Farbe für Termine von Kundenprojekten ohne eigene Terminfarbe; höchstens ein Eintrag, fehlt sonst */
             standard?: boolean | null;
+            /** @description An jedem Termin-Typ eines Kundenprojekts wählbar (z.B. Reservation, Kunde hat noch nicht bestätigt); höchstens ein Eintrag, fehlt sonst */
+            markierung?: boolean | null;
         };
         /** @description Die Terminfarben des Betriebs, in der gepflegten Reihenfolge. */
         TerminFarben: {

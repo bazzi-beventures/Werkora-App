@@ -52,6 +52,12 @@ export function useTerminFarbenAktiv(): boolean {
   return q.data === true
 }
 
+/** Die schon geladene Liste ohne Hook, für Ereignis-Handler (Typwechsel in der
+ *  Projektmaske): das offene Formular hat sie über `useTerminFarben` geholt. */
+export function geladeneTerminFarben(): TerminFarbe[] {
+  return queryClient.getQueryData<TerminFarbe[]>(TERMIN_FARBEN_KEY) ?? LEER
+}
+
 export function terminFarbenNeuLaden(): Promise<void> {
   return queryClient.invalidateQueries({ queryKey: TERMIN_FARBEN_KEY })
 }

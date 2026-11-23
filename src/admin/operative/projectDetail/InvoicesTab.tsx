@@ -20,8 +20,8 @@ import {
 import {
   INITIAL_WORK_DESCRIPTION, workDescriptionPayload, type WorkDescriptionState,
 } from '../../utils/workDescription'
-import { checkPaidAmount, paidAmountDefault, paidDeduction } from '../../utils/paidAmount'
-import { PaidAmountField } from '../PaidAmountField'
+import { checkPaidAmount, paidAmountDefault } from '../../utils/paidAmount'
+import { PaidAmountField, PaidNote } from '../PaidAmountField'
 import { CcEmailRows } from '../CcEmailRows'
 import {
   generalDeductionError, generalDeductionPayload, initialGeneralDeduction,
@@ -399,11 +399,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
                     <div className="proj-doc-tail">
                       <span className="proj-doc-amount">
                         {fmtCHF(inv.total_amount)}
-                        {paidDeduction(inv) != null && (
-                          <span style={{ fontWeight: 400, fontSize: 12, color: 'var(--muted)' }} title="Weniger eingegangen als verrechnet (z. B. Skonto)">
-                            {' '}· erhalten {fmtCHF(inv.paid_amount!)}
-                          </span>
-                        )}
+                        <PaidNote invoice={inv} prefix=" · " />
                       </span>
                       <div className="proj-doc-actions">
                         {inv.storage_path && (

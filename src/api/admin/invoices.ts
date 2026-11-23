@@ -221,7 +221,8 @@ export async function sendInvoice(
 }
 
 /** `paidAt` ist das Zahlungsdatum (ISO), nicht der Zeitpunkt des Klicks.
- *  `paidAmount` = eingegangener Betrag, wenn weniger als die Rechnung (Skonto);
+ *  `paidAmount` = eingegangener Betrag, wenn er vom Rechnungsbetrag abweicht
+ *  (weniger: Skonto; mehr: das Backend vermerkt den Mehrbetrag als Überzahlung);
  *  null/weggelassen = voll bezahlt. */
 export async function markInvoicePaid(id: number, paidAt: string, paidAmount: number | null = null): Promise<void> {
   await apiFetch(`/pwa/admin/invoices/${id}/mark-paid`, {

@@ -15,11 +15,16 @@ import { useToast, ToastHost } from '../../components/useToast'
 // umbenennen behält die Farbe an allen Terminen, löschen lässt sie auf die Farbe
 // der Einsatz-Art zurückfallen. Ein Eintrag kann Standard für Kundeneinsätze sein
 // (`standard`, Spec §8): Termine von Kundenprojekten ohne eigene Farbe zeichnet
-// der Plan dann in seiner Farbe, z. B. «Geplante Einsätze» in Gelb.
+// der Plan dann in seiner Farbe, z. B. «Geplante Einsätze» in Gelb. Ein anderer
+// Eintrag kann die Markierung sein (`markierung`, §9): im Termin-Formular ein
+// Häkchen an jedem Termin-Typ, z. B. «Reservation (Kunde hat noch nicht bestätigt)».
 
-interface Zeile { key?: string; label: string; color: string; standard?: boolean }
+interface Zeile { key?: string; label: string; color: string; standard?: boolean; markierung?: boolean }
 
-const alsZeile = (k: Omit<Zeile, 'standard'> & { standard?: boolean | null }): Zeile => ({ key: k.key, label: k.label, color: k.color, standard: !!k.standard })
+type Eintrag = Omit<Zeile, 'standard' | 'markierung'> & { standard?: boolean | null; markierung?: boolean | null }
+const alsZeile = (k: Eintrag): Zeile => ({
+  key: k.key, label: k.label, color: k.color, standard: !!k.standard, markierung: !!k.markierung,
+})
 
 async function laden(): Promise<Zeile[]> {
   const cfg = await loadSchedulingConfig()
@@ -43,12 +48,20 @@ export function fehlerDerListe(zeilen: Zeile[]): string {
     if (gesehen.has(n.toLowerCase())) return `«${n}» steht doppelt in der Liste.`
     gesehen.add(n.toLowerCase())
   }
+  if (zeilen.some(z => z.standard && z.markierung)) {
+    return 'Die Standardfarbe kann nicht zugleich die Markierung sein — eine andere Zeile wählen.'
+  }
   return ''
 }
 
 /** Genau eine Zeile (oder keine, -1) als Standard für Kundeneinsätze. */
 export function standardSetzen(zeilen: Zeile[], index: number): Zeile[] {
   return zeilen.map((z, i) => ({ ...z, standard: i === index }))
+}
+
+/** Genau eine Zeile (oder keine, -1) als Markierung für alle Termin-Typen (§9). */
+export function markierungSetzen(zeilen: Zeile[], index: number): Zeile[] {
+  return zeilen.map((z, i) => ({ ...z, markierung: i === index }))
 }
 
 export function TerminFarbenTab() {
@@ -73,6 +86,7 @@ export function TerminFarbenTab() {
   }
   const fehler = fehlerDerListe(value)
   const standardIndex = value.findIndex(z => z.standard)
+  const markierungIndex = value.findIndex(z => z.markierung)
 
   return (
     <div className="admin-table-wrap" style={{ padding: 24, maxWidth: 720 }}>
@@ -122,6 +136,22 @@ export function TerminFarbenTab() {
           </select>
           <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: 'var(--muted)' }}>
             Gilt für Termine von Kundenprojekten, die keine eigene Terminfarbe tragen.
+          </span>
+        </label>
+      )}
+
+      {value.length > 0 && (
+        <label className="admin-form-group" style={{ display: 'block', marginTop: 16 }}>
+          <span className="admin-form-label">Markierung für alle Termin-Typen</span>
+          <select className="admin-form-select" aria-label="Markierung für alle Termin-Typen"
+                  value={markierungIndex} disabled={saving}
+                  onChange={e => setValue(markierungSetzen(value, Number(e.target.value)))}>
+            <option value={-1}>Keine</option>
+            {value.map((z, i) => <option key={z.key ?? `neu-${i}`} value={i}>{z.label || `Zeile ${i + 1}`}</option>)}
+          </select>
+          <span style={{ display: 'block', marginTop: 4, fontSize: 12, color: 'var(--muted)' }}>
+            Erscheint im Termin als Häkchen bei Montage, Ausmass, Service usw., z.&nbsp;B. für
+            «Reservation (Kunde hat noch nicht bestätigt)». Der Termin-Typ bleibt erhalten.
           </span>
         </label>
       )}

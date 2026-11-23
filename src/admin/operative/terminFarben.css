@@ -40,3 +40,12 @@
   background: var(--surface, #fff);
   cursor: pointer;
 }
+
+/* Häkchen «Reservation …» an jedem Termin-Typ (Spec §9, MarkierungWahl). */
+.termin-markierung {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
