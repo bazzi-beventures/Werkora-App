@@ -1620,6 +1620,38 @@
         }
       }
     },
+    "/pwa/superadmin/feed/health/anmeldungen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnmeldeLage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/superadmin/health/anmeldungen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnmeldeLage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/tenants/{tenant_id}/mail-eingang/zustaendigkeiten": {
       "get": {
         "responses": {
@@ -1978,6 +2010,225 @@
         "required": [
           "attachments"
         ]
+      },
+      "AnmeldeBremse": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Präfix des Rate-Keys, z.B. «pw_login»."
+          },
+          "anzahl": {
+            "type": "integer"
+          },
+          "login": {
+            "type": "boolean"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "anzahl",
+          "login"
+        ]
+      },
+      "AnmeldeKonto": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "mandant": {
+            "type": "string"
+          },
+          "rolle": {
+            "type": "string"
+          },
+          "art": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "passwort",
+                  "wiederherstellung"
+                ]
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "fehlversuche": {
+            "type": "integer"
+          },
+          "fehlversuche_24h": {
+            "type": "integer"
+          },
+          "spitze_15min": {
+            "type": "integer",
+            "description": "Meiste Fehlversuche in einem 15-Minuten-Fenster des Zeitraums."
+          },
+          "letzter": {
+            "type": "string"
+          },
+          "gesperrt": {
+            "type": "boolean",
+            "description": "Die Bremse je Konto greift in diesem Moment."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "mandant",
+          "rolle",
+          "art",
+          "fehlversuche",
+          "fehlversuche_24h",
+          "spitze_15min",
+          "letzter",
+          "gesperrt"
+        ]
+      },
+      "AnmeldeLage": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "nicht_lesbar"
+            ]
+          },
+          "days": {
+            "type": "integer"
+          },
+          "ampel": {
+            "type": "string",
+            "enum": [
+              "gruen",
+              "gelb",
+              "rot"
+            ]
+          },
+          "gruende": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "sperre": {
+            "$ref": "#/components/schemas/AnmeldeSperre"
+          },
+          "summen": {
+            "$ref": "#/components/schemas/AnmeldeSummen"
+          },
+          "tage": {
+            "items": {
+              "$ref": "#/components/schemas/AnmeldeTag"
+            },
+            "type": "array",
+            "description": "Alt → neu, jeder Tag des Zeitraums."
+          },
+          "bremsen": {
+            "items": {
+              "$ref": "#/components/schemas/AnmeldeBremse"
+            },
+            "type": "array"
+          },
+          "konten": {
+            "items": {
+              "$ref": "#/components/schemas/AnmeldeKonto"
+            },
+            "type": "array",
+            "description": "Höchstens 50, meiste Fehlversuche zuerst."
+          },
+          "gekappt": {
+            "type": "boolean",
+            "description": "Mehr Zähler-Zeilen als gelesen — die ältesten Tage fehlen."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "days"
+        ],
+        "description": "Ampel, Tageszähler und auffällige Konten. Nicht lesbar: nur ``status`` und ``days``."
+      },
+      "AnmeldeSperre": {
+        "properties": {
+          "versuche": {
+            "type": "integer"
+          },
+          "minuten": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "versuche",
+          "minuten"
+        ]
+      },
+      "AnmeldeSummen": {
+        "properties": {
+          "login_falsch": {
+            "type": "integer"
+          },
+          "login_unbekannt": {
+            "type": "integer"
+          },
+          "login_gesperrt": {
+            "type": "integer"
+          },
+          "bremse_login": {
+            "type": "integer"
+          },
+          "bremse_andere": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "login_falsch",
+          "login_unbekannt",
+          "login_gesperrt",
+          "bremse_login",
+          "bremse_andere"
+        ]
+      },
+      "AnmeldeTag": {
+        "properties": {
+          "tag": {
+            "type": "string"
+          },
+          "login_falsch": {
+            "type": "integer",
+            "description": "Falsches Passwort auf ein bestehendes Konto."
+          },
+          "login_unbekannt": {
+            "type": "integer",
+            "description": "Benutzername gibt es nicht — Grundrauschen."
+          },
+          "login_gesperrt": {
+            "type": "integer",
+            "description": "Abgewiesen, weil die Bremse je Konto griff."
+          },
+          "bremse_login": {
+            "type": "integer",
+            "description": "Treffer der Rate-Limits rund um die Anmeldung."
+          },
+          "bremse_andere": {
+            "type": "integer",
+            "description": "Treffer der übrigen Rate-Limits (Formulare, KI, Uploads)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag",
+          "login_falsch",
+          "login_unbekannt",
+          "login_gesperrt",
+          "bremse_login",
+          "bremse_andere"
+        ],
+        "description": "Ein Tag (Schweizer Datum) des Zeitraums, auch ohne Ereignis (dann Nullen)."
       },
       "Arbeitsbeschrieb": {
         "properties": {

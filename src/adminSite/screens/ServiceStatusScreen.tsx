@@ -7,6 +7,7 @@ import {
 } from '../../api/serviceHealth'
 import RouteMetricsPanel from './RouteMetricsPanel'
 import JobsPanel from './JobsPanel'
+import AnmeldungenPanel from './AnmeldungenPanel'
 
 const SERVICE_LABELS: Record<ServiceName, string> = {
   railway: 'Railway',
@@ -510,6 +511,8 @@ export default function ServiceStatusScreen() {
       {!data && !error && (
         <div className="admin-loading"><div className="kpi-admin-spinner" />Lädt…</div>
       )}
+
+      <AnmeldungenPanel />
 
       {history && (
         <div style={{ marginTop: 28 }}>

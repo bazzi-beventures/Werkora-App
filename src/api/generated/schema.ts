@@ -3266,6 +3266,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/feed/health/anmeldungen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnmeldeLage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/superadmin/health/anmeldungen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AnmeldeLage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/tenants/{tenant_id}/mail-eingang/zustaendigkeiten": {
         parameters: {
             query?: never;
@@ -3474,6 +3544,68 @@ export interface components {
         };
         AnhangVorlagen: {
             attachments: components["schemas"]["AnhangVorlage"][];
+        };
+        AnmeldeBremse: {
+            /** @description Präfix des Rate-Keys, z.B. «pw_login». */
+            name: string;
+            anzahl: number;
+            login: boolean;
+        };
+        AnmeldeKonto: {
+            name: string;
+            mandant: string;
+            rolle: string;
+            art: ("passwort" | "wiederherstellung") | string;
+            fehlversuche: number;
+            fehlversuche_24h: number;
+            /** @description Meiste Fehlversuche in einem 15-Minuten-Fenster des Zeitraums. */
+            spitze_15min: number;
+            letzter: string;
+            /** @description Die Bremse je Konto greift in diesem Moment. */
+            gesperrt: boolean;
+        };
+        /** @description Ampel, Tageszähler und auffällige Konten. Nicht lesbar: nur ``status`` und ``days``. */
+        AnmeldeLage: {
+            /** @enum {string} */
+            status: "ok" | "nicht_lesbar";
+            days: number;
+            /** @enum {string} */
+            ampel?: "gruen" | "gelb" | "rot";
+            gruende?: string[];
+            sperre?: components["schemas"]["AnmeldeSperre"];
+            summen?: components["schemas"]["AnmeldeSummen"];
+            /** @description Alt → neu, jeder Tag des Zeitraums. */
+            tage?: components["schemas"]["AnmeldeTag"][];
+            bremsen?: components["schemas"]["AnmeldeBremse"][];
+            /** @description Höchstens 50, meiste Fehlversuche zuerst. */
+            konten?: components["schemas"]["AnmeldeKonto"][];
+            /** @description Mehr Zähler-Zeilen als gelesen — die ältesten Tage fehlen. */
+            gekappt?: boolean;
+        };
+        AnmeldeSperre: {
+            versuche: number;
+            minuten: number;
+        };
+        AnmeldeSummen: {
+            login_falsch: number;
+            login_unbekannt: number;
+            login_gesperrt: number;
+            bremse_login: number;
+            bremse_andere: number;
+        };
+        /** @description Ein Tag (Schweizer Datum) des Zeitraums, auch ohne Ereignis (dann Nullen). */
+        AnmeldeTag: {
+            tag: string;
+            /** @description Falsches Passwort auf ein bestehendes Konto. */
+            login_falsch: number;
+            /** @description Benutzername gibt es nicht — Grundrauschen. */
+            login_unbekannt: number;
+            /** @description Abgewiesen, weil die Bremse je Konto griff. */
+            login_gesperrt: number;
+            /** @description Treffer der Rate-Limits rund um die Anmeldung. */
+            bremse_login: number;
+            /** @description Treffer der übrigen Rate-Limits (Formulare, KI, Uploads). */
+            bremse_andere: number;
         };
         /** @description Vorschlag «Ausgeführte Arbeiten» (``/admin/invoices/work-description``). */
         Arbeitsbeschrieb: {

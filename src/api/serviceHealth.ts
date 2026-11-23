@@ -1,4 +1,5 @@
 import { apiFetch } from './client'
+import type { Antwort } from './generated'
 
 export type ServiceName = 'railway' | 'supabase' | 'mistral'
 export type ServiceStatus = 'ok' | 'down' | 'slow'
@@ -167,4 +168,14 @@ export type JobsResponse =
 
 export async function getJobs(days = 7): Promise<JobsResponse> {
   return apiFetch<JobsResponse>(`/pwa/superadmin/health/jobs?days=${days}`)
+}
+
+// Anmelde-Lage (docs/specs/sicherheits-audit-2026-11.md §5.4.6): Ampel,
+// Abwehr-Zähler je Tag und Konten mit Fehlversuchen — ohne IP, ohne eingetippte
+// Namen. `nicht_lesbar` statt leerer Listen, wenn die Datenbank nicht antwortet.
+export type AnmeldeLage = Antwort<'AnmeldeLage'>
+export type AnmeldeKonto = Antwort<'AnmeldeKonto'>
+
+export async function getAnmeldeLage(days = 7): Promise<AnmeldeLage> {
+  return apiFetch<AnmeldeLage>(`/pwa/superadmin/health/anmeldungen?days=${days}`)
 }
