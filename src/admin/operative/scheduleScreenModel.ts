@@ -27,12 +27,6 @@ export interface StaffLite {
   role?: string | null
 }
 
-export interface CustomerLite {
-  id: string
-  name: string | null
-  billing_name: string | null
-}
-
 // Projekt-Stammdaten im Panel. Die TERMINE liegen seit Phase 2 nicht mehr hier,
 // sondern in project_appointments (eigener Editor-State ApptFormState).
 export interface FormState {

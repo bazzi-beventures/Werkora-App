@@ -28,12 +28,12 @@ vi.mock('../../api/admin/mailEingang', () => ({
 // was sie ans Netz schickt.
 const getCustomer = vi.fn()
 const saveCustomer = vi.fn()
-const listAllCustomers = vi.fn()
+const getAllCustomers = vi.fn()
 vi.mock('../../api/admin/customers', async importOriginal => ({
   ...await importOriginal<typeof import('../../api/admin/customers')>(),
   getCustomer: (...a: unknown[]) => getCustomer(...a),
   saveCustomer: (...a: unknown[]) => saveCustomer(...a),
-  listAllCustomers: () => listAllCustomers(),
+  getAllCustomers: () => getAllCustomers(),
   checkCustomerName: vi.fn().mockResolvedValue([]),
   getCustomerComments: vi.fn().mockResolvedValue([]),
   getCustomerProjects: vi.fn().mockResolvedValue([]),
@@ -116,7 +116,7 @@ beforeEach(() => {
   setMailEingangAufgabe.mockReset()
   sessionStorage.clear()
   getCustomer.mockReset().mockResolvedValue(KUNDE)
-  listAllCustomers.mockReset().mockResolvedValue([])
+  getAllCustomers.mockReset().mockResolvedValue([])
   saveCustomer.mockReset().mockImplementation(async (input: Record<string, unknown>) => ({ ...KUNDE, ...input }))
 })
 
@@ -391,7 +391,7 @@ describe('MailEingangScreen — Vorschläge', () => {
 
   it('wählt den bekannten Kunden vor und legt beim Abbrechen nichts an', async () => {
     const user = userEvent.setup()
-    listAllCustomers.mockResolvedValue([{ id: 'c1', name: 'Hans Muster', address: 'Chur' }])
+    getAllCustomers.mockResolvedValue([{ id: 'c1', name: 'Hans Muster', address: 'Chur' }])
     listMailEingang.mockResolvedValue(liste([item({ customer: { id: 'c1', name: 'Hans Muster' } })]))
     acceptMailVorschlag.mockResolvedValue({ suggestion: { ...ENTWURF, status: 'uebernommen' }, item_status: 'erledigt' })
     render(<MailEingangScreen />)

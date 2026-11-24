@@ -11,7 +11,7 @@ import { getAdminProjects } from '../../../api/admin/projects'
 import {
   getQuoteSkontoDefaults, getQuoteStandardNotes, getQuoteTravelCostTable,
 } from '../../../api/admin/quoteTemplates'
-import type { Project } from '../../../api/admin/projects'
+import type { ProjectChoice } from '../../../api/admin/projects'
 import { fmtCHF } from '../../utils/format'
 import { computeTravelCost, factorToPct, parseNum } from '../../utils/quotePricing'
 import type { TravelCostTable } from '../../utils/quotePricing'
@@ -60,7 +60,7 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
   ref,
 ) {
   const master = useQuoteMasterData()
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectChoice[]>([])
   const [materialSupplierFilter, setMaterialSupplierFilter] = useState('')
   const [materialCategoryFilter, setMaterialCategoryFilter] = useState('')
   const [projectName, setProjectName] = useState(lockedProjectName ?? '')

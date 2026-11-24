@@ -3565,6 +3565,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/link/entwurf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MsLinkEntwurf"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/tenants/{tenant_id}/microsoft/link/senden": {
         parameters: {
             query?: never;
@@ -4142,6 +4177,17 @@ export interface components {
         MsLink: {
             url: string;
             gueltig_minuten: number;
+        };
+        /** @description ``POST …/superadmin/tenants/{id}/microsoft/link/entwurf`` — Begleitmail zum Durchlesen. */
+        MsLinkEntwurf: {
+            /** @description Vorbelegter Empfänger: die Adresse des Postfachs. */
+            an: string;
+            betreff: string;
+            /** @description Kurzer Standardtext; der Platzhalter wird beim Senden zum Link. */
+            text: string;
+            platzhalter: string;
+            /** @description Postfach des Betreiber-Mandanten, aus dem gesendet wird. */
+            absender?: string | null;
         };
         /** @description Zustand einer Verbindung. Nicht verbunden: nur ``zweck``, ``verbunden``, ``status``. */
         MsVerbindung: {

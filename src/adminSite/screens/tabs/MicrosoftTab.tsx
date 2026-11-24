@@ -9,8 +9,10 @@ import { ZWECK_TEXT, type MsZweck, gueltigeAdresse, kartenZustand, zustandText }
 //
 // Zustand beider Verbindungen des Mandanten und «Link für den Betrieb erzeugen»:
 // 7 Tage gültig, einmal einlösbar. «Testmail an mich» und «Trennen» gibt es nur hier,
-// nicht im Admin des Betriebs (Spec §15/9). «Per Mail senden» verschickt einen neuen Link
-// samt Begleitmail aus dem Postfach des Betreiber-Mandanten (§15/10). Verbinden muss sich der Betrieb selbst — mit
+// nicht im Admin des Betriebs (Spec §15/9). «Per Mail senden» zeigt zuerst einen kurzen
+// Standard-Entwurf (Empfänger, Betreff, Text änderbar); erst «Senden» erzeugt den Link,
+// setzt ihn für den Platzhalter ein und schickt die Mail aus dem Postfach des
+// Betreiber-Mandanten (§15/10). Verbinden muss sich der Betrieb selbst — mit
 // dem Postfach, dessen Adresse hier steht; meldet sich ein anderes Konto an,
 // lehnt Werkora ab (§6.2). Rückfälle im Pilot und Schatten-Abweichungen stehen
 // unter «Error-Logs» (Quellen `ms_rueckfall`, `ms_schatten_abweichung`).
@@ -67,7 +69,7 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, absender,
   const [adresse, setAdresse] = useState(verbindung?.mailbox || vorschlag)
   const [link, setLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [mail, setMail] = useState<{ an: string; notiz: string } | null>(null)
+  const [mail, setMail] = useState<{ an: string; betreff: string; text: string; platzhalter: string } | null>(null)
 
   async function erzeugen() {
     setBusy(true)
@@ -86,9 +88,22 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, absender,
     if (!mail) return
     setBusy(true)
     try {
-      const antwort = await scoped.sendMicrosoftLinkMail(tenantId, zweck, adresse.trim(), mail.an.trim(), mail.notiz)
+      const antwort = await scoped.sendMicrosoftLinkMail(tenantId, zweck, adresse.trim(), mail.an.trim(),
+        mail.betreff, mail.text)
       showToast(antwort.message || 'Link gesendet')
       setMail(null)
+    } catch (e) {
+      showToast((e as Error).message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function entwurf() {
+    setBusy(true)
+    try {
+      const e = await scoped.getMicrosoftLinkEntwurf(tenantId, zweck, adresse.trim())
+      setMail({ an: e.an, betreff: e.betreff, text: e.text, platzhalter: e.platzhalter })
     } catch (e) {
       showToast((e as Error).message, 'error')
     } finally {
@@ -142,7 +157,7 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, absender,
           </button>
           <button className="admin-btn admin-btn-secondary" disabled={busy || !gueltigeAdresse(adresse) || !absender}
             title={absender ? undefined : 'Ihr Konto gehört nicht zum Betreiber-Mandanten'}
-            onClick={() => setMail({ an: adresse.trim(), notiz: '' })}>
+            onClick={() => void entwurf()}>
             Per Mail senden
           </button>
           {zweck === 'versand' && zustand === 'verbunden' && (
@@ -159,21 +174,29 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, absender,
       )}
       {mail && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div className="admin-section-title">Entwurf — vor dem Senden durchlesen</div>
           <label style={{ fontSize: 13 }}>
-            Empfänger (wer sich mit {adresse.trim() || 'dem Postfach'} anmelden kann)
+            An
             <input className="admin-form-input" type="email" value={mail.an} disabled={busy}
               onChange={e => setMail({ ...mail, an: e.target.value })} />
           </label>
           <label style={{ fontSize: 13 }}>
-            Persönliche Zeile (optional)
-            <textarea className="admin-form-input" rows={2} maxLength={600} value={mail.notiz} disabled={busy}
-              onChange={e => setMail({ ...mail, notiz: e.target.value })} />
+            Betreff
+            <input className="admin-form-input" maxLength={200} value={mail.betreff} disabled={busy}
+              onChange={e => setMail({ ...mail, betreff: e.target.value })} />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            Text
+            <textarea className="admin-form-input" rows={10} maxLength={4000} value={mail.text} disabled={busy}
+              onChange={e => setMail({ ...mail, text: e.target.value })} />
           </label>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-            Absender: {absender}. Die Mail enthält einen neuen Link (7 Tage gültig) als Knopf und als Text.
+            Absender: {absender}. {mail.platzhalter} wird beim Senden durch einen neuen Link (7 Tage gültig)
+            ersetzt — als Knopf «Mit Microsoft verbinden» und als Text.
           </p>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="admin-btn admin-btn-primary" disabled={busy || !gueltigeAdresse(mail.an)}
+            <button className="admin-btn admin-btn-primary"
+              disabled={busy || !gueltigeAdresse(mail.an) || !mail.betreff.trim() || !mail.text.trim()}
               onClick={() => void perMail()}>
               Senden
             </button>

@@ -296,9 +296,19 @@ export async function listProjectLocalities(): Promise<ProjectLocality[]> {
   return apiFetch<ProjectLocality[]>('/pwa/admin/projects/localities')
 }
 
-/** Ungefilterte Liste für Auswahlfelder; die Tabelle nutzt `listProjects`. */
-export async function getAdminProjects(): Promise<Project[]> {
-  return apiFetch<Project[]>('/pwa/admin/projects')
+/**
+ * Eine Zeile der Projektauswahl beim Anlegen von Offerte und Rechnung — genau
+ * die Felder, die der Server dafür liefert (`PROJECT_CHOICE_SELECT` in
+ * db/projects.py). Bis 20261124 kam hier das volle `Project` samt Belegen,
+ * 8 MB je Abruf; wer ein weiteres Feld braucht, trägt es an beiden Stellen nach.
+ */
+export type ProjectChoice = Pick<Project, 'id' | 'name' | 'project_id_text' | 'is_closed' | 'distance_km'> & {
+  customer: { id: string; name: string | null; email: string | null } | null
+}
+
+/** Offene Kundenprojekte für Auswahlfelder; die Tabelle nutzt `listProjects`. */
+export async function getAdminProjects(): Promise<ProjectChoice[]> {
+  return apiFetch<ProjectChoice[]>('/pwa/admin/projects')
 }
 
 export async function getProject(id: string): Promise<Project> {

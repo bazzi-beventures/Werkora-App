@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { listAllCustomers, saveCustomer } from '../../api/admin/customers'
+import { saveCustomer } from '../../api/admin/customers'
+import { ladeKundenstamm } from './useKundenstamm'
 import { WORK_TYPES, type WorkType } from '../../api/workTypes'
 import { findCustomerMatch, normalize } from './customerMatch'
 
@@ -89,7 +90,7 @@ export default function ProjektAnlegenFormular({ start, quelle, fussnote, onErst
 
   useEffect(() => {
     let aktiv = true
-    listAllCustomers()
+    ladeKundenstamm()
       .then(list => {
         if (!aktiv) return
         setCustomers(list)

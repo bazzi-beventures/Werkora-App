@@ -7,7 +7,7 @@ import type { BillableReport, Invoice, InvoiceQuoteCoverage, OpenAnzahlung } fro
 import { hasModule } from '../../api/modules'
 import { BexioBadge } from './BexioBadge'
 import { getAdminProjects, listProjectInvoices } from '../../api/admin/projects'
-import type { Project } from '../../api/admin/projects'
+import type { ProjectChoice } from '../../api/admin/projects'
 import { hasAcceptedQuote as fetchHasAcceptedQuote } from '../../api/admin/quotes'
 import { getAdminStaff } from '../../api/admin/staff'
 import { INVOICE_STATUS_LABELS as STATUS_LABELS, INVOICE_STATUS_BADGE as STATUS_BADGE } from '../constants/statuses'
@@ -133,7 +133,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
 
   // Generate invoice
   const [showGenerate, setShowGenerate] = useState(false)
-  const [projects, setProjects] = useState<Project[]>([])
+  const [projects, setProjects] = useState<ProjectChoice[]>([])
   // genProject hält die Projekt-id (eindeutig), genProjectName den Anzeigenamen.
   const [genProject, setGenProject] = useState('')
   const [genProjectName, setGenProjectName] = useState('')
@@ -206,7 +206,7 @@ export default function InvoicesScreen({ onBadgeChange, onNav, initialStatus, on
     setShowGenerate(true)
   }
 
-  async function checkQuote(projectId: string, projects: Project[]) {
+  async function checkQuote(projectId: string, projects: ProjectChoice[]) {
     const projectName = projects.find(p => p.id === projectId)?.name ?? ''
     setGenProject(projectId)
     setGenProjectName(projectName)

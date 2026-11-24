@@ -217,6 +217,7 @@ export type {
 
 export {
   getPlatformMicrosoft, createMicrosoftLink, deletePlatformMicrosoft, sendPlatformMicrosoftTestmail, sendMicrosoftLinkMail,
+  getMicrosoftLinkEntwurf,
 } from '../api/platform'
 
 // ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ──────────────

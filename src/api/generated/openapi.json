@@ -1762,6 +1762,22 @@
         }
       }
     },
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/link/entwurf": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MsLinkEntwurf"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/tenants/{tenant_id}/microsoft/link/senden": {
       "post": {
         "responses": {
@@ -3876,6 +3892,43 @@
           "gueltig_minuten"
         ],
         "description": "Adresse, zu der der Browser soll (Anmeldung oder Admin-Freigabe)."
+      },
+      "MsLinkEntwurf": {
+        "properties": {
+          "an": {
+            "type": "string",
+            "description": "Vorbelegter Empfänger: die Adresse des Postfachs."
+          },
+          "betreff": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "description": "Kurzer Standardtext; der Platzhalter wird beim Senden zum Link."
+          },
+          "platzhalter": {
+            "type": "string"
+          },
+          "absender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Postfach des Betreiber-Mandanten, aus dem gesendet wird."
+          }
+        },
+        "type": "object",
+        "required": [
+          "an",
+          "betreff",
+          "text",
+          "platzhalter"
+        ],
+        "description": "``POST …/superadmin/tenants/{id}/microsoft/link/entwurf`` — Begleitmail zum Durchlesen."
       },
       "MsVerbindung": {
         "properties": {

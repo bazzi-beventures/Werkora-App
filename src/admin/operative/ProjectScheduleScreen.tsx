@@ -24,7 +24,9 @@ import {
 import { AdminScreen } from '../useAdminNav'
 import { downloadSchedulePdf, getProject } from '../../api/admin/projects'
 import type { ProjectKind, ScheduleProject } from '../../api/admin/projects'
-import { listAllCustomers } from '../../api/admin/customers'
+import { ladeKundenstamm } from './useKundenstamm'
+import type { Customer } from '../../api/admin/customers'
+import { CustomerCombobox } from './CustomerCombobox'
 import { PROJECT_KIND_LABELS, kindHasProjektleiter, projectCustomerName } from '../utils/project'
 import ProjectScheduleCalendar, { CalendarEntry, type CalendarFocus } from './ProjectScheduleCalendar'
 import ScheduleSearch from './ScheduleSearch'
@@ -60,7 +62,6 @@ import {
   APPT_WINDOW_AHEAD_DAYS,
   LIVE_REFRESH_MS,
   overlapsWindow,
-  type CustomerLite,
   type FormState,
   type ApptFormState,
   type PendingSlot,
@@ -97,7 +98,7 @@ export default function ProjectScheduleScreen({
   // Kundenstamm: nur für die «Kunde»-Auswahl im Planungs-Panel. Er lag früher im
   // Erst-Ladepaket des Kalenders und hielt ihn auf — eine volle Tabelle, die der
   // Planer erst sieht, wenn er das Panel überhaupt öffnet.
-  const [customers, setCustomers] = useState<CustomerLite[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
   const customersLoaded = useRef(false)
   // Anzeige-Config: aus dem Cache vorbelegt, damit die Reiterleiste beim
   // Wiederöffnen sofort stimmt. `configPending` bleibt true, bis die Antwort da
@@ -236,7 +237,7 @@ export default function ProjectScheduleScreen({
   useEffect(() => {
     if (!panelOpen || customersLoaded.current) return
     customersLoaded.current = true
-    listAllCustomers()
+    ladeKundenstamm()
       .then(setCustomers)
       .catch(() => {
         // Erneut versuchen, wenn das Panel das nächste Mal aufgeht: ohne Liste
@@ -1218,19 +1219,16 @@ export default function ProjectScheduleScreen({
                 )}
 
                 {form.kind === 'project' && (
-                  <label className="project-schedule-field">
+                  // Tippbare Suche statt <select>: bei Gehlhaar ~7000 Kunden im
+                  // Stamm, eine Liste dieser Länge war nicht zu bedienen.
+                  <div className="project-schedule-field">
                     <span>Kunde</span>
-                    <select
-                      className="admin-input"
+                    <CustomerCombobox
+                      customers={customers}
                       value={form.customerId}
-                      onChange={e => setForm(f => f && ({ ...f, customerId: e.target.value }))}
-                    >
-                      <option value="">— kein Kunde —</option>
-                      {customers.map(c => (
-                        <option key={c.id} value={c.id}>{c.billing_name || c.name || c.id}</option>
-                      ))}
-                    </select>
-                  </label>
+                      onChange={id => setForm(f => f && ({ ...f, customerId: id }))}
+                    />
+                  </div>
                 )}
 
                 {kindHasProjektleiter(form.kind) && (

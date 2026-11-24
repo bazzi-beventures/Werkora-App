@@ -8,8 +8,7 @@
 import { useEffect, useState } from 'react'
 import { updateQuote } from '../../../api/admin/quotes'
 import type { QuoteDetail } from '../../../api/admin/quotes'
-import { getAllCustomers } from '../../../api/admin/customers'
-import type { Customer } from '../../../api/admin/customers'
+import { useKundenstamm } from '../useKundenstamm'
 import { fmtCHF } from '../../utils/format'
 import { factorToPct } from '../../utils/quotePricing'
 import { InfoHint } from '../../components/InfoHint'
@@ -116,7 +115,7 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
     quote.quote_type === 'richtofferte' ? 'richtofferte' : 'offerte')
   const typeSwitchable = master.richtoffAvailable && !quote.sent_at
 
-  const [customers, setCustomers] = useState<Customer[]>([])
+  const customers = useKundenstamm()
   const [materialSupplierFilter, setMaterialSupplierFilter] = useState('')
   const [materialCategoryFilter, setMaterialCategoryFilter] = useState('')
   const [saving, setSaving] = useState(false)
@@ -139,8 +138,6 @@ export function QuoteEditForm({ quote, onDone, onCancel, onDirtyChange }: Props)
   // Verschieben (Griff + ▲/▼) für Material- und Freie-Positions-Zeilen.
   const materialReorder = useReorder(material.set)
   const extraReorder = useReorder(extraProducts.set)
-
-  useEffect(() => { getAllCustomers().then(setCustomers).catch(() => {}) }, [])
 
   // ── Dirty-Check ──
   // Der Aufrufer (Projekt-Dialog) erfährt darüber, ob ein Klick neben das Fenster

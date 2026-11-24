@@ -482,10 +482,19 @@ export function createMicrosoftLink(tenantId: string, zweck: 'versand' | 'eingan
 
 /** «Per Mail senden»: neuer Link mit Begleitmail aus dem Postfach des Betreiber-Mandanten. */
 export function sendMicrosoftLinkMail(tenantId: string, zweck: 'versand' | 'eingang', adresse: string,
-  an: string, notiz: string): Promise<{ status: string; message?: string | null }> {
+  an: string, betreff: string, text: string): Promise<{ status: string; message?: string | null }> {
   return apiFetch(`${microsoftPfad(tenantId)}/link/senden`, {
     method: 'POST',
-    body: JSON.stringify({ zweck, adresse, an, notiz }),
+    body: JSON.stringify({ zweck, adresse, an, betreff, text }),
+  })
+}
+
+/** Entwurf der Begleitmail zum Durchlesen — erzeugt noch keinen Link. */
+export function getMicrosoftLinkEntwurf(tenantId: string, zweck: 'versand' | 'eingang', adresse: string):
+  Promise<Antwort<'MsLinkEntwurf'>> {
+  return apiFetch<Antwort<'MsLinkEntwurf'>>(`${microsoftPfad(tenantId)}/link/entwurf`, {
+    method: 'POST',
+    body: JSON.stringify({ zweck, adresse }),
   })
 }
 

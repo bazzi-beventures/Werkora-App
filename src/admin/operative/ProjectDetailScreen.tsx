@@ -4,7 +4,8 @@ import type { RepairCaseRef, RepairProjectRef, WarrantyInfo } from '../../api/ad
 import { getAdminStaff } from '../../api/admin/staff'
 import { TerminwahlKachel } from './projectDetail/TerminwahlKachel'
 import { suggestAppointmentKind } from './projectAppointments'
-import { getAllCustomers } from '../../api/admin/customers'
+import { kundenstammEintragen } from '../../api/admin/kundenstamm'
+import { useKundenstamm } from './useKundenstamm'
 import type { Kontakt, Project } from '../../api/admin/projects'
 import type { Customer } from '../../api/admin/customers'
 import { CustomerFromKontaktDialog } from './projectDetail/CustomerFromKontaktDialog'
@@ -98,7 +99,7 @@ export default function ProjectDetailScreen({
 
   // Module und Feature-Flags des Mandanten (Charge H, H3).
   const features = useProjectFeatures()
-  const [customers, setCustomers] = useState<Customer[]>([])
+  const customers = useKundenstamm()
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [settingStatus, setSettingStatus] = useState(false)
   // Welche Lebenszyklus-Rueckfrage offen ist — eine statt fuenf Booleans, weil
@@ -311,7 +312,6 @@ export default function ProjectDetailScreen({
         authorized_user_id: s.authorized_user_id ?? null,
       })))
     }).catch(() => {})
-    getAllCustomers().then(setCustomers).catch(() => {})
   }, [])
 
   // Termine nachladen (eigene Tabelle) — der Hook zieht damit auch seinen
@@ -387,7 +387,7 @@ export default function ProjectDetailScreen({
       }, target.id)
       if (saved) updated = res?.project ? { ...saved, ...res.project } : saved
     }
-    setCustomers(prev => [...prev, ...created])
+    kundenstammEintragen(created)
     setCustomerPrompt(null)
     onSaved(updated)
   }
@@ -900,7 +900,7 @@ export default function ProjectDetailScreen({
           projectHasCustomer={!!form.customerId}
           onCreated={async created => {
             form.linkCreatedCustomers(created)
-            setCustomers(prev => [...prev, ...created])
+            kundenstammEintragen(created)
             setKontaktCustomer(null)
           }}
           onSkip={() => setKontaktCustomer(null)}
@@ -913,7 +913,7 @@ export default function ProjectDetailScreen({
         <NewCustomerDialog
           query={newCustomerQuery}
           onCreated={c => {
-            setCustomers(prev => [...prev, c])
+            kundenstammEintragen([c])
             // Wie eine Auswahl aus der Liste: Objektadresse und Ansprechperson
             // werden vorbelegt, die selbst speichernde Maske speichert sofort.
             form.selectCustomer(c.id, c)

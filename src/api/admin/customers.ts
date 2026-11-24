@@ -8,6 +8,7 @@
 
 import { UserInfo } from '../auth'
 import { apiFetch } from '../client'
+import { kundenstammEintragen, kundenstammEntfernen } from './kundenstamm'
 import { isFeatureEnabled } from '../modules'
 
 // Weitere Empfänger neben der Haupt-E-Mail (Spec: kunden-mehrere-emails.md).
@@ -180,9 +181,10 @@ export interface CustomerComment {
 }
 
 /**
- * Alle Kunden auf einmal — fuer Auswahlfelder (Projektmaske, Offerte), die den
- * ganzen Stamm im Speicher brauchen. Fuer die Kundenliste selbst ist
- * `listCustomers` da: die blaettert und sucht serverseitig.
+ * Alle Kunden auf einmal — fuer Auswahlfelder, die den ganzen Stamm im Speicher
+ * brauchen. Die Screens lesen ihn ueber `useKundenstamm`/`ladeKundenstamm` aus
+ * dem gemeinsamen Zwischenspeicher statt hier bei jedem Oeffnen. Fuer die
+ * Kundenliste selbst ist `listCustomers` da: die blaettert und sucht serverseitig.
  */
 export async function getAllCustomers(): Promise<Customer[]> {
   return apiFetch<Customer[]>('/pwa/admin/customers')
@@ -198,22 +200,17 @@ export async function listCustomers(
 
 /** Ohne `id` anlegen, mit `id` ändern; beide Wege liefern den gespeicherten Kunden zurück. */
 export async function saveCustomer(input: CustomerInput, id?: string): Promise<Customer> {
-  return apiFetch<Customer>(id ? `/pwa/admin/customers/${id}` : '/pwa/admin/customers', {
+  const saved = await apiFetch<Customer>(id ? `/pwa/admin/customers/${id}` : '/pwa/admin/customers', {
     method: id ? 'PATCH' : 'POST',
     body: JSON.stringify(input),
   })
-}
-
-/**
- * Alle Kunden in einem Zug (ohne Pagination) — für Auswahllisten. Die
- * Kundenliste selbst nutzt `listCustomers`.
- */
-export async function listAllCustomers(): Promise<Customer[]> {
-  return apiFetch<Customer[]>('/pwa/admin/customers')
+  if (saved?.id) kundenstammEintragen([saved])
+  return saved
 }
 
 export async function deleteCustomer(id: string): Promise<void> {
   await apiFetch(`/pwa/admin/customers/${id}`, { method: 'DELETE' })
+  kundenstammEntfernen(id)
 }
 
 /**
