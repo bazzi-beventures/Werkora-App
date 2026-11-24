@@ -440,6 +440,8 @@ export interface MailEingangView extends MailEingangEinstellung {
   graph_bereit: boolean
   /** Zugang zu Google Workspace (Dienstkonto) in dieser Umgebung eingerichtet. */
   gmail_bereit?: boolean
+  /** Eingangs-Verbindung aus «Mit Microsoft verbinden» — besteht sie, wird über sie gelesen. */
+  eingang_verbindung?: { mailbox: string; status: string } | null
   /** Modul `mail_eingang` ist für den Mandanten eingeschaltet — dann läuft der Abruf. */
   modul_aktiv: boolean
   /** Zähler «nicht ausgewertet» je Grund. */

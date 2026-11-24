@@ -64,7 +64,7 @@ describe('MailEingangTab', () => {
     getMailEingang.mockResolvedValue({ ...eingerichtet, last_poll_fehler: 'Postfach nicht erreichbar (403)' })
     render(<MailEingangTab tenantId="t-1" />)
     expect(await screen.findByText('Modul eingeschaltet — Abruf läuft')).toBeInTheDocument()
-    expect(screen.getByText('Postfach-Zugang eingerichtet')).toBeInTheDocument()
+    expect(screen.getByText('Gelesen über die App-Registrierung (Railway)')).toBeInTheDocument()
     expect(screen.getByText(/Letzte Abholung/)).toHaveTextContent('12.11.2026, 14:05')
     expect(screen.getByText(/Letzter Fehler beim Abholen/)).toHaveTextContent('Postfach nicht erreichbar (403)')
     expect(screen.getByText('3 × nicht aus den Domains des Betriebs')).toBeInTheDocument()
@@ -113,8 +113,16 @@ describe('MailEingangTab', () => {
   it('zeigt das Mailsystem und dessen Zugang im Stand', async () => {
     getMailEingang.mockResolvedValue({ ...eingerichtet, anbieter: 'gmail', postfach_bereit: false, graph_bereit: true })
     render(<MailEingangTab tenantId="t-1" />)
-    expect(await screen.findByText('Postfach-Zugang fehlt')).toBeInTheDocument()
+    expect(await screen.findByText('Google-Dienstkonto fehlt')).toBeInTheDocument()
     expect(screen.getAllByText('Google Workspace').length).toBeGreaterThan(0)
+  })
+
+  it('nennt die Microsoft-Verbindung als Lesezugang, sobald es sie gibt', async () => {
+    getMailEingang.mockResolvedValue({ ...eingerichtet, anbieter: 'graph', postfach_bereit: true,
+      eingang_verbindung: { mailbox: 'eingang-werkora@gehlhaar.ch', status: 'ok' } })
+    render(<MailEingangTab tenantId="t-1" />)
+    expect(await screen.findByText('Gelesen über die Microsoft-Verbindung (eingang-werkora@gehlhaar.ch)')).toBeInTheDocument()
+    expect(screen.getByText(/weicht ab/)).toBeInTheDocument()
   })
 
   it('schickt offensichtlich Falsches gar nicht erst ab', async () => {

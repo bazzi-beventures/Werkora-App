@@ -146,10 +146,12 @@ export function geaendert(form: MailEingangForm, view: MailEingangEinstellung): 
  */
 export function offenePunkte(
   view: Pick<MailEingangView, 'graph_bereit' | 'mailbox' | 'domains' | 'modul_aktiv'>
-    & Partial<Pick<MailEingangView, 'anbieter' | 'postfach_bereit'>>,
+    & Partial<Pick<MailEingangView, 'anbieter' | 'postfach_bereit' | 'eingang_verbindung'>>,
 ): string[] {
   const out: string[] = []
-  if (!postfachBereit(view)) {
+  if (view.eingang_verbindung && view.eingang_verbindung.status !== 'ok') {
+    out.push('Die Microsoft-Verbindung des Eingangspostfachs ist getrennt — im Reiter «Microsoft 365» neu verbinden.')
+  } else if (!postfachBereit(view)) {
     out.push(`Der Postfach-Zugang ist in dieser Umgebung nicht eingerichtet (${MAILSYSTEM_LABEL[view.anbieter ?? 'graph']}).`)
   }
   if (!view.mailbox?.trim()) out.push('Kein Triage-Postfach eingetragen.')
@@ -163,6 +165,48 @@ export function postfachBereit(
   view: Pick<MailEingangView, 'graph_bereit'> & Partial<Pick<MailEingangView, 'anbieter' | 'postfach_bereit'>>,
 ): boolean {
   return view.postfach_bereit ?? view.graph_bereit
+}
+
+type Lesesicht = Pick<MailEingangView, 'graph_bereit'>
+  & Partial<Pick<MailEingangView, 'anbieter' | 'postfach_bereit' | 'eingang_verbindung'>>
+
+/**
+ * Über welchen Weg gelesen wird — für das Abzeichen im «Stand». Mit Microsoft gibt es
+ * zwei: die Eingangs-Verbindung (Reiter «Microsoft 365», nur dieses Postfach) oder, ohne
+ * sie, die App-Registrierung aus den Railway-Variablen (microsoft-365-verbindung.md §15/11).
+ */
+export function zugangAbzeichen(view: Lesesicht): { text: string; ok: boolean } {
+  if ((view.anbieter ?? 'graph') === 'gmail') {
+    return postfachBereit(view)
+      ? { text: 'Google-Dienstkonto eingerichtet', ok: true }
+      : { text: 'Google-Dienstkonto fehlt', ok: false }
+  }
+  const v = view.eingang_verbindung
+  if (v && v.status === 'ok') return { text: `Gelesen über die Microsoft-Verbindung (${v.mailbox})`, ok: true }
+  if (v) return { text: 'Microsoft-Verbindung getrennt', ok: false }
+  return postfachBereit(view)
+    ? { text: 'Gelesen über die App-Registrierung (Railway)', ok: true }
+    : { text: 'Postfach-Zugang fehlt', ok: false }
+}
+
+/** Erklärung unter «Mailsystem» — sagt, womit gelesen wird und was das heisst. */
+export function mailsystemHinweis(anbieter: MailSystem, view: Lesesicht, triagePostfach: string): string {
+  if (anbieter === 'gmail') {
+    return 'Gelesen über das Google-Dienstkonto von Werkora. Der Betrieb gibt ihm in der Google-Admin-Konsole '
+      + 'den Bereich gmail.readonly frei — diese Freigabe gilt für alle Postfächer der Domain; gelesen wird '
+      + 'trotzdem nur das Triage-Postfach.'
+  }
+  const v = view.eingang_verbindung
+  if (v) {
+    const abweichung = triagePostfach.trim() && triagePostfach.trim().toLowerCase() !== v.mailbox.toLowerCase()
+      ? ` Achtung: das Triage-Postfach unten weicht ab — gelesen wird ${v.mailbox}.`
+      : ''
+    return `Gelesen über die Microsoft-Verbindung von ${v.mailbox} (Reiter «Microsoft 365»). `
+      + 'Die Freigabe gilt nur für dieses eine Postfach.' + abweichung
+  }
+  return 'Noch keine Microsoft-Verbindung: gelesen wird über die App-Registrierung des Betriebs aus den '
+    + 'Railway-Variablen. Sie reicht an alle Postfächer der Firma, solange der Betrieb sie nicht in Exchange '
+    + 'beschränkt — besser im Reiter «Microsoft 365» die Karte «Mail-Eingang» verbinden.'
 }
 
 /** «12.11.2026, 14:05» — «noch nie» ohne Zeitpunkt. */

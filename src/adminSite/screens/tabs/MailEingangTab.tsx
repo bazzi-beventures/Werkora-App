@@ -6,7 +6,7 @@ import { abgewiesenTeile } from '../../../shared/mailEingangGruende'
 import { MailEingangZustaendigkeiten } from './MailEingangZustaendigkeiten'
 import {
   MAILSYSTEM_LABEL, TAGESLIMIT_MAX, abholungText, einstellungAus, formAus, geaendert, offenePunkte,
-  postfachBereit, pruefe, type MailEingangForm,
+  mailsystemHinweis, pruefe, zugangAbzeichen, type MailEingangForm,
 } from './mailEingangForm'
 
 // ─── Reiter «Mail-Eingang»: Absenderschranke je Mandant ─────────────────────
@@ -61,7 +61,7 @@ export function MailEingangTab({ tenantId }: { tenantId: string }) {
   const feld = (key: keyof MailEingangForm) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => { setForm({ ...form, [key]: e.target.value }); setServerFehler(null) }
-  const bereit = postfachBereit(view)
+  const zugang = zugangAbzeichen(view)
 
   async function save() {
     if (saving || fehler.length > 0) return
@@ -91,8 +91,8 @@ export function MailEingangTab({ tenantId }: { tenantId: string }) {
           <span className={`admin-badge ${view.modul_aktiv ? 'admin-badge-approved' : 'admin-badge-draft'}`}>
             {view.modul_aktiv ? 'Modul eingeschaltet — Abruf läuft' : 'Modul aus — kein Abruf'}
           </span>
-          <span className={`admin-badge ${bereit ? 'admin-badge-approved' : 'admin-badge-rejected'}`}>
-            {bereit ? 'Postfach-Zugang eingerichtet' : 'Postfach-Zugang fehlt'}
+          <span className={`admin-badge ${zugang.ok ? 'admin-badge-approved' : 'admin-badge-rejected'}`}>
+            {zugang.text}
           </span>
           <span className="admin-badge admin-badge-draft">{MAILSYSTEM_LABEL[view.anbieter ?? 'graph']}</span>
         </div>
@@ -151,11 +151,7 @@ export function MailEingangTab({ tenantId }: { tenantId: string }) {
             </select>
           </label>
           <div className="admin-form-hint" style={{ marginTop: 5 }}>
-            {form.anbieter === 'gmail'
-              ? 'Gelesen über das Google-Dienstkonto von Werkora. Der Betrieb gibt ihm in der Google-Admin-Konsole '
-                + 'den Bereich gmail.readonly frei — diese Freigabe gilt für alle Postfächer der Domain; gelesen wird '
-                + 'trotzdem nur das Triage-Postfach.'
-              : 'Gelesen über die App-Registrierung in Microsoft 365, beschränkt auf das Triage-Postfach.'}
+            {mailsystemHinweis(form.anbieter, view, form.mailbox)}
           </div>
         </div>
 

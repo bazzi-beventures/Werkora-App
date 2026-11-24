@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   TAGESLIMIT_MAX, abholungText, domainVon, einstellungAus, formAus, geaendert, istAdresse, istDomain,
-  listeAusText, normalisiereAdressen, normalisiereDomain, normalisiereDomains, offenePunkte, pruefe,
+  listeAusText, mailsystemHinweis, normalisiereAdressen, normalisiereDomain, normalisiereDomains, offenePunkte,
+  pruefe, zugangAbzeichen,
 } from './mailEingangForm'
 
 // docs/specs/mail-eingang-triage.md §6.4, §10 — Reiter «Mail-Eingang».
@@ -149,5 +150,32 @@ describe('Zustand', () => {
     expect(abholungText(null)).toBe('noch nie')
     expect(abholungText('kein Datum')).toBe('noch nie')
     expect(abholungText('2026-11-12T13:05:00Z')).toBe('12.11.2026, 14:05')
+  })
+})
+
+describe('Lesezugang (microsoft-365-verbindung.md §15/11)', () => {
+  const verbunden = { mailbox: 'eingang@gehlhaar.ch', status: 'ok' }
+
+  it('nennt den Weg, über den gelesen wird', () => {
+    expect(zugangAbzeichen({ graph_bereit: true, eingang_verbindung: verbunden }))
+      .toEqual({ text: 'Gelesen über die Microsoft-Verbindung (eingang@gehlhaar.ch)', ok: true })
+    expect(zugangAbzeichen({ graph_bereit: true })).toEqual({ text: 'Gelesen über die App-Registrierung (Railway)', ok: true })
+    expect(zugangAbzeichen({ graph_bereit: false }).ok).toBe(false)
+    expect(zugangAbzeichen({ graph_bereit: true, eingang_verbindung: { ...verbunden, status: 'getrennt' } }))
+      .toEqual({ text: 'Microsoft-Verbindung getrennt', ok: false })
+  })
+
+  it('meldet eine getrennte Verbindung als offenen Punkt', () => {
+    const punkte = offenePunkte({ graph_bereit: true, mailbox: 'eingang@gehlhaar.ch', domains: ['gehlhaar.ch'],
+      modul_aktiv: true, eingang_verbindung: { ...verbunden, status: 'getrennt' } })
+    expect(punkte).toEqual([expect.stringMatching(/Microsoft-Verbindung .* getrennt/)])
+  })
+
+  it('warnt, wenn das Triage-Postfach von der Verbindung abweicht', () => {
+    expect(mailsystemHinweis('graph', { graph_bereit: true, eingang_verbindung: verbunden }, 'triage@gehlhaar.ch'))
+      .toMatch(/weicht ab/)
+    expect(mailsystemHinweis('graph', { graph_bereit: true, eingang_verbindung: verbunden }, 'Eingang@gehlhaar.ch'))
+      .not.toMatch(/weicht ab/)
+    expect(mailsystemHinweis('graph', { graph_bereit: true }, '')).toMatch(/App-Registrierung/)
   })
 })
