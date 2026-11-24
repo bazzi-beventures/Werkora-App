@@ -9,7 +9,8 @@ import { ZWECK_TEXT, type MsZweck, gueltigeAdresse, kartenZustand, zustandText }
 //
 // Zustand beider Verbindungen des Mandanten und «Link für den Betrieb erzeugen»:
 // 7 Tage gültig, einmal einlösbar. «Testmail an mich» und «Trennen» gibt es nur hier,
-// nicht im Admin des Betriebs (Spec §15/9). Verbinden muss sich der Betrieb selbst — mit
+// nicht im Admin des Betriebs (Spec §15/9). «Per Mail senden» verschickt einen neuen Link
+// samt Begleitmail aus dem Postfach des Betreiber-Mandanten (§15/10). Verbinden muss sich der Betrieb selbst — mit
 // dem Postfach, dessen Adresse hier steht; meldet sich ein anderes Konto an,
 // lehnt Werkora ab (§6.2). Rückfälle im Pilot und Schatten-Abweichungen stehen
 // unter «Error-Logs» (Quellen `ms_rueckfall`, `ms_schatten_abweichung`).
@@ -44,19 +45,21 @@ export function MicrosoftTab({ tenantId }: { tenantId: string }) {
         .map(zweck => (
           <Karte key={zweck} tenantId={tenantId} zweck={zweck} eingerichtet={zustand.eingerichtet}
             verbindung={zustand.verbindungen.find(v => v.zweck === zweck)}
-            vorschlag={zustand.vorschlag?.[zweck] ?? ''} neuLaden={laden} showToast={showToast} />
+            vorschlag={zustand.vorschlag?.[zweck] ?? ''} absender={zustand.link_absender ?? null}
+            neuLaden={laden} showToast={showToast} />
         ))}
       <ToastHost toast={toast} />
     </div>
   )
 }
 
-function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden, showToast }: {
+function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, absender, neuLaden, showToast }: {
   tenantId: string
   zweck: MsZweck
   eingerichtet: boolean
   verbindung: Antwort<'MsVerbindung'> | undefined
   vorschlag: string
+  absender: string | null
   neuLaden: () => void
   showToast: ReturnType<typeof useToast>['showToast']
 }) {
@@ -64,6 +67,7 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden,
   const [adresse, setAdresse] = useState(verbindung?.mailbox || vorschlag)
   const [link, setLink] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [mail, setMail] = useState<{ an: string; notiz: string } | null>(null)
 
   async function erzeugen() {
     setBusy(true)
@@ -71,6 +75,20 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden,
       const { url } = await scoped.createMicrosoftLink(tenantId, zweck, adresse.trim())
       setLink(url)
       showToast(await copyToClipboard(url) ? 'Link kopiert (7 Tage gültig)' : 'Link erzeugt')
+    } catch (e) {
+      showToast((e as Error).message, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function perMail() {
+    if (!mail) return
+    setBusy(true)
+    try {
+      const antwort = await scoped.sendMicrosoftLinkMail(tenantId, zweck, adresse.trim(), mail.an.trim(), mail.notiz)
+      showToast(antwort.message || 'Link gesendet')
+      setMail(null)
     } catch (e) {
       showToast((e as Error).message, 'error')
     } finally {
@@ -122,6 +140,11 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden,
             onClick={() => void erzeugen()}>
             Link für den Betrieb erzeugen
           </button>
+          <button className="admin-btn admin-btn-secondary" disabled={busy || !gueltigeAdresse(adresse) || !absender}
+            title={absender ? undefined : 'Ihr Konto gehört nicht zum Betreiber-Mandanten'}
+            onClick={() => setMail({ an: adresse.trim(), notiz: '' })}>
+            Per Mail senden
+          </button>
           {zweck === 'versand' && zustand === 'verbunden' && (
             <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={() => void testmail()}>
               Testmail an mich
@@ -132,6 +155,32 @@ function Karte({ tenantId, zweck, eingerichtet, verbindung, vorschlag, neuLaden,
               Trennen
             </button>
           )}
+        </div>
+      )}
+      {mail && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 13 }}>
+            Empfänger (wer sich mit {adresse.trim() || 'dem Postfach'} anmelden kann)
+            <input className="admin-form-input" type="email" value={mail.an} disabled={busy}
+              onChange={e => setMail({ ...mail, an: e.target.value })} />
+          </label>
+          <label style={{ fontSize: 13 }}>
+            Persönliche Zeile (optional)
+            <textarea className="admin-form-input" rows={2} maxLength={600} value={mail.notiz} disabled={busy}
+              onChange={e => setMail({ ...mail, notiz: e.target.value })} />
+          </label>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+            Absender: {absender}. Die Mail enthält einen neuen Link (7 Tage gültig) als Knopf und als Text.
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="admin-btn admin-btn-primary" disabled={busy || !gueltigeAdresse(mail.an)}
+              onClick={() => void perMail()}>
+              Senden
+            </button>
+            <button className="admin-btn admin-btn-secondary" disabled={busy} onClick={() => setMail(null)}>
+              Abbrechen
+            </button>
+          </div>
         </div>
       )}
       {link && (

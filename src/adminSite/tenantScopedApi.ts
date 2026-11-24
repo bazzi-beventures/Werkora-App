@@ -215,7 +215,9 @@ export type {
 
 // ─── Microsoft 365 (docs/specs/microsoft-365-verbindung.md §9.3) ───────────
 
-export { getPlatformMicrosoft, createMicrosoftLink, deletePlatformMicrosoft, sendPlatformMicrosoftTestmail } from '../api/platform'
+export {
+  getPlatformMicrosoft, createMicrosoftLink, deletePlatformMicrosoft, sendPlatformMicrosoftTestmail, sendMicrosoftLinkMail,
+} from '../api/platform'
 
 // ─── Servicebegleitung (docs/specs/servicebegleitung.md §4.3) ──────────────
 

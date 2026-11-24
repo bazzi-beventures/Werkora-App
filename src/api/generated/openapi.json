@@ -1762,6 +1762,22 @@
         }
       }
     },
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/link/senden": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/tenants/{tenant_id}/microsoft/versand/testmail": {
       "post": {
         "responses": {
@@ -4009,6 +4025,17 @@
               }
             ],
             "description": "Hat der Mandant das Modul mail_eingang?"
+          },
+          "link_absender": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nur Betreiber-Seite: aus welchem Postfach «Link per Mail senden» geht."
           }
         },
         "type": "object",

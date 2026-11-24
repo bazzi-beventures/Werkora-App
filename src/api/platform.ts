@@ -480,6 +480,15 @@ export function createMicrosoftLink(tenantId: string, zweck: 'versand' | 'eingan
   })
 }
 
+/** «Per Mail senden»: neuer Link mit Begleitmail aus dem Postfach des Betreiber-Mandanten. */
+export function sendMicrosoftLinkMail(tenantId: string, zweck: 'versand' | 'eingang', adresse: string,
+  an: string, notiz: string): Promise<{ status: string; message?: string | null }> {
+  return apiFetch(`${microsoftPfad(tenantId)}/link/senden`, {
+    method: 'POST',
+    body: JSON.stringify({ zweck, adresse, an, notiz }),
+  })
+}
+
 /** «Testmail an mich»: über die Versand-Verbindung des Betriebs an den Betreiber, der klickt. */
 export function sendPlatformMicrosoftTestmail(tenantId: string): Promise<{ status: string; message?: string | null }> {
   return apiFetch(`${microsoftPfad(tenantId)}/versand/testmail`, { method: 'POST' })

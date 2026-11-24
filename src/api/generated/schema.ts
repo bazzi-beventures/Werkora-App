@@ -3565,6 +3565,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/tenants/{tenant_id}/microsoft/link/senden": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/tenants/{tenant_id}/microsoft/versand/testmail": {
         parameters: {
             query?: never;
@@ -4134,6 +4169,8 @@ export interface components {
             } | null;
             /** @description Hat der Mandant das Modul mail_eingang? */
             mail_eingang?: boolean | null;
+            /** @description Nur Betreiber-Seite: aus welchem Postfach «Link per Mail senden» geht. */
+            link_absender?: string | null;
         };
         NachfassFaelle: {
             faelle: components["schemas"]["NachfassFall"][];

@@ -232,6 +232,7 @@ const ACTION_LABELS: Record<string, string> = {
   bexio_oauth_connected: 'bexio: verbunden (OAuth)',
   ms_oauth_started: 'Microsoft 365: Verbindung gestartet',
   ms_oauth_link_created: 'Microsoft 365: Link für den Betrieb erzeugt',
+  ms_oauth_link_sent: 'Microsoft 365: Link per Mail gesendet',
   ms_connected: 'Microsoft 365: verbunden',
   ms_adminconsent: 'Microsoft 365: als Administrator freigegeben',
   ms_disconnected: 'Microsoft 365: Verbindung getrennt',
