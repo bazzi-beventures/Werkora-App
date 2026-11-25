@@ -58,7 +58,8 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   { test: /quote|variant|special_position|installation_template/, module: 'quotes' },
   { test: /camt|reconcile/,                      module: 'payment_matching' },
   { test: /invoice|anzahlung|mahnung|zahlungserinnerung/,  module: 'invoicing' },
-  { test: /absence|vacation/,                    module: 'hr' },
+  // Filialen bestimmen die Feiertage für Soll und Ferienkonto (ferienplanung.md §10.3)
+  { test: /absence|vacation|filiale|_ferien_/,  module: 'hr' },
   { test: /correction|clock_in|clock_out|timesheet|zeit_/, module: 'timekeeping' },
   // Aufgaben-Vorlagen vor /project/, sonst zählen sie als Grundfunktion.
   { test: /task_template|board_task/,            module: 'task_board' },
@@ -336,6 +337,11 @@ const ACTION_LABELS: Record<string, string> = {
   admin_upsert_staff_role: 'Funktion gespeichert',
   admin_delete_staff_role: 'Funktion gelöscht',
   admin_reorder_staff_roles: 'Funktionen sortiert',
+  admin_create_filiale: 'Filiale angelegt',
+  admin_update_filiale: 'Filiale geändert',
+  admin_create_ferien_zeile: 'Ferienplanung: Gruppe, Sperrfrist oder Regel angelegt',
+  admin_update_ferien_zeile: 'Ferienplanung: Gruppe, Sperrfrist oder Regel geändert',
+  admin_delete_ferien_zeile: 'Ferienplanung: Gruppe, Sperrfrist oder Regel gelöscht',
   admin_create_skill: 'Skill angelegt',
   admin_update_skill: 'Skill geändert',
   admin_reorder_skills: 'Skills sortiert',

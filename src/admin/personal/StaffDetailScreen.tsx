@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { StaffMember, StaffRole, upsertStaff, getStaffRoles } from '../../api/admin'
 import { mayManageWages } from '../../shared/roles'
+import { useFilialen } from '../configuration/useFilialen'
 
 interface Props {
   // Nur zum Bearbeiten. Angelegt wird über NewPersonScreen — dort gehören Konto,
@@ -9,11 +10,14 @@ interface Props {
   // Rolle des eingeloggten Kontos: Stunden- und Monatslohn sieht jede Admin-Rolle
   // (das Backend liefert sie anderen gar nicht erst aus).
   actingRole: string
+  // Feature `filialen`: Auswahl der Filiale (Kanton der Feiertage), §10.3 der Spec
+  // docs/specs/ferienplanung.md. Ohne Flag kein Feld und kein Abruf.
+  filialen?: boolean
   onClose: () => void
   onSaved: () => void
 }
 
-export default function StaffDetailScreen({ member, actingRole, onClose, onSaved }: Props) {
+export default function StaffDetailScreen({ member, actingRole, filialen = false, onClose, onSaved }: Props) {
   const showWages = mayManageWages(actingRole)
   const [name, setName] = useState(member.name)
   const [kuerzel, setKuerzel] = useState(member.kuerzel ?? '')
@@ -25,6 +29,8 @@ export default function StaffDetailScreen({ member, actingRole, onClose, onSaved
   const [vacationDays, setVacationDays] = useState(member.vacation_days_per_year?.toString() ?? '')
   const [dateOfBirth, setDateOfBirth] = useState(member.date_of_birth ?? '')
   const [pensum, setPensum] = useState(member.pensum?.toString() ?? '100')
+  const [filialeId, setFilialeId] = useState(member.filiale_id ?? '')
+  const filialenListe = useFilialen(filialen).data
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [roles, setRoles] = useState<StaffRole[]>([])
@@ -52,6 +58,8 @@ export default function StaffDetailScreen({ member, actingRole, onClose, onSaved
         vacation_days_per_year: vacationDays ? parseInt(vacationDays) : undefined,
         date_of_birth: dateOfBirth || undefined,
         pensum: pensum ? Math.max(0, Math.min(100, parseInt(pensum))) : 100,
+        // "" = Hauptsitz; ohne Flag gar nicht mitschicken.
+        ...(filialen ? { filiale_id: filialeId } : {}),
       })
       onSaved()
     } catch (err: unknown) {
@@ -142,6 +150,21 @@ export default function StaffDetailScreen({ member, actingRole, onClose, onSaved
                   Beschäftigungsgrad. 100% = Vollzeit (Tenant-Soll). Bei 80% und 40h-Woche = 32h Soll (6.4h/Tag).
                 </div>
               </div>
+              {filialen && filialenListe && (
+                <div className="admin-form-group">
+                  <label className="admin-form-label" htmlFor="staff-filiale">Filiale</label>
+                  <select id="staff-filiale" className="admin-form-select" value={filialeId}
+                    onChange={e => setFilialeId(e.target.value)}>
+                    <option value="">Hauptsitz ({filialenListe.hauptsitz_kanton})</option>
+                    {filialenListe.filialen.filter(f => f.aktiv || f.id === filialeId).map(f => (
+                      <option key={f.id} value={f.id}>{f.name} ({f.kanton}){f.aktiv ? '' : ' – inaktiv'}</option>
+                    ))}
+                  </select>
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+                    Bestimmt die Feiertage für Soll, Saldo und Ferienkonto.
+                  </div>
+                </div>
+              )}
               {showWages && (
               <div className="admin-form-row">
                 <div className="admin-form-group">

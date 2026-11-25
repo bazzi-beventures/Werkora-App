@@ -86,6 +86,146 @@
         }
       }
     },
+    "/pwa/admin/ferienplanung/planer": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienPlaner"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/pruefen": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienPruefung"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/stammdaten": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienStammdaten"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/{art}": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/{art}/{zeile_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienGespeichert"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/filialen": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilialenListe"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilialeGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/filialen/{filiale_id}": {
+      "patch": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilialeGespeichert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/installation-templates": {
       "get": {
         "responses": {
@@ -2528,6 +2668,95 @@
         ],
         "description": "Ein Produkt aus dem Lieferanten-PDF, mit Vorschlag für Kategorie und VK."
       },
+      "Befund": {
+        "properties": {
+          "quelle": {
+            "type": "string",
+            "description": "'regel', 'sperrfrist' oder 'pflicht' (Gesetz)."
+          },
+          "regel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "art": {
+            "type": "string"
+          },
+          "haerte": {
+            "type": "string",
+            "description": "'hart' oder 'weich'."
+          },
+          "titel": {
+            "type": "string"
+          },
+          "tage": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "konkurrenz": {
+            "items": {
+              "$ref": "#/components/schemas/Konkurrenz"
+            },
+            "type": "array"
+          },
+          "gesetz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Fundstelle bei Pflichtbefunden, z.B. «OR 329c Abs. 1»."
+          },
+          "nur_beantragt": {
+            "type": "boolean",
+            "description": "Nur konkurrierende Anträge, nichts Genehmigtes."
+          },
+          "arbeitstage": {
+            "type": "integer",
+            "description": "max_am_stueck: Arbeitstage des Blocks."
+          },
+          "tage_vorher": {
+            "type": "integer",
+            "description": "vorlauf: so viele Tage vor Ferienbeginn beantragt."
+          },
+          "noetig": {
+            "type": "integer",
+            "description": "zwei_wochen: Tage, die für einen Block noch fehlen."
+          },
+          "rest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "zwei_wochen: Rest des Anspruchs nach diesem Antrag."
+          }
+        },
+        "type": "object",
+        "required": [
+          "quelle",
+          "regel_id",
+          "art",
+          "haerte",
+          "titel",
+          "tage",
+          "konkurrenz",
+          "gesetz"
+        ]
+      },
       "BerechtigtePerson": {
         "properties": {
           "id": {
@@ -3201,6 +3430,389 @@
         ],
         "description": "Wirksame Fahrspesen-Staffelung: ``[[km_schwelle, chf], …]``, `null` als letzte\nSchwelle heisst «und darüber»."
       },
+      "FerienGespeichert": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "zeile": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ]
+      },
+      "FerienGruppe": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string"
+          },
+          "kriterium": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "type": "string"
+          },
+          "quelle": {
+            "type": "string"
+          },
+          "mitglieder": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Aufgelöste staff_ids (dynamisch oder manuell)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "art",
+          "kriterium",
+          "status",
+          "quelle",
+          "mitglieder"
+        ]
+      },
+      "FerienPerson": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "funktion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projektleiter": {
+            "type": "boolean"
+          },
+          "role": {
+            "type": "string"
+          },
+          "kanton": {
+            "type": "string"
+          },
+          "gruppen": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "funktion"
+        ]
+      },
+      "FerienPlaner": {
+        "properties": {
+          "von": {
+            "type": "string"
+          },
+          "bis": {
+            "type": "string"
+          },
+          "personen": {
+            "items": {
+              "$ref": "#/components/schemas/FerienPerson"
+            },
+            "type": "array"
+          },
+          "gruppen": {
+            "items": {
+              "$ref": "#/components/schemas/PlanerGruppe"
+            },
+            "type": "array"
+          },
+          "absenzen": {
+            "items": {
+              "$ref": "#/components/schemas/PlanerAbsenz"
+            },
+            "type": "array"
+          },
+          "sperrfristen": {
+            "items": {
+              "$ref": "#/components/schemas/PlanerSperrfrist"
+            },
+            "type": "array"
+          },
+          "feiertage": {
+            "additionalProperties": {
+              "items": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "description": "Kanton → [[Datum, Name]]."
+          },
+          "befunde": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/Befund"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "description": "absence_id → Befunde der offenen Anträge."
+          },
+          "zwei_wochen": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "description": "staff_id → Jahr → 'bezogen' | 'geplant' | 'fehlt' (OR 329c Abs. 1)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "von",
+          "bis",
+          "personen",
+          "gruppen",
+          "absenzen",
+          "sperrfristen",
+          "feiertage",
+          "befunde",
+          "zwei_wochen"
+        ]
+      },
+      "FerienPruefung": {
+        "properties": {
+          "befunde": {
+            "items": {
+              "$ref": "#/components/schemas/Befund"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "befunde"
+        ]
+      },
+      "FerienRegel": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "titel": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string"
+          },
+          "gruppe_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "staff_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "parameter": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "haerte": {
+            "type": "string"
+          },
+          "gueltig_ab": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gueltig_bis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "quelle": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titel",
+          "art",
+          "gruppe_id",
+          "staff_ids",
+          "parameter",
+          "haerte",
+          "gueltig_ab",
+          "gueltig_bis",
+          "status",
+          "quelle"
+        ]
+      },
+      "FerienStammdaten": {
+        "properties": {
+          "gruppen": {
+            "items": {
+              "$ref": "#/components/schemas/FerienGruppe"
+            },
+            "type": "array"
+          },
+          "sperrfristen": {
+            "items": {
+              "$ref": "#/components/schemas/Sperrfrist"
+            },
+            "type": "array"
+          },
+          "regeln": {
+            "items": {
+              "$ref": "#/components/schemas/FerienRegel"
+            },
+            "type": "array"
+          },
+          "personen": {
+            "items": {
+              "$ref": "#/components/schemas/FerienPerson"
+            },
+            "type": "array"
+          },
+          "funktionen": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "vorlagen": {
+            "items": {
+              "$ref": "#/components/schemas/Vorlage"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gruppen",
+          "sperrfristen",
+          "regeln",
+          "personen",
+          "funktionen",
+          "vorlagen"
+        ]
+      },
+      "Filiale": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kanton": {
+            "type": "string",
+            "description": "Kantonskürzel — bestimmt die Feiertage der Mitarbeitenden dieser Filiale."
+          },
+          "aktiv": {
+            "type": "boolean",
+            "description": "Inaktiv: gerechnet wird mit dem Kanton des Hauptsitzes."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kanton",
+          "aktiv"
+        ]
+      },
+      "FilialeGespeichert": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "filiale": {
+            "$ref": "#/components/schemas/Filiale"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "filiale"
+        ]
+      },
+      "FilialenListe": {
+        "properties": {
+          "filialen": {
+            "items": {
+              "$ref": "#/components/schemas/Filiale"
+            },
+            "type": "array"
+          },
+          "hauptsitz_kanton": {
+            "type": "string",
+            "description": "Kanton des Hauptsitzes (tenants.canton) — gilt ohne Filiale."
+          },
+          "kantone": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "description": "Wählbare Kantonskürzel."
+          }
+        },
+        "type": "object",
+        "required": [
+          "filialen",
+          "hauptsitz_kanton",
+          "kantone"
+        ]
+      },
       "Fixposition": {
         "properties": {
           "item_name": {
@@ -3401,6 +4013,26 @@
           "item_name",
           "count",
           "amount_chf"
+        ]
+      },
+      "Konkurrenz": {
+        "properties": {
+          "staff_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "'approved' oder 'requested' — nie der Absenz-Typ."
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "name",
+          "status"
         ]
       },
       "Kundenlink": {
@@ -4917,6 +5549,127 @@
         ],
         "description": "Fingerabdruck der Kalenderdaten (``/admin/schedule/stand``): je ein md5 über\nProjekte und Termine. Der Live-Takt lädt eine Liste nur neu, wenn sich ihr Wert\nändert."
       },
+      "PlanerAbsenz": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "staff_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "staff_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "date_start": {
+            "type": "string"
+          },
+          "date_end": {
+            "type": "string"
+          },
+          "half_day": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "staff_id",
+          "staff_name",
+          "type",
+          "status",
+          "date_start",
+          "date_end",
+          "half_day"
+        ]
+      },
+      "PlanerGruppe": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "art",
+          "status"
+        ]
+      },
+      "PlanerSperrfrist": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "titel": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string"
+          },
+          "haerte": {
+            "type": "string"
+          },
+          "gruppe_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "von": {
+            "type": "string"
+          },
+          "bis": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titel",
+          "art",
+          "haerte",
+          "gruppe_ids",
+          "von",
+          "bis"
+        ]
+      },
       "PositionsVorlagen": {
         "properties": {
           "installation": {
@@ -6280,6 +7033,82 @@
         ],
         "description": "Sonderpositions-Vorlage (``special_position_templates``)."
       },
+      "Sperrfrist": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "titel": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string"
+          },
+          "datum_von": {
+            "type": "string"
+          },
+          "datum_bis": {
+            "type": "string"
+          },
+          "jaehrlich": {
+            "type": "boolean"
+          },
+          "gruppe_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "haerte": {
+            "type": "string"
+          },
+          "gueltig_ab": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gueltig_bis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notiz": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "quelle": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "titel",
+          "art",
+          "datum_von",
+          "datum_bis",
+          "jaehrlich",
+          "gruppe_ids",
+          "haerte",
+          "gueltig_ab",
+          "gueltig_bis",
+          "notiz",
+          "status",
+          "quelle"
+        ]
+      },
       "Termin": {
         "properties": {
           "id": {
@@ -7304,6 +8133,35 @@
           "members"
         ],
         "description": "``/admin/quotes/{id}/send-group``: leer = Einzelversand."
+      },
+      "Vorlage": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string",
+            "description": "'sperrfrist' oder 'regel'."
+          },
+          "titel": {
+            "type": "string"
+          },
+          "beschreibung": {
+            "type": "string"
+          },
+          "daten": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "art",
+          "titel",
+          "beschreibung",
+          "daten"
+        ]
       },
       "VorschlagAusgeschlossen": {
         "properties": {

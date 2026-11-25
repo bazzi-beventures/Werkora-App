@@ -3,7 +3,7 @@
  * docs/specs/lieferantenrechnung-bexio.md §8.4.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { ApiError } from '../../../api/client'
 
 const fetchKpiView = vi.fn()
@@ -49,7 +49,11 @@ describe('Nachkalkulation — Lieferantenrechnungen', () => {
     getProjektEinkauf.mockRejectedValue(new ApiError(403, 'Kein Zugriff'))
     render(<NachkalkulationTab projectId="p1" kreditoren />)
     expect(await screen.findByText('Eigenkosten')).toBeTruthy()
-    await new Promise(r => setTimeout(r, 0))
-    expect(screen.queryByText('Lieferantenrechnungen (effektiv)')).toBeNull()
+    // Während des Ladens steht der Block mit Titel und «Laden…» da; erst die
+    // abgelehnte Anfrage nimmt ihn weg. Darauf warten statt einen Takt zu raten —
+    // unter CI-Last war die Ablehnung nach `setTimeout(0)` noch nicht verarbeitet.
+    await waitFor(() => expect(getProjektEinkauf).toHaveBeenCalledWith('p1'))
+    await waitFor(() => expect(screen.queryByText('Lieferantenrechnungen (effektiv)')).toBeNull())
+    expect(screen.queryByText('Laden…')).toBeNull()
   })
 })

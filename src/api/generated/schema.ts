@@ -162,6 +162,289 @@ export interface paths {
         };
         trace?: never;
     };
+    "/pwa/admin/ferienplanung/planer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienPlaner"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/pruefen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienPruefung"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/stammdaten": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienStammdaten"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/{art}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienGespeichert"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/{art}/{zeile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienGespeichert"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienGespeichert"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/pwa/admin/filialen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FilialenListe"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FilialeGespeichert"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/filialen/{filiale_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FilialeGespeichert"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/pwa/admin/installation-templates": {
         parameters: {
             query?: never;
@@ -3905,6 +4188,29 @@ export interface components {
             suggested_margin_factor: number | null;
             suggested_vk_price: number | null;
         };
+        Befund: {
+            /** @description 'regel', 'sperrfrist' oder 'pflicht' (Gesetz). */
+            quelle: string;
+            regel_id: string | null;
+            art: string;
+            /** @description 'hart' oder 'weich'. */
+            haerte: string;
+            titel: string;
+            tage: string[];
+            konkurrenz: components["schemas"]["Konkurrenz"][];
+            /** @description Fundstelle bei Pflichtbefunden, z.B. «OR 329c Abs. 1». */
+            gesetz: string | null;
+            /** @description Nur konkurrierende Anträge, nichts Genehmigtes. */
+            nur_beantragt?: boolean;
+            /** @description max_am_stueck: Arbeitstage des Blocks. */
+            arbeitstage?: number;
+            /** @description vorlauf: so viele Tage vor Ferienbeginn beantragt. */
+            tage_vorher?: number;
+            /** @description zwei_wochen: Tage, die für einen Block noch fehlen. */
+            noetig?: number;
+            /** @description zwei_wochen: Rest des Anspruchs nach diesem Antrag. */
+            rest?: number;
+        };
         /** @description Ein Konto, das den Eingang öffnen kann (§5) — nur die Betreiber-Seite sieht die Rolle. */
         BerechtigtePerson: {
             id: string;
@@ -4056,6 +4362,98 @@ export interface components {
                 number
             ][];
         };
+        FerienGespeichert: {
+            status: string;
+            zeile?: {
+                [key: string]: unknown;
+            };
+        };
+        FerienGruppe: {
+            id: string;
+            name: string;
+            art: string;
+            kriterium: string[];
+            status: string;
+            quelle: string;
+            /** @description Aufgelöste staff_ids (dynamisch oder manuell). */
+            mitglieder: string[];
+        };
+        FerienPerson: {
+            id: string;
+            name: string;
+            funktion: string | null;
+            projektleiter?: boolean;
+            role?: string;
+            kanton?: string;
+            gruppen?: string[];
+        };
+        FerienPlaner: {
+            von: string;
+            bis: string;
+            personen: components["schemas"]["FerienPerson"][];
+            gruppen: components["schemas"]["PlanerGruppe"][];
+            absenzen: components["schemas"]["PlanerAbsenz"][];
+            sperrfristen: components["schemas"]["PlanerSperrfrist"][];
+            /** @description Kanton → [[Datum, Name]]. */
+            feiertage: {
+                [key: string]: string[][];
+            };
+            /** @description absence_id → Befunde der offenen Anträge. */
+            befunde: {
+                [key: string]: components["schemas"]["Befund"][];
+            };
+            /** @description staff_id → Jahr → 'bezogen' | 'geplant' | 'fehlt' (OR 329c Abs. 1). */
+            zwei_wochen: {
+                [key: string]: {
+                    [key: string]: string;
+                };
+            };
+        };
+        FerienPruefung: {
+            befunde: components["schemas"]["Befund"][];
+        };
+        FerienRegel: {
+            id: string;
+            titel: string;
+            art: string;
+            gruppe_id: string | null;
+            staff_ids: string[];
+            parameter: {
+                [key: string]: unknown;
+            };
+            haerte: string;
+            gueltig_ab: string | null;
+            gueltig_bis: string | null;
+            status: string;
+            quelle: string;
+        };
+        FerienStammdaten: {
+            gruppen: components["schemas"]["FerienGruppe"][];
+            sperrfristen: components["schemas"]["Sperrfrist"][];
+            regeln: components["schemas"]["FerienRegel"][];
+            personen: components["schemas"]["FerienPerson"][];
+            funktionen: string[];
+            vorlagen: components["schemas"]["Vorlage"][];
+        };
+        Filiale: {
+            id: string;
+            name: string;
+            /** @description Kantonskürzel — bestimmt die Feiertage der Mitarbeitenden dieser Filiale. */
+            kanton: string;
+            /** @description Inaktiv: gerechnet wird mit dem Kanton des Hauptsitzes. */
+            aktiv: boolean;
+        };
+        FilialeGespeichert: {
+            status: string;
+            filiale: components["schemas"]["Filiale"];
+        };
+        FilialenListe: {
+            filialen: components["schemas"]["Filiale"][];
+            /** @description Kanton des Hauptsitzes (tenants.canton) — gilt ohne Filiale. */
+            hauptsitz_kanton: string;
+            /** @description Wählbare Kantonskürzel. */
+            kantone: string[];
+        };
         Fixposition: {
             item_name: string;
             amount: number;
@@ -4090,6 +4488,12 @@ export interface components {
             item_name: string;
             count: number;
             amount_chf: number;
+        };
+        Konkurrenz: {
+            staff_id: string;
+            name: string;
+            /** @description 'approved' oder 'requested' — nie der Absenz-Typ. */
+            status: string;
         };
         Kundenlink: {
             url: string;
@@ -4390,6 +4794,31 @@ export interface components {
             projekte: string;
             termine: string;
         };
+        PlanerAbsenz: {
+            id: string;
+            staff_id: string | null;
+            staff_name: string | null;
+            type: string;
+            status: string;
+            date_start: string;
+            date_end: string;
+            half_day: string | null;
+        };
+        PlanerGruppe: {
+            id: string;
+            name: string;
+            art: string;
+            status: string;
+        };
+        PlanerSperrfrist: {
+            id: string;
+            titel: string;
+            art: string;
+            haerte: string;
+            gruppe_ids: string[];
+            von: string;
+            bis: string;
+        };
         /** @description Beide Vorlagen-Listen für die Verwaltungsmaske. */
         PositionsVorlagen: {
             installation: components["schemas"]["MontageVorlage"][];
@@ -4673,6 +5102,21 @@ export interface components {
             /** @description Nur in der Verwaltungsliste. */
             sort_order?: number;
         };
+        Sperrfrist: {
+            id: string;
+            titel: string;
+            art: string;
+            datum_von: string;
+            datum_bis: string;
+            jaehrlich: boolean;
+            gruppe_ids: string[];
+            haerte: string;
+            gueltig_ab: string | null;
+            gueltig_bis: string | null;
+            notiz: string;
+            status: string;
+            quelle: string;
+        };
         /** @description Ein Termin (``project_appointments``, die ganze Zeile). */
         Termin: {
             id: string;
@@ -4882,6 +5326,16 @@ export interface components {
         /** @description ``/admin/quotes/{id}/send-group``: leer = Einzelversand. */
         Versandgruppe: {
             members: components["schemas"]["Gruppenmitglied"][];
+        };
+        Vorlage: {
+            key: string;
+            /** @description 'sperrfrist' oder 'regel'. */
+            art: string;
+            titel: string;
+            beschreibung: string;
+            daten: {
+                [key: string]: unknown;
+            };
         };
         VorschlagAusgeschlossen: {
             staff_id: string;

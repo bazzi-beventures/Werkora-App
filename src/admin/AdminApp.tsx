@@ -302,7 +302,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           />
         : <ComingSoon title="Kein Zugriff" />
       case 'my-time':      return guard('timekeeping', <MyTimeScreen user={user} onLoggedOut={onLoggedOut} />)
-      case 'staff':        return <StaffScreen actingRole={user.role} />
+      case 'staff':        return <StaffScreen actingRole={user.role} filialen={isFeatureEnabled(user, 'filialen')} />
       case 'bulk-clockin': return guard('timekeeping', <BulkClockInScreen />)
       case 'absences':     return guard('hr', (
         <AbsencesScreen
@@ -449,7 +449,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
       // Termindauer/Terminfarben schreibt nur die Geschäftsleitung (require_management).
       case 'settings':     return <SettingsScreen terminDauer={isManagement && hasWerkzeug(user, 'terminwahl')}
-                                                  terminFarben={isManagement && isFeatureEnabled(user, 'termin_farbkategorien')} />
+                                                  terminFarben={isManagement && isFeatureEnabled(user, 'termin_farbkategorien')}
+                                                  filialen={isManagement && isFeatureEnabled(user, 'filialen')} />
       case 'microsoft':    return <MicrosoftScreen />
       case 'profile':      return (
         <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}

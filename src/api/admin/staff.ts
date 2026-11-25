@@ -22,6 +22,8 @@ export interface StaffMember {
   vacation_days_per_year: number | null
   date_of_birth: string | null
   pensum: number | null
+  // Feature `filialen`: null = Hauptsitz (docs/specs/ferienplanung.md §10.3)
+  filiale_id?: string | null
 }
 
 export interface StaffRole {

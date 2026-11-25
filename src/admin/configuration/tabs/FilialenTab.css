@@ -1,0 +1,47 @@
+/* Reiter «Filialen» (Einstellungen) — docs/specs/ferienplanung.md §10.3 */
+
+.filialen-tab {
+  padding: 24px;
+  max-width: 720px;
+}
+
+.filialen-hinweis,
+.filialen-leer {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 8px 0 16px;
+}
+
+.filialen-zeile,
+.filialen-neu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.filialen-zeile {
+  border-bottom: 1px solid var(--border);
+}
+
+.filialen-neu {
+  margin-top: 16px;
+}
+
+.filialen-name {
+  flex: 1 1 180px;
+  font-weight: 600;
+}
+
+.filialen-neu .admin-form-input {
+  flex: 1 1 200px;
+}
+
+.filialen-aktiv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}

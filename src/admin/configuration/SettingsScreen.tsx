@@ -4,6 +4,7 @@ import { WeeklyPlanTab } from './tabs/WeeklyPlanTab'
 import { YearEndTab } from './tabs/YearEndTab'
 import { TerminDauerTab } from './tabs/TerminDauerTab'
 import { TerminFarbenTab } from './tabs/TerminFarbenTab'
+import { FilialenTab } from './tabs/FilialenTab'
 
 /**
  * Einstellungen des Mandanten — Wochenplan und Jahresabschluss.
@@ -34,16 +35,20 @@ import { TerminFarbenTab } from './tabs/TerminFarbenTab'
  * Termin für den Einsatzplan (docs/specs/termin-farbkategorien.md) — auch eine
  * Frage des Betriebs, Schreiben verlangt `require_management`.
  *
+ * Fünfter Reiter «Filialen» (Feature `filialen`): Filialen in anderen Kantonen und ihr
+ * Kanton (docs/specs/ferienplanung.md §10.3) — Schreiben verlangt `require_management`.
+ *
  * Sichtbar für `management` (und damit auch `superadmin`) und für Adminkonten mit
  * dem Recht «Arbeitszeiten verwalten» (docs/specs/zeit-verwalten-recht.md) —
  * geführt über `showSettings` in AdminSidebar/MobileNav (`/pwa/me.zeit_einstellungen`),
  * durchgesetzt vom Backend. Die Termin-Reiter bekommt nur die Geschäftsleitung.
  */
-export default function SettingsScreen({ terminDauer = false, terminFarben = false }: {
+export default function SettingsScreen({ terminDauer = false, terminFarben = false, filialen = false }: {
   terminDauer?: boolean
   terminFarben?: boolean
+  filialen?: boolean
 }) {
-  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'termin-dauer' | 'termin-farben'>('weekly-plan')
+  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'termin-dauer' | 'termin-farben' | 'filialen'>('weekly-plan')
   const tabsRef = useTabStrip(tab)
 
   return (
@@ -52,7 +57,7 @@ export default function SettingsScreen({ terminDauer = false, terminFarben = fal
         <div>
           <div className="admin-page-title">Einstellungen</div>
           <div className="admin-page-subtitle">
-            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}{terminFarben ? ', Terminfarben' : ''}
+            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}{terminFarben ? ', Terminfarben' : ''}{filialen ? ', Filialen' : ''}
           </div>
         </div>
       </div>
@@ -86,12 +91,21 @@ export default function SettingsScreen({ terminDauer = false, terminFarben = fal
             Terminfarben
           </button>
         )}
+        {filialen && (
+          <button
+            className={`kpi-admin-tab${tab === 'filialen' ? ' active' : ''}`}
+            onClick={() => setTab('filialen')}
+          >
+            Filialen
+          </button>
+        )}
       </div>
 
       {tab === 'weekly-plan' && <WeeklyPlanTab />}
       {tab === 'year-end' && <YearEndTab />}
       {tab === 'termin-dauer' && terminDauer && <TerminDauerTab />}
       {tab === 'termin-farben' && terminFarben && <TerminFarbenTab />}
+      {tab === 'filialen' && filialen && <FilialenTab />}
     </div>
   )
 }

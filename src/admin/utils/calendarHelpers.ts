@@ -1,24 +1,6 @@
 // Geteilte Kalender-Helfer für Absenzen- und Einsatzplanungs-Kalender.
 
-// ─── Schweizer Feiertage (kantonsabhängig) ────────────────────────────────────
-
-export function getEaster(year: number): Date {
-  const a = year % 19
-  const b = Math.floor(year / 100)
-  const c = year % 100
-  const d = Math.floor(b / 4)
-  const e = b % 4
-  const f = Math.floor((b + 8) / 25)
-  const g = Math.floor((b - f + 1) / 3)
-  const h = (19 * a + b - d - g + 15) % 30
-  const i = Math.floor(c / 4)
-  const k = c % 4
-  const l = (32 + 2 * e + 2 * i - h - k) % 7
-  const m = Math.floor((a + 11 * h + 22 * l) / 451)
-  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1
-  const day = ((h + l - 7 * m + 114) % 31) + 1
-  return new Date(year, month, day)
-}
+import { feiertageKanton } from '../../shared/feiertage'
 
 export function addDays(date: Date, days: number): Date {
   const d = new Date(date)
@@ -58,43 +40,16 @@ export function minToHHMM(min: number): string {
   return `${pad(Math.floor(clamped / 60))}:${pad(clamped % 60)}`
 }
 
-const CATHOLIC_CANTONS = new Set(['AG', 'AI', 'FR', 'JU', 'LU', 'NW', 'OW', 'SG', 'SO', 'SZ', 'TI', 'UR', 'VS', 'ZG'])
-const WITH_BERCHTOLDSTAG = new Set(['ZH', 'BE', 'AG', 'LU', 'SG', 'SH', 'TG', 'ZG', 'AR', 'AI', 'GL', 'GR', 'SZ', 'UR', 'NW', 'OW'])
-const WITH_TAG_DER_ARBEIT = new Set(['ZH', 'BL', 'BS', 'JU', 'NE', 'SH', 'TG'])
-const WITH_STEPHANSTAG = new Set(['ZH', 'BE', 'AG', 'LU', 'SG', 'SH', 'TG', 'ZG', 'AR', 'AI', 'GL', 'GR', 'SZ', 'UR', 'NW', 'OW', 'BL', 'BS', 'SO'])
-
+// Feiertage kommen aus der Regeltabelle des Backends (shared/feiertage.ts) — die
+// frühere eigene Kantonsliste wich vom Backend ab (Spec ferienplanung.md §10.1).
 export function getSwissHolidays(year: number, canton: string): Map<string, string> {
-  const c = canton.toUpperCase()
-  const easter = getEaster(year)
-  const holidays = new Map<string, string>()
-  const add = (d: Date, name: string) => holidays.set(toDateStr(d), name)
-
-  add(new Date(year, 0, 1),   'Neujahr')
-  add(new Date(year, 7, 1),   'Nationalfeiertag')
-  add(new Date(year, 11, 25), 'Weihnachten')
-
-  add(addDays(easter, -2),  'Karfreitag')
-  add(addDays(easter, 1),   'Ostermontag')
-  add(addDays(easter, 39),  'Auffahrt')
-  add(addDays(easter, 50),  'Pfingstmontag')
-
-  if (WITH_BERCHTOLDSTAG.has(c)) add(new Date(year, 0, 2),   'Berchtoldstag')
-  if (WITH_TAG_DER_ARBEIT.has(c)) add(new Date(year, 4, 1),  'Tag der Arbeit')
-  if (WITH_STEPHANSTAG.has(c))    add(new Date(year, 11, 26), 'Stephanstag')
-
-  if (CATHOLIC_CANTONS.has(c)) {
-    add(addDays(easter, 60),     'Fronleichnam')
-    add(new Date(year, 7, 15),   'Maria Himmelfahrt')
-    add(new Date(year, 10, 1),   'Allerheiligen')
-    add(new Date(year, 11, 8),   'Mariä Empfängnis')
-  }
-
-  return holidays
+  return feiertageKanton(year, canton)
 }
 
 // Zählt Arbeitstage (Mo–Fr) zwischen zwei ISO-Daten (inkl.), abzüglich kantonaler
 // Feiertage. Spiegelt die Backend-Logik (workdays.count_workdays), damit die
-// angezeigte Tage-Zahl mit dem Ferien-Saldo übereinstimmt.
+// angezeigte Tage-Zahl mit dem Ferien-Saldo übereinstimmt — seit E1 aus derselben
+// Feiertags-Tabelle (shared/feiertage.ts).
 export function countWorkdays(startISO: string, endISO: string, canton: string): number {
   const start = parseDateStr(startISO)
   const end = parseDateStr(endISO)

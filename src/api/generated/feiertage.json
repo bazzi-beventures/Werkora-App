@@ -1,0 +1,411 @@
+{
+ "kantone": [
+  "AG",
+  "AI",
+  "AR",
+  "BE",
+  "BL",
+  "BS",
+  "FR",
+  "GE",
+  "GL",
+  "GR",
+  "JU",
+  "LU",
+  "NE",
+  "NW",
+  "OW",
+  "SG",
+  "SH",
+  "SO",
+  "SZ",
+  "TG",
+  "TI",
+  "UR",
+  "VD",
+  "VS",
+  "ZG",
+  "ZH"
+ ],
+ "regeln": [
+  {
+   "name": "Neujahr",
+   "regel": {
+    "art": "fix",
+    "monat": 1,
+    "tag": 1
+   },
+   "kantone": "alle",
+   "art": "kanton"
+  },
+  {
+   "name": "Berchtoldstag",
+   "regel": {
+    "art": "fix",
+    "monat": 1,
+    "tag": 2
+   },
+   "art": "kanton",
+   "kantone": [
+    "AG",
+    "AI",
+    "AR",
+    "BE",
+    "BL",
+    "BS",
+    "FR",
+    "GL",
+    "GR",
+    "LU",
+    "NW",
+    "OW",
+    "SG",
+    "SH",
+    "SO",
+    "SZ",
+    "TG",
+    "UR",
+    "VD",
+    "ZG",
+    "ZH"
+   ]
+  },
+  {
+   "name": "Heilige Drei Könige",
+   "regel": {
+    "art": "fix",
+    "monat": 1,
+    "tag": 6
+   },
+   "art": "kanton",
+   "kantone": [
+    "SZ",
+    "TI",
+    "UR"
+   ]
+  },
+  {
+   "name": "Instauration de la République",
+   "regel": {
+    "art": "fix",
+    "monat": 3,
+    "tag": 1
+   },
+   "art": "kanton",
+   "kantone": [
+    "NE"
+   ]
+  },
+  {
+   "name": "Josefstag",
+   "regel": {
+    "art": "fix",
+    "monat": 3,
+    "tag": 19
+   },
+   "art": "kanton",
+   "kantone": [
+    "NW",
+    "SZ",
+    "TI",
+    "UR",
+    "VS"
+   ]
+  },
+  {
+   "name": "Näfelser Fahrt",
+   "regel": {
+    "art": "nter_wochentag",
+    "monat": 4,
+    "wochentag": 4,
+    "n": 1,
+    "offset": 0,
+    "karwoche_plus": 7
+   },
+   "art": "kanton",
+   "kantone": [
+    "GL"
+   ]
+  },
+  {
+   "name": "Karfreitag",
+   "regel": {
+    "art": "ostern",
+    "offset": -2
+   },
+   "kantone": "alle",
+   "art": "kanton"
+  },
+  {
+   "name": "Ostermontag",
+   "regel": {
+    "art": "ostern",
+    "offset": 1
+   },
+   "kantone": "alle",
+   "art": "kanton"
+  },
+  {
+   "name": "Tag der Arbeit",
+   "regel": {
+    "art": "fix",
+    "monat": 5,
+    "tag": 1
+   },
+   "art": "kanton",
+   "kantone": [
+    "BL",
+    "BS",
+    "JU",
+    "NE",
+    "TG",
+    "TI",
+    "ZH"
+   ]
+  },
+  {
+   "name": "Auffahrt",
+   "regel": {
+    "art": "ostern",
+    "offset": 39
+   },
+   "kantone": "alle",
+   "art": "kanton"
+  },
+  {
+   "name": "Pfingstmontag",
+   "regel": {
+    "art": "ostern",
+    "offset": 50
+   },
+   "kantone": "alle",
+   "art": "kanton"
+  },
+  {
+   "name": "Fronleichnam",
+   "regel": {
+    "art": "ostern",
+    "offset": 60
+   },
+   "art": "kanton",
+   "kantone": [
+    "AI",
+    "FR",
+    "GR",
+    "JU",
+    "LU",
+    "NE",
+    "NW",
+    "OW",
+    "SO",
+    "SZ",
+    "TI",
+    "UR",
+    "VS",
+    "ZG"
+   ]
+  },
+  {
+   "name": "Commémoration du plébiscite",
+   "regel": {
+    "art": "fix",
+    "monat": 6,
+    "tag": 23
+   },
+   "art": "kanton",
+   "kantone": [
+    "JU"
+   ]
+  },
+  {
+   "name": "Peter und Paul",
+   "regel": {
+    "art": "fix",
+    "monat": 6,
+    "tag": 29
+   },
+   "art": "kanton",
+   "kantone": [
+    "TI"
+   ]
+  },
+  {
+   "name": "Nationalfeiertag",
+   "regel": {
+    "art": "fix",
+    "monat": 8,
+    "tag": 1
+   },
+   "kantone": "alle",
+   "art": "bund"
+  },
+  {
+   "name": "Mariä Himmelfahrt",
+   "regel": {
+    "art": "fix",
+    "monat": 8,
+    "tag": 15
+   },
+   "art": "kanton",
+   "kantone": [
+    "AI",
+    "FR",
+    "GR",
+    "JU",
+    "LU",
+    "NW",
+    "OW",
+    "SZ",
+    "TI",
+    "UR",
+    "VS",
+    "ZG"
+   ]
+  },
+  {
+   "name": "Jeûne genevois",
+   "regel": {
+    "art": "nter_wochentag",
+    "monat": 9,
+    "wochentag": 7,
+    "n": 1,
+    "offset": 4
+   },
+   "art": "kanton",
+   "kantone": [
+    "GE"
+   ]
+  },
+  {
+   "name": "Bettagsmontag",
+   "regel": {
+    "art": "nter_wochentag",
+    "monat": 9,
+    "wochentag": 7,
+    "n": 3,
+    "offset": 1
+   },
+   "art": "kanton",
+   "kantone": [
+    "VD"
+   ]
+  },
+  {
+   "name": "Bruder Klaus",
+   "regel": {
+    "art": "fix",
+    "monat": 9,
+    "tag": 25
+   },
+   "art": "kanton",
+   "kantone": [
+    "OW"
+   ]
+  },
+  {
+   "name": "Allerheiligen",
+   "regel": {
+    "art": "fix",
+    "monat": 11,
+    "tag": 1
+   },
+   "art": "kanton",
+   "kantone": [
+    "AI",
+    "FR",
+    "GL",
+    "GR",
+    "JU",
+    "LU",
+    "NW",
+    "OW",
+    "SG",
+    "SO",
+    "SZ",
+    "TI",
+    "UR",
+    "VS",
+    "ZG"
+   ]
+  },
+  {
+   "name": "Mariä Empfängnis",
+   "regel": {
+    "art": "fix",
+    "monat": 12,
+    "tag": 8
+   },
+   "art": "kanton",
+   "kantone": [
+    "AI",
+    "FR",
+    "GR",
+    "LU",
+    "NW",
+    "OW",
+    "SZ",
+    "TI",
+    "UR",
+    "VS",
+    "ZG"
+   ]
+  },
+  {
+   "name": "Weihnachten",
+   "regel": {
+    "art": "fix",
+    "monat": 12,
+    "tag": 25
+   },
+   "kantone": "alle",
+   "art": "kanton"
+  },
+  {
+   "name": "Stephanstag",
+   "regel": {
+    "art": "fix",
+    "monat": 12,
+    "tag": 26
+   },
+   "art": "kanton",
+   "kantone": [
+    "AG",
+    "AI",
+    "AR",
+    "BE",
+    "BL",
+    "BS",
+    "FR",
+    "GL",
+    "GR",
+    "LU",
+    "NE",
+    "NW",
+    "OW",
+    "SG",
+    "SH",
+    "SO",
+    "SZ",
+    "TG",
+    "TI",
+    "UR",
+    "VD",
+    "VS",
+    "ZG",
+    "ZH"
+   ]
+  },
+  {
+   "name": "Restauration de la République",
+   "regel": {
+    "art": "fix",
+    "monat": 12,
+    "tag": 31
+   },
+   "art": "kanton",
+   "kantone": [
+    "GE"
+   ]
+  }
+ ]
+}
