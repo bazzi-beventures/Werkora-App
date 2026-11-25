@@ -4,10 +4,13 @@ import { ApiError } from '../api/client'
 import { countWorkdays } from '../admin/utils/calendarHelpers'
 import { absenzDauer, halberTagFuer } from '../shared/halberTag'
 import { HalberTagWahl } from '../shared/HalberTagWahl'
+import { FerienVorpruefung } from './ferien/FerienVorpruefung'
 
 interface Props {
   logoUrl?: string
   canton?: string
+  /** Modul `ferienplanung`: Vorprüfung und gesperrte Zeiten im Antrag (Spec §7.2). */
+  ferienplanung?: boolean
   onBack: () => void
   onNavHome: () => void
   onNavProfile: () => void
@@ -42,7 +45,7 @@ function dayCount(start: string, end: string, canton: string, halfDay?: string |
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHome, onNavProfile, onLoggedOut }: Props) {
+export default function AbsenzenScreen({ logoUrl, canton = 'ZH', ferienplanung = false, onBack, onNavHome, onNavProfile, onLoggedOut }: Props) {
   const [absences, setAbsences] = useState<UserAbsence[]>([])
   const [entitlement, setEntitlement] = useState<VacationEntitlement | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,6 +59,8 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
     comment: '',
   })
   const [submitting, setSubmitting] = useState(false)
+  // Harter Befund der Ferienplanung (Vorprüfung): Absenden gesperrt statt abgelehnt.
+  const [gesperrt, setGesperrt] = useState(false)
   const [msg, setMsg] = useState<{ text: string; isError: boolean } | null>(null)
 
   const load = useCallback(async () => {
@@ -233,6 +238,10 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
                                onChange={half_day => setForm(f => ({ ...f, half_day }))} />
               </div>
             )}
+            {ferienplanung && showForm && (
+              <FerienVorpruefung absenceType={form.absence_type} dateStart={form.date_start} dateEnd={form.date_end}
+                halfDay={halberTagFuer(form.date_start, form.date_end, form.half_day)} onSperre={setGesperrt} />
+            )}
             {/*
               Bei einer Krankmeldung gibt es kein Freitextfeld. Warum jemand krank ist,
               ist ein besonders schützenswertes Gesundheitsdatum (DSG Art. 5 lit. c) —
@@ -272,7 +281,7 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', onBack, onNavHo
               <button
                 className="corr-btn corr-btn-submit"
                 onClick={handleSubmit}
-                disabled={submitting || !form.date_start || !form.date_end}
+                disabled={submitting || gesperrt || !form.date_start || !form.date_end}
               >
                 {submitting ? '…' : 'Einreichen'}
               </button>

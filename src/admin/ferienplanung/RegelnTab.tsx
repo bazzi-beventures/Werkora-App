@@ -8,6 +8,7 @@ import {
   FORMULIERUNGEN, LEERE_REGEL, regelDaten, regelEingabe, regelSatz, vorlageAlsRegel, type RegelEingabe,
 } from './regelFormular'
 import { loeschen, speichern } from './useFerienStammdaten'
+import { VorschlagAktionen } from './VorschlagAktionen'
 
 export function RegelnTab({ daten, darfPflegen }: { daten: FerienStammdaten; darfPflegen: boolean }) {
   const { toast, showToast } = useToast()
@@ -55,7 +56,10 @@ export function RegelnTab({ daten, darfPflegen }: { daten: FerienStammdaten; dar
             {regelSatz(r, gruppenName, personName)} · {r.haerte === 'hart' ? 'hart' : 'Hinweis'}
             {r.status !== 'aktiv' && ` · ${r.status}`}
           </span>
-          {darfPflegen && (
+          {darfPflegen && r.status === 'vorschlag' && (
+            <VorschlagAktionen art="regeln" id={r.id} onMeldung={showToast} />
+          )}
+          {darfPflegen && r.status !== 'vorschlag' && (
             <>
               <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => oeffnen(r)}>Bearbeiten</button>
               <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => void weg(r)}>Löschen</button>

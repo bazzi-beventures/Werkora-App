@@ -39,8 +39,9 @@
   color: var(--text-muted);
 }
 
+/* Beträge in der App-Schrift mit gleich breiten Ziffern, wie im Rest des Admins —
+   nicht in DM Mono: deren Null ist durchgestrichen, die der Eingabefelder rund. */
 .on-zahl {
-  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -116,6 +117,7 @@
 .on-feld .admin-form-select {
   width: 100%;
   min-width: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .on-feld-hinweis {
@@ -133,7 +135,6 @@
   padding: 0 var(--s-2);
   border: 1px dashed var(--border);
   border-radius: var(--radius-sm);
-  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;

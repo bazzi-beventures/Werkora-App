@@ -1,6 +1,6 @@
 // Ferienplanung (Modul `ferienplanung`, docs/specs/ferienplanung.md §6–§7).
 // Typen aus dem API-Vertrag (agents/routers/antworten/ferienplanung.py).
-import { apiFetch } from '../client'
+import { apiFetch, apiStreamFetch } from '../client'
 import type { Antwort } from '../generated'
 
 export type Befund = Antwort<'Befund'>
@@ -64,4 +64,28 @@ export const FEHLER_TEXT: Record<string, string> = {
 export function fehlerText(err: unknown): string {
   const code = err instanceof Error ? err.message : ''
   return FEHLER_TEXT[code] ?? 'Speichern hat nicht geklappt — bitte nochmals versuchen.'
+}
+
+// ── Ferien-Assistent (Zusatzmodul `ferienplanung_assistent`, Spec §11) ────────
+export type AssistentStand = Antwort<'AssistentStand'>
+export type AssistentThema = Antwort<'AssistentThema'>
+
+export interface AssistentEreignis {
+  type: 'tool' | 'delta' | 'vorschlag' | 'done' | 'error'
+  label?: string
+  text?: string
+  message?: string
+}
+
+export function getAssistentStand(): Promise<AssistentStand> {
+  return apiFetch<AssistentStand>('/pwa/admin/ferienplanung/assistent/stand')
+}
+
+/** SSE-Chat; `history` = bisherige Nachrichten (nur im Client gehalten). */
+export async function* frageAssistent(
+  question: string, history: { role: 'user' | 'assistant'; text: string }[],
+): AsyncGenerator<AssistentEreignis> {
+  for await (const ev of apiStreamFetch('/pwa/admin/ferienplanung/assistent/frage', { question, history })) {
+    yield ev as unknown as AssistentEreignis
+  }
 }

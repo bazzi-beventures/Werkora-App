@@ -120,7 +120,7 @@ export function WarenBlock({
             <div className="on-felder on-felder-3">
               <Feld label="Menge" zahl value={row.quantity} onChange={v => extraProducts.update(i, { quantity: v })} />
               <Feld label="Einheit" value={row.unit} onChange={v => extraProducts.update(i, { unit: v })} />
-              <Feld label="EK" zahl value={row.ek ?? ''} placeholder="optional"
+              <Feld label="EK" zahl value={row.ek ?? ''}
                 title="Einkaufspreis — füllt mit dem Aufschlag den Preis (aufgerundet auf 0.05)"
                 onChange={v => extraProducts.update(i, { ek: v })} />
               <Feld label="Aufschlag %" zahl value={row.margin_pct ?? ''}

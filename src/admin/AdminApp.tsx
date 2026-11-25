@@ -326,6 +326,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'ferienplanung': return guard('ferienplanung', (
         <FerienplanungScreen
           darfPflegen={isManagement}
+          assistent={isManagement && hasModule(user, 'ferienplanung_assistent')}
           onBadgeChange={loadDashboard}
           onOpenSchedule={hasModule(user, 'scheduling') ? date => {
             writeScheduleView({

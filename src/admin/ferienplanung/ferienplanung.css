@@ -227,3 +227,77 @@
 .ferien-legende-punkt.betriebsferien {
   background: repeating-linear-gradient(45deg, var(--muted), var(--muted) 2px, var(--surface) 2px, var(--surface) 4px);
 }
+
+/* ── Ferien-Assistent ────────────────────────────────────────────────────── */
+.ferien-assistent {
+  display: grid;
+  grid-template-columns: minmax(200px, 1fr) minmax(0, 3fr);
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .ferien-assistent {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ferien-thema {
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.ferien-thema-status {
+  display: inline-block;
+  width: 16px;
+  color: var(--muted);
+}
+
+.ferien-thema-status.erledigt {
+  color: var(--success-ink);
+}
+
+.ferien-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ferien-chat-start {
+  color: var(--muted);
+}
+
+.ferien-chat-nachricht {
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  white-space: pre-wrap;
+  font-size: 13.5px;
+}
+
+.ferien-chat-nachricht.user {
+  align-self: flex-end;
+  background: var(--primary-soft);
+}
+
+.ferien-chat-nachricht.assistant {
+  align-self: flex-start;
+  background: var(--surface-2);
+}
+
+.ferien-chat-eingabe {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ferien-chat-eingabe .admin-form-input {
+  flex: 1;
+}
+
+.ferien-vorschlag-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}

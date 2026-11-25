@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { fehlerText, type FerienStammdaten, type Sperrfrist } from '../../api/admin/ferienplanung'
 import { ToastHost, useToast } from '../components/useToast'
 import { loeschen, speichern } from './useFerienStammdaten'
+import { VorschlagAktionen } from './VorschlagAktionen'
 
 interface Eingabe {
   titel: string
@@ -76,7 +77,10 @@ export function SperrfristenTab({ daten, darfPflegen }: { daten: FerienStammdate
             {' · '}{s.gruppe_ids.length ? s.gruppe_ids.map(gruppenName).join(', ') : 'ganzer Betrieb'}
             {s.status !== 'aktiv' && ` · ${s.status}`}
           </span>
-          {darfPflegen && (
+          {darfPflegen && s.status === 'vorschlag' && (
+            <VorschlagAktionen art="sperrfristen" id={s.id} onMeldung={showToast} />
+          )}
+          {darfPflegen && s.status !== 'vorschlag' && (
             <>
               <button className="admin-btn admin-btn-secondary admin-btn-sm"
                 onClick={() => { setBearbeitet(s.id); setEingabe(ausZeile(s)) }}>Bearbeiten</button>

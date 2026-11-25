@@ -3,6 +3,41 @@
 // erzeugt mit: npm run api:gen (openapi-typescript). Charge N,
 // docs/specs/refactoring-wachstum.md §5.
 export interface paths {
+    "/pwa/absences/pruefen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienVorpruefung"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/appointments": {
         parameters: {
             query?: never;
@@ -160,6 +195,41 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/assistent/stand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AssistentStand"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/pwa/admin/ferienplanung/planer": {
@@ -3495,6 +3565,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/ferienplanung/kalender": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienKalender"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/projects/{project_id}/reports": {
         parameters: {
             query?: never;
@@ -4193,6 +4298,19 @@ export interface components {
         Arbeitsbeschrieb: {
             work_description: string | null;
         };
+        AssistentStand: {
+            themen: components["schemas"]["AssistentThema"][];
+            /** @description Offene Vorschläge (Gruppen, Sperrfristen, Regeln) mit status 'vorschlag'. */
+            vorschlaege: number;
+        };
+        AssistentThema: {
+            thema: string;
+            titel: string;
+            frage: string;
+            /** @description 'offen', 'erledigt' oder 'uebersprungen'. */
+            status: string;
+            notiz: string;
+        };
         /** @description ``PATCH /admin/eingang/{item_id}``: die Aufgabe der Mail ist umgestellt. */
         AufgabeGeaendert: {
             id: string;
@@ -4245,6 +4363,8 @@ export interface components {
             noetig?: number;
             /** @description zwei_wochen: Rest des Anspruchs nach diesem Antrag. */
             rest?: number;
+            /** @description Mitarbeiter-App: wie viele im Weg stehen (ohne Namen). */
+            anzahl_konkurrenz?: number;
         };
         /** @description Ein Konto, das den Eingang öffnen kann (§5) — nur die Betreiber-Seite sieht die Rolle. */
         BerechtigtePerson: {
@@ -4413,6 +4533,15 @@ export interface components {
             /** @description Aufgelöste staff_ids (dynamisch oder manuell). */
             mitglieder: string[];
         };
+        /** @description Mitarbeiter-App: was für mich gilt. `wirkt` = Ferienplanung ist GA (sonst nichts anzeigen). */
+        FerienKalender: {
+            wirkt: boolean;
+            kanton: string;
+            sperrfristen: components["schemas"]["MeineSperrfrist"][];
+            feiertage: string[][];
+            /** @description 'bezogen' | 'geplant' | 'fehlt' (OR 329c Abs. 1). */
+            zwei_wochen: string;
+        };
         FerienPerson: {
             id: string;
             name: string;
@@ -4469,6 +4598,13 @@ export interface components {
             personen: components["schemas"]["FerienPerson"][];
             funktionen: string[];
             vorlagen: components["schemas"]["Vorlage"][];
+        };
+        /** @description Vorprüfung eines Antrags in der Mitarbeiter-App — Befunde ohne Namen anderer. */
+        FerienVorpruefung: {
+            wirkt: boolean;
+            befunde: components["schemas"]["Befund"][];
+            /** @description Satz für harte Befunde. */
+            meldung?: string;
         };
         Filiale: {
             id: string;
@@ -4551,6 +4687,13 @@ export interface components {
             /** @description Preis der Zeile VOR der Endziffern-Aufrundung (Feature werkora_bonus). Beim Bearbeiten unverändert zurückschicken — sonst kann das Backend die bonusfreie Basis nicht mehr herstellen. */
             werkora_bonus_base_unit_price?: number;
             werkora_bonus_base_total_price?: number;
+        };
+        MeineSperrfrist: {
+            titel: string;
+            art: string;
+            haerte: string;
+            von: string;
+            bis: string;
         };
         /** @description Was das Blatt «Unterwegs» des Monteurs braucht. */
         MeldungAnsicht: {

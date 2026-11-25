@@ -91,7 +91,7 @@ export function KalkulationsBlock({ vorschau, rechnet, fehler, rabatte, skonto, 
             disabled={fixGesetzt} title={fixGesetzt ? 'Ein Fixpreis bestimmt den Rabatt auf die Waren' : undefined} />
           {!!projekt?.waren_pct && <span className="on-feld-hinweis">Projekt: {pct(projekt.waren_pct)}</span>}
         </div>
-        <Feld label="Fixpreis inkl. MwSt" zahl value={rabatte.fixpreis} placeholder="optional" onChange={rabatte.setFixpreis} />
+        <Feld label="Fixpreis inkl. MwSt" zahl value={rabatte.fixpreis} title="Optional: der Endbetrag, den der Kunde zahlt" onChange={rabatte.setFixpreis} />
       </div>
       {fix && <p className={`on-hinweis ${fix.ok ? 'on-hinweis-ok' : 'on-hinweis-warn'}`} role="status">{fix.text}</p>}
 

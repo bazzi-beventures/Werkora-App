@@ -5,6 +5,22 @@
     "version": "1"
   },
   "paths": {
+    "/pwa/absences/pruefen": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienVorpruefung"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/appointments": {
       "get": {
         "responses": {
@@ -79,6 +95,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AufgabeGeaendert"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/assistent/stand": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistentStand"
                 }
               }
             }
@@ -1727,6 +1759,22 @@
         }
       }
     },
+    "/pwa/ferienplanung/kalender": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienKalender"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/projects/{project_id}/reports": {
       "get": {
         "responses": {
@@ -2531,6 +2579,53 @@
         ],
         "description": "Vorschlag «Ausgeführte Arbeiten» (``/admin/invoices/work-description``)."
       },
+      "AssistentStand": {
+        "properties": {
+          "themen": {
+            "items": {
+              "$ref": "#/components/schemas/AssistentThema"
+            },
+            "type": "array"
+          },
+          "vorschlaege": {
+            "type": "integer",
+            "description": "Offene Vorschläge (Gruppen, Sperrfristen, Regeln) mit status 'vorschlag'."
+          }
+        },
+        "type": "object",
+        "required": [
+          "themen",
+          "vorschlaege"
+        ]
+      },
+      "AssistentThema": {
+        "properties": {
+          "thema": {
+            "type": "string"
+          },
+          "titel": {
+            "type": "string"
+          },
+          "frage": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "description": "'offen', 'erledigt' oder 'uebersprungen'."
+          },
+          "notiz": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thema",
+          "titel",
+          "frage",
+          "status",
+          "notiz"
+        ]
+      },
       "AufgabeGeaendert": {
         "properties": {
           "id": {
@@ -2759,6 +2854,10 @@
               }
             ],
             "description": "zwei_wochen: Rest des Anspruchs nach diesem Antrag."
+          },
+          "anzahl_konkurrenz": {
+            "type": "integer",
+            "description": "Mitarbeiter-App: wie viele im Weg stehen (ohne Namen)."
           }
         },
         "type": "object",
@@ -3503,6 +3602,44 @@
           "mitglieder"
         ]
       },
+      "FerienKalender": {
+        "properties": {
+          "wirkt": {
+            "type": "boolean"
+          },
+          "kanton": {
+            "type": "string"
+          },
+          "sperrfristen": {
+            "items": {
+              "$ref": "#/components/schemas/MeineSperrfrist"
+            },
+            "type": "array"
+          },
+          "feiertage": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "zwei_wochen": {
+            "type": "string",
+            "description": "'bezogen' | 'geplant' | 'fehlt' (OR 329c Abs. 1)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "wirkt",
+          "kanton",
+          "sperrfristen",
+          "feiertage",
+          "zwei_wochen"
+        ],
+        "description": "Mitarbeiter-App: was für mich gilt. `wirkt` = Ferienplanung ist GA (sonst nichts anzeigen)."
+      },
       "FerienPerson": {
         "properties": {
           "id": {
@@ -3761,6 +3898,29 @@
           "funktionen",
           "vorlagen"
         ]
+      },
+      "FerienVorpruefung": {
+        "properties": {
+          "wirkt": {
+            "type": "boolean"
+          },
+          "befunde": {
+            "items": {
+              "$ref": "#/components/schemas/Befund"
+            },
+            "type": "array"
+          },
+          "meldung": {
+            "type": "string",
+            "description": "Satz für harte Befunde."
+          }
+        },
+        "type": "object",
+        "required": [
+          "wirkt",
+          "befunde"
+        ],
+        "description": "Vorprüfung eines Antrags in der Mitarbeiter-App — Befunde ohne Namen anderer."
       },
       "Filiale": {
         "properties": {
@@ -4183,6 +4343,33 @@
           "unit",
           "unit_price",
           "total_price"
+        ]
+      },
+      "MeineSperrfrist": {
+        "properties": {
+          "titel": {
+            "type": "string"
+          },
+          "art": {
+            "type": "string"
+          },
+          "haerte": {
+            "type": "string"
+          },
+          "von": {
+            "type": "string"
+          },
+          "bis": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "titel",
+          "art",
+          "haerte",
+          "von",
+          "bis"
         ]
       },
       "MeldungAnsicht": {

@@ -878,6 +878,7 @@ export default function App() {
       <AbsenzenScreen
         logoUrl={effectiveLogo}
         canton={canton}
+        ferienplanung={hasModule(user, 'ferienplanung')}
         onBack={() => go('arbeitszeit')}
         onNavHome={() => go('home')}
         onNavProfile={() => go('profile')}

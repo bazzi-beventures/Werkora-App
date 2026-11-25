@@ -9,6 +9,7 @@ import type { Befund, PlanerAbsenz } from '../../api/admin/ferienplanung'
 import { queryClient } from '../../shared/queryClient'
 import { BetaBadge } from '../../shared/BetaBadge'
 import { ToastHost, useToast } from '../components/useToast'
+import { AssistentTab } from './AssistentTab'
 import { BefundListe, hatHartenBefund } from './BefundListe'
 import { GruppenTab } from './GruppenTab'
 import { PLANER_KEY, Plantafel, zeitraum, type Zoom } from './Plantafel'
@@ -18,7 +19,7 @@ import { UebersteuernDialog } from './UebersteuernDialog'
 import { useFerienStammdaten } from './useFerienStammdaten'
 import './ferienplanung.css'
 
-type Reiter = 'plantafel' | 'sperrfristen' | 'regeln' | 'gruppen'
+type Reiter = 'plantafel' | 'sperrfristen' | 'regeln' | 'gruppen' | 'assistent'
 const REITER: { key: Reiter; text: string }[] = [
   { key: 'plantafel', text: 'Plantafel' },
   { key: 'sperrfristen', text: 'Sperrfristen' },
@@ -87,9 +88,11 @@ function AntragPanel({ absenz, befunde, onFertig, onOpenSchedule }: {
   )
 }
 
-export default function FerienplanungScreen({ darfPflegen, onBadgeChange, onOpenSchedule }: {
+export default function FerienplanungScreen({ darfPflegen, assistent = false, onBadgeChange, onOpenSchedule }: {
   /** Geschäftsleitung: Sperrfristen, Regeln, Gruppen pflegen. */
   darfPflegen: boolean
+  /** Zusatzmodul `ferienplanung_assistent` (Reiter «Assistent», nur Geschäftsleitung). */
+  assistent?: boolean
   onBadgeChange?: () => void
   onOpenSchedule?: (iso: string) => void
 }) {
@@ -121,7 +124,7 @@ export default function FerienplanungScreen({ darfPflegen, onBadgeChange, onOpen
       </div>
 
       <div className="kpi-admin-tabs">
-        {REITER.map(r => (
+        {[...REITER, ...(assistent ? [{ key: 'assistent' as const, text: 'Assistent' }] : [])].map(r => (
           <button key={r.key} className={`kpi-admin-tab${reiter === r.key ? ' active' : ''}`} onClick={() => setReiter(r.key)}>
             {r.text}
           </button>
@@ -165,6 +168,7 @@ export default function FerienplanungScreen({ darfPflegen, onBadgeChange, onOpen
       {data && reiter === 'sperrfristen' && <SperrfristenTab daten={data} darfPflegen={darfPflegen} />}
       {data && reiter === 'regeln' && <RegelnTab daten={data} darfPflegen={darfPflegen} />}
       {data && reiter === 'gruppen' && <GruppenTab daten={data} darfPflegen={darfPflegen} />}
+      {assistent && reiter === 'assistent' && <AssistentTab />}
       <ToastHost toast={toast} />
     </div>
   )

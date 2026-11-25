@@ -10,6 +10,7 @@ export type ModuleName =
   | 'inventory_alerts'
   | 'hr'
   | 'ferienplanung'
+  | 'ferienplanung_assistent'
   | 'arg_compliance'
   | 'violation_emails'
   | 'kpis'

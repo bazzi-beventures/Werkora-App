@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { fehlerText, type FerienGruppe, type FerienStammdaten } from '../../api/admin/ferienplanung'
 import { ToastHost, useToast } from '../components/useToast'
 import { loeschen, speichern } from './useFerienStammdaten'
+import { VorschlagAktionen } from './VorschlagAktionen'
 
 type GruppenArt = 'funktion' | 'projektleiter' | 'app_rolle' | 'manuell'
 
@@ -90,7 +91,10 @@ export function GruppenTab({ daten, darfPflegen }: { daten: FerienStammdaten; da
             {ARTEN.find(a => a.key === g.art)?.text ?? g.art} · {g.mitglieder.length} Personen
             {g.mitglieder.length > 0 && `: ${g.mitglieder.slice(0, 6).map(personName).join(', ')}${g.mitglieder.length > 6 ? ' …' : ''}`}
           </span>
-          {darfPflegen && (
+          {darfPflegen && g.status === 'vorschlag' && (
+            <VorschlagAktionen art="gruppen" id={g.id} onMeldung={showToast} />
+          )}
+          {darfPflegen && g.status !== 'vorschlag' && (
             <>
               <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => oeffnen(g)}>Bearbeiten</button>
               <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => void weg(g)}>Löschen</button>

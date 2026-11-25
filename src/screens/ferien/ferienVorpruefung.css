@@ -1,0 +1,33 @@
+/* Vorprüfung im Ferienantrag der Mitarbeiter-App (docs/specs/ferienplanung.md §7.2) */
+.ferien-vp {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ferien-vp-ampel {
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.ferien-vp-ampel.rot {
+  background: var(--accent-red-dim);
+  color: var(--accent-red-ink);
+}
+
+.ferien-vp-ampel.gelb {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber-ink);
+}
+
+.ferien-vp-ampel.gruen {
+  background: var(--accent-green-dim);
+  color: var(--accent-green-ink);
+}
+
+.ferien-vp-sperren {
+  color: var(--muted);
+}
