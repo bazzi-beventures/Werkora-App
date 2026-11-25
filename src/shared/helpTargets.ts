@@ -42,6 +42,7 @@ export const HELP_TARGETS: readonly HelpTarget[] = [
   { app: 'admin', screen: 'corrections', module: 'timekeeping' },
   { app: 'admin', screen: 'hr-reports', module: 'hr' },
   { app: 'admin', screen: 'vacation', module: 'hr' },
+  { app: 'admin', screen: 'ferienplanung', module: 'ferienplanung', verlinkbar: false },
   { app: 'admin', screen: 'settings', managementOnly: true },
   { app: 'admin', screen: 'microsoft', verlinkbar: false },
   { app: 'admin', screen: 'projects' },

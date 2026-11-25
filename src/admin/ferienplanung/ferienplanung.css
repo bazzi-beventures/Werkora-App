@@ -1,0 +1,229 @@
+/* Ferienplanung (docs/specs/ferienplanung.md §7.1) — Plantafel, Pflege, Befunde. */
+
+/* ── Befunde ─────────────────────────────────────────────────────────────── */
+.ferien-befunde {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.ferien-befund {
+  display: inline-block;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ferien-befund-hart {
+  background: var(--danger-soft);
+  color: var(--danger-ink);
+}
+
+.ferien-befund-weich {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+
+/* ── Plantafel ───────────────────────────────────────────────────────────── */
+.ferien-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ferien-toolbar-titel {
+  font-weight: 600;
+  min-width: 140px;
+}
+
+.ferien-tafel-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.ferien-tafel {
+  display: grid;
+  /* Spalten setzt Plantafel.tsx (Anzahl Tage × Zellbreite je Zoom). */
+  min-width: max-content;
+  font-size: 12px;
+}
+
+.ferien-kopf,
+.ferien-name,
+.ferien-zelle,
+.ferien-status {
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 26px;
+}
+
+.ferien-kopf {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--muted);
+  padding: 2px 0;
+}
+
+.ferien-kopf.feiertag,
+.ferien-zelle.feiertag {
+  background: var(--surface-2);
+}
+
+.ferien-kopf.verletzt {
+  color: var(--danger-ink);
+  font-weight: 700;
+}
+
+.ferien-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ferien-name small {
+  color: var(--muted);
+  margin-left: 4px;
+}
+
+.ferien-zelle {
+  position: relative;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.ferien-zelle.wochenende {
+  background: var(--bg);
+}
+
+.ferien-zelle.sperre-hart {
+  box-shadow: inset 0 -3px 0 var(--danger);
+}
+
+.ferien-zelle.sperre-weich {
+  box-shadow: inset 0 -3px 0 var(--warning);
+}
+
+.ferien-zelle.betriebsferien {
+  background: repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 3px, var(--surface) 3px, var(--surface) 6px);
+}
+
+.ferien-absenz {
+  position: absolute;
+  inset: 4px 0;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: var(--success);
+}
+
+.ferien-absenz.beantragt {
+  background: repeating-linear-gradient(45deg, var(--success-soft), var(--success-soft) 3px, var(--success) 3px, var(--success) 5px);
+}
+
+.ferien-absenz.anders {
+  background: var(--muted);
+}
+
+.ferien-absenz.befund {
+  outline: 2px solid var(--danger);
+}
+
+.ferien-status {
+  text-align: center;
+  padding-top: 4px;
+}
+
+.ferien-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ferien-legende-punkt {
+  display: inline-block;
+  width: 12px;
+  height: 10px;
+  margin-right: 4px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+/* ── Seitenpanel und Pflege ──────────────────────────────────────────────── */
+.ferien-panel {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.ferien-panel-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ferien-liste-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ferien-liste-titel {
+  flex: 1 1 220px;
+  font-weight: 600;
+}
+
+.ferien-liste-meta {
+  flex: 2 1 260px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.ferien-formular {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.ferien-auswahl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+
+.ferien-vorlagen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.ferien-legende-punkt.betriebsferien {
+  background: repeating-linear-gradient(45deg, var(--muted), var(--muted) 2px, var(--surface) 2px, var(--surface) 4px);
+}

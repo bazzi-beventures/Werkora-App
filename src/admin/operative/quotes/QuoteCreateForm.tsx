@@ -16,18 +16,22 @@ import { fmtCHF } from '../../utils/format'
 import { computeTravelCost, factorToPct, parseNum } from '../../utils/quotePricing'
 import type { TravelCostTable } from '../../utils/quotePricing'
 import { UnsavedChangesDialog } from '../../components/UnsavedChangesDialog'
-import { MaterialCombobox } from '../MaterialCombobox'
 import { PdfExtractionReviewModal } from '../PdfExtractionReviewModal'
 import type { ConfirmedExtraProduct } from '../PdfExtractionReviewModal'
 import { DescPriceFieldset, DiscountsFieldset, SkontoFieldset, skontoValidationError } from '../QuoteFormParts'
-import { RowReorder, useReorder } from '../QuoteRowControls'
+import { useReorder } from '../QuoteRowControls'
+import { BetaBadge } from '../../../shared/BetaBadge'
 import {
-  ExtraProductsFieldset, FIELDSET_STYLE, InstallationFieldset, LaborFieldset, MaterialFilters,
-  MaterialLegend, QuoteTextFields, SpecialPositionsFieldset, TravelCostFieldset,
+  ExtraProductsFieldset, InstallationFieldset, KatalogMaterialFieldset, LaborFieldset,
+  QuoteTextFields, SpecialPositionsFieldset, TravelCostFieldset,
 } from './QuoteFieldsets'
+import { Summenleiste } from './neu/Kalkulation'
+import { OfferteNeuMaske } from './neu/OfferteNeuMaske'
+import { useOffertenVorschau } from './neu/useOffertenVorschau'
 import { NO_SKONTO_DEFAULTS, STANDARD_NOTES, quoteDraftKey, removeQuoteDraft } from './quoteDraft'
 import type { QuoteDraft, SkontoDefaults } from './quoteDraft'
 import { buildCreateQuotePayload, specialRowValid } from './quotePayload'
+import type { CreateQuoteInput } from './quotePayload'
 import { applyEkMargin } from './quoteRows'
 import { useQuoteDraft } from './useQuoteDraft'
 import { useQuoteMasterData } from './useQuoteMasterData'
@@ -257,9 +261,31 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
     draft.drop()
   }
 
+  // Beta «Offerte neu» (docs/specs/offerte-neu.md): dieselben Zeilen, andere Ansicht.
+  const neu = master.offerteNeu
   const selectedProject = projects.find(p => p.id === projectId) ?? projects.find(p => p.name === projectName)
   const distanceKm = selectedProject?.distance_km ?? null
   const hasDistance = distanceKm !== null && distanceKm !== undefined
+
+  // Ein Payload für Speichern und Live-Kalkulation — sonst rechnete die Summenleiste
+  // mit etwas anderem, als dann gespeichert wird.
+  function payloadInput(): CreateQuoteInput {
+    return {
+      projectName,
+      projectId: selectedProject?.id ?? projectId ?? null,
+      laborRows: labor.rows,
+      materialRows: material.rows,
+      extraProducts: extraProducts.rows,
+      extraCharges: extraCharges.rows,
+      installationRows: installation.rows,
+      specialRows: special.rows,
+      includeTravelCost, laborDiscount, materialDiscount, fixedPrice,
+      skontoActive, skontoPct, skontoDays, notes, productDescription, quoteType,
+      discountsExplicit: neu,
+    }
+  }
+  const vorschau = useOffertenVorschau(neu && projectName ? buildCreateQuotePayload(payloadInput()) : null)
+  const kalkulationRef = useRef<HTMLElement>(null)
 
   async function handleSubmit() {
     if (!projectName) { setError('Bitte Projekt auswählen'); return }
@@ -283,18 +309,7 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
     setSaving(true)
     setError('')
     try {
-      const created = await createQuote(buildCreateQuotePayload({
-        projectName,
-        projectId: selectedProject?.id ?? projectId ?? null,
-        laborRows: labor.rows,
-        materialRows: material.rows,
-        extraProducts: extraProducts.rows,
-        extraCharges: extraCharges.rows,
-        installationRows: installation.rows,
-        specialRows: special.rows,
-        includeTravelCost, laborDiscount, materialDiscount, fixedPrice,
-        skontoActive, skontoPct, skontoDays, notes, productDescription, quoteType,
-      }))
+      const created = await createQuote(buildCreateQuotePayload(payloadInput()))
       // Quelle-PDF(s) der OCR-Extraktion ins Projekt ablegen (Lieferantendokumente >
       // Bestellungen). Erst NACH erfolgreichem Speichern und best-effort — eine
       // fehlgeschlagene Ablage darf die bereits gespeicherte Offerte nicht kippen.
@@ -312,7 +327,8 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
   }
 
   return (
-    <div className="admin-table-wrap" style={{ padding: 24, position: 'relative' }}>
+    // `on-formular`: ohne `overflow: hidden` der Karte, sonst läuft die Summenleiste nicht mit.
+    <div className={`admin-table-wrap${neu ? ' on-formular' : ''}`} style={{ padding: 24, position: 'relative' }}>
       <button
         type="button"
         onClick={requestClose}
@@ -326,6 +342,7 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
       </button>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', margin: '0 0 20px' }}>
         <h3 style={{ margin: 0 }}>{quoteType === 'richtofferte' ? 'Neue Richtofferte erstellen' : 'Neue Offerte erstellen'}</h3>
+        {neu && <BetaBadge title="Neue Offert-Maske, die du vor allen anderen testest" />}
         {master.richtoffAvailable && (
           <div role="group" aria-label="Offerten-Typ" style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
             {(['offerte', 'richtofferte'] as const).map(t => (
@@ -407,6 +424,36 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
         </div>
       )}
 
+      {neu ? (
+        <OfferteNeuMaske
+          projektKey={projectId || projectName}
+          vorschau={vorschau}
+          master={master}
+          labor={labor} material={material} extraProducts={extraProducts}
+          extraCharges={extraCharges} installation={installation} special={special}
+          materialReorder={materialReorder} extraReorder={extraReorder}
+          pdf={{ uploading: pdf.uploading, pdfError: pdf.pdfError, onPick: pdf.handlePdfUpload, onManuell: pdf.openManualEntry }}
+          pdfFileRef={pdf.fileRef}
+          travel={{
+            distanceKm,
+            amount: vorschau.vorschau?.pauschalen.fahrspesen
+              ?? (hasDistance ? computeTravelCost(Number(distanceKm), travelCostTable) : 0),
+            checked: includeTravelCost,
+            onChange: setIncludeTravelCost,
+          }}
+          rabatte={{
+            lohn: laborDiscount, waren: materialDiscount, fixpreis: fixedPrice,
+            setLohn: setLaborDiscount, setWaren: setMaterialDiscount, setFixpreis: setFixedPrice,
+          }}
+          skonto={{
+            aktiv: skontoActive, pct: skontoPct, tage: skontoDays, fehler: skontoError,
+            setAktiv: v => { setSkontoActive(v); setSkontoError('') },
+            setPct: v => { setSkontoPct(v); setSkontoError('') },
+            setTage: v => { setSkontoDays(v); setSkontoError('') },
+          }}
+          kalkulationRef={kalkulationRef}
+        />
+      ) : (<>
       <LaborFieldset
         rows={labor.rows}
         roles={master.roles}
@@ -422,53 +469,18 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
         onAdd={() => labor.add({ ...EMPTY_LABOR })}
       />
 
-      {/* Material: beim Erstellen aus dem Katalog (Artikelnummer + Menge), den
-          Preis löst der Server auf. */}
-      <fieldset style={FIELDSET_STYLE}>
-        <MaterialLegend />
-        {/* Optionale Filter — grenzen die Auswahl in allen Material-Comboboxen ein. */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          <MaterialFilters
-            supplierOptions={master.supplierOptions}
-            categories={master.categories}
-            supplierFilter={materialSupplierFilter}
-            categoryFilter={materialCategoryFilter}
-            onSupplierChange={setMaterialSupplierFilter}
-            onCategoryChange={setMaterialCategoryFilter}
-          />
-        </div>
-        {material.rows.map((row, i) => (
-          <div key={i} className="quote-row" {...materialReorder.rowProps(i)}>
-            <RowReorder index={i} count={material.rows.length} moveRow={materialReorder.moveRow} handleProps={materialReorder.handleProps} />
-            <MaterialCombobox
-              materials={master.materials}
-              supplierMap={master.supplierMap}
-              supplierFilter={materialSupplierFilter}
-              categoryFilter={materialCategoryFilter}
-              value={row.art_nr}
-              onChange={artNr => material.update(i, { art_nr: artNr })}
-              className="quote-main"
-            />
-            <input
-              className="admin-form-input"
-              style={{ flex: 1 }}
-              placeholder="Menge"
-              value={row.quantity}
-              onChange={e => material.update(i, { quantity: e.target.value })}
-            />
-            {master.optionalEnabled && (
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 13, whiteSpace: 'nowrap' }} title="Eventualposition — nicht im Total, erscheint mit Preis auf der Offerte">
-                <input type="checkbox" checked={!!row.optional} onChange={e => material.update(i, { optional: e.target.checked })} />
-                Option
-              </label>
-            )}
-            {material.rows.length > 1 && (
-              <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => material.remove(i)} title="Entfernen" aria-label="Position entfernen">✕</button>
-            )}
-          </div>
-        ))}
-        <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => material.add({ ...EMPTY_MATERIAL })}>+ Materialposition</button>
-      </fieldset>
+      <KatalogMaterialFieldset
+        rows={material.rows}
+        master={master}
+        reorder={materialReorder}
+        supplierFilter={materialSupplierFilter}
+        categoryFilter={materialCategoryFilter}
+        onSupplierChange={setMaterialSupplierFilter}
+        onCategoryChange={setMaterialCategoryFilter}
+        onUpdate={material.update}
+        onRemove={material.remove}
+        onAdd={() => material.add({ ...EMPTY_MATERIAL })}
+      />
 
       <ExtraProductsFieldset
         rows={extraProducts.rows}
@@ -539,6 +551,8 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
         onDaysChange={v => { setSkontoDays(v); setSkontoError('') }}
       />
 
+      </>)}
+
       <QuoteTextFields
         productDescription={productDescription}
         notes={notes}
@@ -558,6 +572,10 @@ export const QuoteCreateForm = forwardRef<QuoteCreateFormHandle, Props>(function
         </button>
         <button className="admin-btn admin-btn-secondary" onClick={requestClose} disabled={saving}>Abbrechen</button>
       </div>
+      {neu && (
+        <Summenleiste vorschau={vorschau.vorschau} rechnet={vorschau.rechnet}
+          onZurKalkulation={() => kalkulationRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} />
+      )}
     </div>
   )
 })

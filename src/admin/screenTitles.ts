@@ -16,6 +16,7 @@ export const SCREEN_TITLES: Record<AdminScreen, string> = {
   'corrections': 'Zeitkorrekturen',
   'hr-reports': 'HR-Berichte',
   'vacation': 'Ferien',
+  'ferienplanung': 'Ferienplanung',
   'projects': 'Projekte',
   'project-drafts': 'Projekt-Entwürfe',
   'project-schedule': 'Einsatzplanung',

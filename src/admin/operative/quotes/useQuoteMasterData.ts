@@ -34,6 +34,7 @@ export interface QuoteMasterData {
   optionalEnabled: boolean   // optionale_positionen: Eventualpositionen
   specialEnabled: boolean    // sonderpositionen: eigene Sektion
   richtoffAvailable: boolean // richtofferte: Typ-Umschalter (Erstellen; Bearbeiten nur im Entwurf)
+  offerteNeu: boolean        // offerte_neu (Beta): neue Erstell-Maske mit Live-Kalkulation
   // Abgeleitet für die Material-Filter
   supplierMap: Record<string, string>
   supplierOptions: Supplier[]
@@ -51,6 +52,7 @@ export function useQuoteMasterData(): QuoteMasterData {
   const [optionalEnabled, setOptionalEnabled] = useState(false)
   const [specialEnabled, setSpecialEnabled] = useState(false)
   const [richtoffAvailable, setRichtoffAvailable] = useState(false)
+  const [offerteNeu, setOfferteNeu] = useState(false)
 
   useEffect(() => {
     Promise.all([getStaffRoles(), listAllMaterials(), listInstallationTemplates()])
@@ -64,6 +66,7 @@ export function useQuoteMasterData(): QuoteMasterData {
       setMontageEnabled(isFeatureEnabled(me, 'montage_in_produktpreis'))
       setOptionalEnabled(isFeatureEnabled(me, 'optionale_positionen'))
       setRichtoffAvailable(isFeatureEnabled(me, 'richtofferte'))
+      setOfferteNeu(isFeatureEnabled(me, 'offerte_neu'))
       // Sonderpositionen sind tenant-spezifisch; Vorlagen nur laden wenn aktiv.
       if (!isFeatureEnabled(me, 'sonderpositionen')) return
       setSpecialEnabled(true)
@@ -83,7 +86,7 @@ export function useQuoteMasterData(): QuoteMasterData {
 
   return {
     roles, materials, suppliers, pricingRules, installationTemplates, specialTemplates,
-    montageEnabled, optionalEnabled, specialEnabled, richtoffAvailable,
+    montageEnabled, optionalEnabled, specialEnabled, richtoffAvailable, offerteNeu,
     supplierMap, supplierOptions, categories,
   }
 }

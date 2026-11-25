@@ -190,6 +190,18 @@ export async function createQuote(payload: QuotePayload): Promise<QuoteWriteResu
   })
 }
 
+/** Live-Kalkulation der Maske «Offerte neu» (Beta `offerte_neu`, docs/specs/offerte-neu.md).
+ *  Derselbe Body wie `createQuote`; rechnet über denselben Weg, speichert nichts. */
+export type QuotePreview = Antwort<'OffertenVorschau'>
+
+export async function previewQuote(payload: QuotePayload, signal?: AbortSignal): Promise<QuotePreview> {
+  return apiFetch<QuotePreview>('/pwa/admin/quotes/preview', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    signal,
+  })
+}
+
 export async function updateQuote(quoteId: number, payload: QuotePayload): Promise<QuoteWriteResult> {
   return apiFetch<QuoteWriteResult>(`/pwa/admin/quotes/${quoteId}`, {
     method: 'PATCH',

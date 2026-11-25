@@ -6,6 +6,8 @@ import { absenzDauer } from '../../shared/halberTag'
 import { AdminCardList } from '../components/AdminCardList'
 import { useIsMobile } from '../useIsMobile'
 import { useToast, ToastHost } from '../components/useToast'
+import { BefundListe, hatHartenBefund } from '../ferienplanung/BefundListe'
+import { UebersteuernDialog } from '../ferienplanung/UebersteuernDialog'
 
 const TYPE_LABELS: Record<string, string> = {
   vacation: 'Urlaub',
@@ -104,6 +106,8 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<TabType>('requested')
   const [acting, setActing] = useState<string | null>(null)
+  // Ferienplanung: Freigabe trotz hartem Befund braucht eine Begründung.
+  const [uebersteuern, setUebersteuern] = useState<Absence | null>(null)
   const { toast, showToast } = useToast()
 
   const [calendarAbsences, setCalendarAbsences] = useState<Absence[]>([])
@@ -136,10 +140,16 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
   // Listen-Reiter: bei jedem Wechsel (load kehrt im Kalender sofort zurück).
   useEffect(() => { load() }, [load])
 
-  async function handleApprove(id: string) {
+  async function handleApprove(id: string, grund?: string) {
+    const a = absences.find(x => x.id === id)
+    if (a && grund === undefined && hatHartenBefund(a.befunde)) {
+      setUebersteuern(a)
+      return
+    }
+    setUebersteuern(null)
     setActing(id)
     try {
-      await approveAbsence(id)
+      await approveAbsence(id, undefined, grund)
       showToast('Absenz genehmigt', 'success')
       load()
       onBadgeChange?.()
@@ -213,6 +223,7 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
                     <span className="admin-card-title">{a.staff_name}</span>
                     <StatusBadge status={a.status} />
                   </div>
+                  <BefundListe befunde={a.befunde} />
                   <div className="admin-card-meta">{TYPE_LABELS[a.absence_type] ?? a.absence_type}</div>
                   <div className="admin-card-meta">
                     <DateLink iso={a.start_date} onOpen={onOpenSchedule} /> – <DateLink iso={a.end_date} onOpen={onOpenSchedule} /> · {dayCount(a.start_date, a.end_date, canton, a.half_day)}
@@ -243,7 +254,7 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
                   <tr><td colSpan={7} className="admin-table-empty">Keine Absenzen gefunden.</td></tr>
                 ) : absences.map(a => (
                   <tr key={a.id}>
-                    <td><strong>{a.staff_name}</strong></td>
+                    <td><strong>{a.staff_name}</strong><BefundListe befunde={a.befunde} /></td>
                     <td>{TYPE_LABELS[a.absence_type] ?? a.absence_type}</td>
                     <td><DateLink iso={a.start_date} onOpen={onOpenSchedule} /></td>
                     <td><DateLink iso={a.end_date} onOpen={onOpenSchedule} /></td>
@@ -264,6 +275,11 @@ export default function AbsencesScreen({ onBadgeChange, canton = 'ZH', onOpenSch
         </div>
       )}
 
+      {uebersteuern && (
+        <UebersteuernDialog name={uebersteuern.staff_name} befunde={uebersteuern.befunde ?? []}
+          onAbbrechen={() => setUebersteuern(null)}
+          onBestaetigen={grund => void handleApprove(uebersteuern.id, grund)} />
+      )}
       <ToastHost toast={toast} />
     </div>
   )

@@ -11,6 +11,7 @@ export type AdminScreen =
   | 'corrections'
   | 'hr-reports'
   | 'vacation'
+  | 'ferienplanung'
   | 'projects'
   | 'project-drafts'
   | 'project-schedule'

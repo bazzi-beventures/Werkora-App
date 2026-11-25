@@ -117,6 +117,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
             <NavItem label="Ferien" target="vacation" current={screen} onNav={onNav} icon={<IconCalendar />} />
           </>
         )}
+        {has('ferienplanung') && (
+          <NavItem label="Ferienplanung" target="ferienplanung" current={screen} onNav={onNav} icon={<IconCalendar />} beta />
+        )}
         {/* Wochenplan und Jahresabschluss — bis zum Rückbau (P4) sassen sie in
             «Admin-Tools» und waren damit superadmin-only. Das war ein
             Nebeneffekt des Containers: Wochen-Soll und Überstunden-Reset sind

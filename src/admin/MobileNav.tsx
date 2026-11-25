@@ -279,6 +279,11 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                     </button>
                   </>
                 )}
+                {has('ferienplanung') && (
+                  <button className={`admin-mobile-drawer-item${screen === 'ferienplanung' ? ' active' : ''}`} onClick={() => navigate('ferienplanung')}>
+                    <IconCalendar /><span>Ferienplanung <BetaBadge /></span>
+                  </button>
+                )}
                 {has('aftersales') && (
                   <button className={`admin-mobile-drawer-item${screen === 'aftersales' ? ' active' : ''}`} onClick={() => navigate('aftersales')}>
                     <IconAftersales /><span>After Sales</span>

@@ -2474,6 +2474,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/admin/quotes/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["OffertenVorschau"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/quotes/send": {
         parameters: {
             query?: never;
@@ -4756,6 +4791,21 @@ export interface components {
             page: number;
             page_size: number;
         };
+        /** @description ``POST /admin/quotes/preview``: rechnet wie das Speichern, speichert nichts. */
+        OffertenVorschau: {
+            arbeit: components["schemas"]["VorschauBlock"];
+            waren: components["schemas"]["VorschauBlock"];
+            pauschalen: components["schemas"]["VorschauPauschalen"];
+            netto: number;
+            mwst: number;
+            total: number;
+            fixpreis: components["schemas"]["VorschauFixpreis"] | null;
+            projekt_rabatt: components["schemas"]["VorschauProjektRabatt"];
+            katalog_preise: components["schemas"]["VorschauKatalogPreis"][];
+            marge: components["schemas"]["VorschauMarge"];
+            /** @description Beim Speichern wird das Total auf die Endziffern aufgerundet; der Betrag hängt an der Offertennummer und steht erst dann fest. */
+            endziffern_aufrundung: boolean;
+        };
         /** @description Antwort von ``POST /admin/quotes/extract-pdf``. */
         PdfAuszug: {
             supplier: string;
@@ -5336,6 +5386,46 @@ export interface components {
             daten: {
                 [key: string]: unknown;
             };
+        };
+        /** @description Summe eines Blocks mit Rabatt; ``rabatt_herkunft`` ist 'eingabe' | 'projekt' | 'keiner'. */
+        VorschauBlock: {
+            summe: number;
+            rabatt_pct: number;
+            rabatt_betrag: number;
+            rabatt_herkunft: string;
+        };
+        VorschauFixpreis: {
+            betrag: number;
+            /** @description False: über der Kalkulation oder unter Lohn + Pauschalen. */
+            erreicht: boolean;
+            /** @description Abgeleiteter Rabatt auf die Waren in CHF. */
+            rabatt_betrag: number;
+            /** @description Derselbe Rabatt in Prozent der Waren. */
+            rabatt_pct: number;
+        };
+        VorschauKatalogPreis: {
+            art_nr: string;
+            preis: number;
+            total: number;
+        };
+        /** @description Rohertrag auf den Waren — nur fürs Büro, steht nie auf einem Beleg. */
+        VorschauMarge: {
+            ek: number;
+            vk_nach_rabatt: number;
+            rohertrag: number;
+            /** @description null, wenn keine Ware einen EK hat. */
+            prozent: number | null;
+            zeilen_ohne_ek: number;
+        };
+        /** @description Rabattfreie Positionen: Montage, Sonderaufwände, Sonderpositionen, Fahrspesen. */
+        VorschauPauschalen: {
+            summe: number;
+            fahrspesen: number;
+        };
+        /** @description Rabatte des Projekts — die neue Maske belegt die Felder damit sichtbar vor. */
+        VorschauProjektRabatt: {
+            lohn_pct: number;
+            waren_pct: number;
         };
         VorschlagAusgeschlossen: {
             staff_id: string;

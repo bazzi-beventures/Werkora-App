@@ -14,9 +14,11 @@ import { InfoHint } from '../../components/InfoHint'
 import { fmtCHF } from '../../utils/format'
 import { RichTextField } from '../../components/RichTextField'
 import { SpellcheckTextarea } from '../SpellcheckTextarea'
+import { MaterialCombobox } from '../MaterialCombobox'
 import { AutoGrowTextarea, RowReorder } from '../QuoteRowControls'
 import type { Reorder } from '../QuoteRowControls'
-import type { InstallationTpl, InstallationRow, SpecialMode, SpecialRow, SpecialTpl, StaffRole, Supplier } from './quoteTypes'
+import type { QuoteMasterData } from './useQuoteMasterData'
+import type { InstallationTpl, InstallationRow, MaterialRow, SpecialMode, SpecialRow, SpecialTpl, StaffRole, Supplier } from './quoteTypes'
 
 export const FIELDSET_STYLE: React.CSSProperties = {
   border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20,
@@ -158,6 +160,56 @@ export function MaterialFilters({
         {categories.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
     </>
+  )
+}
+
+// ─── Katalog-Material (nur Erstellen, alte Maske) ───────────
+
+/** Material beim Erstellen aus dem Katalog (Artikelnummer + Menge); den Preis löst
+ *  der Server auf. Bis zur Spec offerte-neu inline im QuoteCreateForm. */
+export function KatalogMaterialFieldset({ rows, master, reorder, supplierFilter, categoryFilter,
+  onSupplierChange, onCategoryChange, onUpdate, onRemove, onAdd }: {
+  rows: MaterialRow[]
+  master: QuoteMasterData
+  reorder: Reorder
+  supplierFilter: string
+  categoryFilter: string
+  onSupplierChange: (v: string) => void
+  onCategoryChange: (v: string) => void
+  onUpdate: (i: number, patch: Partial<MaterialRow>) => void
+  onRemove: (i: number) => void
+  onAdd: () => void
+}) {
+  return (
+    <fieldset style={FIELDSET_STYLE}>
+      <MaterialLegend />
+      {/* Optionale Filter — grenzen die Auswahl in allen Material-Comboboxen ein. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        <MaterialFilters supplierOptions={master.supplierOptions} categories={master.categories}
+          supplierFilter={supplierFilter} categoryFilter={categoryFilter}
+          onSupplierChange={onSupplierChange} onCategoryChange={onCategoryChange} />
+      </div>
+      {rows.map((row, i) => (
+        <div key={i} className="quote-row" {...reorder.rowProps(i)}>
+          <RowReorder index={i} count={rows.length} moveRow={reorder.moveRow} handleProps={reorder.handleProps} />
+          <MaterialCombobox materials={master.materials} supplierMap={master.supplierMap}
+            supplierFilter={supplierFilter} categoryFilter={categoryFilter}
+            value={row.art_nr} onChange={artNr => onUpdate(i, { art_nr: artNr })} className="quote-main" />
+          <input className="admin-form-input" style={{ flex: 1 }} placeholder="Menge" value={row.quantity}
+            onChange={e => onUpdate(i, { quantity: e.target.value })} />
+          {master.optionalEnabled && (
+            <label style={CHECKBOX_LABEL_STYLE} title={OPTIONAL_HINT}>
+              <input type="checkbox" checked={!!row.optional} onChange={e => onUpdate(i, { optional: e.target.checked })} />
+              Option
+            </label>
+          )}
+          {rows.length > 1 && (
+            <button className="admin-btn admin-btn-danger admin-btn-sm" onClick={() => onRemove(i)} title="Entfernen" aria-label="Position entfernen">✕</button>
+          )}
+        </div>
+      ))}
+      <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={onAdd}>+ Materialposition</button>
+    </fieldset>
   )
 }
 

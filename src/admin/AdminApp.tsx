@@ -64,6 +64,7 @@ const AdminProfileScreen = lazy(() => import('./system/AdminProfileScreen'))
 const HagelschadenScreen = lazy(() => import('./operative/hagelschaden/HagelschadenScreen'))
 const DeliveryNotesScreen = lazy(() => import('./operative/DeliveryNotesScreen'))
 const MailEingangScreen = lazy(() => import('./eingang/MailEingangScreen'))
+const FerienplanungScreen = lazy(() => import('./ferienplanung/FerienplanungScreen'))
 const MicrosoftScreen = lazy(() => import('./configuration/MicrosoftScreen'))
 const KreditorenScreen = lazy(() => import('./einkauf/KreditorenScreen'))
 
@@ -322,6 +323,18 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       case 'corrections':  return guard('timekeeping', <CorrectionsScreen onBadgeChange={loadDashboard} />)
       case 'hr-reports':   return guard('hr', <HrReportsScreen />)
       case 'vacation':     return guard('hr', <VacationOverviewScreen />)
+      case 'ferienplanung': return guard('ferienplanung', (
+        <FerienplanungScreen
+          darfPflegen={isManagement}
+          onBadgeChange={loadDashboard}
+          onOpenSchedule={hasModule(user, 'scheduling') ? date => {
+            writeScheduleView({
+              ...readScheduleView(), date, view: 'plantafel', viewFallback: ['gantt', 'week'], hiddenStaff: [],
+            })
+            guardedNav('project-schedule')
+          } : undefined}
+        />
+      ))
       // detailId ist entweder 'new' (Neu-Maske) oder eine Projekt-id (Direktsprung
       // aus der Einsatzplanung).
       case 'projects':     return (

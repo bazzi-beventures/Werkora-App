@@ -185,6 +185,9 @@ export interface CreateQuoteInput {
   notes: string
   productDescription: string
   quoteType: 'offerte' | 'richtofferte'
+  /** Maske «Offerte neu»: Rabattfelder gelten wie eingegeben, auch eine 0 (kein
+   *  stiller Projekt-Rabatt, docs/specs/offerte-neu.md §3.2). */
+  discountsExplicit?: boolean
 }
 
 export function buildCreateQuotePayload(f: CreateQuoteInput): Record<string, unknown> {
@@ -213,6 +216,7 @@ export function buildCreateQuotePayload(f: CreateQuoteInput): Record<string, unk
     notes: f.notes || null,
     product_description: f.productDescription.trim() || null,
     quote_type: f.quoteType,
+    ...(f.discountsExplicit ? { discounts_explicit: true } : {}),
   }
 }
 

@@ -1,0 +1,441 @@
+/* Maske «Offerte neu» (OfferteNeuMaske.tsx, Spec docs/specs/offerte-neu.md §4).
+   Präfix on- = «Offerte neu». Eigene Datei, weil admin.css nicht mehr wächst. */
+
+.on-maske {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  margin-bottom: var(--s-5);
+}
+
+.on-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.on-block-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-1) var(--s-3);
+  padding: 0 var(--s-1);
+}
+
+.on-block-kopf h4 {
+  margin: 0;
+  font-size: var(--font-sm);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.on-block-hinweis {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.on-zahl {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.on-leise {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* ── Karte je Position ─────────────────────────────────────────── */
+
+.on-karte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.on-karte[data-drop-target='true'] {
+  outline: 2px dashed var(--primary);
+  outline-offset: 2px;
+}
+
+.on-karte-kopf {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.on-karte-kopf > select,
+.on-karte-haupt {
+  flex: 1;
+  min-width: 0;
+}
+
+.on-karte-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin: 0;
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* Felder: Beschriftung über dem Feld, Raster bricht von selbst um. */
+.on-felder {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: var(--s-2);
+}
+
+.on-feld {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.on-feld > label,
+.on-feld-label {
+  font-size: var(--font-xs);
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.on-feld .admin-form-input,
+.on-feld .admin-form-select {
+  width: 100%;
+  min-width: 0;
+}
+
+.on-feld-hinweis {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* Gerechnet: gestrichelt statt gefüllt — man sieht, dass hier niemand tippen muss. */
+.on-rechenwert {
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 var(--s-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.on-input-berechnet {
+  border-style: dashed;
+}
+
+/* ── Marken ─────────────────────────────────────────────────────── */
+
+.on-marke {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.on-marke-neutral {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.on-marke-akzent {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.on-marke-warn {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+
+/* ── Zeilen-Menü «⋯» ───────────────────────────────────────────── */
+
+.on-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.on-menu-knopf {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.on-menu-knopf:hover,
+.on-menu-knopf[aria-expanded='true'] {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+
+.on-menu-liste {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  padding: var(--s-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-hover);
+}
+
+.on-menu-liste button {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  text-align: left;
+  font-size: var(--font-sm);
+}
+
+.on-menu-liste button:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.on-menu-liste button:disabled {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.on-menu-liste .on-menu-gefahr {
+  color: var(--danger);
+}
+
+.on-menu-haken {
+  width: 1em;
+  color: var(--primary);
+}
+
+/* ── Knöpfe, Filter, Fahrspesen ─────────────────────────────────── */
+
+.on-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.on-knopf-leise {
+  margin-left: auto;
+}
+
+.on-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.on-fahrt,
+.on-check {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  cursor: pointer;
+}
+
+.on-fahrt {
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.on-fahrt .on-zahl {
+  margin-left: var(--s-2);
+}
+
+.on-fahrt-aus {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* ── Kalkulation ───────────────────────────────────────────────── */
+
+.on-kalkulation {
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.on-summe {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.on-summe-zeile {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.on-summe-minus .on-zahl {
+  color: var(--danger);
+}
+
+.on-summe-unter,
+.on-summe-minus {
+  padding-left: var(--s-3);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.on-summe-stark {
+  padding-top: var(--s-1);
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+
+.on-summe-total {
+  padding-top: var(--s-2);
+  border-top: 2px solid var(--text);
+  font-size: var(--font-lg);
+  font-weight: 700;
+}
+
+.on-hinweis {
+  margin: 0;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+}
+
+.on-hinweis-ok {
+  background: var(--success-soft);
+  color: var(--success-ink);
+}
+
+.on-hinweis-warn {
+  background: var(--warning-soft);
+  color: var(--warning-ink);
+}
+
+.on-skonto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.on-intern {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--s-3);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.on-intern-titel {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ── Summenleiste: läuft unten mit ─────────────────────────────── */
+
+/* .admin-table-wrap setzt overflow hidden/auto und wird damit selbst zum Scroll-
+   Container — dort klebt nichts. Die neue Maske hat keine breite Tabelle. */
+.admin-table-wrap.on-formular {
+  overflow: visible;
+}
+
+.on-leiste {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  margin: var(--s-4) -24px -24px;
+  padding: var(--s-2) 24px calc(var(--s-2) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 -6px 16px rgba(0, 0, 0, 0.06);
+}
+
+.on-leiste-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-right: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+
+.on-leiste-total small {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.on-leiste-total b {
+  font-size: var(--font-xl);
+  font-weight: 600;
+}
+
+.on-leiste-marge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--success-soft);
+  color: var(--success-ink);
+  font-size: var(--font-xs);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .on-felder-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .on-knopf-leise {
+    margin-left: 0;
+  }
+
+  .on-leiste {
+    margin-left: -16px;
+    margin-right: -16px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

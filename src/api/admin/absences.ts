@@ -3,6 +3,7 @@
 // index.ts — bestehende `from '../api/admin'`-Importe bleiben damit gültig.
 
 import { apiFetch } from '../client'
+import type { Befund } from './ferienplanung'
 
 export interface Absence {
   id: string
@@ -18,6 +19,9 @@ export interface Absence {
    *  `own` (eigener Antrag) oder `no_right` (Modus «nur Berechtigte»).
    *  Fehlt das Feld (älterer Server), gilt «ja». */
   decide_block?: 'own' | 'no_right' | null
+  /** Ferienplanung (Modul `ferienplanung`): Befunde des offenen Antrags gegen
+   *  Sperrfristen und Regeln. Fehlt ohne Modul. */
+  befunde?: Befund[]
 }
 
 /** Warum ich über einen Antrag nicht entscheiden kann (`Absence.decide_block`).
@@ -32,10 +36,12 @@ export async function getAdminAbsences(status?: string): Promise<Absence[]> {
   return apiFetch<Absence[]>(`/pwa/admin/absences${q}`)
 }
 
-export async function approveAbsence(id: string, note?: string): Promise<void> {
+/** `overrideGrund`: Begründung, wenn ein harter Befund der Ferienplanung bewusst
+ *  übersteuert wird (wird an der Absenz festgehalten). */
+export async function approveAbsence(id: string, note?: string, overrideGrund?: string): Promise<void> {
   await apiFetch(`/pwa/admin/absences/${id}/approve`, {
     method: 'POST',
-    body: JSON.stringify({ note }),
+    body: JSON.stringify({ note, ...(overrideGrund ? { override_grund: overrideGrund } : {}) }),
   })
 }
 

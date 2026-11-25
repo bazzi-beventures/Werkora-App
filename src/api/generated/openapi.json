@@ -1233,6 +1233,22 @@
         }
       }
     },
+    "/pwa/admin/quotes/preview": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OffertenVorschau"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/quotes/send": {
       "post": {
         "responses": {
@@ -5410,6 +5426,90 @@
         ],
         "description": "Eine Seite der Offertenliste (``/admin/quotes/list``)."
       },
+      "OffertenVorschau": {
+        "properties": {
+          "arbeit": {
+            "$ref": "#/components/schemas/VorschauBlock"
+          },
+          "waren": {
+            "$ref": "#/components/schemas/VorschauBlock"
+          },
+          "pauschalen": {
+            "$ref": "#/components/schemas/VorschauPauschalen"
+          },
+          "netto": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "mwst": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fixpreis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VorschauFixpreis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "projekt_rabatt": {
+            "$ref": "#/components/schemas/VorschauProjektRabatt"
+          },
+          "katalog_preise": {
+            "items": {
+              "$ref": "#/components/schemas/VorschauKatalogPreis"
+            },
+            "type": "array"
+          },
+          "marge": {
+            "$ref": "#/components/schemas/VorschauMarge"
+          },
+          "endziffern_aufrundung": {
+            "type": "boolean",
+            "description": "Beim Speichern wird das Total auf die Endziffern aufgerundet; der Betrag hängt an der Offertennummer und steht erst dann fest."
+          }
+        },
+        "type": "object",
+        "required": [
+          "arbeit",
+          "waren",
+          "pauschalen",
+          "netto",
+          "mwst",
+          "total",
+          "fixpreis",
+          "projekt_rabatt",
+          "katalog_preise",
+          "marge",
+          "endziffern_aufrundung"
+        ],
+        "description": "``POST /admin/quotes/preview``: rechnet wie das Speichern, speichert nichts."
+      },
       "PdfAuszug": {
         "properties": {
           "supplier": {
@@ -8162,6 +8262,251 @@
           "beschreibung",
           "daten"
         ]
+      },
+      "VorschauBlock": {
+        "properties": {
+          "summe": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "rabatt_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "rabatt_betrag": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "rabatt_herkunft": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summe",
+          "rabatt_pct",
+          "rabatt_betrag",
+          "rabatt_herkunft"
+        ],
+        "description": "Summe eines Blocks mit Rabatt; ``rabatt_herkunft`` ist 'eingabe' | 'projekt' | 'keiner'."
+      },
+      "VorschauFixpreis": {
+        "properties": {
+          "betrag": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "erreicht": {
+            "type": "boolean",
+            "description": "False: über der Kalkulation oder unter Lohn + Pauschalen."
+          },
+          "rabatt_betrag": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Abgeleiteter Rabatt auf die Waren in CHF."
+          },
+          "rabatt_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "Derselbe Rabatt in Prozent der Waren."
+          }
+        },
+        "type": "object",
+        "required": [
+          "betrag",
+          "erreicht",
+          "rabatt_betrag",
+          "rabatt_pct"
+        ]
+      },
+      "VorschauKatalogPreis": {
+        "properties": {
+          "art_nr": {
+            "type": "string"
+          },
+          "preis": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "art_nr",
+          "preis",
+          "total"
+        ]
+      },
+      "VorschauMarge": {
+        "properties": {
+          "ek": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "vk_nach_rabatt": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "rohertrag": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "prozent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null, wenn keine Ware einen EK hat."
+          },
+          "zeilen_ohne_ek": {
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ek",
+          "vk_nach_rabatt",
+          "rohertrag",
+          "prozent",
+          "zeilen_ohne_ek"
+        ],
+        "description": "Rohertrag auf den Waren — nur fürs Büro, steht nie auf einem Beleg."
+      },
+      "VorschauPauschalen": {
+        "properties": {
+          "summe": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "fahrspesen": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "summe",
+          "fahrspesen"
+        ],
+        "description": "Rabattfreie Positionen: Montage, Sonderaufwände, Sonderpositionen, Fahrspesen."
+      },
+      "VorschauProjektRabatt": {
+        "properties": {
+          "lohn_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "waren_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "lohn_pct",
+          "waren_pct"
+        ],
+        "description": "Rabatte des Projekts — die neue Maske belegt die Felder damit sichtbar vor."
       },
       "VorschlagAusgeschlossen": {
         "properties": {
