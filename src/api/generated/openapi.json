@@ -118,6 +118,70 @@
         }
       }
     },
+    "/pwa/admin/ferienplanung/konten": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienKonten"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/konten/abschluss": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Jahresabschluss"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/konten/kuerzen": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienGekuerzt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/ferienplanung/konten/{staff_id}/{jahr}": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FerienKonto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/ferienplanung/planer": {
       "get": {
         "responses": {
@@ -2270,6 +2334,21 @@
         ],
         "description": "Eine Gutschrift aus dem Bankauszug und ihr Abgleich."
       },
+      "AbsenzStueck": {
+        "properties": {
+          "date_start": {
+            "type": "string"
+          },
+          "date_end": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date_start",
+          "date_end"
+        ]
+      },
       "Anhang": {
         "properties": {
           "id": {
@@ -3545,6 +3624,39 @@
         ],
         "description": "Wirksame Fahrspesen-Staffelung: ``[[km_schwelle, chf], …]``, `null` als letzte\nSchwelle heisst «und darüber»."
       },
+      "FerienGekuerzt": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "tage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "vorher": {
+            "$ref": "#/components/schemas/AbsenzStueck"
+          },
+          "stuecke": {
+            "items": {
+              "$ref": "#/components/schemas/AbsenzStueck"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "tage",
+          "vorher",
+          "stuecke"
+        ]
+      },
       "FerienGespeichert": {
         "properties": {
           "status": {
@@ -3639,6 +3751,176 @@
           "zwei_wochen"
         ],
         "description": "Mitarbeiter-App: was für mich gilt. `wirkt` = Ferienplanung ist GA (sonst nichts anzeigen)."
+      },
+      "FerienKonten": {
+        "properties": {
+          "jahr": {
+            "type": "integer"
+          },
+          "konten": {
+            "items": {
+              "$ref": "#/components/schemas/FerienKonto"
+            },
+            "type": "array"
+          },
+          "darf_bearbeiten": {
+            "type": "boolean",
+            "description": "Übertrag/Korrektur ändern, Ferien kürzen (wer freigibt)."
+          },
+          "darf_abschliessen": {
+            "type": "boolean",
+            "description": "Jahresabschluss (Geschäftsleitung)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "jahr",
+          "konten",
+          "darf_bearbeiten",
+          "darf_abschliessen"
+        ]
+      },
+      "FerienKonto": {
+        "properties": {
+          "staff_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "anspruch": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "quelle": {
+            "type": "string",
+            "description": "'personal', 'age_50plus', 'unter_20' oder 'tenant_default'."
+          },
+          "uebertrag": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "korrektur": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "bezogen": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "geplant": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "rest": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          },
+          "notiz": {
+            "type": "string"
+          },
+          "abgeschlossen": {
+            "type": "boolean"
+          },
+          "abgeschlossen_am": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "herkunft": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "object",
+            "description": "Übertrag nach Herkunftsjahr (Jahr → Tage)."
+          },
+          "herkunft_ende": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ]
+            },
+            "type": "object",
+            "description": "Rest am Jahresende nach Herkunftsjahr."
+          },
+          "hinweise": {
+            "items": {
+              "$ref": "#/components/schemas/KontoHinweis"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "staff_id",
+          "name",
+          "anspruch",
+          "quelle",
+          "uebertrag",
+          "korrektur",
+          "bezogen",
+          "geplant",
+          "rest",
+          "notiz",
+          "abgeschlossen",
+          "abgeschlossen_am",
+          "herkunft",
+          "herkunft_ende",
+          "hinweise"
+        ]
       },
       "FerienPerson": {
         "properties": {
@@ -4158,6 +4440,32 @@
         ],
         "description": "Offerte, die beim Versand zusammen mit der gewählten in EIN Mail geht (WW-34)."
       },
+      "Jahresabschluss": {
+        "properties": {
+          "jahr": {
+            "type": "integer"
+          },
+          "personen": {
+            "type": "integer"
+          },
+          "uebertrag_summe": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "jahr",
+          "personen",
+          "uebertrag_summe"
+        ]
+      },
       "Kleinmaterial": {
         "properties": {
           "item_name": {
@@ -4209,6 +4517,48 @@
           "staff_id",
           "name",
           "status"
+        ]
+      },
+      "KontoHinweis": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "'P1', 'P3', 'P7', 'P8', 'P9' oder 'abschluss'."
+          },
+          "text": {
+            "type": "string"
+          },
+          "gesetz": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tage": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "description": "P7: zulässige Kürzung, P8: Krankheitstage in den Ferien."
+          },
+          "absence_id": {
+            "type": "string",
+            "description": "P8: die Ferien-Absenz, die gekürzt werden kann."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "text",
+          "gesetz"
         ]
       },
       "Kundenlink": {

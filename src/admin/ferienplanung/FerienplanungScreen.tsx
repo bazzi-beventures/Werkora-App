@@ -12,6 +12,7 @@ import { ToastHost, useToast } from '../components/useToast'
 import { AssistentTab } from './AssistentTab'
 import { BefundListe, hatHartenBefund } from './BefundListe'
 import { GruppenTab } from './GruppenTab'
+import { KontenTab } from './KontenTab'
 import { PLANER_KEY, Plantafel, zeitraum, type Zoom } from './Plantafel'
 import { RegelnTab } from './RegelnTab'
 import { SperrfristenTab } from './SperrfristenTab'
@@ -19,9 +20,10 @@ import { UebersteuernDialog } from './UebersteuernDialog'
 import { useFerienStammdaten } from './useFerienStammdaten'
 import './ferienplanung.css'
 
-type Reiter = 'plantafel' | 'sperrfristen' | 'regeln' | 'gruppen' | 'assistent'
+type Reiter = 'plantafel' | 'konten' | 'sperrfristen' | 'regeln' | 'gruppen' | 'assistent'
 const REITER: { key: Reiter; text: string }[] = [
   { key: 'plantafel', text: 'Plantafel' },
+  { key: 'konten', text: 'Ferienkonten' },
   { key: 'sperrfristen', text: 'Sperrfristen' },
   { key: 'regeln', text: 'Regeln' },
   { key: 'gruppen', text: 'Gruppen' },
@@ -161,8 +163,9 @@ export default function FerienplanungScreen({ darfPflegen, assistent = false, on
         </>
       )}
 
-      {reiter !== 'plantafel' && isLoading && <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>}
-      {reiter !== 'plantafel' && (isError || (!isLoading && !data)) && (
+      {reiter === 'konten' && <KontenTab />}
+      {!['plantafel', 'konten'].includes(reiter) && isLoading && <div className="admin-loading"><div className="admin-spinner" /> Laden…</div>}
+      {!['plantafel', 'konten'].includes(reiter) && (isError || (!isLoading && !data)) && (
         <div className="admin-form-error" role="alert">Ferienplanung konnte nicht geladen werden.</div>
       )}
       {data && reiter === 'sperrfristen' && <SperrfristenTab daten={data} darfPflegen={darfPflegen} />}

@@ -150,6 +150,12 @@ export default function AbsenzenScreen({ logoUrl, canton = 'ZH', ferienplanung =
                   <div style={{ color: 'var(--muted)', fontSize: 11 }}>Anspruch</div>
                   <div style={{ fontWeight: 700 }}>{entitlement.entitlement} d</div>
                 </div>
+                {(entitlement.uebertrag ?? 0) + (entitlement.korrektur ?? 0) !== 0 && (
+                  <div>
+                    <div style={{ color: 'var(--muted)', fontSize: 11 }}>Übertrag</div>
+                    <div style={{ fontWeight: 700 }}>{(entitlement.uebertrag ?? 0) + (entitlement.korrektur ?? 0)} d</div>
+                  </div>
+                )}
                 <div>
                   <div style={{ color: 'var(--muted)', fontSize: 11 }}>Bezogen</div>
                   <div style={{ fontWeight: 700 }}>{entitlement.taken} d</div>

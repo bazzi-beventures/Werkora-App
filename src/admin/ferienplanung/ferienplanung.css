@@ -301,3 +301,17 @@
   background: var(--warning-soft);
   color: var(--warning-ink);
 }
+
+/* ── Ferienkonten (E7) ───────────────────────────────────────────────────── */
+.ferien-konto-zahl {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ferien-hinweis {
+  white-space: normal;
+}
+
+.ferien-hinweis-knopf {
+  margin-left: 6px;
+}

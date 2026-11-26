@@ -115,6 +115,9 @@ export interface VacationRow {
   // Woher der Anspruch kommt: 'personal' (am Mitarbeiter gesetzt) oder abgeleitet
   // aus den Mandanten-Vorgaben (Alter/Default).
   source: string
+  /** Ferienkonto über Jahre (Modul `ferienplanung`): Übertrag aus dem Vorjahr, Korrektur von Hand. */
+  uebertrag?: number
+  korrektur?: number
 }
 
 export async function getVacationOverview(year: number): Promise<VacationRow[]> {

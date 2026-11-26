@@ -232,6 +232,146 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/admin/ferienplanung/konten": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienKonten"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/konten/abschluss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Jahresabschluss"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/konten/kuerzen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienGekuerzt"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/ferienplanung/konten/{staff_id}/{jahr}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FerienKonto"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/ferienplanung/planer": {
         parameters: {
             query?: never;
@@ -4217,6 +4357,10 @@ export interface components {
             expected_amount: number | null;
             amount_diff: number | null;
         };
+        AbsenzStueck: {
+            date_start: string;
+            date_end: string;
+        };
         Anhang: {
             id: string;
             filename: string;
@@ -4517,6 +4661,12 @@ export interface components {
                 number
             ][];
         };
+        FerienGekuerzt: {
+            status: string;
+            tage: number;
+            vorher: components["schemas"]["AbsenzStueck"];
+            stuecke: components["schemas"]["AbsenzStueck"][];
+        };
         FerienGespeichert: {
             status: string;
             zeile?: {
@@ -4541,6 +4691,38 @@ export interface components {
             feiertage: string[][];
             /** @description 'bezogen' | 'geplant' | 'fehlt' (OR 329c Abs. 1). */
             zwei_wochen: string;
+        };
+        FerienKonten: {
+            jahr: number;
+            konten: components["schemas"]["FerienKonto"][];
+            /** @description Übertrag/Korrektur ändern, Ferien kürzen (wer freigibt). */
+            darf_bearbeiten: boolean;
+            /** @description Jahresabschluss (Geschäftsleitung). */
+            darf_abschliessen: boolean;
+        };
+        FerienKonto: {
+            staff_id: string;
+            name: string;
+            anspruch: number;
+            /** @description 'personal', 'age_50plus', 'unter_20' oder 'tenant_default'. */
+            quelle: string;
+            uebertrag: number;
+            korrektur: number;
+            bezogen: number;
+            geplant: number;
+            rest: number;
+            notiz: string;
+            abgeschlossen: boolean;
+            abgeschlossen_am: string | null;
+            /** @description Übertrag nach Herkunftsjahr (Jahr → Tage). */
+            herkunft: {
+                [key: string]: number;
+            };
+            /** @description Rest am Jahresende nach Herkunftsjahr. */
+            herkunft_ende: {
+                [key: string]: number;
+            };
+            hinweise: components["schemas"]["KontoHinweis"][];
         };
         FerienPerson: {
             id: string;
@@ -4655,6 +4837,11 @@ export interface components {
             amount: number;
             status: string | null;
         };
+        Jahresabschluss: {
+            jahr: number;
+            personen: number;
+            uebertrag_summe: number;
+        };
         Kleinmaterial: {
             item_name: string;
             count: number;
@@ -4665,6 +4852,16 @@ export interface components {
             name: string;
             /** @description 'approved' oder 'requested' — nie der Absenz-Typ. */
             status: string;
+        };
+        KontoHinweis: {
+            /** @description 'P1', 'P3', 'P7', 'P8', 'P9' oder 'abschluss'. */
+            code: string;
+            text: string;
+            gesetz: string | null;
+            /** @description P7: zulässige Kürzung, P8: Krankheitstage in den Ferien. */
+            tage?: number;
+            /** @description P8: die Ferien-Absenz, die gekürzt werden kann. */
+            absence_id?: string;
         };
         Kundenlink: {
             url: string;

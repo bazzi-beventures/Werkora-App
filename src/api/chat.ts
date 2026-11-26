@@ -482,6 +482,9 @@ export interface VacationEntitlement {
   planned: number
   remaining: number
   source: string
+  /** Ferienkonto über Jahre (Modul `ferienplanung`): im Rest schon enthalten. */
+  uebertrag?: number
+  korrektur?: number
 }
 
 export async function fetchVacationEntitlement(): Promise<VacationEntitlement> {

@@ -7,6 +7,7 @@ const SOURCE_LABEL: Record<string, string> = {
   personal: 'persönlich',
   tenant_default: 'Standard',
   age_50plus: '50+ (Tenant)',
+  unter_20: 'unter 20 (OR 329a)',
   system_default: 'Fallback',
   error_fallback: 'Fehler',
 }
@@ -57,6 +58,9 @@ export default function VacationOverviewScreen() {
     [rows]
   )
 
+  // Übertrag + Korrektur aus dem Ferienkonto (Modul `ferienplanung`) — Spalte nur, wenn es welche gibt.
+  const konto = (r: VacationRow) => (r.uebertrag ?? 0) + (r.korrektur ?? 0)
+  const mitKonto = rows.some(r => konto(r) !== 0)
   const totals = useMemo(() => rows.reduce(
     (acc, r) => ({
       entitlement: acc.entitlement + r.entitlement,
@@ -118,6 +122,7 @@ export default function VacationOverviewScreen() {
               <tr>
                 <th>Mitarbeiter</th>
                 <th style={{ textAlign: 'right' }}>Anspruch</th>
+                {mitKonto && <th style={{ textAlign: 'right' }}>Übertrag</th>}
                 <th style={{ textAlign: 'right' }}>Bezogen</th>
                 <th style={{ textAlign: 'right' }}>Geplant</th>
                 <th style={{ textAlign: 'right' }}>Rest</th>
@@ -129,6 +134,7 @@ export default function VacationOverviewScreen() {
                 <tr key={r.staff_id}>
                   <td className="primary">{r.staff_name}</td>
                   <td className="secondary" style={{ textAlign: 'right' }}>{r.entitlement} d</td>
+                  {mitKonto && <td className="secondary" style={{ textAlign: 'right' }}>{konto(r)} d</td>}
                   <td className="secondary" style={{ textAlign: 'right' }}>{r.taken} d</td>
                   <td className="secondary" style={{ textAlign: 'right' }}>{r.planned} d</td>
                   <td style={{ textAlign: 'right' }}>
@@ -140,6 +146,7 @@ export default function VacationOverviewScreen() {
               <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}>
                 <td>Total</td>
                 <td style={{ textAlign: 'right' }}>{totals.entitlement} d</td>
+                {mitKonto && <td style={{ textAlign: 'right' }}>{rows.reduce((summe, r) => summe + konto(r), 0)} d</td>}
                 <td style={{ textAlign: 'right' }}>{totals.taken} d</td>
                 <td style={{ textAlign: 'right' }}>{totals.planned} d</td>
                 <td style={{ textAlign: 'right', color: totals.remaining >= 0 ? 'var(--success)' : 'var(--danger)' }}>
