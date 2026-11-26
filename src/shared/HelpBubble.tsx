@@ -425,7 +425,7 @@ export default function HelpBubble({
               // Zentriert und zu gleichen Teilen: linksbündig sassen die Reiter
               // am Rand und lasen sich wie eine angeschnittene Liste — auf dem Handy
               // stand rechts daneben die halbe Blattbreite leer.
-              display: 'flex', gap: 4, padding: '8px 12px 0',
+              display: 'flex', gap: 2, padding: '8px 10px 0',
               borderBottom: '1px solid var(--border, #e5e7eb)', flexShrink: 0,
             }}>
               {parts.map(id => (
@@ -435,19 +435,29 @@ export default function HelpBubble({
                   onClick={() => setTab(id)}
                   aria-pressed={active === id}
                   style={{
-                    flex: 1, textAlign: 'center', minWidth: 0,
-                    padding: '6px 10px', border: 'none', cursor: 'pointer',
+                    flex: 1, minWidth: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '6px 2px', border: 'none', cursor: 'pointer',
                     background: 'transparent', color: 'inherit', font: 'inherit',
                     borderBottom: active === id
                       ? `2px solid ${fabColor}`
                       : '2px solid transparent',
                     fontWeight: active === id ? 600 : 400,
-                    // Ein langer Firmenname darf die anderen Reiter nicht
-                    // aus dem Panel schieben.
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}
                 >
-                  {TAB_LABELS[id]}
+                  {/* Ausgeschrieben auf bis zu zwei Zeilen statt «Problem …»:
+                      einzeilig mit Auslassung schnitt schon «Problem melden»
+                      am Handy ab, mit Wiki-Reiter auch am Computer. Erst ein
+                      sehr langer Firmenname wird nach der zweiten Zeile
+                      gekürzt — er darf die anderen Reiter nicht aus dem
+                      Panel schieben. Alle Reiter sind gleich hoch (flex
+                      stretch), die Beschriftung sitzt mittig darin. */}
+                  <span style={{
+                    display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 2,
+                    overflow: 'hidden', textAlign: 'center', lineHeight: 1.25,
+                  }}>
+                    {TAB_LABELS[id]}
+                  </span>
                 </button>
               ))}
             </div>
