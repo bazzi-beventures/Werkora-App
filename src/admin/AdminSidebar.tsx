@@ -168,7 +168,9 @@ export default function AdminSidebar({ screen, onNav, onLoggedOut, onSwitchToUse
         )}
         <NavItem label="Material / Lager" target="materials" current={screen} onNav={onNav} icon={<IconBox />} />
         {isManagement && (
-          <NavItem label="Personal" target="staff-roles" current={screen} onNav={onNav} icon={<IconUsers />} />
+          // Hiess bis 2026-11 «Personal» (doppelt mit der Gruppe oben); die
+          // Stundensätze sind seither ein Reiter der Einstellungen.
+          <NavItem label="Skill-Matrix" target="staff-roles" current={screen} onNav={onNav} icon={<IconUsers />} />
         )}
         {isManagement && (
           <NavItem label="Preisregeln" target="pricing-rules" current={screen} onNav={onNav} icon={<IconTag />} />

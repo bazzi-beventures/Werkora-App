@@ -27,3 +27,9 @@ export function mayManageWages(role: Role): boolean {
 export function hasKpiAccess(role: Role): boolean {
   return role === 'management_light' || isManagementRole(role)
 }
+
+/** Personalordner (WW-106): Manager und Manager light, nicht das Büro (`admin`).
+ *  Spiegel von PERSONALORDNER_ROLES in agents/routers/_guard_sitzung.py. */
+export function mayOpenPersonalordner(role: Role): boolean {
+  return role === 'management_light' || isManagementRole(role)
+}

@@ -49,7 +49,10 @@ export function kindHasProjektleiter(kind: ProjectKind | null | undefined): bool
 export interface Kontakt {
   name: string
   kommentar: string
+  /** Erste Nummer — im Formular «Natel». Alte Zeilen tragen hier auch eine Festnetznummer. */
   telefon: string
+  /** Zweite Nummer (WW-110). Optional: Projekte von vor 2026-11 kennen sie nicht. */
+  festnetz?: string
   email: string
   is_site_contact?: boolean
   // Aus dem Kundenstamm übernommen (Projektmaske: Vorschlag beim Tippen des

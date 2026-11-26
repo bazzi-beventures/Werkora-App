@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { StaffMember, StaffRole, upsertStaff, getStaffRoles } from '../../api/admin'
-import { mayManageWages } from '../../shared/roles'
+import { mayManageWages, mayOpenPersonalordner } from '../../shared/roles'
+import Personalordner from './Personalordner'
 import { useFilialen } from '../configuration/useFilialen'
 
 interface Props {
@@ -13,11 +14,14 @@ interface Props {
   // Feature `filialen`: Auswahl der Filiale (Kanton der Feiertage), §10.3 der Spec
   // docs/specs/ferienplanung.md. Ohne Flag kein Feld und kein Abruf.
   filialen?: boolean
+  // Feature `personalordner` (WW-106): der Ordner erscheint nur damit UND für
+  // Manager/Manager light — das Büro sieht ihn nicht.
+  personalordner?: boolean
   onClose: () => void
   onSaved: () => void
 }
 
-export default function StaffDetailScreen({ member, actingRole, filialen = false, onClose, onSaved }: Props) {
+export default function StaffDetailScreen({ member, actingRole, filialen = false, personalordner = false, onClose, onSaved }: Props) {
   const showWages = mayManageWages(actingRole)
   const [name, setName] = useState(member.name)
   const [kuerzel, setKuerzel] = useState(member.kuerzel ?? '')
@@ -237,6 +241,8 @@ export default function StaffDetailScreen({ member, actingRole, filialen = false
           </div>
         )}
       </div>
+
+      {personalordner && mayOpenPersonalordner(actingRole) && <Personalordner staffId={member.id} />}
     </div>
   )
 }

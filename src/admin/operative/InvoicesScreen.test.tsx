@@ -365,3 +365,44 @@ describe('InvoicesScreen — was die Liste allein nicht mehr weiss', () => {
     expect(screen.getByText(/liess sich nicht prüfen/)).toBeInTheDocument()
   })
 })
+
+describe('InvoicesScreen — Mahnstopp (WW-86)', () => {
+  beforeEach(() => mockFetch.mockReset())
+
+  it('setzt den Mahnstopp über das Kästchen an der versendeten Rechnung', async () => {
+    routeFetch([invoice()])
+    render(<InvoicesScreen />)
+    await screen.findByText('RE-2026-083')
+
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Mahnstopp' }))
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/invoices/42/mahnstopp', {
+        method: 'PUT',
+        body: JSON.stringify({ mahnstopp: true }),
+      }),
+    )
+  })
+
+  it('zeigt einen gesetzten Mahnstopp angekreuzt — und hebt ihn auf', async () => {
+    routeFetch([invoice({ mahnstopp: true })])
+    render(<InvoicesScreen />)
+    await screen.findByText('RE-2026-083')
+
+    const box = screen.getByRole('checkbox', { name: 'Mahnstopp' }) as HTMLInputElement
+    expect(box.checked).toBe(true)
+    await userEvent.click(box)
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith('/pwa/admin/invoices/42/mahnstopp', {
+        method: 'PUT',
+        body: JSON.stringify({ mahnstopp: false }),
+      }),
+    )
+  })
+
+  it('bietet das Kästchen bei Entwürfen und bezahlten Rechnungen nicht an', async () => {
+    routeFetch([invoice({ status: 'bezahlt', paid_at: '2026-09-01' })])
+    render(<InvoicesScreen />)
+    await screen.findByText('RE-2026-083')
+    expect(screen.queryByRole('checkbox', { name: 'Mahnstopp' })).toBeNull()
+  })
+})

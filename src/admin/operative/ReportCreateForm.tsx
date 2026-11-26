@@ -908,7 +908,7 @@ export function ReportCreateForm({
       {/* Mitarbeiter + Stunden */}
       <fieldset style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20 }}>
         <legend style={{ fontWeight: 600, padding: '0 8px' }}>Mitarbeiter &amp; Stunden</legend>
-        <InfoHint text="Baustelle und Werkstatt werden mit dem Stundensatz der jeweiligen Stundenart verrechnet (Personal → Stundensätze). Hat jemand am selben Tag beides gemacht, erfasse zwei Zeilen für ihn — eine je Stundenart." />
+        <InfoHint text="Baustelle und Werkstatt werden mit dem Stundensatz der jeweiligen Stundenart verrechnet (Einstellungen → Stundensätze). Hat jemand am selben Tag beides gemacht, erfasse zwei Zeilen für ihn — eine je Stundenart." />
         {rows.map((row, i) => (
           // `quote-row`: umbricht am Desktop statt die Felder zu stauchen und wird
           // auf dem Handy zum 2-Spalten-Raster (siehe admin.css/mobile.css).

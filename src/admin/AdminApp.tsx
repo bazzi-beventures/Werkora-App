@@ -271,7 +271,7 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
     // 'users' fehlt hier bewusst: die Benutzerverwaltung steht auch dem Admin offen
     // (Mitarbeiter anlegen, Passwort/PIN setzen). Was er dort darf, regelt die
     // Rollen-Matrix im Backend (agents/routers/admin_users.py) und UsersScreen.
-    if ((screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'bulk-clockin' || screen === 'document-backup') && !isManagement) {
+    if ((screen === 'staff-roles' || screen === 'pricing-rules' || screen === 'quote-templates' || screen === 'bulk-clockin' || screen === 'document-backup') && !isManagement) {
       return <ComingSoon title="Kein Zugriff" />
     }
     if ((screen === 'settings' && !showSettings) || (screen === 'microsoft' && !showMicrosoft)) {
@@ -303,7 +303,8 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           />
         : <ComingSoon title="Kein Zugriff" />
       case 'my-time':      return guard('timekeeping', <MyTimeScreen user={user} onLoggedOut={onLoggedOut} />)
-      case 'staff':        return <StaffScreen actingRole={user.role} filialen={isFeatureEnabled(user, 'filialen')} />
+      case 'staff':        return <StaffScreen actingRole={user.role} filialen={isFeatureEnabled(user, 'filialen')}
+                                                personalordner={isFeatureEnabled(user, 'personalordner')} />
       case 'bulk-clockin': return guard('timekeeping', <BulkClockInScreen />)
       case 'absences':     return guard('hr', (
         <AbsencesScreen
@@ -350,6 +351,9 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
           // landet wieder dort (Liste der Ziele: RUECKSPRUNG_ZIELE).
           onReturnFromJump={previous && RUECKSPRUNG_ZIELE.has(previous.screen)
             ? () => navMitAbfrage(previous.screen) : undefined}
+          // Der Zurück-Knopf nennt das Ziel («← Einsatzplanung», WW-105).
+          returnLabel={previous && RUECKSPRUNG_ZIELE.has(previous.screen)
+            ? SCREEN_TITLES[previous.screen] : undefined}
           // Gegenrichtung: Kachel «Termine» → Einsatzplanung auf der Woche des
           // Termins und auf dessen Team (WW-62). Datum und Team gehen über die
           // gemerkte Ansicht der Planung (scheduleViewState.ts), nicht über
@@ -461,10 +465,12 @@ export default function AdminApp({ user, logoUrl, tenantName, canton, onLoggedOu
       )
       case 'kpis':         return guard('kpis', <KpiScreen detailId={detailId} onNavigate={(s, id) => guardedNav(s, id)} />)
       case 'document-backup': return guard('document_backup', <DocumentBackupScreen />)
-      // Termindauer/Terminfarben schreibt nur die Geschäftsleitung (require_management).
+      // Termindauer/Terminfarben/Filialen/Stundensätze schreibt nur die Geschäftsleitung
+      // (require_management).
       case 'settings':     return <SettingsScreen terminDauer={isManagement && hasWerkzeug(user, 'terminwahl')}
                                                   terminFarben={isManagement && isFeatureEnabled(user, 'termin_farbkategorien')}
-                                                  filialen={isManagement && isFeatureEnabled(user, 'filialen')} />
+                                                  filialen={isManagement && isFeatureEnabled(user, 'filialen')}
+                                                  stundensaetze={isManagement} />
       case 'microsoft':    return <MicrosoftScreen />
       case 'profile':      return (
         <AdminProfileScreen user={user} tenantName={tenantName} theme={theme}

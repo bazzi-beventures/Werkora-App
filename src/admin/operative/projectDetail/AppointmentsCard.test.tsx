@@ -231,9 +231,26 @@ describe('AppointmentsCard — Sprung in die Einsatzplanung', () => {
     expect(onOpenSchedule).toHaveBeenCalledWith('2026-08-18', ['s-2'])
   })
 
+  it('jeder Termin springt auf sein eigenes Datum, nicht nur der nächste (WW-112)', () => {
+    const onOpenSchedule = vi.fn()
+    render(
+      <AppointmentsCard
+        appointments={[
+          draft({ startDate: '2026-08-18' }),
+          draft({ startDate: '2027-03-15', ownTeam: true, monteurIds: ['s-2'] }),
+        ]}
+        onChange={vi.fn()} staff={STAFF} projectTeam={['s-1']} onOpenSchedule={onOpenSchedule} />,
+    )
+    const links = screen.getAllByRole('button', { name: /in der Einsatzplanung zeigen$/ })
+    expect(links).toHaveLength(2)
+    fireEvent.click(links[1])
+    expect(onOpenSchedule).toHaveBeenCalledWith('2027-03-15', ['s-2'])
+  })
+
   it('zeigt den Link nicht ohne Einsatzplanung (Modul aus)', () => {
     setup([draft({ startDate: '2026-08-18' })])
     expect(screen.queryByRole('button', { name: 'In Einsatzplanung zeigen' })).toBeNull()
+    expect(screen.queryByRole('button', { name: /in der Einsatzplanung zeigen$/ })).toBeNull()
   })
 
   it('springt auch ohne Termin in die Planung, ab heute auf das Projekt-Team (WW-95)', () => {

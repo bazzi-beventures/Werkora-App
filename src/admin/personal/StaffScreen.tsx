@@ -12,9 +12,11 @@ interface Props {
   actingRole: string
   // Feature `filialen`: Auswahl «Filiale» im Personalstamm (docs/specs/ferienplanung.md §10.3)
   filialen?: boolean
+  // Feature `personalordner` (WW-106) — gereicht an das Mitarbeiter-Formular.
+  personalordner?: boolean
 }
 
-export default function StaffScreen({ actingRole, filialen = false }: Props) {
+export default function StaffScreen({ actingRole, filialen = false, personalordner = false }: Props) {
   const isMobile = useIsMobile()
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -76,6 +78,7 @@ export default function StaffScreen({ actingRole, filialen = false }: Props) {
         member={selected}
         actingRole={actingRole}
         filialen={filialen}
+        personalordner={personalordner}
         onClose={() => setSelected(null)}
         onSaved={() => { setSelected(null); load() }}
       />

@@ -10,6 +10,7 @@ import { KontaktNameInput } from './KontaktNameInput'
 import GeruestfaecherInput from './GeruestfaecherInput'
 import { eigentuemerFeldFehler } from './eigentuemerGrenzen'
 import type { Kontakt } from '../../../api/admin/projects'
+import './ansprechpersonen.css'
 import type { ProjectAutosave } from './useProjectAutosave'
 import { CustomerLink } from '../../components/CustomerLink'
 import { ProjectSkillsBlock } from './ProjectSkillsBlock'
@@ -344,7 +345,7 @@ export function DetailsForm({
               <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>
                 Stern markiert den <strong>Baustellenkontakt</strong> — diese Person sieht der Monteur ganz oben und sie wird auf Offerte/Rechnung gedruckt.
                 {' '}Beim Tippen des Namens werden Treffer aus dem Kundenstamm vorgeschlagen; ohne Treffer bleibt die Person frei erfasst.
-                {' '}Solange keine Person erfasst ist, übernimmt die Auswahl des Kunden dessen Angaben (Name, Telefon, E-Mail) als Vorschlag.
+                {' '}Solange keine Person erfasst ist, übernimmt die Auswahl des Kunden dessen Angaben (Name, Natel, Festnetz, E-Mail) als Vorschlag.
               </div>
             )}
             {kontakte.map((k, i) => (
@@ -403,8 +404,13 @@ export function DetailsForm({
                   <input className="admin-form-input" aria-label="Kommentar" autoComplete="new-kontakt-kommentar" value={k.kommentar} onChange={e => updateKontakt(i, 'kommentar', e.target.value)} placeholder="z.B. Hausabwart" />
                 </div>
                 <div className="admin-form-group" style={{ margin: 0 }}>
-                  <label className="admin-form-label">Telefon</label>
-                  <input className="admin-form-input" aria-label="Telefon" autoComplete="new-kontakt-telefon" value={k.telefon} onChange={e => updateKontakt(i, 'telefon', e.target.value)} />
+                  <label className="admin-form-label">Natel</label>
+                  <input className="admin-form-input" aria-label="Natel" autoComplete="new-kontakt-telefon" value={k.telefon} onChange={e => updateKontakt(i, 'telefon', e.target.value)} />
+                </div>
+                {/* Zweite Nummer (WW-110) — steht wie die erste auf den Ausdrucken. */}
+                <div className="admin-form-group" style={{ margin: 0 }}>
+                  <label className="admin-form-label">Festnetz</label>
+                  <input className="admin-form-input" aria-label="Festnetz" autoComplete="new-kontakt-festnetz" value={k.festnetz ?? ''} onChange={e => updateKontakt(i, 'festnetz', e.target.value)} />
                 </div>
                 <div className="admin-form-group" style={{ margin: 0 }}>
                   <label className="admin-form-label">E-Mail</label>

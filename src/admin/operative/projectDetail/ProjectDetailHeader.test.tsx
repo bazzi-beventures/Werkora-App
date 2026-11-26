@@ -37,6 +37,7 @@ function setup(over: {
   onOpenProject?: (id: string) => void
   customer?: { id: string; name: string } | null
   onOpenCustomer?: (id: string) => void
+  backLabel?: string
 } = {}) {
   render(
     <ProjectDetailHeader
@@ -54,6 +55,7 @@ function setup(over: {
       customer={over.customer ?? null}
       onOpenCustomer={over.onOpenCustomer}
       onBack={vi.fn()}
+      backLabel={over.backLabel}
     />,
   )
 }
@@ -164,5 +166,17 @@ describe('Kundenname im Projektkopf', () => {
   it('ohne Kunden keine Kunden-Angabe', () => {
     setup({ onOpenCustomer: vi.fn() })
     expect(screen.queryByText(/^Kunde/)).toBeNull()
+  })
+})
+
+describe('Zurück-Knopf', () => {
+  it('heisst schlicht «Zurück», wenn die Maske aus der Projektliste kam', () => {
+    setup()
+    expect(screen.getByRole('button', { name: '← Zurück' })).toBeTruthy()
+  })
+
+  it('nennt nach einem Sprung aus der Einsatzplanung das Ziel (WW-105)', () => {
+    setup({ backLabel: 'Einsatzplanung' })
+    expect(screen.getByRole('button', { name: '← Einsatzplanung' })).toBeTruthy()
   })
 })

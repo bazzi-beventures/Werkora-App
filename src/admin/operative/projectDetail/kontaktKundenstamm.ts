@@ -35,6 +35,8 @@ export interface KontaktCandidate {
   role: KontaktCandidateRole
   name: string
   telefon: string
+  /** Zweite Nummer (WW-110) — nur der Kunde selbst hat im Stamm zwei. */
+  festnetz?: string
   email: string
 }
 
@@ -55,7 +57,10 @@ export function candidatesOf(c: Customer): KontaktCandidate[] {
     customerName: c.name,
     role: 'kunde',
     name: c.name,
+    // Natel zuerst; wer nur Festnetz hat, bekommt es als erste Nummer — die
+    // Monteur-App und die Kopfzeile des Rapportblatts lesen `telefon`.
     telefon: c.phone || c.phone_landline || '',
+    festnetz: c.phone ? (c.phone_landline ?? '') : '',
     email: c.email ?? '',
   }]
   if (c.local_contact_name?.trim()) {
@@ -130,6 +135,7 @@ export function applyKontaktCandidate(k: Kontakt, cand: KontaktCandidate): Konta
     ...k,
     name: cand.name,
     telefon: cand.telefon || k.telefon,
+    festnetz: cand.festnetz || k.festnetz,
     email: cand.email || k.email,
     kommentar: k.kommentar || (cand.role === 'kunde' ? '' : ROLE_LABELS[cand.role]),
     customer_id: cand.customerId,
@@ -139,6 +145,7 @@ export function applyKontaktCandidate(k: Kontakt, cand: KontaktCandidate): Konta
 function sameKontakt(a: Kontakt, b: Kontakt): boolean {
   return normalize(a.name) === normalize(b.name)
     && (a.telefon ?? '') === (b.telefon ?? '')
+    && (a.festnetz ?? '') === (b.festnetz ?? '')
     && (a.email ?? '') === (b.email ?? '')
 }
 
@@ -168,6 +175,8 @@ export function customerInputFromKontakt(k: Kontakt): CustomerInput {
   return {
     name: k.name.trim(),
     phone: k.telefon?.trim() || null,
+    // Nur mitschicken, wenn erfasst — ohne zweite Nummer bleibt die Nutzlast wie vorher.
+    ...(k.festnetz?.trim() ? { phone_landline: k.festnetz.trim() } : {}),
     email: k.email?.trim() || null,
   }
 }
@@ -227,7 +236,7 @@ export function customerToLink(
  *  (`project_contacts_with_customer_fallback`): ein blosser Kommentar zählt
  *  nicht, leere Zeilen aus «+ Kontakt hinzufügen» erst recht nicht. */
 function hasContent(k: Kontakt): boolean {
-  return !!(k.name?.trim() || k.telefon?.trim() || k.email?.trim())
+  return !!(k.name?.trim() || k.telefon?.trim() || k.festnetz?.trim() || k.email?.trim())
 }
 
 /**
@@ -237,7 +246,8 @@ function hasContent(k: Kontakt): boolean {
  * Ansprechperson ohnehin eingeblendet hätte:
  *
  * - Name: der Baustellenkontakt des Kunden, sonst der Kunde selbst.
- * - Telefon: dessen Nummer, sonst Mobile vor Festnetz des Kunden.
+ * - Telefon: dessen Nummer, sonst Mobile vor Festnetz des Kunden; hat der Kunde
+ *   beide, kommt das Festnetz ins zweite Feld (WW-110).
  * - E-Mail: die des Kunden — eine zweite kennt der Stamm nicht.
  *
  * Der Stern (`is_site_contact`) geht nur an einen echten Baustellenkontakt:
@@ -253,12 +263,16 @@ export function kontaktFromCustomer(c: Customer): Kontakt | null {
   const name = site || c.name?.trim() || c.billing_name?.trim() || ''
   const telefon = c.local_contact_phone?.trim()
     || c.phone?.trim() || c.phone_landline?.trim() || ''
+  // Festnetz nur, wenn der Kunde selbst eintritt und es nicht schon oben steht —
+  // der Baustellenkontakt hat im Stamm nur eine Nummer (WW-110).
+  const festnetz = !site && c.phone?.trim() ? (c.phone_landline?.trim() ?? '') : ''
   const email = c.email?.trim() ?? ''
   if (!name && !telefon && !email) return null
   return {
     name,
     kommentar: site ? ROLE_LABELS.baustellenkontakt : ROLE_LABELS.kunde,
     telefon,
+    ...(festnetz ? { festnetz } : {}),
     email,
     is_site_contact: !!site,
     customer_id: c.id,
@@ -268,7 +282,8 @@ export function kontaktFromCustomer(c: Customer): Kontakt | null {
 /** Ist `k` die unveränderte Vorbelegung `seed`? Der Stern zählt nicht mit — wer
  *  ihn weggeklickt hat, hat die Angaben trotzdem nicht angefasst. */
 function isUntouchedSeed(k: Kontakt, seed: Kontakt): boolean {
-  return k.name === seed.name && k.telefon === seed.telefon && k.email === seed.email
+  return k.name === seed.name && k.telefon === seed.telefon && (k.festnetz ?? '') === (seed.festnetz ?? '')
+    && k.email === seed.email
     && k.kommentar === seed.kommentar && (k.customer_id ?? null) === (seed.customer_id ?? null)
 }
 

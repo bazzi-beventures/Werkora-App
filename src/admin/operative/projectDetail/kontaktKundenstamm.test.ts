@@ -145,6 +145,11 @@ describe('customerInputFromKontakt', () => {
     expect(customerInputFromKontakt(kontakt({ name: ' Anna Neu ', telefon: '  ', email: 'a@b.ch' })))
       .toEqual({ name: 'Anna Neu', phone: null, email: 'a@b.ch' })
   })
+
+  it('legt das Festnetz als zweite Nummer des Kunden an (WW-110)', () => {
+    expect(customerInputFromKontakt(kontakt({ name: 'Anna', telefon: '079 1', festnetz: ' 052 2 ' })))
+      .toMatchObject({ phone: '079 1', phone_landline: '052 2' })
+  })
 })
 
 describe('linkKontakteToCustomers / customerToLink', () => {
@@ -208,6 +213,15 @@ describe('kontaktFromCustomer', () => {
     // (gleiche Kette wie db.project_contacts_with_customer_fallback).
     const abwart = customer({ id: 'c-a', name: 'A', phone: '079', local_contact_name: 'Abwart' })
     expect(kontaktFromCustomer(abwart)?.telefon).toBe('079')
+  })
+
+  it('übernimmt beide Nummern des Kunden — Natel und Festnetz (WW-110)', () => {
+    const beides = customer({ id: 'c-b', name: 'B', phone: '079', phone_landline: '052' })
+    expect(kontaktFromCustomer(beides)).toMatchObject({ telefon: '079', festnetz: '052' })
+    // Nur Festnetz: steht als erste Nummer, kein Doppel im zweiten Feld.
+    expect(kontaktFromCustomer(ZIMMERLI)?.festnetz).toBeUndefined()
+    const kandidat = candidatesOf(beides)[0]
+    expect(applyKontaktCandidate(kontakt({ name: '' }), kandidat)).toMatchObject({ telefon: '079', festnetz: '052' })
   })
 
   it('liefert null, wenn der Kunde weder Name noch Telefon noch E-Mail hergibt', () => {

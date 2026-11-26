@@ -144,6 +144,7 @@ function normalizeForm(v: ProjectFormValues) {
       name: k.name ?? '',
       kommentar: k.kommentar ?? '',
       telefon: k.telefon ?? '',
+      festnetz: k.festnetz ?? '',
       email: k.email ?? '',
       is_site_contact: !!k.is_site_contact,
       customer_id: k.customer_id ?? null,
@@ -218,7 +219,7 @@ export const AUTOSAVE_FIELDS: readonly AutosaveField[] = [
 
 /** Eine Kontaktzeile ohne jede Angabe — «+ Kontakt hinzufügen», noch nichts getippt. */
 export function isKontaktLeer(k: Kontakt): boolean {
-  return !(k.name?.trim() || k.telefon?.trim() || k.email?.trim() || k.kommentar?.trim())
+  return !(k.name?.trim() || k.telefon?.trim() || k.festnetz?.trim() || k.email?.trim() || k.kommentar?.trim())
 }
 
 function autosaveValue(v: ProjectFormValues, f: AutosaveField): unknown {

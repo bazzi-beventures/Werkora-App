@@ -98,6 +98,9 @@ interface ProjectsScreenProps {
   // ihn nur, wenn der Sprung von dort kam. Gilt für «← Zurück», Hardware-Zurück
   // und Verlassen über Speichern — alle enden in onClose bzw. onSaved(null).
   onReturnFromJump?: () => void
+  // Name des Rücksprung-Ziels für den Zurück-Knopf der Maske («← Einsatzplanung»,
+  // WW-105) — ein neutrales «Zurück» wurde nicht als Weg zurück erkannt.
+  returnLabel?: string
   // Sprung aus der Kachel «Termine» in die Einsatzplanung (Datum YYYY-MM-DD).
   onOpenSchedule?: (date: string, teamIds?: string[]) => void
   // Reiter, auf dem die Maske aufgehen soll (Deep-Link aus einer Info-Mail:
@@ -193,7 +196,7 @@ function formatDay(iso: string): string {
 
 export default function ProjectsScreen({
   openNew, onConsumedNew, openProjectId, onConsumedProjectId, openProjectTab, onOpenCustomer,
-  onReturnFromJump, onOpenSchedule,
+  onReturnFromJump, returnLabel, onOpenSchedule,
 }: ProjectsScreenProps = {}) {
   const { state, patch, reset } = useListState<ProjectsListState>('admin-projects', DEFAULT_STATE, reviveState)
   const {
@@ -321,6 +324,8 @@ export default function ProjectsScreen({
   // onReturnFromJump statt der Projektliste. Bleibt über einen Sprung zwischen
   // Ursprungsprojekt und Nacharbeit hinweg stehen: der Ausflug ist derselbe.
   const openedByJumpRef = useRef(false)
+  // Dasselbe als Zustand, für die Beschriftung des Zurück-Knopfs (Refs nicht im Render).
+  const [vonSprung, setVonSprung] = useState(false)
   // Der Rücksprung läuft erst, wenn die Maske abgebaut ist: solange sie steht,
   // ist ihr «ungespeicherte Änderungen»-Guard noch angemeldet, und AdminApps
   // guardedNav fragte nach dem eben beantworteten Verlassen-Dialog ein zweites
@@ -339,7 +344,7 @@ export default function ProjectsScreen({
     jumpedToRef.current = openProjectId
     const tab = openProjectTab ?? null
     getProject(openProjectId)
-      .then(p => { openedByJumpRef.current = true; setShowNew(false); setInitialTab(tab); setSelected(p) })
+      .then(p => { openedByJumpRef.current = true; setVonSprung(true); setShowNew(false); setInitialTab(tab); setSelected(p) })
       .catch(() => {})
       .finally(() => onConsumedProjectId?.())
   }, [openProjectId, openProjectTab, onConsumedProjectId])
@@ -576,6 +581,7 @@ export default function ProjectsScreen({
   function returnIfJumped() {
     if (!openedByJumpRef.current) return
     openedByJumpRef.current = false
+    setVonSprung(false)
     if (onReturnFromJump) setReturnPending(true)
   }
 
@@ -587,6 +593,7 @@ export default function ProjectsScreen({
         key={showNew ? 'new' : selected!.id}
         project={showNew ? null : selected}
         initialTab={initialTab ?? undefined}
+        backLabel={vonSprung && onReturnFromJump ? returnLabel : undefined}
         onClose={() => { setSelected(null); setShowNew(false); setInitialTab(null); returnIfJumped() }}
         onSaved={saved => {
           if (!saved) returnIfJumped()

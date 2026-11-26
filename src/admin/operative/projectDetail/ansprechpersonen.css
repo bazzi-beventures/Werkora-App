@@ -1,0 +1,70 @@
+/* Projekt-Detail: Ansprechpersonen — mehrspaltige Editor-Zeile.
+   Spalten: Stern · Name · Kommentar · Natel · Festnetz · E-Mail · Entfernen.
+
+   Eigene Datei seit WW-110 (zweite Nummer je Person): admin.css wächst nicht mehr
+   (dateiBudget.guard.test.mjs), die Regeln sind von dort hierher umgezogen.
+
+   Die Mindestbreiten sind kein Schmuck: mit reinen fr-Anteilen bekamen Name und
+   E-Mail doppelt so viel Platz wie nötig, während Telefon schon bei 1280px eine
+   Schweizer Nummer abgeschnitten hat („079 328 40…"). Jetzt gilt zuerst die
+   Mindestbreite, erst der Rest wird nach fr verteilt.
+
+   Alles hinter min-width: 768px — am Handy stapelt admin/mobile.css die Zeile.
+   Ohne die Klammer gewänne diese Datei (später geladen, gleiche Spezifität) gegen
+   mobile.css, und die Felder stünden auch am Handy in sieben Spalten. */
+.project-contacts {
+  container-type: inline-size;
+}
+
+@media (min-width: 768px) {
+  .project-pos-row {
+    display: grid;
+    grid-template-columns:
+      auto
+      minmax(170px, 1.4fr)   /* Name */
+      minmax(150px, 1.2fr)   /* Kommentar */
+      minmax(150px, 0.9fr)   /* Natel — „079 328 40 55" muss ganz reinpassen */
+      minmax(150px, 0.9fr)   /* Festnetz */
+      minmax(200px, 1.5fr)   /* E-Mail */
+      auto;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: end;
+  }
+
+  /* Ob die sieben Spalten nebeneinander passen, hängt an der Breite der KARTE,
+     nicht des Fensters: Sidebar und rechte Kommentarspalte verschieben das je
+     nach Screen. Ab ~1020px Kartenbreite (≈ 970px Mindestbreite der Spalten samt
+     Abständen + 2×24 Polster) passt die einzeilige Variante.
+     Einzeilig: Spaltentitel nur über der ersten Zeile — ab der zweiten wären
+     NAME/KOMMENTAR/NATEL/… reine Wiederholung. */
+  @container (min-width: 1021px) {
+    .project-pos-row-repeat .admin-form-label { display: none; }
+  }
+
+  /* Zu schmal für sieben Spalten → zwei Zeilen pro Kontakt statt Quetsch-Spalten
+     (Telefon schnitt sonst die Nummer ab). Die Titel bleiben hier auf jeder
+     Zeile, sonst verschwimmen zwei Kontakte zu einem Block; zusätzlich trennt
+     eine feine Linie die Kontakte. */
+  @container (max-width: 1020px) {
+    .project-pos-row {
+      grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+      grid-template-areas:
+        "star name tel  fest del"
+        ".    komm mail mail .";
+      row-gap: 10px;
+    }
+    .project-pos-row > :nth-child(1) { grid-area: star; }
+    .project-pos-row > :nth-child(2) { grid-area: name; }
+    .project-pos-row > :nth-child(3) { grid-area: komm; }
+    .project-pos-row > :nth-child(4) { grid-area: tel; }
+    .project-pos-row > :nth-child(5) { grid-area: fest; }
+    .project-pos-row > :nth-child(6) { grid-area: mail; }
+    .project-pos-row > :nth-child(7) { grid-area: del; }
+
+    .project-pos-row + .project-pos-row {
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 14px;
+    }
+  }
+}

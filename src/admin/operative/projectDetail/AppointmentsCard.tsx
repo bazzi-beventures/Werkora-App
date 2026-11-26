@@ -265,6 +265,15 @@ export default function AppointmentsCard({
                       : noMonteur ? 'Kein Monteur gewählt' : 'Kein Team'}
                   </span>
                 </button>
+                {/* Jeder Termin springt in die Planung, nicht nur der nächste (WW-112):
+                    wer den dritten Termin verschieben will, landet auf dessen Woche. */}
+                {onOpenSchedule && d.startDate && (
+                  <button type="button" style={{ ...LINK_BUTTON, fontSize: 12, whiteSpace: 'nowrap' }}
+                    aria-label={`${draftTitle(d)} ${fmtDraftWhen(d)} in der Einsatzplanung zeigen`}
+                    onClick={() => onOpenSchedule(d.startDate, effectiveTeamIds(d, projectTeam))}>
+                    In Einsatzplanung
+                  </button>
+                )}
                 <button
                   type="button"
                   className="admin-btn-icon danger"

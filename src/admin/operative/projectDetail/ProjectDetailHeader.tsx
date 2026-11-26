@@ -25,6 +25,7 @@ const BADGE_CLASS: Record<'ok' | 'warn' | 'muted', string> = {
 export function ProjectDetailHeader({
   project, isNew, status, beschaffungSteps, beschaffung, beschaffungAt, beschaffungSource,
   warranty, repairProjects, repairCase = null, onOpenProject, customer = null, onOpenCustomer, onBack,
+  backLabel,
 }: {
   project: Project | null
   isNew: boolean
@@ -47,6 +48,8 @@ export function ProjectDetailHeader({
   customer?: { id: string; name: string } | null
   onOpenCustomer?: (customerId: string) => void
   onBack: () => void
+  /** Ziel nach einem Direktsprung («Einsatzplanung») — sonst schlicht «Zurück». */
+  backLabel?: string
 }) {
   // `parseIsoDate` und nicht `new Date(...)`: der Server schickt 'YYYY-MM-DD',
   // und `new Date('2028-03-14')` liest UTC-Mitternacht — westlich von Greenwich
@@ -167,7 +170,7 @@ export function ProjectDetailHeader({
             )}
           </div>
         </div>
-        <button className="admin-btn admin-btn-secondary" onClick={onBack}>← Zurück</button>
+        <button className="admin-btn admin-btn-secondary" onClick={onBack}>← {backLabel ?? 'Zurück'}</button>
       </div>
   )
 }

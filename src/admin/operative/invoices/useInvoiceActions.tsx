@@ -12,7 +12,7 @@ import { useEffect, useState } from 'react'
 import { apiUrl } from '../../../api/client'
 import {
   archiveInvoice, cancelInBexio, getBexioStatus, markInvoicePaid, markInvoiceSentByPost,
-  sendInvoice as sendInvoiceByMail, unmarkInvoicePaid,
+  sendInvoice as sendInvoiceByMail, setInvoiceMahnstopp, unmarkInvoicePaid,
 } from '../../../api/admin/invoices'
 import type { BexioBadge as BexioBadgeData, Invoice } from '../../../api/admin/invoices'
 import { getProject, listProjectInvoices, setProjectStatus } from '../../../api/admin/projects'
@@ -75,6 +75,8 @@ export interface InvoiceActionHandlers {
   onUnpay: (inv: Invoice) => void
   /** Pille «bexio: Storno offen». */
   onBexioCancel: (inv: Invoice) => void
+  /** Häkchen «Mahnstopp» (WW-86) — ohne Handler fehlt es. */
+  onMahnstopp?: (inv: Invoice, mahnstopp: boolean) => void
 }
 
 export function InvoiceRowActions({ invoice: inv, acting, on }: {
@@ -121,6 +123,17 @@ export function InvoiceRowActions({ invoice: inv, acting, on }: {
         <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => on.onUnpay(inv)} disabled={busy}>
           Zahlung zurücksetzen
         </button>
+      )}
+      {/* Mahnstopp (WW-86): Kästchen wie «Termin noch nicht bestätigt» in der
+          Einsatzplanung. Nur an versendeten Rechnungen — nur die werden gemahnt. */}
+      {inv.status === 'gesendet' && on.onMahnstopp && (
+        <label className="admin-btn admin-btn-secondary admin-btn-sm"
+          title="Kunde nicht mahnen — die Rechnung fehlt in «Rechnungen überfällig» und im Aufgaben-Board"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: busy ? 'default' : 'pointer' }}>
+          <input type="checkbox" checked={!!inv.mahnstopp} disabled={busy}
+            onChange={e => on.onMahnstopp?.(inv, e.target.checked)} />
+          Mahnstopp
+        </label>
       )}
     </>
   )
@@ -321,6 +334,19 @@ export function useInvoiceActions({ reload, showToast, onChanged, bexio, refresh
     }
   }
 
+  async function handleMahnstopp(inv: Invoice, mahnstopp: boolean) {
+    setActing(inv.id)
+    try {
+      await setInvoiceMahnstopp(inv.id, mahnstopp)
+      showToast(mahnstopp ? `Mahnstopp für ${inv.invoice_number} gesetzt` : `Mahnstopp für ${inv.invoice_number} aufgehoben`, 'success')
+      changed()
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Fehler', 'error')
+    } finally {
+      setActing(null)
+    }
+  }
+
   async function handleUnmarkPaid(id: number) {
     setActing(id)
     try {
@@ -342,6 +368,7 @@ export function useInvoiceActions({ reload, showToast, onChanged, bexio, refresh
     onArchive: inv => { setBexioCancel(true); setConfirmArchive(inv) },
     onUnpay: setConfirmUnpay,
     onBexioCancel: setConfirmBexioCancel,
+    onMahnstopp: (inv, mahnstopp) => { void handleMahnstopp(inv, mahnstopp) },
   }
 
   const closeProjectWarning = !confirmCloseProject

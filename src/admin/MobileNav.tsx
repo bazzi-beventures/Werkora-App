@@ -292,12 +292,12 @@ export default function MobileNav({ screen, onNav, onLoggedOut, onSwitchToUser, 
                 <button className={`admin-mobile-drawer-item${screen === 'materials' ? ' active' : ''}`} onClick={() => navigate('materials')}>
                   <IconBox /><span>Material / Lager</span>
                 </button>
-                {/* Personal (Funktionen + Stundensätze inkl. Werkstatt-Satz): stand nur in
-                    der Desktop-Sidebar — am Handy war der Bereich gar nicht erreichbar.
-                    Gleiches Management-Gate wie dort. */}
+                {/* Skill-Matrix (bis 2026-11 «Personal» samt Stundensätzen — die sind
+                    jetzt ein Reiter der Einstellungen). Gleiches Management-Gate wie
+                    in der Sidebar. */}
                 {isManagement && (
                   <button className={`admin-mobile-drawer-item${screen === 'staff-roles' ? ' active' : ''}`} onClick={() => navigate('staff-roles')}>
-                    <IconUsers /><span>Personal</span>
+                    <IconUsers /><span>Skill-Matrix</span>
                   </button>
                 )}
                 {isManagement && (

@@ -2770,69 +2770,6 @@ button.admin-list-item {
   text-align: center;
 }
 
-/* Projekt-Detail: mehrspaltige Editor-Zeile (Ansprechpersonen etc.)
-   Spalten: Stern · Name · Kommentar · Telefon · E-Mail · Entfernen.
-   Die Mindestbreiten sind kein Schmuck: mit reinen fr-Anteilen (vorher
-   2fr 1fr 1fr 2fr) bekamen Name und E-Mail doppelt so viel Platz wie nötig,
-   während Telefon schon bei 1280px eine Schweizer Nummer abgeschnitten hat
-   („079 328 40…"). Jetzt gilt zuerst die Mindestbreite, erst der Rest wird
-   nach fr verteilt. */
-.project-pos-row {
-  display: grid;
-  grid-template-columns:
-    auto
-    minmax(170px, 1.4fr)   /* Name */
-    minmax(150px, 1.2fr)   /* Kommentar */
-    minmax(160px, 0.9fr)   /* Telefon — „079 328 40 55" muss ganz reinpassen */
-    minmax(200px, 1.5fr)   /* E-Mail */
-    auto;
-  gap: 10px;
-  margin-bottom: 10px;
-  align-items: end;
-}
-
-/* Ob die sechs Spalten nebeneinander passen, hängt an der Breite der KARTE,
-   nicht des Fensters: Sidebar und rechte Kommentarspalte verschieben das je
-   nach Screen. Deshalb Container-Query auf der Karte (.project-contacts).
-   Ab ~870px Kartenbreite (= 806px Mindestbreite der Spalten + 2×24 Polster)
-   passt die einzeilige Variante. */
-.project-contacts {
-  container-type: inline-size;
-}
-
-@media (min-width: 768px) {
-  /* Einzeilig: Spaltentitel nur über der ersten Zeile — ab der zweiten wären
-     NAME/KOMMENTAR/TELEFON/E-MAIL reine Wiederholung. */
-  @container (min-width: 871px) {
-    .project-pos-row-repeat .admin-form-label { display: none; }
-  }
-
-  /* Zu schmal für sechs Spalten → zwei Zeilen pro Kontakt statt vier
-     Quetsch-Spalten (Telefon schnitt sonst die Nummer ab). Die Titel bleiben
-     hier auf jeder Zeile, sonst verschwimmen zwei Kontakte zu einem Block;
-     zusätzlich trennt eine feine Linie die Kontakte. */
-  @container (max-width: 870px) {
-    .project-pos-row {
-      grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
-      grid-template-areas:
-        "star name tel  del"
-        ".    komm mail .";
-      row-gap: 10px;
-    }
-    .project-pos-row > :nth-child(1) { grid-area: star; }
-    .project-pos-row > :nth-child(2) { grid-area: name; }
-    .project-pos-row > :nth-child(3) { grid-area: komm; }
-    .project-pos-row > :nth-child(4) { grid-area: tel; }
-    .project-pos-row > :nth-child(5) { grid-area: mail; }
-    .project-pos-row > :nth-child(6) { grid-area: del; }
-
-    .project-pos-row + .project-pos-row {
-      border-top: 1px solid var(--border-subtle);
-      padding-top: 14px;
-    }
-  }
-}
-
 /* Offerten-Editor: Positions-Zeile (Material / Freie Position) */
 .quote-row {
   display: flex;

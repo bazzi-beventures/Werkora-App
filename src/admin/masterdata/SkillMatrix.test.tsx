@@ -1,4 +1,4 @@
-// Personal → Skill-Matrix. Spec docs/specs/mitarbeiterdisposition-faehigkeiten-routen.md §4, §13.
+// Stammdaten → Skill-Matrix. Spec docs/specs/mitarbeiterdisposition-faehigkeiten-routen.md §4, §13.
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -35,7 +35,6 @@ function route(fn: Route) {
 
 async function oeffneTab() {
   render(<StaffRolesScreen />)
-  await userEvent.click(screen.getByRole('button', { name: 'Skill-Matrix' }))
   return (await screen.findByText('Peter Muster')).closest('li') as HTMLElement
 }
 

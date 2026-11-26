@@ -248,6 +248,14 @@ export async function archiveInvoice(id: number): Promise<void> {
   await apiFetch(`/pwa/admin/invoices/${id}/archive`, { method: 'POST' })
 }
 
+/** Mahnstopp setzen/aufheben (WW-86): die Rechnung fehlt dann in Mahn-Kachel und Board. */
+export async function setInvoiceMahnstopp(id: number, mahnstopp: boolean): Promise<void> {
+  await apiFetch(`/pwa/admin/invoices/${id}/mahnstopp`, {
+    method: 'PUT',
+    body: JSON.stringify({ mahnstopp }),
+  })
+}
+
 // ─── bexio-Badge (docs/specs/bexio-anbindung.md §8.2) ───────────────────────
 
 /** Zustand in bexio — generiert aus `BexioBadge` (Zustände als Literal im Modell). */

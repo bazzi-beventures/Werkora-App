@@ -5,6 +5,7 @@ import { YearEndTab } from './tabs/YearEndTab'
 import { TerminDauerTab } from './tabs/TerminDauerTab'
 import { TerminFarbenTab } from './tabs/TerminFarbenTab'
 import { FilialenTab } from './tabs/FilialenTab'
+import { StundensaetzeTab } from './tabs/StundensaetzeTab'
 
 /**
  * Einstellungen des Mandanten — Wochenplan und Jahresabschluss.
@@ -38,17 +39,26 @@ import { FilialenTab } from './tabs/FilialenTab'
  * Fünfter Reiter «Filialen» (Feature `filialen`): Filialen in anderen Kantonen und ihr
  * Kanton (docs/specs/ferienplanung.md §10.3) — Schreiben verlangt `require_management`.
  *
+ * Sechster Reiter «Stundensätze»: die Funktionen und ihre Verrechnungssätze
+ * (Baustelle/Werkstatt). Sass bis 2026-11 unter Stammdaten → «Personal» und wurde
+ * dort mit der Menügruppe «Personal» verwechselt — der Satz je Funktion ist eine
+ * Einstellung des Betriebs. Schreiben verlangt `require_management`.
+ *
  * Sichtbar für `management` (und damit auch `superadmin`) und für Adminkonten mit
  * dem Recht «Arbeitszeiten verwalten» (docs/specs/zeit-verwalten-recht.md) —
  * geführt über `showSettings` in AdminSidebar/MobileNav (`/pwa/me.zeit_einstellungen`),
- * durchgesetzt vom Backend. Die Termin-Reiter bekommt nur die Geschäftsleitung.
+ * durchgesetzt vom Backend. Termin-Reiter, Filialen und Stundensätze bekommt nur
+ * die Geschäftsleitung.
  */
-export default function SettingsScreen({ terminDauer = false, terminFarben = false, filialen = false }: {
+type SettingsTab = 'weekly-plan' | 'year-end' | 'termin-dauer' | 'termin-farben' | 'filialen' | 'stundensaetze'
+
+export default function SettingsScreen({ terminDauer = false, terminFarben = false, filialen = false, stundensaetze = false }: {
   terminDauer?: boolean
   terminFarben?: boolean
   filialen?: boolean
+  stundensaetze?: boolean
 }) {
-  const [tab, setTab] = useState<'weekly-plan' | 'year-end' | 'termin-dauer' | 'termin-farben' | 'filialen'>('weekly-plan')
+  const [tab, setTab] = useState<SettingsTab>('weekly-plan')
   const tabsRef = useTabStrip(tab)
 
   return (
@@ -57,7 +67,7 @@ export default function SettingsScreen({ terminDauer = false, terminFarben = fal
         <div>
           <div className="admin-page-title">Einstellungen</div>
           <div className="admin-page-subtitle">
-            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}{terminFarben ? ', Terminfarben' : ''}{filialen ? ', Filialen' : ''}
+            Wochenplan und Jahresabschluss{terminDauer ? ', Termindauer' : ''}{terminFarben ? ', Terminfarben' : ''}{filialen ? ', Filialen' : ''}{stundensaetze ? ', Stundensätze' : ''}
           </div>
         </div>
       </div>
@@ -99,6 +109,14 @@ export default function SettingsScreen({ terminDauer = false, terminFarben = fal
             Filialen
           </button>
         )}
+        {stundensaetze && (
+          <button
+            className={`kpi-admin-tab${tab === 'stundensaetze' ? ' active' : ''}`}
+            onClick={() => setTab('stundensaetze')}
+          >
+            Stundensätze
+          </button>
+        )}
       </div>
 
       {tab === 'weekly-plan' && <WeeklyPlanTab />}
@@ -106,6 +124,7 @@ export default function SettingsScreen({ terminDauer = false, terminFarben = fal
       {tab === 'termin-dauer' && terminDauer && <TerminDauerTab />}
       {tab === 'termin-farben' && terminFarben && <TerminFarbenTab />}
       {tab === 'filialen' && filialen && <FilialenTab />}
+      {tab === 'stundensaetze' && stundensaetze && <StundensaetzeTab />}
     </div>
   )
 }

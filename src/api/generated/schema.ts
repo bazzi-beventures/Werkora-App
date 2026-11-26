@@ -1253,6 +1253,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/admin/invoices/{invoice_id}/mahnstopp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/invoices/{invoice_id}/mark-paid": {
         parameters: {
             query?: never;
@@ -3600,6 +3635,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/admin/staff/{staff_id}/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Personalordner"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalDatei"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pwa/admin/staff/{staff_id}/files/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Erledigt"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/admin/tenant/termin-farben": {
         parameters: {
             query?: never;
@@ -5157,6 +5281,23 @@ export interface components {
             /** @description Gegenprobe gegen die Belegsummen, z. B. eine beim Lesen verlorene Griesser-Zeile. */
             warnings?: string[];
         };
+        PersonalDatei: {
+            id: string;
+            staff_id: string;
+            /**
+             * @description Register: MA-Gespräche, Vertrag/Unterschriften, Versicherungen, Zertifikate.
+             * @enum {string}
+             */
+            category: "gespraech" | "vertrag" | "versicherung" | "zertifikat";
+            filename: string;
+            mime_type: string | null;
+            size_bytes: number | null;
+            created_at: string;
+        };
+        Personalordner: {
+            /** @description Alle Dateien der Person, neueste zuerst. */
+            dateien: components["schemas"]["PersonalDatei"][];
+        };
         /** @description Ein Kandidat der Personen-Auswahl — die Antwort ist die id, kein Text. */
         PersonenWahl: {
             staff_id: string;
@@ -5432,6 +5573,8 @@ export interface components {
             inhalt?: string | null;
             /** @description 'anzahlung' = Anzahlungsrechnung, null = gewöhnliche Rechnung. */
             invoice_kind?: string | null;
+            /** @description Vom Mahnwesen ausgenommen (WW-86): fehlt in Mahn-Kachel und Board, Erinnerung/Mahnung gesperrt. null = Liste ohne die Spalte (Betreiber-Seite). */
+            mahnstopp?: boolean | null;
         };
         Rechtschreibung: {
             corrected: string;

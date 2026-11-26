@@ -90,10 +90,13 @@ interface Props {
    * beim Mount, wie `project` auch.
    */
   initialTab?: ProjectTab
+  /** Ziel des Zurück-Knopfs nach einem Direktsprung («Einsatzplanung», WW-105). */
+  backLabel?: string
 }
 
 export default function ProjectDetailScreen({
   project, onClose, onSaved, onOpenProject, onOpenCustomer, onOpenSchedule, initialTab, onProjectUpdated,
+  backLabel,
 }: Props) {
   const isNew = !project
 
@@ -585,6 +588,7 @@ export default function ProjectDetailScreen({
         customer={linkCustomer}
         onOpenCustomer={onOpenCustomer}
         onBack={requestClose}
+        backLabel={backLabel}
       />
 
       {/* ── Tab-Leiste ──────────────────────────────────────── */}

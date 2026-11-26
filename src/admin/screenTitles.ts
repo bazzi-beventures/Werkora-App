@@ -32,7 +32,7 @@ export const SCREEN_TITLES: Record<AdminScreen, string> = {
   'suppliers': 'Lieferanten',
   'supplier-wiki': 'Lieferanten-Wiki',
   'roadmap': 'Wünsche & Roadmap',
-  'staff-roles': 'Personal',
+  'staff-roles': 'Skill-Matrix',
   'materials': 'Material / Lager',
   'pricing-rules': 'Preisregeln',
   'quote-templates': 'Vorlagen',

@@ -615,6 +615,22 @@
         }
       }
     },
+    "/pwa/admin/invoices/{invoice_id}/mahnstopp": {
+      "put": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/invoices/{invoice_id}/mark-paid": {
       "post": {
         "responses": {
@@ -1768,6 +1784,52 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Rechtschreibung"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/staff/{staff_id}/files": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Personalordner"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalDatei"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pwa/admin/staff/{staff_id}/files/{file_id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
                 }
               }
             }
@@ -6098,6 +6160,77 @@
         ],
         "description": "Antwort von ``POST /admin/quotes/extract-pdf``."
       },
+      "PersonalDatei": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "staff_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "gespraech",
+              "vertrag",
+              "versicherung",
+              "zertifikat"
+            ],
+            "description": "Register: MA-Gespräche, Vertrag/Unterschriften, Versicherungen, Zertifikate."
+          },
+          "filename": {
+            "type": "string"
+          },
+          "mime_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "staff_id",
+          "category",
+          "filename",
+          "mime_type",
+          "size_bytes",
+          "created_at"
+        ]
+      },
+      "Personalordner": {
+        "properties": {
+          "dateien": {
+            "items": {
+              "$ref": "#/components/schemas/PersonalDatei"
+            },
+            "type": "array",
+            "description": "Alle Dateien der Person, neueste zuerst."
+          }
+        },
+        "type": "object",
+        "required": [
+          "dateien"
+        ]
+      },
       "PersonenWahl": {
         "properties": {
           "staff_id": {
@@ -7392,6 +7525,17 @@
               }
             ],
             "description": "'anzahlung' = Anzahlungsrechnung, null = gewöhnliche Rechnung."
+          },
+          "mahnstopp": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Vom Mahnwesen ausgenommen (WW-86): fehlt in Mahn-Kachel und Board, Erinnerung/Mahnung gesperrt. null = Liste ohne die Spalte (Betreiber-Seite)."
           }
         },
         "type": "object",

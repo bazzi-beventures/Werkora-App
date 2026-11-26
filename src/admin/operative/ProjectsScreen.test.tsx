@@ -312,11 +312,23 @@ describe('ProjectsScreen — Zurück aus einem Direktsprung (einsatzplanung-ruec
     await waitFor(() => expect(zurueck).toHaveBeenCalledTimes(1))
   })
 
+  it('nennt das Ziel auf dem Zurück-Knopf, wenn der Sprung aus der Planung kam (WW-105)', async () => {
+    routeMitEinzelprojekt()
+    const zurueck = vi.fn()
+    const user = userEvent.setup()
+    render(<ProjectsScreen openProjectId={EXISTING.id} onReturnFromJump={zurueck} returnLabel="Einsatzplanung" />)
+    await screen.findByLabelText('Projektname *')
+
+    await user.click(screen.getByRole('button', { name: '← Einsatzplanung' }))
+
+    await waitFor(() => expect(zurueck).toHaveBeenCalledTimes(1))
+  })
+
   it('bleibt beim normalen Öffnen aus der Liste bei der Projektliste', async () => {
     routeMitEinzelprojekt()
     const zurueck = vi.fn()
     const user = userEvent.setup()
-    render(<ProjectsScreen onReturnFromJump={zurueck} />)
+    render(<ProjectsScreen onReturnFromJump={zurueck} returnLabel="Einsatzplanung" />)
     await user.click(await screen.findByText('Fassade Seehalde'))
     await screen.findByLabelText('Projektname *')
 

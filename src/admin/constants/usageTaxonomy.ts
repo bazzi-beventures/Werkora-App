@@ -57,7 +57,7 @@ const RULES: { test: RegExp; module: UsageModule }[] = [
   // 'installation_template' tragen das Wort "quote" nicht im Namen.
   { test: /quote|variant|special_position|installation_template/, module: 'quotes' },
   { test: /camt|reconcile/,                      module: 'payment_matching' },
-  { test: /invoice|anzahlung|mahnung|zahlungserinnerung/,  module: 'invoicing' },
+  { test: /invoice|anzahlung|mahnung|mahnstopp|zahlungserinnerung/,  module: 'invoicing' },
   // Filialen bestimmen die Feiertage für Soll und Ferienkonto (ferienplanung.md §10.3)
   { test: /absence|vacation|filiale|_ferien_/,  module: 'hr' },
   { test: /correction|clock_in|clock_out|timesheet|zeit_/, module: 'timekeeping' },
@@ -202,6 +202,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_unmark_invoice_paid: 'Zahlung zurückgenommen',
   admin_archive_invoice: 'Rechnung archiviert',
   admin_send_mahnung: 'Mahnung versendet',
+  admin_set_mahnstopp: 'Mahnstopp gesetzt/aufgehoben',
   admin_send_zahlungserinnerung: 'Zahlungserinnerung versendet',
 
   // ── Nachbetreuung ──
@@ -337,6 +338,8 @@ const ACTION_LABELS: Record<string, string> = {
   admin_upsert_staff_role: 'Funktion gespeichert',
   admin_delete_staff_role: 'Funktion gelöscht',
   admin_reorder_staff_roles: 'Funktionen sortiert',
+  admin_upload_staff_file: 'Personalordner: Datei abgelegt',
+  admin_delete_staff_file: 'Personalordner: Datei gelöscht',
   admin_create_filiale: 'Filiale angelegt',
   admin_update_filiale: 'Filiale geändert',
   admin_create_ferien_zeile: 'Ferienplanung: Gruppe, Sperrfrist oder Regel angelegt',

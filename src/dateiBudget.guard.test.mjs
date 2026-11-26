@@ -36,7 +36,7 @@ const BESTAND = {
   // Grösse, nicht +20. Neue Komponenten bringen ihr CSS als eigene Datei neben sich mit
   // (Vorbild kpi-dashboard.css, hagelschaden.css); wer hier eine Regel braucht, nimmt
   // dafür eine alte heraus. Kandidaten zeigt `npm run css:unbenutzt`.
-  'admin/admin.css': 5243, // 5322, nach Charge O1 (12 tote Klassen gelöscht) 5243
+  'admin/admin.css': 5170, // 5322, nach Charge O1 (12 tote Klassen gelöscht) 5243, Ansprechpersonen → eigene Datei (WW-110) 5170
   // Dasselbe für das globale Stylesheet der Monteur-App (Charge O5: 13 tote Klassen gelöscht).
   'index.css': 2631, // 2705, nach Charge O5 2631
   'admin/operative/ProjectScheduleScreen.tsx': 1500, // 1428 (Charge M4c; M4b 1732, M4a 1915, vorher 2343)
