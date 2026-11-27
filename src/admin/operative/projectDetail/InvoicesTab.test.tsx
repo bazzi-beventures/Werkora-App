@@ -33,7 +33,7 @@ function renderTab(
       useAcceptedQuote={false}
       generatingInvoice={false}
       defaultEmail="kunde@example.com"
-      hasSignedReport={true}
+      hasSignedReport={true} grundlageHinweis={null}
       onUseAcceptedQuoteChange={vi.fn()}
       onGenerateInvoice={vi.fn().mockResolvedValue(true)}
       loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
@@ -258,7 +258,7 @@ describe('InvoicesTab — Ausgeführte Arbeiten (WW-52)', () => {
         useAcceptedQuote={false}
         generatingInvoice={false}
         defaultEmail=""
-        hasSignedReport={true}
+        hasSignedReport={true} grundlageHinweis={null}
         onUseAcceptedQuoteChange={vi.fn()}
         onGenerateInvoice={onGenerateInvoice}
         loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
@@ -320,7 +320,7 @@ describe('InvoicesTab — weitere Rechnung (WW-39/WW-47)', () => {
         useAcceptedQuote={false}
         generatingInvoice={false}
         defaultEmail=""
-        hasSignedReport={true}
+        hasSignedReport={true} grundlageHinweis={null}
         onUseAcceptedQuoteChange={vi.fn()}
         onGenerateInvoice={onGenerateInvoice}
         loadQuoteCoverage={loadQuoteCoverage}
@@ -392,7 +392,7 @@ describe('InvoicesTab — Rapport-Auswahl und Anzahlung', () => {
         useAcceptedQuote={false}
         generatingInvoice={false}
         defaultEmail=""
-        hasSignedReport={true}
+        hasSignedReport={true} grundlageHinweis={null}
         onUseAcceptedQuoteChange={vi.fn()}
         onGenerateInvoice={onGenerateInvoice}
         loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
@@ -488,7 +488,7 @@ describe('InvoicesTab — Fahrzeitkosten', () => {
         useAcceptedQuote={false}
         generatingInvoice={false}
         defaultEmail=""
-        hasSignedReport={true}
+        hasSignedReport={true} grundlageHinweis={null}
         onUseAcceptedQuoteChange={vi.fn()}
         onGenerateInvoice={onGenerateInvoice}
         loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
@@ -528,7 +528,7 @@ describe('InvoicesTab — Vorschau vor dem Erstellen (WF-51)', () => {
     render(
       <InvoicesTab
         invoices={[]} useAcceptedQuote={false} generatingInvoice={false}
-        defaultEmail="kunde@example.com" hasSignedReport={true}
+        defaultEmail="kunde@example.com" hasSignedReport={true} grundlageHinweis={null}
         onUseAcceptedQuoteChange={vi.fn()} onGenerateInvoice={onGenerate} onPreviewInvoice={onPreview}
         loadQuoteCoverage={vi.fn().mockResolvedValue(null)}
         loadWorkDescription={vi.fn().mockResolvedValue('Montage Plissee')}

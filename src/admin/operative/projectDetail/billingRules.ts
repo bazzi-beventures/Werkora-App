@@ -1,4 +1,5 @@
-import type { ProjectReport } from './types'
+import { fmtDate } from '../../utils/format'
+import type { ProjectQuote, ProjectReport } from './types'
 
 // Ein Rapport taugt als Rechnungsbasis, wenn er vom Kunden unterschrieben ODER
 // manuell vom Projektleiter erfasst wurde (source 'admin_manual' — per Design
@@ -32,4 +33,44 @@ export function hasBillableReport(
     if (r.is_aggregate) return !!r.pl_accepted_at
     return r.source === 'admin_manual'
   })
+}
+
+type RapportFelder = Pick<ProjectReport, 'signature_timestamp' | 'source' | 'is_partial'
+  | 'is_aggregate' | 'dissolved_at' | 'pl_accepted_at' | 'report_date'>
+
+// Offerte, aus der der use_quote-Pfad rechnen kann: weder archiviert noch abgelehnt
+// (services/quote_variants.py::is_rejected_quote — 'abgelehnt' sagt der Kunde,
+// 'absage' sagen wir). Eine noch nicht angenommene zählt: der Server rechnet sie
+// mit einem Hinweis ab.
+function hatVerrechenbareOfferte(quotes: Pick<ProjectQuote, 'status'>[]): boolean {
+  return quotes.some(q => !['archiviert', 'abgelehnt', 'absage'].includes(q.status))
+}
+
+// Hinweis über der Rechnung, wenn kein abgenommener Rapport da ist — null, wenn
+// einer da ist. Ohne verrechenbaren Rapport schickt die Maske use_quote; fehlt
+// dann auch die Offerte, findet der Server nichts und lehnt mit 400 ab. Der
+// häufigste Grund ist ein gebündelter, noch nicht abgenommener Gesamtrapport:
+// er sperrt seine Teilrapporte gleich mit (Support WS-53). Den nennt der Hinweis
+// beim Namen, statt eine Offerte anzukündigen, die es nicht gibt.
+export function rechnungsgrundlageHinweis(
+  reports: RapportFelder[], quotes: Pick<ProjectQuote, 'status'>[],
+): string | null {
+  if (hasBillableReport(reports)) return null
+  const offen = reports.find(r => r.is_aggregate && !r.dissolved_at
+    && !r.signature_timestamp && !r.pl_accepted_at)
+  const abnehmen = 'im Reiter «Rapporte» unterschreiben lassen oder «Ohne Unterschrift abschliessen».'
+  const gesamtrapport = offen ? `Der Gesamtrapport vom ${fmtDate(offen.report_date)} ist noch nicht abgenommen` : null
+  if (hatVerrechenbareOfferte(quotes)) {
+    const basis = 'Kein abgenommener Rapport vorhanden — die Rechnung wird auf Basis '
+      + 'der aktuellen (zuletzt bearbeiteten) Offerte erstellt.'
+    return gesamtrapport
+      ? `${basis} ${gesamtrapport}; soll nach Rapport verrechnet werden, ihn zuerst ${abnehmen}`
+      : basis
+  }
+  if (gesamtrapport) {
+    return `${gesamtrapport} und das Projekt hat keine Offerte — es gibt noch nichts zu `
+      + `verrechnen. Den Gesamtrapport zuerst ${abnehmen}`
+  }
+  return 'Kein abgenommener Rapport und keine Offerte vorhanden — es gibt noch nichts '
+    + 'zu verrechnen. Zuerst einen Rapport vom Kunden unterschreiben lassen oder manuell erfassen.'
 }

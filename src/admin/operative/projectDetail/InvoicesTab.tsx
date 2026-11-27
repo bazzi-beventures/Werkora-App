@@ -40,6 +40,9 @@ interface InvoicesTabProps {
   generatingInvoice: boolean
   defaultEmail: string
   hasSignedReport: boolean
+  // Warum ohne abgenommenen Rapport gerechnet wird bzw. nichts zu verrechnen ist
+  // (billingRules.rechnungsgrundlageHinweis); null = Rapport ist die Grundlage.
+  grundlageHinweis: string | null
   // Feature «allgemeine_abzuege»: null = kein Häkchen im Dialog.
   generalDeduction?: GeneralDeductionConfig | null
   onUseAcceptedQuoteChange: (v: boolean) => void
@@ -77,7 +80,7 @@ interface InvoicesTabProps {
   bexioOn?: boolean
 }
 
-export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, onPreviewInvoice, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost, bexioOn = false }: InvoicesTabProps) {
+export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, defaultEmail, hasSignedReport, grundlageHinweis, generalDeduction = null, onUseAcceptedQuoteChange, onGenerateInvoice, onPreviewInvoice, loadQuoteCoverage, loadWorkDescription, loadBillableReports, loadAnzahlungen, onMarkPaid, onUnmarkPaid, onArchive, onSendInvoice, onMarkSentByPost, bexioOn = false }: InvoicesTabProps) {
   // bexio-Pille (docs/specs/bexio-anbindung.md §8.2) — dieselbe Abfrage wie die
   // Rechnungsliste, nur für die ausgestellten Rechnungen dieses Projekts. Ein
   // Fehler kostet nur die Pille, nie den Reiter.
@@ -353,7 +356,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
       {bexioNote && (
         <div role="status" className="admin-card-meta" style={{ marginBottom: 10 }}>{bexioNote}</div>
       )}
-      {!hasSignedReport && (
+      {grundlageHinweis && (
         <div style={{
           marginBottom: 14,
           padding: '10px 14px',
@@ -367,9 +370,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
           gap: 8,
         }}>
           <span style={{ fontSize: 16 }}>⚠️</span>
-          <span>
-            Kein unterzeichneter Rapport vorhanden — die Rechnung wird auf Basis der aktuellen (zuletzt bearbeiteten) Offerte erstellt.
-          </span>
+          <span>{grundlageHinweis}</span>
         </div>
       )}
       {invoices.length === 0 ? (
@@ -510,12 +511,7 @@ export function InvoicesTab({ invoices, useAcceptedQuote, generatingInvoice, def
       {showGenerate && (
         <ConfirmDialog
           title="Rechnung generieren"
-          message={!hasSignedReport && !genIsAnzahlung && (
-            <>
-              Es ist kein vom Kunden unterschriebener Rapport vorhanden.
-              Die Rechnung wird stattdessen aus der akzeptierten Offerte generiert.
-            </>
-          )}
+          message={!genIsAnzahlung && grundlageHinweis}
           confirmLabel={genIsAnzahlung
             ? 'Anzahlung erstellen'
             : hasSignedReport ? 'Rechnung generieren' : 'Ohne Rapport erstellen'}

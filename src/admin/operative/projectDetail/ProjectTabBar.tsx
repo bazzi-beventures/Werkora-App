@@ -4,6 +4,7 @@
 // Dialogen unter.
 
 import { useTabStrip } from '../../hooks/useTabStrip'
+import './projectTabBar.css'
 
 export type ProjectTab =
   | 'details' | 'documents' | 'supplier' | 'quotes' | 'reports'

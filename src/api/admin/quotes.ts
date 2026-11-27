@@ -167,10 +167,14 @@ export async function listQuotesPage(
     /** Nur Offerten, die in den letzten n Tagen angenommen bzw. abgelehnt wurden
      *  (genau ein Status `akzeptiert`/`abgelehnt`) — das Fenster der Dashboard-Kacheln. */
     entschiedenSeitTagen?: number
+    /** Nur Absagen ohne offene/angenommene Offerte im selben Projekt — was die
+     *  Kachel «Abgelehnte Offerten» zählt (eine ersetzte Offerte ist kein Verlust). */
+    nurVerlorene?: boolean
   },
 ): Promise<ListPage<Quote>> {
   const fenster = q.entschiedenSeitTagen ? `&entschieden_seit_tagen=${q.entschiedenSeitTagen}` : ''
-  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}${fenster}`)
+  const verloren = q.nurVerlorene ? '&nur_verlorene=true' : ''
+  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}${fenster}${verloren}`)
 }
 
 // ─── Anlegen und Bearbeiten ─────────────────────────────────

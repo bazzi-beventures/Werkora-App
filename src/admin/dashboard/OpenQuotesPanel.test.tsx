@@ -1,4 +1,4 @@
-// Seitenpanel der Kachel «Offerten in Bearbeitung»: zeigt Entwurf + Gesendet,
+// Seitenpanel der Kachel «Offerten in Bearbeitung»: zeigt nur Entwürfe,
 // bietet dieselben Aktionen wie die Offertenliste, und ein Klick auf die Karte
 // öffnet das Projekt — ein Klick auf einen Knopf aber nicht.
 
@@ -51,11 +51,21 @@ beforeEach(() => {
 })
 
 describe('OpenQuotesPanel', () => {
-  it('lädt nur Entwurf und Gesendet', async () => {
+  it('lädt nur Entwürfe — eine versendete Offerte ist nicht mehr in Bearbeitung', async () => {
     render(<OpenQuotesPanel onClose={vi.fn()} onChanged={vi.fn()} />)
     await screen.findByText('Frischknecht Neftenbach HS')
     const q = listQuotes.mock.calls[0][0] as { statuses: Iterable<string> }
-    expect([...q.statuses].sort()).toEqual(['entwurf', 'gesendet'])
+    expect([...q.statuses]).toEqual(['entwurf'])
+  })
+
+  it('«Abgelehnte Offerten» lässt ersetzte Absagen weg, wie die Kachel', async () => {
+    listQuotes.mockResolvedValue([quote({ status: 'abgelehnt' })])
+    render(<OpenQuotesPanel art="abgelehnt" onClose={vi.fn()} onChanged={vi.fn()} />)
+    expect(await screen.findByText('Abgelehnte Offerten')).toBeTruthy()
+    const q = listQuotes.mock.calls[0][0] as { statuses: Iterable<string>; entschiedenSeitTagen?: number; nurVerlorene?: boolean }
+    expect([...q.statuses]).toEqual(['abgelehnt'])
+    expect(q.entschiedenSeitTagen).toBe(14)
+    expect(q.nurVerlorene).toBe(true)
   })
 
   it('«Angenommene Offerten (14 Tage)» lädt dasselbe Fenster wie die Kachel', async () => {

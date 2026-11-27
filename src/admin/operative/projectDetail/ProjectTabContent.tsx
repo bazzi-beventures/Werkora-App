@@ -2,7 +2,7 @@ import { apiUrl } from '../../../api/client'
 import {
   ApprovalsTab, DocumentsTab, InvoicesTab, QuotesTab, ReportsTab, SupplierDocumentsTab, TasksTab,
 } from './tabs'
-import { hasBillableReport } from './billingRules'
+import { hasBillableReport, rechnungsgrundlageHinweis } from './billingRules'
 import { NachkalkulationTab } from './NachkalkulationTab'
 import { StatusTab } from './StatusTab'
 import { WarrantyTab } from './WarrantyTab'
@@ -188,6 +188,7 @@ export function ProjectTabContent({
           generatingInvoice={billing.generatingInvoice}
           defaultEmail={defaultInvoiceEmail}
           hasSignedReport={hasBillableReport(billing.reports)}
+          grundlageHinweis={rechnungsgrundlageHinweis(billing.reports, billing.quotes)}
           generalDeduction={allgAbzuege ?? null}
           onUseAcceptedQuoteChange={onUseAcceptedQuoteChange}
           onGenerateInvoice={onGenerateInvoice}

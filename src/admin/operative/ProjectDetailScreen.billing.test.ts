@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { hasBillableReport } from './projectDetail/billingRules'
+import { hasBillableReport, rechnungsgrundlageHinweis } from './projectDetail/billingRules'
 
 // Regression zur Billing-Heuristik: ein manuell erfasster Rapport (admin_manual,
 // per Design ohne Unterschrift) muss als Rechnungsbasis zählen — sonst wird
@@ -75,5 +75,48 @@ describe('hasBillableReport — Teilrapport', () => {
       signature_timestamp: '2026-08-08T10:00:00Z', source: 'chat',
       dissolved_at: '2026-08-09T08:00:00Z',
     } as never])).toBe(false)
+  })
+})
+
+// ── Hinweis zur Rechnungsgrundlage (Support WS-53) ──
+// Ohne abgenommenen Rapport und ohne Offerte kündigte der Dialog eine Rechnung
+// «aus der akzeptierten Offerte» an; der Server lehnte mit 400 ab. Der Hinweis
+// nennt jetzt den offenen Gesamtrapport statt einer Offerte, die es nicht gibt.
+describe('rechnungsgrundlageHinweis', () => {
+  const teil = { signature_timestamp: null, source: 'chat', is_partial: true, report_date: '2026-10-21' }
+  const offenerGesamtrapport = {
+    signature_timestamp: null, source: 'admin_manual', is_aggregate: true,
+    dissolved_at: null, pl_accepted_at: null, report_date: '2026-11-23',
+  }
+
+  it('schweigt, wenn ein abgenommener Rapport die Grundlage ist', () => {
+    expect(rechnungsgrundlageHinweis([{ signature_timestamp: '2026-11-23T10:00:00Z', source: 'chat', report_date: '2026-11-23' }], [])).toBeNull()
+    expect(rechnungsgrundlageHinweis([{ ...offenerGesamtrapport, pl_accepted_at: '2026-11-27T15:00:00Z' }, teil], [])).toBeNull()
+  })
+
+  it('nennt den offenen Gesamtrapport, wenn es keine Offerte gibt — keine Offerte versprochen', () => {
+    const t = rechnungsgrundlageHinweis([offenerGesamtrapport, teil], [])
+    expect(t).toContain('Gesamtrapport vom 23.11.2026 ist noch nicht abgenommen')
+    expect(t).toContain('keine Offerte')
+    expect(t).toContain('«Ohne Unterschrift abschliessen»')
+    expect(t).not.toContain('auf Basis der aktuellen')
+  })
+
+  it('kündigt die Offerte an, wenn eine da ist, und erwähnt den offenen Gesamtrapport', () => {
+    const t = rechnungsgrundlageHinweis([offenerGesamtrapport, teil], [{ status: 'akzeptiert' }])
+    expect(t).toContain('auf Basis der aktuellen (zuletzt bearbeiteten) Offerte')
+    expect(t).toContain('Gesamtrapport vom 23.11.2026')
+  })
+
+  it('zählt archivierte und abgelehnte Offerten nicht als Grundlage', () => {
+    for (const status of ['archiviert', 'abgelehnt', 'absage']) {
+      expect(rechnungsgrundlageHinweis([teil], [{ status }])).toContain('keine Offerte vorhanden')
+    }
+  })
+
+  it('ein aufgelöster Gesamtrapport ist kein offener', () => {
+    const t = rechnungsgrundlageHinweis([{ ...offenerGesamtrapport, dissolved_at: '2026-11-24T08:00:00Z' }], [])
+    expect(t).not.toContain('Gesamtrapport')
+    expect(t).toContain('Kein abgenommener Rapport und keine Offerte')
   })
 })

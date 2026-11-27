@@ -23,10 +23,13 @@ import { QuoteEditForm } from '../operative/quotes/QuoteEditForm'
  *  (agents/routers/kpi.py). */
 export const QUOTE_PANELS = {
   // db/quotes.py::list_open_quotes
-  offen: { titel: 'Offerten in Bearbeitung', statuses: ['entwurf', 'gesendet'], untertitel: 'Entwurf und Gesendet', leer: 'Keine offenen Offerten', tage: undefined },
+  // Nur Entwürfe: eine versendete Offerte liegt beim Kunden — wartet sie zu
+  // lange, meldet sie «Offerten-Erinnerungen».
+  offen: { titel: 'Offerten in Bearbeitung', statuses: ['entwurf'], untertitel: 'noch nicht versendet', leer: 'Keine Offerten in Bearbeitung', tage: undefined, nurVerlorene: false },
   // db/quotes.py::list_recently_accepted_quotes / list_recently_rejected_quotes
-  akzeptiert: { titel: 'Angenommene Offerten', statuses: ['akzeptiert'], untertitel: 'angenommen in den letzten 14 Tagen', leer: 'Keine angenommenen Offerten in den letzten 14 Tagen', tage: 14 },
-  abgelehnt: { titel: 'Abgelehnte Offerten', statuses: ['abgelehnt'], untertitel: 'abgelehnt in den letzten 14 Tagen', leer: 'Keine abgelehnten Offerten in den letzten 14 Tagen', tage: 14 },
+  akzeptiert: { titel: 'Angenommene Offerten', statuses: ['akzeptiert'], untertitel: 'angenommen in den letzten 14 Tagen', leer: 'Keine angenommenen Offerten in den letzten 14 Tagen', tage: 14, nurVerlorene: false },
+  // Ohne Absagen, deren Projekt eine weitere offene/angenommene Offerte hat.
+  abgelehnt: { titel: 'Abgelehnte Offerten', statuses: ['abgelehnt'], untertitel: 'abgelehnt in den letzten 14 Tagen, ohne Ersatz im Projekt', leer: 'Keine abgelehnten Offerten in den letzten 14 Tagen', tage: 14, nurVerlorene: true },
 } as const
 export type QuotePanelArt = keyof typeof QUOTE_PANELS
 
@@ -45,7 +48,7 @@ export function OpenQuotesPanel({ art = 'offen', onClose, onChanged, onOpenProje
   const fetchPage = useCallback(
     (page: number, search: string) => listQuotesPage({
       page, pageSize: LIST_PAGE_SIZE, statuses: cfg.statuses, search, sort: 'created_at', dir: 'desc',
-      entschiedenSeitTagen: cfg.tage,
+      entschiedenSeitTagen: cfg.tage, nurVerlorene: cfg.nurVerlorene,
     }),
     [cfg],
   )

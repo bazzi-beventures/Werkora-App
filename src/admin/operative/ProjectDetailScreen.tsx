@@ -565,7 +565,7 @@ export default function ProjectDetailScreen({
   }
 
   return (
-    <div className="admin-page">
+    <div className="admin-page project-detail-page">
       <ProjectDetailHeader
         project={project}
         isNew={isNew}

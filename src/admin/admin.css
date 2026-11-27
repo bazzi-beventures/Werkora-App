@@ -1319,7 +1319,7 @@ button.admin-list-item {
 /* ── KPI SCREEN ─────────────────────────────────── */
 .kpi-admin-tabs {
   display: flex;
-  gap: 0;
+  flex-wrap: wrap; /* Desktop: umbrechen statt Scrollbalken; Handy wischt (mobile.css) */
   border-bottom: 1px solid var(--border);
   margin-bottom: 24px;
   overflow-x: auto;

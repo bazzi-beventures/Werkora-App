@@ -30,7 +30,7 @@ function renderTab(bexioOn: boolean, invoices: ProjectInvoice[] = [INV], onArchi
       useAcceptedQuote={false}
       generatingInvoice={false}
       defaultEmail="kunde@example.com"
-      hasSignedReport={true}
+      hasSignedReport={true} grundlageHinweis={null}
       onUseAcceptedQuoteChange={vi.fn()}
       onGenerateInvoice={vi.fn().mockResolvedValue(true)}
       loadQuoteCoverage={vi.fn().mockResolvedValue(null)}

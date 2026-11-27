@@ -1,0 +1,8 @@
+/* Reiterleiste des Projekt-Details.
+   Elf Reiter brauchen rund 1185px, .admin-page bietet innen nur 1136px — die
+   Leiste lief über, obwohl rechts neben der Seite noch Platz frei war. Die
+   Projektseite darf darum breiter werden; wo auch das nicht reicht, bricht die
+   Leiste um (.kpi-admin-tabs in admin.css). */
+.admin-page.project-detail-page {
+  max-width: 1480px;
+}
