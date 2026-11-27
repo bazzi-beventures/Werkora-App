@@ -15,6 +15,13 @@ import type { ProjectComment } from '../../../api/admin/projects'
 // sofort — was länger steht, haben andere schon gelesen.
 export const COMMENT_LOCK_MS = 10 * 60 * 1000
 
+/** Neueste zuerst (WW-115): im Büro braucht man fast immer den letzten
+ *  Eintrag. Das Backend liefert aufsteigend — die Monteur-App bleibt dabei,
+ *  darum wird nur hier gedreht. */
+export function neuesteZuerst(comments: ProjectComment[]): ProjectComment[] {
+  return [...comments].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+}
+
 export interface UseProjectComments {
   comments: ProjectComment[]
   newComment: string

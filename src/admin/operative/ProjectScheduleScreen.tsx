@@ -15,6 +15,7 @@ import { useScheduleTasks } from './useScheduleTasks'
 import { useScheduleData } from './useScheduleData'
 import { ScheduleTasksSection } from './ScheduleTasksSection'
 import { ScheduleApptEditor } from './ScheduleApptEditor'
+import { absenzVorpruefung, draftVorkommen, serienUeberschneidungen } from './serienPruefung'
 import { ScheduleApptList } from './ScheduleApptList'
 import { AbsenzRueckfrageDialog, SerienLoeschenDialog, TeamFrageDialog } from './ScheduleDialogs'
 import {
@@ -575,8 +576,11 @@ export default function ProjectScheduleScreen({
     if (apptForm.seriesId && apptForm.scope !== 'single') {
       for (const a of appointments) if (a.series_id === apptForm.seriesId) exclude.add(a.id)
     }
-    const hits = findStaffOverlaps(allEntries, slot, staffLite, exclude)
-    return [hits.length ? formatStaffOverlaps(hits) : '', reservationWarnung(slot)].filter(Boolean).join(' ') || null
+    // Eine NEUE Serie über alle Wiederholungen prüfen, nicht nur den ersten Termin (serienPruefung.ts).
+    const termine = draftVorkommen(apptForm)
+    const hits = serienUeberschneidungen(allEntries, slot, termine, staffLite, exclude)
+    const reserviert = new Set(termine.map(v => reservationWarnung({ ...slot, ...v })).filter(Boolean))
+    return [hits.length ? formatStaffOverlaps(hits) : '', ...reserviert].filter(Boolean).join(' ') || null
   }
 
   /**
@@ -646,6 +650,15 @@ export default function ProjectScheduleScreen({
       const message = draftOverlapMessage()
       if (message) {
         setAbsencePrompt({ kind: 'overlap', message, onConfirm: () => void handleSave(false, undefined, true) })
+        return
+      }
+    }
+    // Neuer Eintrag: Absenzen VOR dem Anlegen fragen — der Server merkt sie erst
+    // beim Termin, dann stünde der Eintrag schon (serienPruefung.ts).
+    if (!override && !form.id && !savedProjectId && apptForm?.startDate) {
+      const message = await absenzVorpruefung(effectiveTeamIds(apptForm, form.monteurIds), draftVorkommen(apptForm))
+      if (message) {
+        setAbsencePrompt({ message, onConfirm: () => void handleSave(true, undefined, true) })
         return
       }
     }
@@ -753,6 +766,10 @@ export default function ProjectScheduleScreen({
       }
       setApptForm(null)
     } catch (e) {
+      // Der Eintrag steht schon, nur der Termin nicht: weiter an DIESEM arbeiten —
+      // sonst legte das nächste Speichern einen zweiten an.
+      const angelegt = targetId
+      if (!form.id && angelegt) setForm(f => f && !f.id ? { ...f, id: angelegt } : f)
       const conflict = absenceConflictMessage(e)
       if (conflict) {
         setAbsencePrompt({

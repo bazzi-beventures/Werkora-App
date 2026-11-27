@@ -1,5 +1,5 @@
 import { formatDateTime } from '../../utils/format'
-import type { UseProjectComments } from './useProjectComments'
+import { neuesteZuerst, type UseProjectComments } from './useProjectComments'
 
 // Kommentar-Verlauf in der Seitenleiste des Projekt-Details (Charge H, H3).
 // Rein darstellend — Laden, Speichern und die Sperrfrist liegen in
@@ -19,11 +19,33 @@ export function CommentsPanel({ c, now, above }: Props) {
     <div className="admin-table-wrap project-detail-comments" style={{ padding: 24 }}>
       {above && <div style={{ marginBottom: 18 }}>{above}</div>}
       <div className="admin-section-title" style={{ marginBottom: 14 }}>Kommentare</div>
+      {/* Eingabe oben: ein neuer Kommentar landet direkt darunter. */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          className="admin-form-input"
+          style={{ flex: 1 }}
+          placeholder="Kommentar hinzufügen…"
+          value={c.newComment}
+          onChange={e => c.setNewComment(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void c.add() } }}
+        />
+        <button
+          type="button"
+          className="admin-btn admin-btn-primary"
+          disabled={c.adding || !c.newComment.trim()}
+          onClick={c.add}
+        >
+          {c.adding ? '…' : 'Speichern'}
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, marginBottom: 16 }}>
+        Kommentare lassen sich 10 Minuten lang bearbeiten oder löschen – danach sind sie ein fester Eintrag.
+      </p>
       {c.comments.length === 0 && (
         <div style={{ color: 'var(--muted)', fontSize: 13, marginBottom: 16 }}>Noch keine Kommentare.</div>
       )}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-        {c.comments.map(comment => {
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {neuesteZuerst(c.comments).map(comment => {
           const isEditing = c.editingId === comment.id
           const locked = c.isLocked(comment, now)
           return (
@@ -86,27 +108,6 @@ export function CommentsPanel({ c, now, above }: Props) {
           )
         })}
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <input
-          className="admin-form-input"
-          style={{ flex: 1 }}
-          placeholder="Kommentar hinzufügen…"
-          value={c.newComment}
-          onChange={e => c.setNewComment(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void c.add() } }}
-        />
-        <button
-          type="button"
-          className="admin-btn admin-btn-primary"
-          disabled={c.adding || !c.newComment.trim()}
-          onClick={c.add}
-        >
-          {c.adding ? '…' : 'Speichern'}
-        </button>
-      </div>
-      <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 12 }}>
-        Kommentare lassen sich 10 Minuten lang bearbeiten oder löschen – danach sind sie ein fester Eintrag.
-      </p>
     </div>
   )
 }

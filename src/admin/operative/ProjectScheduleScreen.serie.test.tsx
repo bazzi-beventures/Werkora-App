@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import ProjectScheduleScreen from './ProjectScheduleScreen'
 import {
   listAppointments, createAppointment, updateAppointment, deleteAppointment,
-  loadSchedulingConfig, upsertProject,
+  loadSchedulingConfig, upsertProject, listScheduleAbsences,
 } from '../../api/admin'
 import { apiFetch } from '../../api/client'
 
@@ -28,6 +28,7 @@ vi.mock('../../api/admin', async (importOriginal) => {
     deleteAppointment: vi.fn(),
     loadSchedulingConfig: vi.fn(),
     upsertProject: vi.fn(),
+    listScheduleAbsences: vi.fn(),
     resolveScheduleDistances: vi.fn().mockResolvedValue({ distances: [] }),
   }
 })
@@ -73,6 +74,7 @@ function mockLoad(appointments: unknown[] = [SERIES_APPT]) {
   vi.mocked(createAppointment).mockResolvedValue({ ...SERIES_APPT, series_count: 5 } as never)
   vi.mocked(updateAppointment).mockResolvedValue(SERIES_APPT as never)
   vi.mocked(deleteAppointment).mockResolvedValue(undefined as never)
+  vi.mocked(listScheduleAbsences).mockResolvedValue([])
 }
 
 // Panel öffnen und das Testprojekt wählen — Ausgangspunkt aller Fälle unten.
@@ -359,5 +361,78 @@ describe('Termin-Nutzlast', () => {
       kind: 'sonstiges',
       label: 'Besprechung',
     })
+  })
+})
+
+
+// ─── Serie über bestehende Termine (Befund Arzt-Blocker, 11/2026) ────────────
+//
+// Die Rückfragen «bereits eingeplant» und «Absenz» prüften bei einer neuen Serie
+// nur den ersten Termin bzw. kamen erst, als der Blocker schon angelegt war.
+
+async function arztSerie(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: '+ Blocker' }))
+  await user.clear(screen.getByLabelText('Titel'))
+  await user.type(screen.getByLabelText('Titel'), 'Arzt')
+  await user.click(screen.getAllByRole('button', { name: 'Anna Muster' })
+    .find(b => b.className.includes('project-schedule-chip'))!)
+  await user.type(screen.getByLabelText('Start'), '2026-09-07')
+  await user.type(screen.getByLabelText(/^Startzeit/), '08:00')
+  await user.type(screen.getByLabelText(/^Endzeit/), '09:00')
+  await user.selectOptions(screen.getByLabelText('Wiederholung'), 'weekly')
+  await user.type(screen.getByLabelText(/Serie bis/), '2026-09-30')
+  await user.click(screen.getByRole('button', { name: 'Speichern' }))
+}
+
+describe('Serie über bestehende Termine', () => {
+  it('warnt auch, wenn erst ein späterer Serientermin kollidiert', async () => {
+    mockLoad([{ ...SINGLE_APPT, start_date: '2026-09-21' }])
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await arztSerie(user)
+
+    expect(await screen.findByText('Mitarbeiter bereits eingeplant')).toBeTruthy()
+    expect(screen.getByText(/Anna Muster: Sanierung Bad/)).toBeTruthy()
+    expect(upsertProject).not.toHaveBeenCalled()
+    expect(createAppointment).not.toHaveBeenCalled()
+  })
+
+  it('fragt nach Ferien, bevor der Blocker angelegt wird', async () => {
+    mockLoad([])
+    vi.mocked(listScheduleAbsences).mockResolvedValue([{
+      staff_id: 's1', staff_name: 'Anna Muster', type: 'vacation',
+      date_start: '2026-09-21', date_end: '2026-09-25', half_day: null, label: 'Ferien 21.09.–25.09.2026',
+    }])
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await arztSerie(user)
+
+    expect(await screen.findByText('Absenz im Einsatzzeitraum')).toBeTruthy()
+    expect(upsertProject).not.toHaveBeenCalled()
+
+    // «Abbrechen» lässt nichts zurück …
+    await user.click(screen.getByRole('button', { name: 'Abbrechen' }))
+    expect(upsertProject).not.toHaveBeenCalled()
+
+    // … «Trotzdem einplanen» legt an, mit Übersteuerung für den Server.
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await user.click(await screen.findByRole('button', { name: 'Trotzdem einplanen' }))
+    await waitFor(() => expect(createAppointment).toHaveBeenCalledTimes(1))
+    expect(upsertProject).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(createAppointment).mock.calls[0][1]).toMatchObject({ ignore_absence_conflicts: true })
+  })
+
+  it('legt nach einem gescheiterten Termin beim nächsten Speichern keinen zweiten Blocker an', async () => {
+    mockLoad([])
+    vi.mocked(upsertProject).mockResolvedValue({ project: { id: 'neu-1' } } as never)
+    vi.mocked(createAppointment).mockRejectedValueOnce(new Error('netz'))
+    const user = userEvent.setup()
+    render(<ProjectScheduleScreen />)
+    await arztSerie(user)
+    expect(await screen.findByText('Speichern fehlgeschlagen.')).toBeTruthy()
+
+    await user.click(screen.getByRole('button', { name: 'Speichern' }))
+    await waitFor(() => expect(createAppointment).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(upsertProject).mock.calls[1][0]).toMatchObject({ id: 'neu-1' })
   })
 })
