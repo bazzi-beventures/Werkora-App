@@ -11,6 +11,7 @@ import { scheduledDayIsoSet, weekendOnlyEntries, type CalendarEntry, type StaffL
 import { parseViewDate, readScheduleView, writeScheduleView } from './scheduleViewState'
 import MiniMonthPicker from './MiniMonthPicker'
 import StaffFilterPills from './StaffFilterPills'
+import StaffSwitcherPills from './StaffSwitcherPills'
 import type { EinsatzStaende } from './useEinsatzStaende'
 import { CalendarLegend } from './scheduleCalendarParts'
 import { MonthView } from './ScheduleMonthView'
@@ -459,36 +460,16 @@ export default function ProjectScheduleCalendar({
       </div>
 
       {!busy && view === 'staff' && staff.length > 0 && (
-        <div className="project-cal-staff-switcher">
-          <span className="project-cal-filter-label">Mitarbeiter</span>
-          <div className="project-cal-staff-switcher-nav">
-            <button
-              type="button"
-              className="admin-btn admin-btn-secondary admin-btn-sm"
-              onClick={() => stepStaff(-1)}
-              title="Vorheriger Mitarbeiter"
-            >←</button>
-            <select
-              className="admin-input project-cal-staff-switcher-select"
-              value={focusedStaff?.id ?? ''}
-              onChange={e => {
-                const idx = staff.findIndex(s => s.id === e.target.value)
-                if (idx >= 0) setStaffIndex(idx)
-              }}
-            >
-              {staff.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="admin-btn admin-btn-secondary admin-btn-sm"
-              onClick={() => stepStaff(1)}
-              title="Nächster Mitarbeiter"
-            >→</button>
-          </div>
-          <span className="project-cal-filter-count">{curStaffIndex + 1} / {staff.length}</span>
-        </div>
+        <StaffSwitcherPills
+          staff={staff}
+          focusedId={focusedStaff?.id ?? null}
+          position={curStaffIndex + 1}
+          onPick={id => {
+            const idx = staff.findIndex(s => s.id === id)
+            if (idx >= 0) setStaffIndex(idx)
+          }}
+          onStep={stepStaff}
+        />
       )}
 
       {!busy && view !== 'staff' && staff.length > 0 && (

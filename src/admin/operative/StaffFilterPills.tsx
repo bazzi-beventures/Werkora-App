@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { StaffLite } from './scheduleShared'
-import { staffGroup, staffPillLabel, type StaffGroup } from './staffFilterGroups'
+import { STAFF_GROUPS, readNameLabel, staffGroup, staffPillLabel, writeNameLabel } from './staffFilterGroups'
 import './staffFilterPills.css'
 
 // Sichtbarkeits-Filter der Einsatzplanung: Pillen je Mitarbeiter, getrennt in
@@ -10,22 +10,7 @@ import './staffFilterPills.css'
 // an/aus, damit man sie auch beim Durchklicken nicht verwechselt.
 //
 // Beschriftung wahlweise Kürzel («LB») oder Vorname plus Initial («Luca B.»),
-// pro Browser gemerkt — wie Zoom und Wochenende reine Anzeige-Vorliebe.
-
-const NAME_LABEL_KEY = 'schedule-staff-pill-names'
-
-function readNameLabel(): boolean {
-  try {
-    return window.localStorage.getItem(NAME_LABEL_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-const GROUPS: { key: StaffGroup; label: string }[] = [
-  { key: 'monteur', label: 'Monteure' },
-  { key: 'admin', label: 'Admin' },
-]
+// pro Browser gemerkt (staffFilterGroups.ts).
 
 interface Props {
   staff: StaffLite[]
@@ -38,8 +23,7 @@ export default function StaffFilterPills({ staff, hiddenStaff, onHiddenChange }:
 
   function toggleNames(on: boolean) {
     setShowNames(on)
-    // Private-Mode / voller Storage darf die Auswahl nicht blockieren.
-    try { window.localStorage.setItem(NAME_LABEL_KEY, on ? '1' : '0') } catch { /* egal */ }
+    writeNameLabel(on)
   }
 
   function toggle(id: string) {
@@ -59,7 +43,7 @@ export default function StaffFilterPills({ staff, hiddenStaff, onHiddenChange }:
   }
 
   const allHidden = hiddenStaff.size === staff.length
-  const groups = GROUPS
+  const groups = STAFF_GROUPS
     .map(g => ({ ...g, members: staff.filter(s => staffGroup(s) === g.key) }))
     .filter(g => g.members.length > 0)
 

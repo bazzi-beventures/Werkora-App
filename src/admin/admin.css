@@ -2572,33 +2572,6 @@ button.admin-list-item {
   margin-left: 6px;
 }
 
-/* Mitarbeiteransicht: Umschalter Mitarbeiter → Mitarbeiter */
-.project-cal-staff-switcher {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.project-cal-staff-switcher-nav {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  min-width: 200px;
-}
-
-.project-cal-staff-switcher-select {
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
-}
-
 /* Projekt-Picker Dropdown */
 .project-schedule-picker-list {
   position: absolute;

@@ -98,7 +98,7 @@ describe('Ferien in allen Ansichten (§7)', () => {
     await zeige('Mitarbeiter')
     // Fokus steht auf Anna — die ist nicht weg.
     expect(screen.queryByText('Ferien 01.01.–01.01.2027')).toBeNull()
-    await userEvent.selectOptions(screen.getByRole('combobox'), ['s2'])
+    await userEvent.click(screen.getByRole('button', { name: 'Beat Beispiel' }))
     expect(screen.getByText('Ferien 01.01.–01.01.2027')).toBeInTheDocument()
     expect(container.querySelectorAll('.project-cal-week-day-col.absent')).toHaveLength(1)
   })
@@ -174,7 +174,7 @@ describe('Ferien grün, Einsätze im Hintergrund (WW-59)', () => {
     await zeige('Woche')
     expect(screen.getByText('BB Ferien')).toHaveClass('vacation')
     await zeige('Mitarbeiter')
-    await userEvent.selectOptions(screen.getByRole('combobox'), ['s2'])
+    await userEvent.click(screen.getByRole('button', { name: 'Beat Beispiel' }))
     expect(container.querySelectorAll('.project-cal-week-day-col.absent.vacation')).toHaveLength(1)
   })
 })
@@ -214,10 +214,16 @@ describe('Kürzel statt Namen (§4)', () => {
     expect(chip).toHaveAttribute('title', 'Anna Muster')
   })
 
-  it('die Auswahlliste der Mitarbeiter-Ansicht behält volle Namen', async () => {
-    renderCal({ absences: [] })
+  it('Mitarbeiter-Ansicht: Pillen mit Kürzel, der volle Name steht im Kopf (WW-113)', async () => {
+    const { container } = renderCal({ absences: [] })
     await zeige('Mitarbeiter')
-    expect(within(screen.getByRole('combobox')).getByRole('option', { name: 'Beat Beispiel' })).toBeInTheDocument()
+    const pille = screen.getByRole('button', { name: 'Beat Beispiel' })
+    expect(pille).toHaveTextContent('BB')
+    expect(pille).toHaveAttribute('aria-pressed', 'false')
+    expect(container.querySelector('.staff-switch-name')).toHaveTextContent('Anna Muster')
+    await userEvent.click(pille)
+    expect(pille).toHaveAttribute('aria-pressed', 'true')
+    expect(container.querySelector('.staff-switch-name')).toHaveTextContent('Beat Beispiel')
   })
 })
 

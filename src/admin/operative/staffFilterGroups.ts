@@ -1,5 +1,6 @@
-// Gruppierung und Beschriftung der Mitarbeiter-Pillen im Filter der
-// Einsatzplanung (StaffFilterPills.tsx).
+// Gruppierung und Beschriftung der Mitarbeiter-Pillen der Einsatzplanung:
+// Sichtbarkeits-Filter (StaffFilterPills.tsx) und Mitarbeiter-Wahl der
+// Mitarbeiter-Ansicht (StaffSwitcherPills.tsx).
 import { staffShortLabel, type StaffLite } from './scheduleShared'
 
 // Rollen, die im Filter der Einsatzplanung unter «Admin» stehen. Dazu kommt
@@ -25,3 +26,25 @@ export function staffFirstNameLabel(name: string): string {
 export function staffPillLabel(s: StaffLite, withNames: boolean): string {
   return withNames ? staffFirstNameLabel(s.name) || staffShortLabel(s) : staffShortLabel(s)
 }
+
+// «Namen statt Kürzel» gilt für beide Pillen-Leisten gemeinsam, pro Browser
+// gemerkt — wie Zoom und Wochenende reine Anzeige-Vorliebe.
+const NAME_LABEL_KEY = 'schedule-staff-pill-names'
+
+export function readNameLabel(): boolean {
+  try {
+    return window.localStorage.getItem(NAME_LABEL_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function writeNameLabel(on: boolean): void {
+  // Private-Mode / voller Storage darf die Auswahl nicht blockieren.
+  try { window.localStorage.setItem(NAME_LABEL_KEY, on ? '1' : '0') } catch { /* egal */ }
+}
+
+export const STAFF_GROUPS: { key: StaffGroup; label: string }[] = [
+  { key: 'monteur', label: 'Monteure' },
+  { key: 'admin', label: 'Admin' },
+]

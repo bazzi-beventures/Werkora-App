@@ -30,12 +30,12 @@ describe('Einsatzplanung merkt sich die Ansicht in der Sitzung', () => {
     const user = userEvent.setup()
     const erst = renderCal()
     await user.click(screen.getByRole('button', { name: 'Mitarbeiter' }))
-    await user.selectOptions(screen.getByRole('combobox'), ['s2'])
+    await user.click(screen.getByRole('button', { name: 'Beat Beispiel' }))
     erst.unmount()
 
     renderCal()
     expect(screen.getByRole('button', { name: 'Mitarbeiter' })).toHaveClass('admin-btn-primary')
-    expect(screen.getByRole('combobox')).toHaveValue('s2')
+    expect(screen.getByRole('button', { name: 'Beat Beispiel' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('findet den Mitarbeiter auch, wenn die Liste erst später kommt', () => {
@@ -43,7 +43,7 @@ describe('Einsatzplanung merkt sich die Ansicht in der Sitzung', () => {
     const { rerender } = renderCal([])
     rerender(<ProjectScheduleCalendar projects={[]} staff={STAFF} loading={false}
       onSelect={vi.fn()} onReschedule={vi.fn()} />)
-    expect(screen.getByRole('combobox')).toHaveValue('s2')
+    expect(screen.getByRole('button', { name: 'Beat Beispiel' })).toHaveAttribute('aria-pressed', 'true')
     expect(readScheduleView().staffId).toBe('s2')
   })
 
@@ -99,7 +99,7 @@ describe('Sprung von einem Projekt-Termin auf dessen Team (WW-62)', () => {
     writeScheduleView(appointmentJumpState(readScheduleView(), '2026-11-17', ['s2']))
     renderCal()
     expect(screen.getByRole('button', { name: 'Mitarbeiter' })).toHaveClass('admin-btn-primary')
-    expect(screen.getByRole('combobox')).toHaveValue('s2')
+    expect(screen.getByRole('button', { name: 'Beat Beispiel' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('ein Monteur ohne Mitarbeiter-Ansicht beim Mandanten: Plantafel', () => {

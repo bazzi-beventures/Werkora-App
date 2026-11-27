@@ -36,12 +36,12 @@ const BESTAND = {
   // Grösse, nicht +20. Neue Komponenten bringen ihr CSS als eigene Datei neben sich mit
   // (Vorbild kpi-dashboard.css, hagelschaden.css); wer hier eine Regel braucht, nimmt
   // dafür eine alte heraus. Kandidaten zeigt `npm run css:unbenutzt`.
-  'admin/admin.css': 5170, // 5322, nach Charge O1 (12 tote Klassen gelöscht) 5243, Ansprechpersonen → eigene Datei (WW-110) 5170
+  'admin/admin.css': 5143, // 5322, nach Charge O1 (12 tote Klassen gelöscht) 5243, Ansprechpersonen → eigene Datei (WW-110) 5170, Mitarbeiter-Dropdown weg (WW-113) 5143
   // Dasselbe für das globale Stylesheet der Monteur-App (Charge O5: 13 tote Klassen gelöscht).
   'index.css': 2631, // 2705, nach Charge O5 2631
   'admin/operative/ProjectScheduleScreen.tsx': 1500, // 1428 (Charge M4c; M4b 1732, M4a 1915, vorher 2343)
   'screens/ProjekteScreen.tsx': 2200, // 2164
-  'admin/operative/ProjectScheduleCalendar.tsx': 700, // 672 (Mitarbeiter-Filter → StaffFilterPills; vorher 713, Charge M4d)
+  'admin/operative/ProjectScheduleCalendar.tsx': 660, // 672 (Mitarbeiter-Filter → StaffFilterPills; vorher 713, Charge M4d), Mitarbeiter-Wahl → StaffSwitcherPills (WW-113) 656
   'admin/operative/ReportCreateForm.tsx': 1300, // 1253
   'chat/ChatScreen.tsx': 1250, // 1222
   'admin/operative/InvoicesScreen.tsx': 720, // 673 — Aktionen/Dialoge nach invoices/useInvoiceActions (20261117; vorher 1142)

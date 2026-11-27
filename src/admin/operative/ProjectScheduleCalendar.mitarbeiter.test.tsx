@@ -54,9 +54,7 @@ function renderCal(entries: CalendarEntry[]) {
 async function focusStaff(name: string) {
   const user = userEvent.setup()
   await user.click(screen.getByRole('button', { name: 'Mitarbeiter' }))
-  await user.selectOptions(screen.getByRole('combobox'), [
-    STAFF.find(s => s.name === name)!.id,
-  ])
+  await user.click(screen.getByRole('button', { name }))
 }
 
 describe('Mitarbeiteransicht', () => {
@@ -103,7 +101,7 @@ describe('Name in der linken Spalte', () => {
       await user.click(screen.getByRole('button', { name: ansicht }))
       await user.click(screen.getByTitle('Mitarbeiter-Ansicht von Beat Beispiel öffnen'))
 
-      expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('s2')
+      expect(screen.getByRole('button', { name: 'Beat Beispiel' })).toHaveAttribute('aria-pressed', 'true')
       expect(container.textContent).toContain('Projekt Beta')
       expect(container.textContent).not.toContain('Projekt Alpha')
     })

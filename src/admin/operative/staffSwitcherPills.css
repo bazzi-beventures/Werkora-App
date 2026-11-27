@@ -1,0 +1,37 @@
+/* Mitarbeiter-Wahl der Mitarbeiter-Ansicht (admin/operative/StaffSwitcherPills.tsx).
+   Pillen wie im Tagesplan-Filter, aber eine Auswahl statt Sichtbarkeit: nur der
+   gezeigte Mitarbeiter ist gefüllt, die übrigen sind umrandet — ohne den
+   Durchstrich, der im Filter «ausgeblendet» heisst. */
+
+.staff-switch-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.staff-switch-name {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.absence-cal-staff-chip.staff-switch-chip:not(.active) {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.absence-cal-staff-chip.staff-switch-chip.staff-chip-admin:not(.active) {
+  background: var(--accent-purple-dim);
+  border: 1px solid var(--accent-purple);
+  color: var(--text);
+}
+
+.absence-cal-staff-chip.staff-switch-chip:not(.active):hover {
+  border-color: var(--primary);
+}
+
+.absence-cal-staff-chip.staff-switch-chip.active {
+  font-weight: 600;
+}
