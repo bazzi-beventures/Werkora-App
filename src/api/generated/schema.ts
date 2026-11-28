@@ -4198,6 +4198,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/tenants/{tenant_id}/bexio/queue/retry-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BexioAlleErneut"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/tenants/{tenant_id}/mail-eingang/zustaendigkeiten": {
         parameters: {
             query?: never;
@@ -4731,6 +4766,13 @@ export interface components {
             description: string;
             total_price: number;
         };
+        BexioAlleErneut: {
+            status: string;
+            /** @description Aufträge im gewählten Zustand (höchstens 500). */
+            found: number;
+            /** @description Davon auf «wartet» zurückgesetzt. */
+            retried: number;
+        };
         /** @description Ein Auftrag der ``bexio_sync_queue``, neueste zuerst. */
         BexioAuftrag: {
             id: number;
@@ -4738,7 +4780,7 @@ export interface components {
             kind: string;
             /** @description Werkora-id: Kunde bei customer_upsert, sonst die Rechnung. */
             local_id: string;
-            /** @description Nur bei offenen Rechnungs-Aufträgen (nicht `done`), höchstens 50 je Abruf. */
+            /** @description Rechnungsnummer bei Rechnungs-Aufträgen; fehlt bei Kunden oder wenn nicht lesbar. */
             invoice_number?: string | null;
             status: string;
             attempts: number;
@@ -4747,7 +4789,7 @@ export interface components {
             created_at: string;
             finished_at: string | null;
         };
-        /** @description Zustand einer Rechnung in bexio (``services.bexio_sync.badge_states``). */
+        /** @description Zustand einer Rechnung in bexio (``services.bexio_anzeige.badge_states``). */
         BexioBadge: {
             /** @enum {string} */
             state: "in_bexio" | "wird_uebertragen" | "fehler" | "storniert" | "storno_offen";

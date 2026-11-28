@@ -198,7 +198,7 @@ export function getKpiView<T = Record<string, unknown>>(
 
 export {
   getBexio, setBexioToken, testBexio, setBexioDefaults, deleteBexio, startBexioOAuth,
-  listBexioJobs, retryBexioJob, linkBexioContact, cancelInBexio, enqueueBexioInvoice, resendBexioPdfs,
+  listBexioJobs, retryBexioJob, retryAllBexioJobs, linkBexioContact, cancelInBexio, enqueueBexioInvoice, resendBexioPdfs,
 } from '../api/platform'
 export type {
   BexioView, BexioJob, BexioDefaults, BexioConnection, BexioCatalog,

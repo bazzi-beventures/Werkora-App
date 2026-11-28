@@ -403,6 +403,13 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
               <option value="">alle</option>
             </select>
             <button className="admin-btn admin-btn-secondary admin-btn-sm" onClick={() => void loadJobs(jobFilter)}>Aktualisieren</button>
+            {(jobFilter === 'needs_attention' || jobFilter === 'error') && jobs.length > 1 && (
+              <button className="admin-btn admin-btn-secondary admin-btn-sm" disabled={busy !== null}
+                onClick={() => void run('retry-all', () => scoped.retryAllBexioJobs(tenantId, jobFilter),
+                  `${jobs.length} Aufträge werden erneut versucht`).then(() => loadJobs(jobFilter))}>
+                Alle {jobs.length} erneut versuchen
+              </button>
+            )}
           </div>
           {jobs.length === 0 ? <p style={MUTED}>Keine Aufträge.</p> : (
             <table className="admin-table">
@@ -414,7 +421,7 @@ export function BexioTab({ tenantId }: { tenantId: string }) {
                   return (
                     <tr key={job.id}>
                       <td>{jobLabel(job)}</td>
-                      <td>{job.local_id}</td>
+                      <td>{job.invoice_number ?? job.local_id}</td>
                       <td><span className={`admin-badge ${st.badge}`}>{st.label}</span></td>
                       <td style={{ maxWidth: 360, whiteSpace: 'normal' }}>{job.last_error ?? ''}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>

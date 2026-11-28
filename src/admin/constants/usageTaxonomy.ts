@@ -226,6 +226,7 @@ const ACTION_LABELS: Record<string, string> = {
   bexio_defaults_set: 'bexio: Konten/Einstellungen gespeichert',
   bexio_connection_deleted: 'bexio: Verbindung getrennt',
   bexio_job_retry: 'bexio: Auftrag erneut versucht',
+  bexio_job_retry_all: 'bexio: alle Aufträge erneut versucht',
   bexio_contact_linked: 'bexio: Kontakt zugeordnet',
   bexio_invoice_cancelled: 'bexio: Rechnung storniert',
   bexio_invoice_cancel_confirmed: 'bexio: Storno bestätigt',

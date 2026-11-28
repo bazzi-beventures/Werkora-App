@@ -2062,6 +2062,22 @@
         }
       }
     },
+    "/pwa/superadmin/tenants/{tenant_id}/bexio/queue/retry-all": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BexioAlleErneut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/tenants/{tenant_id}/mail-eingang/zustaendigkeiten": {
       "get": {
         "responses": {
@@ -3186,6 +3202,27 @@
           "total_price"
         ]
       },
+      "BexioAlleErneut": {
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "found": {
+            "type": "integer",
+            "description": "Aufträge im gewählten Zustand (höchstens 500)."
+          },
+          "retried": {
+            "type": "integer",
+            "description": "Davon auf «wartet» zurückgesetzt."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "found",
+          "retried"
+        ]
+      },
       "BexioAuftrag": {
         "properties": {
           "id": {
@@ -3208,7 +3245,7 @@
                 "type": "null"
               }
             ],
-            "description": "Nur bei offenen Rechnungs-Aufträgen (nicht `done`), höchstens 50 je Abruf."
+            "description": "Rechnungsnummer bei Rechnungs-Aufträgen; fehlt bei Kunden oder wenn nicht lesbar."
           },
           "status": {
             "type": "string"
@@ -3312,7 +3349,7 @@
         "required": [
           "state"
         ],
-        "description": "Zustand einer Rechnung in bexio (``services.bexio_sync.badge_states``)."
+        "description": "Zustand einer Rechnung in bexio (``services.bexio_anzeige.badge_states``)."
       },
       "BexioLage": {
         "properties": {

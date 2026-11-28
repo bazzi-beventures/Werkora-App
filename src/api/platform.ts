@@ -335,6 +335,8 @@ export interface BexioJob {
   last_error: string | null
   created_at: string
   finished_at: string | null
+  /** Rechnungsnummer bei Rechnungs-Aufträgen; fehlt bei Kunden oder wenn nicht lesbar. */
+  invoice_number?: string
 }
 
 export type BexioDefaults = Pick<BexioConnection,
@@ -383,6 +385,15 @@ export async function listBexioJobs(tenantId: string, status?: string): Promise<
 
 export function retryBexioJob(tenantId: string, jobId: number) {
   return apiFetch(`${bexioBase(tenantId)}/queue/${jobId}/retry`, { method: 'POST' })
+}
+
+/** «Alle erneut versuchen» für den Filter der Warteschlange (höchstens 500, Spec §7.3). */
+export function retryAllBexioJobs(tenantId: string, status: 'needs_attention' | 'error'):
+  Promise<Antwort<'BexioAlleErneut'>> {
+  return apiFetch<Antwort<'BexioAlleErneut'>>(`${bexioBase(tenantId)}/queue/retry-all`, {
+    method: 'POST',
+    body: JSON.stringify({ status }),
+  })
 }
 
 export function linkBexioContact(tenantId: string, jobId: number, bexioContactId: number) {
