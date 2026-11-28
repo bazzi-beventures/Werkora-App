@@ -1423,6 +1423,22 @@
         }
       }
     },
+    "/pwa/admin/quotes/{quote_id}/dismiss-reminder": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erledigt"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/admin/quotes/{quote_id}/mark-sent": {
       "post": {
         "responses": {

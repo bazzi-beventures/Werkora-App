@@ -170,11 +170,15 @@ export async function listQuotesPage(
     /** Nur Absagen ohne offene/angenommene Offerte im selben Projekt — was die
      *  Kachel «Abgelehnte Offerten» zählt (eine ersetzte Offerte ist kein Verlust). */
     nurVerlorene?: boolean
+    /** Ohne Offerten abgeschlossener/archivierter Projekte — was die Kachel
+     *  «Offerten in Bearbeitung» zählt. */
+    nurOffeneProjekte?: boolean
   },
 ): Promise<ListPage<Quote>> {
   const fenster = q.entschiedenSeitTagen ? `&entschieden_seit_tagen=${q.entschiedenSeitTagen}` : ''
   const verloren = q.nurVerlorene ? '&nur_verlorene=true' : ''
-  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}${fenster}${verloren}`)
+  const offen = q.nurOffeneProjekte ? '&nur_offene_projekte=true' : ''
+  return apiFetch<ListPage<Quote>>(`/pwa/admin/quotes/list?${listPageParams(q)}${fenster}${verloren}${offen}`)
 }
 
 // ─── Anlegen und Bearbeiten ─────────────────────────────────

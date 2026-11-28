@@ -110,6 +110,12 @@ export async function sendQuoteReminder(quoteId: number): Promise<void> {
   await apiFetch(`/pwa/admin/quotes/${quoteId}/send-reminder`, { method: 'POST' })
 }
 
+/** «Ohne Mail erledigen»: die Offerte verlässt die Erinnerungsliste, der Kunde
+ *  bekommt nichts (z.B. schon telefonisch nachgefasst). */
+export async function dismissQuoteReminder(quoteId: number): Promise<void> {
+  await apiFetch(`/pwa/admin/quotes/${quoteId}/dismiss-reminder`, { method: 'POST' })
+}
+
 export async function getPendingActionInvoices(): Promise<PendingActionInvoice[]> {
   return apiFetch<PendingActionInvoice[]>('/pwa/admin/invoices/pending-action')
 }

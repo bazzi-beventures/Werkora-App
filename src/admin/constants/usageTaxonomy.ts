@@ -174,6 +174,7 @@ const ACTION_LABELS: Record<string, string> = {
   admin_quote_status: 'Offerten-Status gesetzt',
   admin_add_variant: 'Offerten-Variante angelegt',
   admin_send_quote_reminder: 'Offerte: Erinnerung versendet',
+  admin_dismiss_quote_reminder: 'Offerte: Erinnerung ohne Mail erledigt',
   admin_send_quote_thankyou: 'Offerte: Dankesmail versendet',
   admin_send_quote_rejection: 'Offerte: Absage versendet',
   admin_send_quote_order_confirmation: 'Auftragsbestätigung versendet',
