@@ -1982,6 +1982,22 @@
         }
       }
     },
+    "/pwa/superadmin/feed/bexio/{ref}": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BexioLage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/pwa/superadmin/feed/health/anmeldungen": {
       "get": {
         "responses": {
@@ -3170,6 +3186,84 @@
           "total_price"
         ]
       },
+      "BexioAuftrag": {
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string",
+            "description": "customer_upsert, invoice_issue, payment_sync, invoice_cancelled."
+          },
+          "local_id": {
+            "type": "string",
+            "description": "Werkora-id: Kunde bei customer_upsert, sonst die Rechnung."
+          },
+          "invoice_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Nur bei offenen Rechnungs-Aufträgen (nicht `done`), höchstens 50 je Abruf."
+          },
+          "status": {
+            "type": "string"
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "next_attempt_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "local_id",
+          "status",
+          "attempts",
+          "last_error",
+          "next_attempt_at",
+          "created_at",
+          "finished_at"
+        ],
+        "description": "Ein Auftrag der ``bexio_sync_queue``, neueste zuerst."
+      },
       "BexioBadge": {
         "properties": {
           "state": {
@@ -3219,6 +3313,65 @@
           "state"
         ],
         "description": "Zustand einer Rechnung in bexio (``services.bexio_sync.badge_states``)."
+      },
+      "BexioLage": {
+        "properties": {
+          "tenant": {
+            "type": "string",
+            "description": "Slug des Mandanten."
+          },
+          "name": {
+            "type": "string"
+          },
+          "module_enabled": {
+            "type": "boolean"
+          },
+          "key_configured": {
+            "type": "boolean",
+            "description": "BEXIO_TOKEN_KEY gesetzt — ohne ist die Anbindung aus."
+          },
+          "connection": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Verbindung ohne Geheimnis und ohne lookup_ids; null = nicht eingerichtet."
+          },
+          "anreden": {
+            "additionalProperties": true,
+            "type": "object",
+            "description": "Anrede → bexio-id, wie der Kontakt-Abgleich sie liest (lookup_ids.salutation, vom letzten Verbindungstest)."
+          },
+          "queue_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "description": "Aufträge je Status unter den gelieferten."
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/BexioAuftrag"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant",
+          "name",
+          "module_enabled",
+          "key_configured",
+          "connection",
+          "anreden",
+          "queue_counts",
+          "jobs"
+        ]
       },
       "BexioStatus": {
         "properties": {

@@ -4023,6 +4023,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pwa/superadmin/feed/bexio/{ref}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Successful Response */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BexioLage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pwa/superadmin/feed/health/anmeldungen": {
         parameters: {
             query?: never;
@@ -4696,6 +4731,22 @@ export interface components {
             description: string;
             total_price: number;
         };
+        /** @description Ein Auftrag der ``bexio_sync_queue``, neueste zuerst. */
+        BexioAuftrag: {
+            id: number;
+            /** @description customer_upsert, invoice_issue, payment_sync, invoice_cancelled. */
+            kind: string;
+            /** @description Werkora-id: Kunde bei customer_upsert, sonst die Rechnung. */
+            local_id: string;
+            /** @description Nur bei offenen Rechnungs-Aufträgen (nicht `done`), höchstens 50 je Abruf. */
+            invoice_number?: string | null;
+            status: string;
+            attempts: number;
+            last_error: string | null;
+            next_attempt_at: string | null;
+            created_at: string;
+            finished_at: string | null;
+        };
         /** @description Zustand einer Rechnung in bexio (``services.bexio_sync.badge_states``). */
         BexioBadge: {
             /** @enum {string} */
@@ -4704,6 +4755,27 @@ export interface components {
             message?: string | null;
             /** @description Nur bei `storno_offen`: der Betrieb hat bestätigt, der Lauf führt es aus. */
             confirmed?: boolean | null;
+        };
+        BexioLage: {
+            /** @description Slug des Mandanten. */
+            tenant: string;
+            name: string;
+            module_enabled: boolean;
+            /** @description BEXIO_TOKEN_KEY gesetzt — ohne ist die Anbindung aus. */
+            key_configured: boolean;
+            /** @description Verbindung ohne Geheimnis und ohne lookup_ids; null = nicht eingerichtet. */
+            connection: {
+                [key: string]: unknown;
+            } | null;
+            /** @description Anrede → bexio-id, wie der Kontakt-Abgleich sie liest (lookup_ids.salutation, vom letzten Verbindungstest). */
+            anreden: {
+                [key: string]: unknown;
+            };
+            /** @description Aufträge je Status unter den gelieferten. */
+            queue_counts: {
+                [key: string]: number;
+            };
+            jobs: components["schemas"]["BexioAuftrag"][];
         };
         /** @description ``/admin/invoices/bexio-status``: Zustand je Rechnungs-id (als String). */
         BexioStatus: {
