@@ -68,13 +68,14 @@ describe('OpenQuotesPanel', () => {
     expect(q.nurVerlorene).toBe(true)
   })
 
-  it('«Angenommene Offerten (14 Tage)» lädt dasselbe Fenster wie die Kachel', async () => {
+  it('«Angenommen, nicht verrechnet» lädt ohne Zeitfenster nur Unverrechnete, wie die Kachel', async () => {
     listQuotes.mockResolvedValue([quote({ status: 'akzeptiert' })])
     render(<OpenQuotesPanel art="akzeptiert" onClose={vi.fn()} onChanged={vi.fn()} />)
-    expect(await screen.findByText('Angenommene Offerten')).toBeTruthy()
-    const q = listQuotes.mock.calls[0][0] as { statuses: Iterable<string>; entschiedenSeitTagen?: number }
+    expect(await screen.findByText('Angenommen, nicht verrechnet')).toBeTruthy()
+    const q = listQuotes.mock.calls[0][0] as { statuses: Iterable<string>; entschiedenSeitTagen?: number; nurUnverrechnete?: boolean }
     expect([...q.statuses]).toEqual(['akzeptiert'])
-    expect(q.entschiedenSeitTagen).toBe(14)
+    expect(q.entschiedenSeitTagen).toBeUndefined()
+    expect(q.nurUnverrechnete).toBe(true)
   })
 
   it('öffnet beim Klick auf die Karte das Projekt', async () => {

@@ -1,5 +1,5 @@
 // Seitenpanel hinter den Offerten-Kacheln des Dashboards («Offerten in
-// Bearbeitung», «Angenommene/Abgelehnte Offerten (14 Tage)») mit denselben
+// Bearbeitung», «Angenommen, nicht verrechnet», «Abgelehnte Offerten (14 Tage)») mit denselben
 // Aktionen wie in der Offertenliste — Handler und Dialoge kommen aus quotes/useQuoteActions, die
 // Knöpfe aus QuoteListParts. Ein Klick auf die Karte (nicht auf einen Knopf)
 // öffnet das Projekt der Offerte; eine freistehende Offerte ohne Projekt bleibt
@@ -26,11 +26,13 @@ export const QUOTE_PANELS = {
   // Nur Entwürfe: eine versendete Offerte liegt beim Kunden — wartet sie zu
   // lange, meldet sie «Offerten-Erinnerungen». Ohne geschlossene Projekte: ein
   // liegengebliebener Entwurf im abgeschlossenen Projekt ist keine Arbeit mehr.
-  offen: { titel: 'Offerten in Bearbeitung', statuses: ['entwurf'], untertitel: 'noch nicht versendet', leer: 'Keine Offerten in Bearbeitung', tage: undefined, nurVerlorene: false, nurOffeneProjekte: true },
-  // db/quotes.py::list_recently_accepted_quotes / list_recently_rejected_quotes
-  akzeptiert: { titel: 'Angenommene Offerten', statuses: ['akzeptiert'], untertitel: 'angenommen in den letzten 14 Tagen', leer: 'Keine angenommenen Offerten in den letzten 14 Tagen', tage: 14, nurVerlorene: false, nurOffeneProjekte: false },
+  offen: { titel: 'Offerten in Bearbeitung', statuses: ['entwurf'], untertitel: 'noch nicht versendet', leer: 'Keine Offerten in Bearbeitung', tage: undefined, nurVerlorene: false, nurOffeneProjekte: true, nurUnverrechnete: false },
+  // db/offerten_kacheln.py::list_offene_annahmen — ohne Zeitfenster: eine Annahme
+  // bleibt, bis ihr Projekt eine Rechnung hat oder geschlossen ist.
+  akzeptiert: { titel: 'Angenommen, nicht verrechnet', statuses: ['akzeptiert'], untertitel: 'noch ohne Rechnung im Projekt', leer: 'Keine angenommenen Offerten ohne Rechnung', tage: undefined, nurVerlorene: false, nurOffeneProjekte: false, nurUnverrechnete: true },
+  // db/quotes.py::list_recently_rejected_quotes
   // Ohne Absagen, deren Projekt eine weitere offene/angenommene Offerte hat.
-  abgelehnt: { titel: 'Abgelehnte Offerten', statuses: ['abgelehnt'], untertitel: 'abgelehnt in den letzten 14 Tagen, ohne Ersatz im Projekt', leer: 'Keine abgelehnten Offerten in den letzten 14 Tagen', tage: 14, nurVerlorene: true, nurOffeneProjekte: false },
+  abgelehnt: { titel: 'Abgelehnte Offerten', statuses: ['abgelehnt'], untertitel: 'abgelehnt in den letzten 14 Tagen, ohne Ersatz im Projekt', leer: 'Keine abgelehnten Offerten in den letzten 14 Tagen', tage: 14, nurVerlorene: true, nurOffeneProjekte: false, nurUnverrechnete: false },
 } as const
 export type QuotePanelArt = keyof typeof QUOTE_PANELS
 
@@ -49,7 +51,7 @@ export function OpenQuotesPanel({ art = 'offen', onClose, onChanged, onOpenProje
   const fetchPage = useCallback(
     (page: number, search: string) => listQuotesPage({
       page, pageSize: LIST_PAGE_SIZE, statuses: cfg.statuses, search, sort: 'created_at', dir: 'desc',
-      entschiedenSeitTagen: cfg.tage, nurVerlorene: cfg.nurVerlorene, nurOffeneProjekte: cfg.nurOffeneProjekte,
+      entschiedenSeitTagen: cfg.tage, nurVerlorene: cfg.nurVerlorene, nurOffeneProjekte: cfg.nurOffeneProjekte, nurUnverrechnete: cfg.nurUnverrechnete,
     }),
     [cfg],
   )

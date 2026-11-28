@@ -225,7 +225,7 @@ export default function DashboardScreen({ dashboard, onNav, onBadgeChange, showR
             icon={<IconReceipt />}
           />
           <KpiCard
-            label="Angenommene Offerten (14 Tage)"
+            label="Angenommen, nicht verrechnet"
             value={dashboard?.recently_accepted_quotes ?? null}
             colorClass="green"
             onClick={() => setQuotePanel('akzeptiert')}
